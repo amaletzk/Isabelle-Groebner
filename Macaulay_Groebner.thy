@@ -1,5 +1,5 @@
-theory Macaulay_Groebner                            
-  imports Power_Products_Fun Reduced_GB "Gauss_Jordan.Gauss_Jordan_IArrays"
+theory Macaulay_Groebner
+  imports Power_Products_Fun Reduced_GB "Jordan_Normal_Form.Gauss_Jordan_Elimination"
 begin
 
 (* TODO: Pull "fun_powerprod" and "finite_nat" out, since they are also defined in "Binom_Mult.thy"
@@ -13,236 +13,159 @@ locale fun_powerprod =
 class finite_nat = finite + linorder + zero +
   assumes zero_min: "0 \<le> n"
 
+text \<open>We build upon vectors and matrices represented by dimension and characteristic function, because
+  later on we need to quantify the dimensions of certain matrices existentially. This is not possible
+  (at least not easily possible) with a type-based approach, as in HOL-Multivariate Analysis.\<close>
+
+subsection \<open>More about Vectors\<close>
+
+lemma vec_of_list_alt: "vec_of_list xs = vec (length xs) (nth xs)"
+  by (transfer, rule refl)
+
+lemma list_of_vec_vec: "list_of_vec (vec n f) = (map f [0..<n])"
+  apply (transfer)
+  by (metis (mono_tags, lifting) atLeast_upt case_prod_conv lessThan_iff map_cong mk_vec_def)
+
+lemma vec_of_list_index: "vec_of_list xs $ i = xs ! i"
+proof (transfer, simp add: mk_vec_def undef_vec_def, rule)
+  fix xs::"'a list" and i
+  assume "\<not> i < length xs"
+  hence "length xs \<le> i" by simp
+  thus "[] ! (i - length xs) = xs ! i"
+  proof (induct xs)
+    case Nil
+    show ?case by simp
+  next
+    case (Cons x xs)
+    thus ?case by (metis append_Nil2 not_le nth_append)
+  qed
+qed
+
+lemma list_of_vec_nth:
+  assumes "i < dim_vec v"
+  shows "(list_of_vec v) ! i = v $ i"
+  using assms by (transfer, auto)
+
+lemma dim_vec_of_list: "dim_vec (vec_of_list xs) = length xs"
+  by (transfer, simp)
+
+lemma length_list_of_vec: "length (list_of_vec v) = dim_vec v"
+  by (transfer, auto)
+
+lemma list_of_vec_of_list: "list_of_vec (vec_of_list xs) = xs"
+  apply (transfer)
+  by (metis list_of_vec.rep_eq list_of_vec_vec map_nth vec.rep_eq)
+
+lemma vec_cong:
+  assumes "n = m" and "\<And>i. i < m \<Longrightarrow> f i = g i"
+  shows "vec n f = vec m g"
+  using assms by auto
+
+lemma scalar_prod_comm:
+  assumes "dim_vec v = dim_vec w"
+  shows "v \<bullet> w = w \<bullet> (v::'a::comm_semiring_0 vec)"
+  by (simp add: scalar_prod_def assms, rule sum.cong, rule refl, simp only: ac_simps)
+
+definition mult_vec_mat :: "'a vec \<Rightarrow> 'a :: semiring_0 mat \<Rightarrow> 'a vec" (infixl "\<^sub>v*" 70)
+  where "v \<^sub>v* A \<equiv> vec (dim_col A) (\<lambda>i. v \<bullet> col A i)"
+
+definition resize_vec :: "nat \<Rightarrow> 'a vec \<Rightarrow> 'a vec"
+  where "resize_vec n v = vec n (vec_index v)"
+
+lemma dim_resize_vec[simp]: "dim_vec (resize_vec n v) = n"
+  by (simp add: resize_vec_def)
+
+lemma resize_vec_carrier: "resize_vec n v \<in> carrier_vec n"
+  by (simp add: carrier_dim_vec)
+
+lemma resize_vec_dim[simp]: "resize_vec (dim_vec v) v = v"
+  by (simp add: resize_vec_def eq_vecI)
+
+lemma resize_vec_index:
+  assumes "i < n"
+  shows "resize_vec n v $ i = v $ i"
+  using assms by (simp add: resize_vec_def)
+
+lemma mult_mat_vec_resize:
+  "v \<^sub>v* A = (resize_vec (dim_row A) v) \<^sub>v* A"
+  by (simp add: mult_vec_mat_def scalar_prod_def, rule arg_cong2[of _ _ _ _ vec], rule, rule,
+      rule sum.cong, rule, simp add: resize_vec_index)
+
+lemma assoc_mult_vec_mat:
+  assumes "v \<in> carrier_vec n1" and "A \<in> carrier_mat n1 n2" and "B \<in> carrier_mat n2 n3"
+  shows "v \<^sub>v* (A * B) = (v \<^sub>v* A) \<^sub>v* B"
+  using assms by (intro eq_vecI, auto simp add: mult_vec_mat_def mult_mat_vec_def assoc_scalar_prod)
+
+lemma mult_vec_mat_transpose:
+  assumes "dim_vec v = dim_row A"
+  shows "v \<^sub>v* A = (transpose_mat A) *\<^sub>v (v::'a::comm_semiring_0 vec)"
+proof (simp add: mult_vec_mat_def mult_mat_vec_def, rule vec_cong, rule refl, simp)
+  fix i
+  show "v \<bullet> col A i = col A i \<bullet> v" by (rule scalar_prod_comm, simp add: assms)
+qed
+
 subsection \<open>More about Matrices\<close>
 
-lemma vec_lambda_plus: "(\<chi> j. f j + g j) = (\<chi> j. f j) + (\<chi> j. g j)"
-  by (metis (no_types) UNIV_I plus_vec_def vec_lambda_inverse)
+definition row_space :: "'a mat \<Rightarrow> 'a::semiring_0 vec set"
+  where "row_space A = (\<lambda>v. mult_vec_mat v A) ` (carrier_vec (dim_row A))"
 
-lemma vec_lambda_sum_commute: "(\<chi> j. sum (f j) A) = (\<Sum>a\<in>A. \<chi> j. f j a)"
-proof (cases "finite A")
-  case True
-  thus ?thesis
-  proof induct
-    case empty
-    show ?case by (simp add: zero_vec_def)
-  next
-    case step: (insert a A)
-    show ?case by (simp only: sum.insert[OF step(1) step(2)] vec_lambda_plus step(3))
-  qed
-next
-  case False
-  thus ?thesis by (simp add: zero_vec_def)
-qed
+lemma row_spaceI:
+  assumes "x = v \<^sub>v* A"
+  shows "x \<in> row_space A"
+  unfolding row_space_def assms by (rule, fact mult_mat_vec_resize, fact resize_vec_carrier)
 
-lemma subspace_range_vec_times_matrix: "vec.subspace (range (\<lambda>v. v v* A))" (is "vec.subspace ?r")
-proof (simp only: vec.subspace_def, intro conjI ballI allI)
-  show "0 \<in> ?r"
-  proof
-    show "0 = 0 v* A" by (simp only: vector_matrix_zero)
-  qed rule
-next
-  fix x y
-  assume "x \<in> ?r"
-  then obtain vx where x: "x = vx v* A" ..
-  assume "y \<in> ?r"
-  then obtain vy where y: "y = vy v* A" ..
-  show "x + y \<in> ?r"
-  proof
-    show "x + y = (vx + vy) v* A" by (simp only: x y vector_matrix_left_distrib)
-  qed rule
-next
-  fix c x
-  assume "x \<in> ?r"
-  then obtain vx where x: "x = vx v* A" ..
-  show "c *s x \<in> ?r"
-  proof
-    show "c *s x = (c *s vx) v* A" by (simp only: x scalar_vector_matrix_assoc)
-  qed rule
-qed
+lemma row_spaceE:
+  assumes "x \<in> row_space A"
+  obtains v where "v \<in> carrier_vec (dim_row A)" and "x = v \<^sub>v* A"
+  using assms unfolding row_space_def by auto
 
-lemma row_space_alt: "row_space A = range (\<lambda>v. v v* A)" (is "_ = ?r")
-proof (simp only: row_space_def, rule)
-  show "vec.span (rows A) \<subseteq> ?r" unfolding row_space_def
-  proof (rule Generalizations.vec.span_minimal)
-    show "rows A \<subseteq> ?r"
-    proof
-      fix v
-      assume "v \<in> rows A"
-      then obtain i where "v = row i A" unfolding rows_def by auto
-      show "v \<in> ?r" unfolding \<open>v = row i A\<close>
-      proof
-        show "row i A = (\<chi> j. (if j = i then 1 else 0)) v* A"
-          by (simp add: vector_matrix_mult_def if_distrib row_def cong: if_cong)
-      qed rule
-    qed
-  qed (fact subspace_range_vec_times_matrix)
+lemma row_space_alt: "row_space A = range (\<lambda>v. mult_vec_mat v A)"
+proof
+  show "row_space A \<subseteq> range (\<lambda>v. v \<^sub>v* A)" unfolding row_space_def by auto
 next
-  show "?r \<subseteq> vec.span (rows A)"
+  show "range (\<lambda>v. v \<^sub>v* A) \<subseteq> row_space A"
   proof
     fix x
-    assume "x \<in> ?r"
-    then obtain vx where x: "x = vx v* A" ..
-    show "x \<in> vec.span (rows A)" unfolding x vector_matrix_mult_def vec_lambda_sum_commute
-    proof (rule Generalizations.vec.span_sum, simp, rule)
-      fix i
-      show "(\<chi> j. A $ i $ j * vx $ i) \<in> vec.span (rows A)"
-        by (simp only: mult.commute vector_scalar_mult_def[symmetric], rule Generalizations.vec.span_mul,
-          rule Generalizations.vec.span_superset, simp only: rows_def row_def vec_lambda_eta, rule+)
-    qed
+    assume "x \<in> range (\<lambda>v. v \<^sub>v* A)"
+    then obtain v where "x = v \<^sub>v* A" ..
+    thus "x \<in> row_space A" by (rule row_spaceI)
   qed
 qed
 
-definition row_space_iarray :: "('a::semiring_1) iarray iarray \<Rightarrow> 'a iarray set" where
-  "row_space_iarray A = {v v*i A | v. IArray.length v = nrows_iarray A}"
+lemma row_space_mult:
+  assumes "A \<in> carrier_mat nr nc" and "B \<in> carrier_mat nr nr"
+  shows "row_space (B * A) \<subseteq> row_space A"
+proof
+  from assms(2) assms(1) have "B * A \<in> carrier_mat nr nc" by (rule mult_carrier_mat)
+  hence "nr = dim_row (B * A)" by blast
+  fix x
+  assume "x \<in> row_space (B * A)"
+  then obtain v where "v \<in> carrier_vec nr" and x: "x = v \<^sub>v* (B * A)"
+    unfolding \<open>nr = dim_row (B * A)\<close> by (rule row_spaceE)
+  from this(1) assms(2) assms(1) have "x = (v \<^sub>v* B) \<^sub>v* A" unfolding x by (rule assoc_mult_vec_mat)
+  thus "x \<in> row_space A" by (rule row_spaceI)
+qed
 
-lemma in_row_space_iarrayI:
-  assumes "x = v v*i A" and "IArray.length v \<le> nrows_iarray A"
-  shows "x \<in> row_space_iarray A"
+lemma row_space_mult_unit:
+  assumes "(A::'a::semiring_1 mat) \<in> carrier_mat nr nc" and "P \<in> Units (ring_mat TYPE('a) nr b)"
+  shows "row_space (P * A) = row_space A"
 proof -
-  define w where "w = IArray ((IArray.list_of v) @ (replicate (nrows_iarray A - IArray.length v) 0))"
-  have "IArray.length v \<le> IArray.length w" by (simp add: w_def)
-  hence "{0..<IArray.length v} \<subseteq> {0..<IArray.length w}" by simp
-  show ?thesis unfolding row_space_iarray_def
-  proof (rule, rule, rule)
-    have "map (\<lambda>j. \<Sum>i = 0..<IArray.length v. A !! i !! j * v !! i) [0..<ncols_iarray A] =
-          map (\<lambda>j. \<Sum>i = 0..<IArray.length w. A !! i !! j * w !! i) [0..<ncols_iarray A]"
-    proof (rule map_cong, rule refl)
-      fix j
-      assume "j \<in> set [0..<ncols_iarray A]"
-      show "(\<Sum>i = 0..<IArray.length v. A !! i !! j * v !! i) =
-            (\<Sum>i = 0..<IArray.length w. A !! i !! j * w !! i)"
-      proof (rule sum.mono_neutral_cong_left, rule, fact, rule)
-        fix i
-        assume "i \<in> {0..<IArray.length w} - {0..<IArray.length v}"
-        hence "IArray.length v \<le> i" and "i < IArray.length w" by simp_all
-        hence "w !! i = 0" by (simp add: w_def nth_append)
-        thus "A !! i !! j * w !! i = 0" by simp
-      next
-        fix i
-        assume "i \<in> {0..<IArray.length v}"
-        hence "i < IArray.length v" by simp
-        hence "w !! i = v !! i" by (simp add: w_def nth_append)
-        thus "A !! i !! j * v !! i = A !! i !! j * w !! i" by simp
-      qed
-    qed
-    thus "x = w v*i A" by (simp add: assms(1) vector_matrix_mult_iarray_def)
-  next
-    from assms(2) have "\<not> nrows_iarray A < length (IArray.list_of v)" by simp
-    from add_diff_inverse_nat[OF this] show "IArray.length w = nrows_iarray A" by (simp add: w_def)
-  qed
-qed
-
-lemma in_row_space_iarrayE:
-  assumes "x \<in> row_space_iarray A"
-  obtains v where "x = v v*i A" and "IArray.length v = nrows_iarray A"
-  using assms unfolding row_space_iarray_def by auto
-
-lemma row_space_matrix_to_iarray:
-  "row_space_iarray (matrix_to_iarray A) = vec_to_iarray ` row_space (A::'a::field^'n::mod_type^'m::mod_type)"
-proof (simp del: IArray.length_def add: row_space_alt row_space_iarray_def image_comp o_def
-      vec_to_iarray_vector_matrix_mult nrows_eq_card_rows)
-  show "{v v*i matrix_to_iarray A |v. IArray.length v = CARD('m)} =
-        range (\<lambda>v::'a^'m::mod_type. vec_to_iarray v v*i matrix_to_iarray A)"
-    (is "?l = ?r")
-  proof
-    show "?l \<subseteq> ?r"
-    proof
-      fix x
-      assume "x \<in> ?l"
-      then obtain vx where x: "x = vx v*i matrix_to_iarray A" and vx: "IArray.length vx = CARD('m)" by auto
-      show "x \<in> ?r" unfolding x
-      proof
-        show "vx v*i matrix_to_iarray A = vec_to_iarray ((iarray_to_vec vx)::'a^'m::mod_type) v*i matrix_to_iarray A"
-          by (simp only: vec_to_iarray_iarray_to_vec[OF vx])
-      qed rule
-    qed
-  next
-    show "?r \<subseteq> ?l"
-    proof
-      fix x
-      assume "x \<in> ?r"
-      then obtain vx::"'a^'m::mod_type" where x: "x = vec_to_iarray vx v*i matrix_to_iarray A" ..
-      show "x \<in> ?l" by (rule, rule, rule, fact, fact length_vec_to_iarray)
-    qed
-  qed
-qed
-
-(*
-lemma row_space_iarray_rem_zero:
-  assumes "IArray.all (\<lambda>r. IArray.length r = ncols_iarray A) A" and "IArray.exists (IArray.exists (\<lambda>x. x \<noteq> 0)) A"
-  shows "row_space_iarray A = row_space_iarray (IArray (filter (IArray.exists (\<lambda>x. x \<noteq> 0)) (IArray.list_of A)))"
-    (is "?l = ?r")
-proof -
-  have "0 < nrows_iarray (IArray (filter (IArray.exists (\<lambda>x. x \<noteq> 0)) (IArray.list_of A)))"
-    (is "_ < nrows_iarray ?A") sorry
-  hence "nrows_iarray ?A \<le> nrows_iarray A" sorry
-  have ncols: "ncols_iarray ?A = ncols_iarray A" sorry
+  from assms(2) have P: "P \<in> carrier (ring_mat TYPE('a) nr b)" and
+    *: "\<exists>Q\<in>(carrier (ring_mat TYPE('a) nr b)). Q \<otimes>\<^bsub>ring_mat TYPE('a) nr b\<^esub> P = \<one>\<^bsub>ring_mat TYPE('a) nr b\<^esub>"
+    unfolding Units_def by auto
+  from P have P_in: "P \<in> carrier_mat nr nr" by (simp add: ring_mat_def)
+  from * obtain Q where "Q \<in> carrier (ring_mat TYPE('a) nr b)" and "Q \<otimes>\<^bsub>ring_mat TYPE('a) nr b\<^esub> P = \<one>\<^bsub>ring_mat TYPE('a) nr b\<^esub>" ..
+  hence Q_in: "Q \<in> carrier_mat nr nr" and QP: "Q * P = 1\<^sub>m nr" by (simp_all add: ring_mat_def)
   show ?thesis
   proof
-    show "?l \<subseteq> ?r"
-    proof
-      fix x
-      assume "x \<in> ?l"
-      then obtain vx where x: "x = vx v*i A" and vx: "IArray.length vx = nrows_iarray A"
-        by (rule in_row_space_iarrayE)
-      from vx have vx': "length (IArray.list_of vx) = length (IArray.list_of A)" by (simp add: nrows_iarray_def)
-      define wx::"'a iarray" where
-        "wx = IArray (map fst (filter (IArray.exists (\<lambda>x. x \<noteq> 0) \<circ> snd) (zip (IArray.list_of vx) (IArray.list_of A))))"
-      have "IArray.length wx \<le> length (zip (IArray.list_of vx) (IArray.list_of A))" unfolding wx_def
-        by (simp del: length_zip)
-      also have "... \<le> IArray.length vx" by simp
-      finally have "IArray.length wx \<le> IArray.length vx" .
-      hence "{0..<IArray.length wx} \<subseteq> {0..<IArray.length vx}" by simp
-      show "x \<in> ?r"
-      proof (rule in_row_space_iarrayI)
-        show "x = wx v*i IArray (filter (IArray.exists (\<lambda>x. x \<noteq> 0)) (IArray.list_of A))"
-        proof (simp del: IArray.length_def add: x vector_matrix_mult_iarray_def, simp only: ncols,
-              rule map_cong, rule refl)
-          fix j
-          assume "j \<in> set [0..<ncols_iarray A]"
-          show "(\<Sum>i = 0..<IArray.length vx. IArray.list_of (IArray.list_of A ! i) ! j * IArray.list_of vx ! i) =
-                (\<Sum>i = 0..<IArray.length wx. IArray.list_of (filter (IArray.exists (\<lambda>x. x \<noteq> 0)) (IArray.list_of A) ! i) ! j *
-                  IArray.list_of wx ! i)"
-          proof (rule sum.mono_neutral_cong_right, rule, fact, rule)
-        qed
-      next
-        show "IArray.length wx \<le> nrows_iarray (IArray (filter (IArray.exists (\<lambda>x. x \<noteq> 0)) (IArray.list_of A)))" sorry
-      qed
-    qed
+    from assms(1) P_in show "row_space (P * A) \<subseteq> row_space A" by (rule row_space_mult)
   next
-    show "?r \<subseteq> ?l" sorry
+    from assms(1) P_in Q_in have "Q * (P * A) = (Q * P) * A" by simp
+    also from assms(1) have "... = A" by (simp add: QP)
+    finally have eq: "row_space A = row_space (Q * (P * A))" by simp
+    show "row_space A \<subseteq> row_space (P * A)" unfolding eq by (rule row_space_mult, rule mult_carrier_mat, fact+)
   qed
 qed
-
-lemma row_space_iarray_remdups:
-  "row_space_iarray A = row_space_iarray (IArray (remdups (IArray.list_of A)))"
-  sorry
-*)
-
-lemma mult_iarray_alt: "mult_iarray x c = IArray (map (op * c) (IArray.list_of x))"
-  by (simp add: mult_iarray_def nth_equalityI)
-
-instantiation iarray :: (monoid_add) monoid_add
-begin
-instance sorry
-end
-
-lemma vector_matrix_mult_iarray_alt:
-  assumes "IArray.length v = nrows_iarray A"
-  shows "v v*i A = sum_list (map (\<lambda>x. mult_iarray (fst x) (snd x)) (zip (IArray.list_of A) (IArray.list_of v)))"
-  sorry
-
-thm vector_matrix_mult_def
-thm row_space_def
-thm vec.span_def
-thm vec.subspace_def
-thm row_space_is_preserved
-
-thm Generalizations.vec.span_finite
-thm Generalizations.vec.span_sum
-thm Generalizations.vec.span_explicit
-thm vector_matrix_mult_iarray_def
-thm vec_to_iarray_vector_matrix_mult
 
 subsection \<open>Function "Supp"\<close>
 
@@ -316,20 +239,23 @@ text \<open>Function "pps_to_list" turns finite sets of power-products into sort
 definition pps_to_list :: "'a set \<Rightarrow> 'a list" where
   "pps_to_list S = rev (ordered_powerprod_lin.sorted_list_of_set S)"
 
-definition poly_to_row :: "'a list \<Rightarrow> ('a, 'b::zero) poly_mapping \<Rightarrow> 'b iarray" where
-  "poly_to_row ts p = IArray (map (lookup p) ts)"
+definition poly_to_row :: "'a list \<Rightarrow> ('a, 'b::zero) poly_mapping \<Rightarrow> 'b vec" where
+  "poly_to_row ts p = vec_of_list (map (lookup p) ts)"
 
-definition polys_to_mat :: "('a, 'b::zero) poly_mapping list \<Rightarrow> ('b iarray) iarray" where
-  "polys_to_mat ps = IArray (map (poly_to_row (pps_to_list (Supp (set ps)))) ps)"
+definition polys_to_mat :: "('a, 'b::zero) poly_mapping list \<Rightarrow> 'b mat" where
+  "polys_to_mat ps = mat_of_row_fun (length ps) (card (Supp (set ps))) (\<lambda>i. (poly_to_row (pps_to_list (Supp (set ps)))) (ps ! i))"
 
-primrec row_to_fun :: "'a list \<Rightarrow> ('b::zero) iarray \<Rightarrow> 'a \<Rightarrow> 'b" where
-  row_to_fun_IArray: "row_to_fun ts (IArray cs) t = (case map_of (zip ts cs) t of Some c \<Rightarrow> c | None \<Rightarrow> 0)"
+definition list_to_fun :: "'a list \<Rightarrow> ('b::zero) list \<Rightarrow> 'a \<Rightarrow> 'b" where
+  "list_to_fun ts cs t = (case map_of (zip ts cs) t of Some c \<Rightarrow> c | None \<Rightarrow> 0)"
 
-definition row_to_poly :: "'a list \<Rightarrow> 'b iarray \<Rightarrow> ('a, 'b::zero) poly_mapping" where
-  "row_to_poly ts r = Abs_poly_mapping (row_to_fun ts r)"
+definition list_to_poly :: "'a list \<Rightarrow> 'b list \<Rightarrow> ('a, 'b::zero) poly_mapping" where
+  "list_to_poly ts cs = Abs_poly_mapping (list_to_fun ts cs)"
 
-primrec mat_to_polys :: "'a list \<Rightarrow> ('b iarray) iarray \<Rightarrow> ('a, 'b::zero) poly_mapping list" where
-  mat_to_polys_IArray: "mat_to_polys ts (IArray rs) = map (row_to_poly ts) rs"
+definition row_to_poly :: "'a list \<Rightarrow> 'b vec \<Rightarrow> ('a, 'b::zero) poly_mapping" where
+  "row_to_poly ts r = list_to_poly ts (list_of_vec r)"
+
+definition mat_to_polys :: "'a list \<Rightarrow> 'b mat \<Rightarrow> ('a, 'b::zero) poly_mapping list" where
+  "mat_to_polys ts A = map (list_to_poly ts) (mat_to_list A)"
 
 lemma pps_to_list_sorted_wrt: "sorted_wrt (op \<preceq>\<inverse>\<inverse>) (pps_to_list S)"
 proof -
@@ -341,30 +267,50 @@ proof -
       rule ordered_powerprod_lin.sorted_sorted_list_of_set)
 qed
 
-lemma pps_to_list_distinct: "distinct (pps_to_list S)"
+lemma distinct_pps_to_list: "distinct (pps_to_list S)"
   unfolding pps_to_list_def distinct_rev by (rule ordered_powerprod_lin.distinct_sorted_list_of_set)
 
-lemma pps_to_list_set:
+lemma set_pps_to_list:
   assumes "finite S"
   shows "set (pps_to_list S) = S"
   unfolding pps_to_list_def set_rev using assms by simp
 
-lemma lookup_row_to_poly:
-  "lookup (row_to_poly ts (IArray cs)) t = (case map_of (zip ts cs) t of Some c \<Rightarrow> c | None \<Rightarrow> 0)"
-  sorry
+lemma length_pps_to_list: "length (pps_to_list S) = card S"
+proof (cases "finite S")
+  case True
+  from distinct_card[OF distinct_pps_to_list] have "length (pps_to_list S) = card (set (pps_to_list S))"
+    by simp
+  also from True have "... = card S" by (simp only: set_pps_to_list)
+  finally show ?thesis .
+next
+  case False
+  thus ?thesis by (simp add: pps_to_list_def)
+qed
+
+lemma dim_poly_to_row: "dim_vec (poly_to_row ts p) = length ts"
+  by (simp add: poly_to_row_def dim_vec_of_list)
+
+lemma poly_to_row_index:
+  assumes "i < length ts"
+  shows "poly_to_row ts p $ i = lookup p (ts ! i)"
+  by (simp add: poly_to_row_def vec_of_list_index assms)
 
 lemma poly_to_row_scalar_mult:
-  assumes "keys p \<subseteq> A" and "finite A"
-  shows "row_to_poly (pps_to_list A) (mult_iarray (poly_to_row (pps_to_list A) p) c) = monom_mult c 0 p"
+  assumes "keys p \<subseteq> S" and fin: "finite S"
+  shows "row_to_poly (pps_to_list S) (c \<cdot>\<^sub>v (poly_to_row (pps_to_list S) p)) = monom_mult c 0 p"
 proof -
-  have *: "row_to_fun (pps_to_list A) (mult_iarray (poly_to_row (pps_to_list A) p) c) = (\<lambda>t. c * lookup p t)"
-  proof (rule, simp add: poly_to_row_def pps_to_list_set[OF assms(2)] mult_iarray_alt map_of_zip_map, rule)
+  have eq: "(vec (length (pps_to_list S)) (\<lambda>i. c * poly_to_row (pps_to_list S) p $ i)) =
+        (vec (length (pps_to_list S)) (\<lambda>i. c * lookup p ((pps_to_list S) ! i)))"
+    by (rule vec_cong, rule, simp only: poly_to_row_index)
+  have *: "list_to_fun (pps_to_list S) (list_of_vec (c \<cdot>\<^sub>v (poly_to_row (pps_to_list S) p))) = (\<lambda>t. c * lookup p t)"
+  proof (rule, simp add: list_to_fun_def smult_vec_def dim_poly_to_row eq,
+        simp add: list_of_vec_vec map_upt[of "\<lambda>x. c * lookup p x"] map_of_zip_map set_pps_to_list[OF fin], rule)
     fix t
-    assume "t \<notin> A"
+    assume "t \<notin> S"
     with assms(1) have "t \<notin> keys p" by auto
     thus "c * lookup p t = 0" by simp
   qed
-  have **: "lookup (Abs_poly_mapping (row_to_fun (pps_to_list A) (mult_iarray (poly_to_row (pps_to_list A) p) c))) =
+  have **: "lookup (Abs_poly_mapping (list_to_fun (pps_to_list S) (list_of_vec (c \<cdot>\<^sub>v (poly_to_row (pps_to_list S) p))))) =
             (\<lambda>t. c * lookup p t)"
   proof (simp only: *, rule Abs_poly_mapping_inverse, simp, rule finite_subset, rule, simp)
     fix t
@@ -373,7 +319,7 @@ proof -
     thus "t \<in> keys p" by simp
   qed (fact finite_keys)
   show ?thesis unfolding row_to_poly_def
-  proof (rule poly_mapping_eqI, simp only: **)
+  proof (rule poly_mapping_eqI, simp only: list_to_poly_def **)
     fix t
     have "lookup (monom_mult c 0 p) (0 + t) = c * lookup p t" by (fact lookup_monom_mult)
     thus "c * lookup p t = lookup (monom_mult c 0 p) t" by simp
@@ -381,97 +327,198 @@ proof -
 qed
 
 lemma poly_to_row_to_poly:
-  assumes "keys p \<subseteq> A" and "finite A"
-  shows "row_to_poly (pps_to_list A) (poly_to_row (pps_to_list A) p) = (p::('a, 'b::semiring_1) poly_mapping)"
+  assumes "keys p \<subseteq> S" and "finite S"
+  shows "row_to_poly (pps_to_list S) (poly_to_row (pps_to_list S) p) = (p::('a, 'b::semiring_1) poly_mapping)"
 proof -
-  have "mult_iarray (poly_to_row (pps_to_list A) p) 1 = poly_to_row (pps_to_list A) p"
-    by (simp add: mult_iarray_alt poly_to_row_def)
+  have "1 \<cdot>\<^sub>v (poly_to_row (pps_to_list S) p) = poly_to_row (pps_to_list S) p" by simp
   thus ?thesis using monom_mult_left1[of p] poly_to_row_scalar_mult[OF assms, of 1] by simp
 qed
 
+lemma lookup_list_to_poly: "lookup (list_to_poly ts cs) = list_to_fun ts cs"
+  unfolding list_to_poly_def
+proof (rule Abs_poly_mapping_inverse, rule, rule finite_subset)
+  show "{x. list_to_fun ts cs x \<noteq> 0} \<subseteq> set ts"
+  proof (rule, simp)
+    fix t
+    assume "list_to_fun ts cs t \<noteq> 0"
+    thus "t \<in> set ts" unfolding list_to_fun_def
+      by (metis in_set_zipE map_of_SomeD not_None_eq option.simps(4))
+  qed
+qed simp
+
+lemma list_to_fun_empty: "list_to_fun [] cs = 0"
+  by (simp only: zero_fun_def, rule, simp add: list_to_fun_def)
+
+lemma list_to_poly_empty: "list_to_poly [] cs = 0"
+  by (rule poly_mapping_eqI, simp add: lookup_list_to_poly list_to_fun_empty)
+
 lemma row_to_poly_empty: "row_to_poly [] r = 0"
-  sorry
+  by (simp only: row_to_poly_def, fact list_to_poly_empty)
 
-lemma polys_to_mat_empty: "polys_to_mat [] = IArray []"
-  sorry
+lemma poly_to_row_empty: "poly_to_row [] p = vec 0 f"
+proof -
+  have "dim_vec (poly_to_row [] p) = 0" by (simp add: dim_poly_to_row)
+  thus ?thesis by auto
+qed
 
-lemma nrows_polys_to_mat: "nrows_iarray (polys_to_mat ps) = length ps"
-  by (simp add: polys_to_mat_def nrows_iarray_def)
+lemma polys_to_mat_empty: "polys_to_mat [] = mat 0 0 f"
+  by (simp add: polys_to_mat_def Supp_of_empty mat_eq_iff)
 
-lemma ncols_polys_to_mat:
-  assumes "ps \<noteq> []"
-  shows "ncols_iarray (polys_to_mat ps) = card (Supp (set ps))"
-  sorry
+lemma dim_row_polys_to_mat: "dim_row (polys_to_mat ps) = length ps"
+  by (simp add: polys_to_mat_def)
+
+lemma dim_col_polys_to_mat: "dim_col (polys_to_mat ps) = card (Supp (set ps))"
+  by (simp add: polys_to_mat_def)
+
+lemma polys_to_mat_index:
+  assumes "i < length ps" and "j < card (Supp (set ps))"
+  shows "(polys_to_mat ps) $$ (i, j) = lookup (ps ! i) (pps_to_list (Supp (set ps)) ! j)"
+  by (simp only: polys_to_mat_def index_mat(2)[OF assms], rule poly_to_row_index,
+      simp only: length_pps_to_list assms(2))
+
+lemma row_polys_to_mat:
+  assumes "i < length ps"
+  shows "row (polys_to_mat ps) i = poly_to_row (pps_to_list (Supp (set ps))) (ps ! i)"
+  unfolding polys_to_mat_def
+  by (rule row_mat_of_row_fun, fact assms, simp only: dim_poly_to_row length_pps_to_list)
+
+lemma col_polys_to_mat:
+  assumes "j < card (Supp (set ps))"
+  shows "col (polys_to_mat ps) j = vec_of_list (map (\<lambda>p. lookup p ((pps_to_list (Supp (set ps))) ! j)) ps)"
+  by (simp add: vec_of_list_alt col_def dim_row_polys_to_mat, rule vec_cong, rule refl,
+      simp add: polys_to_mat_index assms)
 
 lemma polys_to_mat_to_polys:
-  shows "mat_to_polys (pps_to_list (Supp (set ps))) (polys_to_mat ps) = (ps::('a, 'b::semiring_1) poly_mapping list)"
-  unfolding polys_to_mat_def mat_to_polys_IArray map_map
-  by (rule map_idI, simp only: o_def, rule poly_to_row_to_poly, rule keys_subset_Supp, assumption,
-    rule Supp_finite, rule)
+  "mat_to_polys (pps_to_list (Supp (set ps))) (polys_to_mat ps) = (ps::('a, 'b::semiring_1) poly_mapping list)"
+proof (simp add: mat_to_polys_def mat_to_list_def dim_row_polys_to_mat dim_col_polys_to_mat,
+    rule nth_equalityI, simp_all, intro allI impI)
+  fix i
+  assume "i < length ps"
+  let ?S = "Supp (set ps)"
+  have eq: "map (\<lambda>j. polys_to_mat ps $$ (i, j)) [0..<card ?S] =
+            map (\<lambda>j. lookup (ps ! i) ((pps_to_list ?S) ! j)) [0..<length (pps_to_list ?S)]"
+  proof (rule map_cong, simp_all add: length_pps_to_list)
+    fix j
+    assume "j < card ?S"
+    hence "j < length (pps_to_list ?S)" by (simp only: length_pps_to_list)
+    thus "polys_to_mat ps $$ (i, j) = lookup (ps ! i) (pps_to_list ?S ! j)"
+      by (simp add: polys_to_mat_def index_mat(2)[OF \<open>i < length ps\<close> \<open>j < card ?S\<close>] poly_to_row_def vec_of_list_index)
+  qed
+  show "list_to_poly (pps_to_list ?S) (map (\<lambda>j. polys_to_mat ps $$ (i, j)) [0..<card ?S]) = ps ! i"
+  proof (simp add: eq map_upt, rule poly_mapping_eqI, simp add: lookup_list_to_poly list_to_fun_def
+        map_of_zip_map set_pps_to_list[OF Supp_finite, OF finite_set], rule)
+    fix t
+    assume "t \<notin> Supp (set ps)"
+    moreover from \<open>i < length ps\<close> have "ps ! i \<in> set ps" by simp
+    ultimately have "t \<notin> keys (ps ! i)" using in_SuppI[of t "ps ! i" "set ps"] by blast
+    thus "lookup (ps ! i) t = 0" by simp
+  qed
+qed
 
 lemma vec_times_polys_to_mat:
-  assumes "IArray.length v = length ps"
-  shows "row_to_poly (pps_to_list (Supp (set ps))) (v v*i (polys_to_mat ps)) =
-          (\<Sum>(c, p)\<leftarrow>zip (IArray.list_of v) ps. monom_mult c 0 p)" (is "?l = ?r")
-proof (cases "ps = []")
-  case True
-  show ?thesis by (simp add: True polys_to_mat_empty Supp_def pps_to_list_def row_to_poly_empty)
-next
-  case False
-  thm Abs_poly_mapping_inverse
+  assumes "v \<in> carrier_vec (length ps)"
+  shows "row_to_poly (pps_to_list (Supp (set ps))) (v \<^sub>v* (polys_to_mat ps)) =
+          (\<Sum>(c, p)\<leftarrow>zip (list_of_vec v) ps. monom_mult c 0 p)" (is "?l = ?r")
+proof -
+  from assms have *: "dim_vec v = length ps" by (simp only: carrier_dim_vec)
+  let ?S = "Supp (set ps)"
+  let ?ts = "pps_to_list ?S"
+  have eq: "map (\<lambda>i. v \<bullet> col (polys_to_mat ps) i) [0..<card ?S] =
+        map (\<lambda>s. v \<bullet> (vec_of_list (map (\<lambda>p. lookup p s) ps))) ?ts"
+  proof (simp add: list_eq_iff_nth_eq length_pps_to_list, intro allI impI)
+    fix i
+    assume "i < card ?S"
+    hence "col (polys_to_mat ps) i = vec_of_list (map (\<lambda>p. lookup p (?ts ! i)) ps)"
+      by (rule col_polys_to_mat)
+    thus "v \<bullet> col (polys_to_mat ps) i = v \<bullet> vec_of_list (map (\<lambda>p. lookup p (?ts ! i)) ps)" by simp
+  qed
   show ?thesis
-    apply (rule poly_mapping_eqI, simp add: vector_matrix_mult_iarray_def assms lookup_row_to_poly) sorry
+  proof (rule poly_mapping_eqI, simp add: mult_vec_mat_def row_to_poly_def lookup_list_to_poly
+      list_of_vec_vec dim_col_polys_to_mat eq list_to_fun_def map_of_zip_map set_pps_to_list[OF Supp_finite]
+      lookup_sum_list o_def, intro conjI impI)
+    fix t
+    assume "t \<in> ?S"
+    have "v \<bullet> vec_of_list (map (\<lambda>p. lookup p t) ps) =
+          (\<Sum>(c, p)\<leftarrow>zip (list_of_vec v) ps. lookup (monom_mult c 0 p) t)"
+    proof (simp add: scalar_prod_def dim_vec_of_list vec_of_list_index lookup_monom_mult_const)
+      have "(\<Sum>i = 0..<length ps. v $ i * lookup (ps ! i) t) =
+            (\<Sum>i = 0..<length ps. (list_of_vec v) ! i * lookup (ps ! i) t)"
+        by (rule sum.cong, rule refl, simp add: list_of_vec_nth *)
+      also have "... = (\<Sum>(c, p)\<leftarrow>zip (list_of_vec v) ps. c * lookup p t)"
+        by (simp only: sum_set_upt_eq_sum_list, rule sum_list_upt_zip, simp only: length_list_of_vec *)
+      finally show "(\<Sum>i = 0..<length ps. v $ i * lookup (ps ! i) t) =
+                    (\<Sum>(c, p)\<leftarrow>zip (list_of_vec v) ps. c * lookup p t)" .
+    qed
+    thus "v \<bullet> vec_of_list (map (\<lambda>p. lookup p t) ps) =
+          (\<Sum>x\<leftarrow>zip (list_of_vec v) ps. lookup (case x of (c, x) \<Rightarrow> monom_mult c 0 x) t)"
+      by (metis (mono_tags, lifting) case_prod_conv cond_case_prod_eta)
+  next
+    fix t
+    assume "t \<notin> ?S"
+    have "(\<Sum>(c, p)\<leftarrow>zip (list_of_vec v) ps. lookup (monom_mult c 0 p) t) = 0"
+    proof (rule sum_list_zeroI, rule, simp add: lookup_monom_mult_const)
+      fix x
+      assume "x \<in> (\<lambda>(c, p). c * lookup p t) ` set (zip (list_of_vec v) ps)"
+      then obtain c p where cp: "(c, p) \<in> set (zip (list_of_vec v) ps)"
+        and x: "x = c * lookup p t" by auto
+      from cp have "p \<in> set ps" by (rule set_zip_rightD)
+      with \<open>t \<notin> ?S\<close> have "t \<notin> keys p" by (auto intro: in_SuppI)
+      thus "x = 0" by (simp add: x)
+    qed
+    thus "(\<Sum>x\<leftarrow>zip (list_of_vec v) ps. lookup (case x of (c, x) \<Rightarrow> monom_mult c 0 x) t) = 0"
+      by (metis (mono_tags, lifting) case_prod_conv cond_case_prod_eta)
+  qed
 qed
 
 lemma row_space_subset_phull:
-  "row_to_poly (pps_to_list (Supp (set ps))) ` row_space_iarray (polys_to_mat ps) \<subseteq> phull (set ps)"
+  "row_to_poly (pps_to_list (Supp (set ps))) ` row_space (polys_to_mat ps) \<subseteq> phull (set ps)"
     (is "?r \<subseteq> ?h")
 proof
   fix q
   assume "q \<in> ?r"
-  then obtain x where x1: "x \<in> row_space_iarray (polys_to_mat ps)"
+  then obtain x where x1: "x \<in> row_space (polys_to_mat ps)"
     and q1: "q = row_to_poly (pps_to_list (Supp (set ps))) x" ..
-  from x1 obtain v where x: "x = v v*i polys_to_mat ps"
-    and l: "IArray.length v = nrows_iarray (polys_to_mat ps)" by (rule in_row_space_iarrayE)
-  from l have "IArray.length v = length ps" by (simp only: nrows_polys_to_mat)
-  with x q1 have q: "q = (\<Sum>(c, p)\<leftarrow>zip (IArray.list_of v) ps. monom_mult c 0 p)"
+  from x1 obtain v where v: "v \<in> carrier_vec (dim_row (polys_to_mat ps))" and x: "x = v \<^sub>v* polys_to_mat ps"
+    by (rule row_spaceE)
+  from v have "v \<in> carrier_vec (length ps)" by (simp only: dim_row_polys_to_mat)
+  with x q1 have q: "q = (\<Sum>(c, p)\<leftarrow>zip (list_of_vec v) ps. monom_mult c 0 p)"
     by (simp add: vec_times_polys_to_mat)
   show "q \<in> ?h" unfolding q by (rule in_phull_listI)
 qed
 
 lemma phull_subset_row_space:
   assumes "distinct ps"
-  shows "phull (set ps) \<subseteq> row_to_poly (pps_to_list (Supp (set ps))) ` row_space_iarray (polys_to_mat ps)"
+  shows "phull (set ps) \<subseteq> row_to_poly (pps_to_list (Supp (set ps))) ` row_space (polys_to_mat ps)"
     (is "?h \<subseteq> ?r")
 proof
   fix q
   assume "q \<in> ?h"
   with assms obtain cs where l: "length cs = length ps" and q: "q = (\<Sum>(c, p)\<leftarrow>zip cs ps. monom_mult c 0 p)"
     by (rule in_phull_listE)
-  let ?v = "IArray cs"
-  from l have *: "IArray.length ?v = length ps" by simp
-  let ?q = "?v v*i polys_to_mat ps"
+  let ?v = "vec_of_list cs"
+  from l have *: "?v \<in> carrier_vec (length ps)" by (simp only: carrier_dim_vec dim_vec_of_list)
+  let ?q = "?v \<^sub>v* polys_to_mat ps"
   show "q \<in> ?r"
   proof
-    show "q = row_to_poly (pps_to_list (Supp (set ps))) ?q" by (simp add: vec_times_polys_to_mat[OF *] q)
+    show "q = row_to_poly (pps_to_list (Supp (set ps))) ?q"
+      by (simp add: vec_times_polys_to_mat[OF *] q list_of_vec_of_list)
   next
-    show "?q \<in> row_space_iarray (polys_to_mat ps)"
-      by (rule in_row_space_iarrayI, rule refl, simp only: * nrows_polys_to_mat)
+    show "?q \<in> row_space (polys_to_mat ps)" by (rule row_spaceI, rule)
   qed
 qed
 
 lemma row_space_eq_phull:
   assumes "distinct ps"
-  shows "row_to_poly (pps_to_list (Supp (set ps))) ` row_space_iarray (polys_to_mat ps) = phull (set ps)"
+  shows "row_to_poly (pps_to_list (Supp (set ps))) ` row_space (polys_to_mat ps) = phull (set ps)"
   by (rule, fact row_space_subset_phull, rule phull_subset_row_space, fact)
 
 lemma row_space_eq_phull':
-  "row_to_poly (pps_to_list (Supp (set ps))) ` row_space_iarray (polys_to_mat (remdups ps)) = phull (set ps)"
+  "row_to_poly (pps_to_list (Supp (set ps))) ` row_space (polys_to_mat (remdups ps)) = phull (set ps)"
 proof -
   define qs where "qs = remdups ps"
   have *: "set qs = set ps" by (simp add: qs_def)
   have "distinct qs" unfolding qs_def ..
-  hence "row_to_poly (pps_to_list (Supp (set qs))) ` row_space_iarray (polys_to_mat qs) = phull (set qs)"
+  hence "row_to_poly (pps_to_list (Supp (set qs))) ` row_space (polys_to_mat qs) = phull (set qs)"
     by (rule row_space_eq_phull)
   moreover have "Supp (set qs) = Supp (set ps)" by (simp only: *)
   moreover have "phull (set qs) = phull (set ps)" by (simp only: *)
