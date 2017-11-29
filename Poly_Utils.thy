@@ -15,6 +15,10 @@ lemma keys_of_monomial:
   shows "keys (monomial c t) = {t}"
   using assms by simp
 
+lemma monomial_uminus:
+  shows "- monomial c s = monomial (-c) s"
+  by (transfer, rule ext, simp add: PP_Poly_Mapping.when_def)
+
 definition poly_mapping_of_pp :: "'a \<Rightarrow> ('a, 'b::{one,zero}) poly_mapping" where
   "poly_mapping_of_pp t = monomial 1 t"
   
@@ -43,6 +47,8 @@ proof -
   finally have "{s} = {t}" by (simp add: keys_poly_mapping_of_pp)
   thus ?thesis by simp
 qed
+
+subsection \<open>@{const keys}\<close>
 
 lemma in_keys_plusI1:
   assumes "t \<in> keys p" and "t \<notin> keys q"
@@ -130,10 +136,6 @@ proof (rule, fact keys_monom_mult_subset, rule)
   from \<open>x \<in> keys p\<close> assms show "s \<in> keys (monom_mult c t p)" unfolding s by (rule keys_monom_multI)
 qed
 
-lemma monomial_uminus:
-  shows "- monomial c s = monomial (-c) s"
-  by (transfer, rule ext, simp add: PP_Poly_Mapping.when_def)
-
 lemma poly_mapping_keys_eqI:
   assumes a1: "keys p = keys q" and a2: "\<And>t. t \<in> keys p \<Longrightarrow> lookup p t = lookup q t"
   shows "p = q"
@@ -149,6 +151,34 @@ proof (rule poly_mapping_eqI)
     ultimately have "lookup p t = 0" and "lookup q t = 0" unfolding in_keys_iff by simp_all
     thus ?thesis by simp
   qed
+qed
+
+subsection \<open>Sums\<close>
+
+lemma lookup_sum: "lookup (\<Sum>a\<in>A. f a) t = (\<Sum>a\<in>A. lookup (f a) t)"
+proof (cases "finite A")
+  case True
+  thus ?thesis
+  proof (induct A)
+    case empty
+    show ?case by simp
+  next
+    case (insert a A)
+    show ?case
+      by (simp only: comm_monoid_add_class.sum.insert[OF insert(1) insert(2)] lookup_add insert(3))
+  qed
+next
+  case False
+  thus ?thesis by simp
+qed
+
+lemma lookup_sum_list: "lookup (sum_list ps) t = sum_list (map (\<lambda>p. lookup p t) ps)"
+proof (induct ps)
+  case Nil
+  show ?case by simp
+next
+  case (Cons p ps)
+  thus ?case by (simp add: lookup_add)
 qed
 
 lemma poly_mapping_sum_monomials:
@@ -183,8 +213,6 @@ lemma (in -) times_sum_monomials:
   shows "q * p = (\<Sum>t\<in>keys q. monom_mult (lookup q t) t p)"
   by (simp only: times_monomial_left[symmetric] sum_distrib_right[symmetric] poly_mapping_sum_monomials)
 
-subsection \<open>@{const monom_mult}\<close>
-
 lemma monom_mult_sum: "monom_mult (\<Sum>c\<in>C. f c) t p = (\<Sum>c\<in>C. monom_mult (f c) t p)"
 proof (cases "finite C")
   case True
@@ -200,6 +228,15 @@ proof (cases "finite C")
 next
   case False
   thus ?thesis by (simp add: monom_mult_left0)
+qed
+
+subsection \<open>@{const monom_mult}\<close>
+
+lemma lookup_monom_mult_const: "lookup (monom_mult c 0 p) t = c * lookup p t"
+proof -
+  have "lookup (monom_mult c 0 p) t = lookup (monom_mult c 0 p) (0 + t)" by simp
+  also have "... = c * lookup p t" by (rule lookup_monom_mult)
+  finally show ?thesis .
 qed
 
 lemma monom_mult_inj_1:
