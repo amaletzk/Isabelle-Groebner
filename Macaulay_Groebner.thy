@@ -106,8 +106,21 @@ qed
 
 subsection \<open>More about Matrices\<close>
 
+lemma length_mat_to_list: "length (mat_to_list A) = dim_row A"
+  by (simp add: mat_to_list_def)
+
+lemma mat_to_list_nth:
+  assumes "i < dim_row A"
+  shows "mat_to_list A ! i = list_of_vec (row A i)"
+  by (simp add: mat_to_list_def assms list_of_vec_vec row_def)
+
 definition row_space :: "'a mat \<Rightarrow> 'a::semiring_0 vec set"
   where "row_space A = (\<lambda>v. mult_vec_mat v A) ` (carrier_vec (dim_row A))"
+
+definition row_echelon :: "'a mat \<Rightarrow> 'a::field mat"
+  where "row_echelon A = fst (gauss_jordan A (1\<^sub>m (dim_row A)))"
+
+subsubsection \<open>@{const row_space}\<close>
 
 lemma row_spaceI:
   assumes "x = v \<^sub>v* A"
@@ -147,24 +160,119 @@ proof
 qed
 
 lemma row_space_mult_unit:
-  assumes "(A::'a::semiring_1 mat) \<in> carrier_mat nr nc" and "P \<in> Units (ring_mat TYPE('a) nr b)"
+  assumes "P \<in> Units (ring_mat TYPE('a::semiring_1) (dim_row A) b)"
   shows "row_space (P * A) = row_space A"
 proof -
-  from assms(2) have P: "P \<in> carrier (ring_mat TYPE('a) nr b)" and
-    *: "\<exists>Q\<in>(carrier (ring_mat TYPE('a) nr b)). Q \<otimes>\<^bsub>ring_mat TYPE('a) nr b\<^esub> P = \<one>\<^bsub>ring_mat TYPE('a) nr b\<^esub>"
+  have A: "A \<in> carrier_mat (dim_row A) (dim_col A)" by simp
+  from assms have P: "P \<in> carrier (ring_mat TYPE('a) (dim_row A) b)" and
+    *: "\<exists>Q\<in>(carrier (ring_mat TYPE('a) (dim_row A) b)).
+            Q \<otimes>\<^bsub>ring_mat TYPE('a) (dim_row A) b\<^esub> P = \<one>\<^bsub>ring_mat TYPE('a) (dim_row A) b\<^esub>"
     unfolding Units_def by auto
-  from P have P_in: "P \<in> carrier_mat nr nr" by (simp add: ring_mat_def)
-  from * obtain Q where "Q \<in> carrier (ring_mat TYPE('a) nr b)" and "Q \<otimes>\<^bsub>ring_mat TYPE('a) nr b\<^esub> P = \<one>\<^bsub>ring_mat TYPE('a) nr b\<^esub>" ..
-  hence Q_in: "Q \<in> carrier_mat nr nr" and QP: "Q * P = 1\<^sub>m nr" by (simp_all add: ring_mat_def)
+  from P have P_in: "P \<in> carrier_mat (dim_row A) (dim_row A)" by (simp add: ring_mat_def)
+  from * obtain Q where "Q \<in> carrier (ring_mat TYPE('a) (dim_row A) b)"
+    and "Q \<otimes>\<^bsub>ring_mat TYPE('a) (dim_row A) b\<^esub> P = \<one>\<^bsub>ring_mat TYPE('a) (dim_row A) b\<^esub>" ..
+  hence Q_in: "Q \<in> carrier_mat (dim_row A) (dim_row A)" and QP: "Q * P = 1\<^sub>m (dim_row A)"
+    by (simp_all add: ring_mat_def)
   show ?thesis
   proof
-    from assms(1) P_in show "row_space (P * A) \<subseteq> row_space A" by (rule row_space_mult)
+    from A P_in show "row_space (P * A) \<subseteq> row_space A" by (rule row_space_mult)
   next
-    from assms(1) P_in Q_in have "Q * (P * A) = (Q * P) * A" by simp
-    also from assms(1) have "... = A" by (simp add: QP)
+    from A P_in Q_in have "Q * (P * A) = (Q * P) * A" by (simp only: assoc_mult_mat)
+    also from A have "... = A" by (simp add: QP)
     finally have eq: "row_space A = row_space (Q * (P * A))" by simp
     show "row_space A \<subseteq> row_space (P * A)" unfolding eq by (rule row_space_mult, rule mult_carrier_mat, fact+)
   qed
+qed
+
+subsubsection \<open>@{const row_echelon}\<close>
+
+lemma row_eq_zero_iff_pivot_fun:
+  assumes "pivot_fun A f (dim_col A)" and "i < dim_row (A::'a::zero_neq_one mat)"
+  shows "(row A i = 0\<^sub>v (dim_col A)) \<longleftrightarrow> (f i = dim_col A)"
+proof -
+  have *: "dim_row A = dim_row A" ..
+  show ?thesis
+  proof
+    assume a: "row A i = 0\<^sub>v (dim_col A)"
+    show "f i = dim_col A"
+    proof (rule ccontr)
+      assume "f i \<noteq> dim_col A"
+      with pivot_funD(1)[OF * assms] have **: "f i < dim_col A" by simp
+      with * assms have "A $$ (i, f i) = 1" by (rule pivot_funD)
+      with ** assms(2) have "row A i $ (f i) = 1" by simp
+      hence "(1::'a) = (0\<^sub>v (dim_col A)) $ (f i)" by (simp only: a)
+      also have "... = (0::'a)" using ** by simp
+      finally show False by simp
+    qed
+  next
+    assume a: "f i = dim_col A"
+    show "row A i = 0\<^sub>v (dim_col A)"
+    proof (rule, simp_all add: assms(2))
+      fix j
+      assume "j < dim_col A"
+      hence "j < f i" by (simp only: a)
+      with * assms show "A $$ (i, j) = 0" by (rule pivot_funD)
+    qed
+  qed
+qed
+
+lemma row_echelon_carrier:
+  assumes "A \<in> carrier_mat nr nc"
+  shows "row_echelon A \<in> carrier_mat nr nc"
+proof -
+  from assms have "dim_row A = nr" by simp
+  let ?B = "1\<^sub>m (dim_row A)"
+  note assms
+  moreover have "?B \<in> carrier_mat nr nr" by (simp add: \<open>dim_row A = nr\<close>)
+  moreover from surj_pair obtain A' B' where *: "gauss_jordan A ?B = (A', B')" by metis
+  ultimately have "A' \<in> carrier_mat nr nc" by (rule gauss_jordan_carrier)
+  thus ?thesis by (simp add: row_echelon_def *)
+qed
+
+lemma dim_row_echelon[simp]:
+  shows "dim_row (row_echelon A) = dim_row A" and "dim_col (row_echelon A) = dim_col A"
+proof -
+  have "A \<in> carrier_mat (dim_row A) (dim_col A)" by simp
+  hence "row_echelon A \<in> carrier_mat (dim_row A) (dim_col A)" by (rule row_echelon_carrier)
+  thus "dim_row (row_echelon A) = dim_row A" and "dim_col (row_echelon A) = dim_col A" by simp_all
+qed
+
+lemma row_echelon_transform:
+  obtains P where "P \<in> Units (ring_mat TYPE('a::field) (dim_row A) b)" and "row_echelon A = P * A"
+proof -
+  let ?B = "1\<^sub>m (dim_row A)"
+  have "A \<in> carrier_mat (dim_row A) (dim_col A)" by simp
+  moreover have "?B \<in> carrier_mat (dim_row A) (dim_row A)" by simp
+  moreover from surj_pair obtain A' B' where *: "gauss_jordan A ?B = (A', B')" by metis
+  ultimately have "\<exists>P\<in>Units (ring_mat TYPE('a) (dim_row A) b). A' = P * A \<and> B' = P * ?B"
+    by (rule gauss_jordan_transform)
+  then obtain P where "P \<in> Units (ring_mat TYPE('a) (dim_row A) b)" and **: "A' = P * A \<and> B' = P * ?B" ..
+  from this(1) show ?thesis
+  proof
+    from ** have "A' = P * A" ..
+    thus "row_echelon A = P * A" by (simp add: row_echelon_def *)
+  qed
+qed
+
+lemma row_space_row_echelon[simp]: "row_space (row_echelon A) = row_space A"
+proof -
+  obtain P where *: "P \<in> Units (ring_mat TYPE('a::field) (dim_row A) Nil)" and **: "row_echelon A = P * A"
+    by (rule row_echelon_transform)
+  from * have "row_space (P * A) = row_space A" by (rule row_space_mult_unit)
+  thus ?thesis by (simp only: **)
+qed
+
+lemma row_echelon_pivot_fun:
+  obtains f where "pivot_fun (row_echelon A) f (dim_col A)"
+proof -
+  let ?B = "1\<^sub>m (dim_row A)"
+  have "A \<in> carrier_mat (dim_row A) (dim_col A)" by simp
+  moreover from surj_pair obtain A' B' where *: "gauss_jordan A ?B = (A', B')" by metis
+  ultimately have "row_echelon_form A'" by (rule gauss_jordan_row_echelon)
+  then obtain f where "pivot_fun A' f (dim_col A')" unfolding row_echelon_form_def ..
+  hence "pivot_fun (row_echelon A) f (dim_col (row_echelon A))" by (simp add: row_echelon_def *)
+  hence "pivot_fun (row_echelon A) f (dim_col A)" by simp
+  thus ?thesis ..
 qed
 
 subsection \<open>Function "Supp"\<close>
@@ -229,7 +337,7 @@ next
 qed
 
 
-subsection \<open>Converting Between Matrices and Polynomials\<close>
+subsection \<open>Converting Between Polynomials and Macaulay Matrices\<close>
 
 context ordered_powerprod
 begin
@@ -257,16 +365,6 @@ definition row_to_poly :: "'a list \<Rightarrow> 'b vec \<Rightarrow> ('a, 'b::z
 definition mat_to_polys :: "'a list \<Rightarrow> 'b mat \<Rightarrow> ('a, 'b::zero) poly_mapping list" where
   "mat_to_polys ts A = map (list_to_poly ts) (mat_to_list A)"
 
-lemma pps_to_list_sorted_wrt: "sorted_wrt (op \<preceq>\<inverse>\<inverse>) (pps_to_list S)"
-proof -
-  have "transp (op \<preceq>)" by simp
-  hence *: "transp (op \<preceq>\<inverse>\<inverse>)" using transp_def by force
-  have **: "(\<lambda>x y. op \<preceq>\<inverse>\<inverse> y x) = (op \<preceq>)" by simp
-  show ?thesis
-    by (simp only: pps_to_list_def sorted_wrt_rev[OF *] ** ordered_powerprod_lin.sorted_iff_wrt[symmetric],
-      rule ordered_powerprod_lin.sorted_sorted_list_of_set)
-qed
-
 lemma distinct_pps_to_list: "distinct (pps_to_list S)"
   unfolding pps_to_list_def distinct_rev by (rule ordered_powerprod_lin.distinct_sorted_list_of_set)
 
@@ -285,6 +383,66 @@ proof (cases "finite S")
 next
   case False
   thus ?thesis by (simp add: pps_to_list_def)
+qed
+
+lemma pps_to_list_sorted_wrt: "sorted_wrt (op \<preceq>\<inverse>\<inverse>) (pps_to_list S)"
+proof -
+  have "transp (op \<preceq>)" by simp
+  hence *: "transp (op \<preceq>\<inverse>\<inverse>)" using transp_def by force
+  have **: "(\<lambda>x y. op \<preceq>\<inverse>\<inverse> y x) = (op \<preceq>)" by simp
+  show ?thesis
+    by (simp only: pps_to_list_def sorted_wrt_rev[OF *] ** ordered_powerprod_lin.sorted_iff_wrt[symmetric],
+      rule ordered_powerprod_lin.sorted_sorted_list_of_set)
+qed
+
+lemma pps_to_list_nth_leI:
+  assumes "j \<le> i" and "i < card S"
+  shows "(pps_to_list S) ! i \<preceq> (pps_to_list S) ! j"
+proof -
+  let ?ts = "pps_to_list S"
+  have "transp (op \<preceq>\<inverse>\<inverse>)" unfolding transp_def by fastforce
+  moreover have "reflp (op \<preceq>\<inverse>\<inverse>)" unfolding reflp_def by fastforce
+  ultimately have "op \<preceq>\<inverse>\<inverse> (?ts ! j) (?ts ! i)" using pps_to_list_sorted_wrt assms(1)
+  proof (rule sorted_wrt_refl_nth_mono)
+    from assms(2) show "i < length ?ts" by (simp only: length_pps_to_list)
+  qed
+  thus ?thesis by simp
+qed
+
+lemma pps_to_list_nth_lessI:
+  assumes "j < i" and "i < card S"
+  shows "(pps_to_list S) ! i \<prec> (pps_to_list S) ! j"
+proof -
+  let ?ts = "pps_to_list S"
+  from assms(1) have "j \<le> i" and "i \<noteq> j" by simp_all
+  with assms(2) have "i < length ?ts" and "j < length ?ts" by (simp_all only: length_pps_to_list)
+  show ?thesis
+  proof (rule ordered_powerprod_lin.neq_le_trans)
+    from \<open>i \<noteq> j\<close> show "?ts ! i \<noteq> ?ts ! j"
+      by (simp add: nth_eq_iff_index_eq[OF distinct_pps_to_list \<open>i < length ?ts\<close> \<open>j < length ?ts\<close>])
+  next
+    from \<open>j \<le> i\<close> assms(2) show "?ts ! i \<preceq> ?ts ! j" by (rule pps_to_list_nth_leI)
+  qed
+qed
+
+lemma pps_to_list_nth_leD:
+  assumes "(pps_to_list S) ! i \<preceq> (pps_to_list S) ! j" and "j < card S"
+  shows "j \<le> i"
+proof (rule ccontr)
+  assume "\<not> j \<le> i"
+  hence "i < j" by simp
+  from this \<open>j < card S\<close> have "(pps_to_list S) ! j \<prec> (pps_to_list S) ! i" by (rule pps_to_list_nth_lessI)
+  with assms(1) show False by simp
+qed
+
+lemma pps_to_list_nth_lessD:
+  assumes "(pps_to_list S) ! i \<prec> (pps_to_list S) ! j" and "j < card S"
+  shows "j < i"
+proof (rule ccontr)
+  assume "\<not> j < i"
+  hence "i \<le> j" by simp
+  from this \<open>j < card S\<close> have "(pps_to_list S) ! j \<preceq> (pps_to_list S) ! i" by (rule pps_to_list_nth_leI)
+  with assms(1) show False by simp
 qed
 
 lemma dim_poly_to_row: "dim_vec (poly_to_row ts p) = length ts"
@@ -355,6 +513,60 @@ lemma list_to_poly_empty: "list_to_poly [] cs = 0"
 lemma row_to_poly_empty: "row_to_poly [] r = 0"
   by (simp only: row_to_poly_def, fact list_to_poly_empty)
 
+lemma lookup_row_to_poly:
+  assumes "distinct ts" and "dim_vec r = length ts" and "i < length ts"
+  shows "lookup (row_to_poly ts r) (ts ! i) = r $ i"
+proof (simp only: row_to_poly_def lookup_list_to_poly)
+  from assms(2) assms(3) have "i < dim_vec r" by simp
+  have "map_of (zip ts (list_of_vec r)) (ts ! i) = Some ((list_of_vec r) ! i)"
+    by (rule map_of_zip_nth, simp_all only: length_list_of_vec assms(2), fact, fact)
+  also have "... = Some (r $ i)" by (simp only: list_of_vec_nth \<open>i < dim_vec r\<close>)
+  finally show "list_to_fun ts (list_of_vec r) (ts ! i) = r $ i" by (simp add: list_to_fun_def)
+qed
+
+lemma keys_row_to_poly: "keys (row_to_poly ts r) \<subseteq> set ts"
+proof
+  fix t
+  assume "t \<in> keys (row_to_poly ts r)"
+  hence "lookup (row_to_poly ts r) t \<noteq> 0" by simp
+  thus "t \<in> set ts"
+  proof (simp add: row_to_poly_def lookup_list_to_poly list_to_fun_def del: lookup_not_eq_zero_eq_in_keys
+              split: option.splits)
+    fix c
+    assume "map_of (zip ts (list_of_vec r)) t = Some c"
+    thus "t \<in> set ts" by (meson in_set_zipE map_of_SomeD)
+  qed
+qed
+
+lemma lookup_row_to_poly_not_zeroE:
+  assumes "lookup (row_to_poly ts r) t \<noteq> 0"
+  obtains i where "i < length ts" and "t = ts ! i"
+proof -
+  from assms have "t \<in> keys (row_to_poly ts r)" by simp
+  have "t \<in> set ts" by (rule, fact, fact keys_row_to_poly)
+  then obtain i where "i < length ts" and "t = ts ! i" by (metis in_set_conv_nth)
+  thus ?thesis ..
+qed
+
+lemma row_to_poly_zero: "row_to_poly ts (0\<^sub>v (length ts)) = 0"
+proof -
+  have eq: "map (\<lambda>_. 0) [0..<length ts] = map (\<lambda>_. 0) ts" by (simp add: map_replicate_const)
+  show ?thesis
+    by (simp add: row_to_poly_def zero_vec_def list_of_vec_vec, rule poly_mapping_eqI,
+      simp add: lookup_list_to_poly list_to_fun_def eq map_of_zip_map)
+qed
+
+lemma row_to_poly_zero_iff:
+  assumes "distinct ts" and "row_to_poly ts r = 0" and "dim_vec r = length ts"
+  shows "r = 0\<^sub>v (length ts)"
+proof (rule, simp_all add: assms(3))
+  fix i
+  assume "i < length ts"
+  from assms(2) have "0 = lookup (row_to_poly ts r) (ts ! i)" by simp
+  also from assms(1) assms(3) \<open>i < length ts\<close> have "... = r $ i" by (rule lookup_row_to_poly)
+  finally show "r $ i = 0" by simp
+qed
+
 lemma poly_to_row_empty: "poly_to_row [] p = vec 0 f"
 proof -
   have "dim_vec (poly_to_row [] p) = 0" by (simp add: dim_poly_to_row)
@@ -388,6 +600,14 @@ lemma col_polys_to_mat:
   by (simp add: vec_of_list_alt col_def dim_row_polys_to_mat, rule vec_cong, rule refl,
       simp add: polys_to_mat_index assms)
 
+lemma mat_to_polys_nth:
+  assumes "i < dim_row A"
+  shows "(mat_to_polys ts A) ! i = row_to_poly ts (row A i)"
+proof -
+  from assms have "i < length (mat_to_list A)" by (simp only: length_mat_to_list)
+  thus ?thesis by (simp add: mat_to_polys_def row_to_poly_def mat_to_list_nth[OF assms])
+qed
+
 lemma polys_to_mat_to_polys:
   "mat_to_polys (pps_to_list (Supp (set ps))) (polys_to_mat ps) = (ps::('a, 'b::semiring_1) poly_mapping list)"
 proof (simp add: mat_to_polys_def mat_to_list_def dim_row_polys_to_mat dim_col_polys_to_mat,
@@ -414,6 +634,8 @@ proof (simp add: mat_to_polys_def mat_to_list_def dim_row_polys_to_mat dim_col_p
     thus "lookup (ps ! i) t = 0" by simp
   qed
 qed
+
+subsection \<open>Properties of Macaulay Matrices\<close>
 
 lemma vec_times_polys_to_mat:
   assumes "v \<in> carrier_vec (length ps)"
@@ -523,6 +745,47 @@ proof -
   moreover have "Supp (set qs) = Supp (set ps)" by (simp only: *)
   moreover have "phull (set qs) = phull (set ps)" by (simp only: *)
   ultimately show ?thesis by (simp add: qs_def)
+qed
+
+lemma row_space_row_echelon_eq_phull:
+  assumes "distinct ps"
+  shows "row_to_poly (pps_to_list (Supp (set ps))) ` row_space (row_echelon (polys_to_mat ps)) = phull (set ps)"
+  using assms by (simp add: row_space_eq_phull)
+
+lemma lp_row_to_poly_pivot_fun:
+  assumes "card S = dim_col (A::'b::semiring_1 mat)" and "pivot_fun A f (dim_col A)" and "i < dim_row A" and "f i < dim_col A"
+  shows "lp ((mat_to_polys (pps_to_list S) A) ! i) = (pps_to_list S) ! (f i)"
+proof -
+  let ?ts = "pps_to_list S"
+  have len_ts: "length ?ts = dim_col A" by (simp add: length_pps_to_list assms(1))
+  show ?thesis
+  proof (simp add: mat_to_polys_nth[OF assms(3)], rule lp_eqI)
+    have "lookup (row_to_poly ?ts (row A i)) (?ts ! f i) = (row A i) $ (f i)"
+      by (rule lookup_row_to_poly, fact distinct_pps_to_list, simp_all add: len_ts assms(4))
+    also have "... = A $$ (i, f i)" using assms(3) assms(4) by simp
+    also have "... = 1" by (rule pivot_funD, rule refl, fact+)
+    finally show "lookup (row_to_poly ?ts (row A i)) (?ts ! f i) \<noteq> 0" by simp
+  next
+    fix s
+    assume a: "lookup (row_to_poly ?ts (row A i)) s \<noteq> 0"
+    then obtain j where j: "j < length ?ts" and s: "s = ?ts ! j"
+      by (rule lookup_row_to_poly_not_zeroE)
+    from j have "j < card S" and "j < dim_col A" by (simp only: length_pps_to_list, simp only: len_ts)
+    from a have "0 \<noteq> lookup (row_to_poly ?ts (row A i)) (?ts ! j)" by (simp add: s)
+    also have "lookup (row_to_poly ?ts (row A i)) (?ts ! j) = (row A i) $ j"
+      by (rule lookup_row_to_poly, fact distinct_pps_to_list, simp add: len_ts, fact)
+    finally have "A $$ (i, j) \<noteq> 0" using assms(3) \<open>j < dim_col A\<close> by simp
+    from _ \<open>j < card S\<close> show "s \<preceq> ?ts ! f i" unfolding s
+    proof (rule pps_to_list_nth_leI)
+      show "f i \<le> j"
+      proof (rule ccontr)
+        assume "\<not> f i \<le> j"
+        hence "j < f i" by simp
+        have "A $$ (i, j) = 0" by (rule pivot_funD, rule refl, fact+)
+        with \<open>A $$ (i, j) \<noteq> 0\<close> show False ..
+      qed
+    qed
+  qed
 qed
 
 end (* ordered_powerprod *)
