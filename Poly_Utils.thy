@@ -894,7 +894,16 @@ proof (cases "finite B")
       assume "f a b \<noteq> 0"
       then obtain t where a: "a = monom_mult 1 t b" and *: "lookup (q b) (THE t. a = monom_mult 1 t b) \<noteq> 0"
         unfolding f_def by auto
-      have "(THE t. a = monom_mult 1 t b) = t" sorry
+      have "(THE t. a = monom_mult 1 t b) = t" unfolding a
+      proof (rule, rule)
+        fix t'
+        assume "monom_mult 1 t b = monom_mult 1 t' b"
+        hence "t = t'"
+        proof (rule monom_mult_inj_2, simp)
+          from \<open>b \<in> ?B\<close> show "b \<noteq> 0" by simp
+        qed
+        thus "t' = t" by simp
+      qed
       with * have "lookup (q b) t \<noteq> 0" by simp
       hence "t \<in> keys (q b)" by simp
       show "\<exists>b2\<in>B - {0}. \<exists>t. a = monom_mult 1 t b2 \<and> t \<in> keys (q b2)" by (rule, rule, rule, fact+)
