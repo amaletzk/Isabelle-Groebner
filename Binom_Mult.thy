@@ -1160,7 +1160,7 @@ next
     hence eq1: "monomial (lc q * tc p) (lp q + tp p) + higher ?r (tp ?r) = 0" by (simp only: tail_m)
     define c where "c = lookup (higher ?r (tp ?r)) (lp q + tp p)"
     have higher_r: "higher ?r (tp ?r) = monomial c (lp q + tp p)"
-    proof (rule poly_mapping_eqI, simp add: lookup_single PP_Poly_Mapping.when_def, intro conjI impI, simp only: c_def)
+    proof (rule poly_mapping_eqI, simp add: lookup_single Poly_Mapping.when_def, intro conjI impI, simp only: c_def)
       fix t
       assume a: "lp q + tp p \<noteq> t"
       from eq1 have "0 = lookup (monomial (lc q * tc p) (lp q + tp p) + (higher ?r (tp ?r))) t"

@@ -426,8 +426,6 @@ definition is_int :: "'b::{floor_ceiling} \<Rightarrow> bool" where
 definition is_int_fun :: "('a \<Rightarrow> 'b::floor_ceiling) \<Rightarrow> bool" where
   "is_int_fun f = (\<forall>x. is_int (f x))"
 
-hide_const Nat_Transfer.is_nat
-
 definition is_nat :: "'b::floor_ceiling \<Rightarrow> bool" where
   "is_nat x = (of_nat (to_nat x) = x)"
 

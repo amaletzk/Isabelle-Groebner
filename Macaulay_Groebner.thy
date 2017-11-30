@@ -388,10 +388,9 @@ qed
 lemma pps_to_list_sorted_wrt: "sorted_wrt (op \<preceq>\<inverse>\<inverse>) (pps_to_list S)"
 proof -
   have "transp (op \<preceq>)" by simp
-  hence *: "transp (op \<preceq>\<inverse>\<inverse>)" using transp_def by force
-  have **: "(\<lambda>x y. op \<preceq>\<inverse>\<inverse> y x) = (op \<preceq>)" by simp
+  have *: "(\<lambda>x y. op \<preceq>\<inverse>\<inverse> y x) = (op \<preceq>)" by simp
   show ?thesis
-    by (simp only: pps_to_list_def sorted_wrt_rev[OF *] ** ordered_powerprod_lin.sorted_iff_wrt[symmetric],
+    by (simp only: pps_to_list_def sorted_wrt_rev * ordered_powerprod_lin.sorted_iff_wrt[symmetric],
       rule ordered_powerprod_lin.sorted_sorted_list_of_set)
 qed
 

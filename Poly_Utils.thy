@@ -2,7 +2,7 @@ text \<open>Some further general properties of (ordered) multivariate polynomial
   regarded an extension of theory Abstract_Poly.thy.\<close>
 
 theory Poly_Utils
-imports "Polynomials.Abstract_Poly" General_Utils
+imports "Polynomials.MPoly_Type_Class" General_Utils
 begin
   
 section \<open>Further Properties of Multivariate Polynomials\<close>
@@ -17,7 +17,7 @@ lemma keys_of_monomial:
 
 lemma monomial_uminus:
   shows "- monomial c s = monomial (-c) s"
-  by (transfer, rule ext, simp add: PP_Poly_Mapping.when_def)
+  by (transfer, rule ext, simp add: Poly_Mapping.when_def)
 
 definition poly_mapping_of_pp :: "'a \<Rightarrow> ('a, 'b::{one,zero}) poly_mapping" where
   "poly_mapping_of_pp t = monomial 1 t"
@@ -766,8 +766,8 @@ proof
   fix u
   assume "u \<in> keys (binomial c s d t)"
   hence "lookup (binomial c s d t) u \<noteq> 0" by simp
-  hence "u = s \<or> u = t" unfolding binomial_def lookup_add lookup_single PP_Poly_Mapping.when_def
-    by (smt monoid_add_class.add.right_neutral) 
+  hence "u = s \<or> u = t" unfolding binomial_def lookup_add lookup_single Poly_Mapping.when_def
+    by (smt monoid_add_class.add.right_neutral)
   thus "u \<in> {s, t}" by simp
 qed
     
@@ -922,7 +922,7 @@ proof (cases "finite B")
     thus ?thesis by simp
   qed
   also have "... = (\<Sum>a\<in>?A. monom_mult (?c a) 0 a)"
-  proof (simp only: monom_mult_sum sum.commute[of _ _ ?A], rule sum.cong, rule)
+  proof (simp only: monom_mult_sum sum.swap[of _ _ ?A], rule sum.cong, rule)
     fix b
     assume "b \<in> ?B"
     hence "b \<in> B" and "b \<noteq> 0" by auto
@@ -2153,7 +2153,7 @@ proof -
   hence keys1: "keys (monomial (lc p) (lp p)) = {lp p}" by (rule keys_of_monomial)
   show ?thesis
     by (rule poly_mapping_keys_eqI, simp only: keys_monomial[OF assms] keys1,
-        simp only: keys1 lookup_single PP_Poly_Mapping.when_def, auto simp add: lc_def)
+        simp only: keys1 lookup_single Poly_Mapping.when_def, auto simp add: lc_def)
 qed
 
 lemma binomial_eq_itself:
@@ -2358,7 +2358,7 @@ qed
 lemma tc_monomial_plus:
   assumes "p \<noteq> (0::('a, 'b::comm_monoid_add) poly_mapping)" and "lp p \<prec> t"
   shows "tc (monomial c t + p) = tc p"
-proof (simp add: tc_def tp_monomial_plus[OF assms] lookup_add lookup_single PP_Poly_Mapping.when_def,
+proof (simp add: tc_def tp_monomial_plus[OF assms] lookup_add lookup_single Poly_Mapping.when_def,
     rule impI)
   assume "t = tp p"
   with assms(2) have "lp p \<prec> tp p" by simp
