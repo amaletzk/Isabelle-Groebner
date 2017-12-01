@@ -415,9 +415,7 @@ proof (rule relation.confluence_implies_ChurchRosser, rule relation.unique_nf_im
   qed
 qed (rule red_wf)
   
-lemma GB_alt_1:
-  fixes G
-  shows "is_Groebner_basis G \<longleftrightarrow> (\<forall>f \<in> (pideal G). (red G)\<^sup>*\<^sup>* f 0)"
+lemma GB_alt_1: "is_Groebner_basis G \<longleftrightarrow> (\<forall>f \<in> (pideal G). (red G)\<^sup>*\<^sup>* f 0)"
   using weak_GB_is_strong_GB GB_implies_zero_reducibility by blast
 
 lemma GB_alt_2: "is_Groebner_basis G \<longleftrightarrow> (\<forall>f \<in> (pideal G). f \<noteq> 0 \<longrightarrow> is_red G f)"
