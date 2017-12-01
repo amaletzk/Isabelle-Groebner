@@ -216,6 +216,118 @@ proof -
   qed
 qed
 
+lemma row_not_zero_iff_pivot_fun:
+  assumes "pivot_fun A f (dim_col A)" and "i < dim_row (A::'a::zero_neq_one mat)"
+  shows "(row A i \<noteq> 0\<^sub>v (dim_col A)) \<longleftrightarrow> (f i < dim_col A)"
+proof (simp only: row_eq_zero_iff_pivot_fun[OF assms])
+  have "f i \<le> dim_col A" by (rule pivot_funD[where ?f = f], rule refl, fact+)
+  thus "(f i \<noteq> dim_col A) = (f i < dim_col A)" by auto
+qed
+
+lemma pivot_fun_stabilizes:
+  assumes "pivot_fun A f nc" and "i1 \<le> i2" and "i2 < dim_row A" and "nc \<le> f i1"
+  shows "f i2 = nc"
+proof -
+  from assms(2) have "i2 = i1 + (i2 - i1)" by simp
+  then obtain k where "i2 = i1 + k" ..
+  from assms(3) assms(4) show ?thesis unfolding \<open>i2 = i1 + k\<close>
+  proof (induct k arbitrary: i1)
+    case 0
+    from this(1) have "i1 < dim_row A" by simp
+    from _ assms(1) this have "f i1 \<le> nc" by (rule pivot_funD, intro refl)
+    with \<open>nc \<le> f i1\<close> show ?case by simp
+  next
+    case (Suc k)
+    from Suc(2) have "Suc (i1 + k) < dim_row A" by simp
+    hence "Suc i1 + k < dim_row A" by simp
+    hence "Suc i1 < dim_row A" by simp
+    hence "i1 < dim_row A" by simp
+    have "nc \<le> f (Suc i1)"
+    proof -
+      have "f i1 < f (Suc i1) \<or> f (Suc i1) = nc" by (rule pivot_funD, rule refl, fact+)
+      with Suc(3) show ?thesis by auto
+    qed
+    with \<open>Suc i1 + k < dim_row A\<close> have "f (Suc i1 + k) = nc" by (rule Suc(1))
+    thus ?case by simp
+  qed
+qed
+
+lemma pivot_fun_mono_strict:
+  assumes "pivot_fun A f nc" and "i1 < i2" and "i2 < dim_row A" and "f i1 < nc"
+  shows "f i1 < f i2"
+proof -
+  from assms(2) have "i2 - i1 \<noteq> 0" and "i2 = i1 + (i2 - i1)" by simp_all
+  then obtain k where "k \<noteq> 0" and "i2 = i1 + k" ..
+  from this(1) assms(3) assms(4) show ?thesis unfolding \<open>i2 = i1 + k\<close>
+  proof (induct k arbitrary: i1)
+    case 0
+    thus ?case by simp
+  next
+    case (Suc k)
+    from Suc(3) have "Suc (i1 + k) < dim_row A" by simp
+    hence "Suc i1 + k < dim_row A" by simp
+    hence "Suc i1 < dim_row A" by simp
+    hence "i1 < dim_row A" by simp
+    have *: "f i1 < f (Suc i1)"
+    proof -
+      have "f i1 < f (Suc i1) \<or> f (Suc i1) = nc" by (rule pivot_funD, rule refl, fact+)
+      with Suc(4) show ?thesis by auto
+    qed
+    show ?case
+    proof (simp, cases "k = 0")
+      case True
+      show "f i1 < f (Suc (i1 + k))" by (simp add: True *)
+    next
+      case False
+      have "f (Suc i1) \<le> f (Suc i1 + k)"
+      proof (cases "f (Suc i1) < nc")
+        case True
+        from False \<open>Suc i1 + k < dim_row A\<close> True have "f (Suc i1) < f (Suc i1 + k)" by (rule Suc(1))
+        thus ?thesis by simp
+      next
+        case False
+        hence "nc \<le> f (Suc i1)" by simp
+        from assms(1) _ \<open>Suc i1 + k < dim_row A\<close> this have "f (Suc i1 + k) = nc"
+          by (rule pivot_fun_stabilizes[where ?f=f], simp)
+        moreover have "f (Suc i1) = nc" by (rule pivot_fun_stabilizes[where ?f=f], fact, rule le_refl, fact+)
+        ultimately show ?thesis by simp
+      qed
+      also have "... = f (i1 + Suc k)" by simp
+      finally have "f (Suc i1) \<le> f (i1 + Suc k)" .
+      with * show "f i1 < f (Suc (i1 + k))" by simp
+    qed
+  qed
+qed
+
+lemma pivot_fun_mono:
+  assumes "pivot_fun A f nc" and "i1 \<le> i2" and "i2 < dim_row A"
+  shows "f i1 \<le> f i2"
+proof -
+  from assms(2) have "i1 < i2 \<or> i1 = i2" by auto
+  thus ?thesis
+  proof
+    assume "i1 < i2"
+    show ?thesis
+    proof (cases "f i1 < nc")
+      case True
+      from assms(1) \<open>i1 < i2\<close> assms(3) this have "f i1 < f i2" by (rule pivot_fun_mono_strict)
+      thus ?thesis by simp
+    next
+      case False
+      hence "nc \<le> f i1" by simp
+      from assms(1) _ _ this have "f i1 = nc"
+      proof (rule pivot_fun_stabilizes[where ?f=f], simp)
+        from assms(2) assms(3) show "i1 < dim_row A" by (rule le_less_trans)
+      qed
+      moreover have "f i2 = nc" by (rule pivot_fun_stabilizes[where ?f=f], fact+)
+      ultimately show ?thesis by simp
+    qed
+  next
+    assume "i1 = i2"
+    thus ?thesis by simp
+  qed
+qed
+
 lemma row_echelon_carrier:
   assumes "A \<in> carrier_mat nr nc"
   shows "row_echelon A \<in> carrier_mat nr nc"
@@ -556,14 +668,28 @@ proof -
 qed
 
 lemma row_to_poly_zero_iff:
-  assumes "distinct ts" and "row_to_poly ts r = 0" and "dim_vec r = length ts"
+  assumes "distinct ts" and "dim_vec r = length ts" and "row_to_poly ts r = 0"
   shows "r = 0\<^sub>v (length ts)"
-proof (rule, simp_all add: assms(3))
+proof (rule, simp_all add: assms(2))
   fix i
   assume "i < length ts"
-  from assms(2) have "0 = lookup (row_to_poly ts r) (ts ! i)" by simp
-  also from assms(1) assms(3) \<open>i < length ts\<close> have "... = r $ i" by (rule lookup_row_to_poly)
+  from assms(3) have "0 = lookup (row_to_poly ts r) (ts ! i)" by simp
+  also from assms(1) assms(2) \<open>i < length ts\<close> have "... = r $ i" by (rule lookup_row_to_poly)
   finally show "r $ i = 0" by simp
+qed
+
+lemma row_to_poly_inj:
+  assumes "distinct ts" and "dim_vec r1 = length ts" and "dim_vec r2 = length ts"
+    and "row_to_poly ts r1 = row_to_poly ts r2"
+  shows "r1 = r2"
+proof (rule, simp_all add: assms(2) assms(3))
+  fix i
+  assume "i < length ts"
+  have "r1 $ i = lookup (row_to_poly ts r1) (ts ! i)"
+    by (simp only: lookup_row_to_poly[OF assms(1) assms(2) \<open>i < length ts\<close>])
+  also from assms(4) have "... = lookup (row_to_poly ts r2) (ts ! i)" by simp
+  also from assms(1) assms(3) \<open>i < length ts\<close> have "... = r2 $ i" by (rule lookup_row_to_poly)
+  finally show "r1 $ i = r2 $ i" .
 qed
 
 lemma poly_to_row_empty: "poly_to_row [] p = vec 0 f"
@@ -752,7 +878,8 @@ lemma row_space_row_echelon_eq_phull:
   using assms by (simp add: row_space_eq_phull)
 
 lemma lp_row_to_poly_pivot_fun:
-  assumes "card S = dim_col (A::'b::semiring_1 mat)" and "pivot_fun A f (dim_col A)" and "i < dim_row A" and "f i < dim_col A"
+  assumes "card S = dim_col (A::'b::semiring_1 mat)" and "pivot_fun A f (dim_col A)"
+    and "i < dim_row A" and "f i < dim_col A"
   shows "lp ((mat_to_polys (pps_to_list S) A) ! i) = (pps_to_list S) ! (f i)"
 proof -
   let ?ts = "pps_to_list S"
@@ -786,6 +913,75 @@ proof -
     qed
   qed
 qed
+
+lemma lc_row_to_poly_pivot_fun:
+  assumes "card S = dim_col (A::'b::semiring_1 mat)" and "pivot_fun A f (dim_col A)"
+    and "i < dim_row A" and "f i < dim_col A"
+  shows "lc ((mat_to_polys (pps_to_list S) A) ! i) = 1"
+proof -
+  let ?ts = "pps_to_list S"
+  have len_ts: "length ?ts = dim_col A" by (simp only: length_pps_to_list assms(1))
+  have "lookup (row_to_poly ?ts (row A i)) (?ts ! f i) = (row A i) $ (f i)"
+    by (rule lookup_row_to_poly, fact distinct_pps_to_list, simp_all add: len_ts assms(4))
+  also have "... = A $$ (i, f i)" using assms(3) assms(4) by simp
+  finally have eq: "lookup (row_to_poly ?ts (row A i)) (?ts ! f i) = A $$ (i, f i)" .
+  show ?thesis
+    by (simp only: lc_def lp_row_to_poly_pivot_fun[OF assms], simp only: mat_to_polys_nth[OF assms(3)] eq,
+        rule pivot_funD, rule refl, fact+)
+qed
+
+lemma lp_row_to_poly_pivot_fun_less:
+  assumes "card S = dim_col (A::'b::semiring_1 mat)" and "pivot_fun A f (dim_col A)"
+    and "i1 < i2" and "i2 < dim_row A" and "f i1 < dim_col A" and "f i2 < dim_col A"
+  shows "(pps_to_list S) ! (f i2) \<prec> (pps_to_list S) ! (f i1)"
+proof -
+  let ?ts = "pps_to_list S"
+  have len_ts: "length ?ts = dim_col A" by (simp add: length_pps_to_list assms(1))
+  from assms(3) assms(4) have "i1 < dim_row A" by simp
+  show ?thesis
+    by (rule pps_to_list_nth_lessI, rule pivot_fun_mono_strict[where ?f=f], fact, fact, fact, fact,
+        simp only: assms(1) assms(6))
+qed
+
+lemma lp_row_to_poly_pivot_fun_eq_iff:
+  assumes "card S = dim_col (A::'b::semiring_1 mat)" and "pivot_fun A f (dim_col A)"
+    and "i1 < dim_row A" and "i2 < dim_row A" and "f i1 < dim_col A" and "f i2 < dim_col A"
+  shows "((pps_to_list S) ! (f i2) = (pps_to_list S) ! (f i1)) \<longleftrightarrow> (i1 = i2)"
+proof (rule linorder_cases)
+  assume "i1 < i2"
+  from assms(1) assms(2) this assms(4) assms(5) assms(6) have
+    "(pps_to_list S) ! (f i2) \<prec> (pps_to_list S) ! (f i1)" by (rule lp_row_to_poly_pivot_fun_less)
+  with \<open>i1 < i2\<close> show ?thesis by auto
+next
+  assume "i2 < i1"
+  from assms(1) assms(2) this assms(3) assms(6) assms(5) have
+    "(pps_to_list S) ! (f i1) \<prec> (pps_to_list S) ! (f i2)" by (rule lp_row_to_poly_pivot_fun_less)
+  with \<open>i2 < i1\<close> show ?thesis by auto
+next
+  assume "i1 = i2"
+  thus ?thesis by simp
+qed
+
+lemma lp_row_to_poly_pivot_in_keysD:
+  assumes "card S = dim_col (A::'b::semiring_1 mat)" and "pivot_fun A f (dim_col A)"
+    and "i1 < dim_row A" and "i2 < dim_row A" and "f i1 < dim_col A"
+    and "(pps_to_list S) ! (f i1) \<in> keys ((mat_to_polys (pps_to_list S) A) ! i2)"
+  shows "i1 = i2"
+proof (rule ccontr)
+  assume "i1 \<noteq> i2"
+  hence "i2 \<noteq> i1" by simp
+  let ?ts = "pps_to_list S"
+  have len_ts: "length ?ts = dim_col A" by (simp only: length_pps_to_list assms(1))
+  from assms(6) have "0 \<noteq> lookup (row_to_poly ?ts (row A i2)) (?ts ! (f i1))"
+    by (simp add: mat_to_polys_nth[OF assms(4)])
+  also have "lookup (row_to_poly ?ts (row A i2)) (?ts ! (f i1)) = (row A i2) $ (f i1)"
+    by (rule lookup_row_to_poly, fact distinct_pps_to_list, simp_all add: len_ts assms(5))
+  finally have "A $$ (i2, f i1) \<noteq> 0" using assms(4) assms(5) by simp
+  moreover have "A $$ (i2, f i1) = 0" by (rule pivot_funD(5), rule refl, fact+)
+  ultimately show False ..
+qed
+
+thm comp_min_basis_def
 
 end (* ordered_powerprod *)
 
