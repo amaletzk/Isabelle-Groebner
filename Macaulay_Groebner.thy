@@ -114,11 +114,27 @@ lemma mat_to_list_nth:
   shows "mat_to_list A ! i = list_of_vec (row A i)"
   by (simp add: mat_to_list_def assms list_of_vec_vec row_def)
 
+definition nzrows :: "'a::zero mat \<Rightarrow> 'a vec list"
+  where "nzrows A = filter (\<lambda>r. r \<noteq> 0\<^sub>v (dim_col A)) (rows A)"
+
 definition row_space :: "'a mat \<Rightarrow> 'a::semiring_0 vec set"
   where "row_space A = (\<lambda>v. mult_vec_mat v A) ` (carrier_vec (dim_row A))"
 
 definition row_echelon :: "'a mat \<Rightarrow> 'a::field mat"
   where "row_echelon A = fst (gauss_jordan A (1\<^sub>m (dim_row A)))"
+
+subsubsection \<open>@{const nzrows}\<close>
+
+lemma length_nzrows: "length (nzrows A) \<le> dim_row A"
+  by (simp add: nzrows_def length_rows[symmetric] del: length_rows)
+
+lemma set_nzrows: "set (nzrows A) = set (rows A) - {0\<^sub>v (dim_col A)}"
+  by (auto simp add: nzrows_def)
+
+lemma nzrows_nth_not_zero:
+  assumes "i < length (nzrows A)"
+  shows "nzrows A ! i \<noteq> 0\<^sub>v (dim_col A)"
+  using assms unfolding nzrows_def using nth_mem by force
 
 subsubsection \<open>@{const row_space}\<close>
 
@@ -385,6 +401,29 @@ proof -
   hence "pivot_fun (row_echelon A) f (dim_col (row_echelon A))" by (simp add: row_echelon_def *)
   hence "pivot_fun (row_echelon A) f (dim_col A)" by simp
   thus ?thesis ..
+qed
+
+lemma distinct_nzrows_row_echelon: "distinct (nzrows (row_echelon A))"
+  unfolding nzrows_def
+proof (rule distinct_filterI, simp del: dim_row_echelon)
+  let ?B = "row_echelon A"
+  fix i j::nat
+  assume "i < j" and "j < dim_row ?B"
+  hence "i \<noteq> j" and "i < dim_row ?B" by simp_all
+  assume ri: "row ?B i \<noteq> 0\<^sub>v (dim_col ?B)" and rj: "row ?B j \<noteq> 0\<^sub>v (dim_col ?B)"
+  obtain f where "pivot_fun ?B f (dim_col A)" by (fact row_echelon_pivot_fun)
+  hence pf: "pivot_fun ?B f (dim_col ?B)" by simp
+  from rj have "f j < dim_col ?B" by (simp only: row_not_zero_iff_pivot_fun[OF pf \<open>j < dim_row ?B\<close>])
+  from _ pf \<open>j < dim_row ?B\<close> this \<open>i < dim_row ?B\<close> \<open>i \<noteq> j\<close> have *: "?B $$ (i, f j) = 0"
+    by (rule pivot_funD(5), intro refl)
+  show "row ?B i \<noteq> row ?B j"
+  proof
+    assume "row ?B i = row ?B j"
+    hence "row ?B i $ (f j) = row ?B j $ (f j)" by simp
+    with \<open>i < dim_row ?B\<close> \<open>j < dim_row ?B\<close> \<open>f j < dim_col ?B\<close> have "?B $$ (i, f j) = ?B $$ (j, f j)" by simp
+    also from _ pf \<open>j < dim_row ?B\<close> \<open>f j < dim_col ?B\<close> have "... = 1" by (rule pivot_funD, intro refl)
+    finally show False by (simp add: *)
+  qed
 qed
 
 subsection \<open>Function "Supp"\<close>

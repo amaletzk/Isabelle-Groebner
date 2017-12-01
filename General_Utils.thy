@@ -328,6 +328,107 @@ next
   qed
 qed
 
+lemma distinctI:
+  assumes "\<And>i j. i < j \<Longrightarrow> i < length xs \<Longrightarrow> j < length xs \<Longrightarrow> xs ! i \<noteq> xs ! j"
+  shows "distinct xs"
+  using assms
+proof (induct xs)
+  case Nil
+  show ?case by simp
+next
+  case (Cons x xs)
+  show ?case
+  proof (simp, intro conjI, rule)
+    assume "x \<in> set xs"
+    then obtain j where "j < length xs" and "x = xs ! j" by (metis in_set_conv_nth)
+    hence "Suc j < length (x # xs)" by simp
+    have "(x # xs) ! 0 \<noteq> (x # xs) ! (Suc j)" by (rule Cons(2), simp, simp, fact)
+    thus False by (simp add: \<open>x = xs ! j\<close>)
+  next
+    show "distinct xs"
+    proof (rule Cons(1))
+      fix i j
+      assume "i < j" and "i < length xs" and "j < length xs"
+      hence "Suc i < Suc j" and "Suc i < length (x # xs)" and "Suc j < length (x # xs)" by simp_all
+      hence "(x # xs) ! (Suc i) \<noteq> (x # xs) ! (Suc j)" by (rule Cons(2))
+      thus "xs ! i \<noteq> xs ! j" by simp
+    qed
+  qed
+qed
+
+lemma filter_nth_pairE:
+  assumes "i < j" and "i < length (filter P xs)" and "j < length (filter P xs)"
+  obtains i' j' where "i' < j'" and "i' < length xs" and "j' < length xs"
+    and "(filter P xs) ! i = xs ! i'" and "(filter P xs) ! j = xs ! j'"
+  using assms
+proof (induct xs arbitrary: i j thesis)
+  case Nil
+  from Nil(3) show ?case by simp
+next
+  case (Cons x xs)
+  let ?ys = "filter P (x # xs)"
+  show ?case
+  proof (cases "P x")
+    case True
+    hence *: "?ys = x # (filter P xs)" by simp
+    from \<open>i < j\<close> obtain j0 where j: "j = Suc j0" using lessE by blast
+    have len_ys: "length ?ys = Suc (length (filter P xs))" and ys_j: "?ys ! j = (filter P xs) ! j0"
+      by (simp only: * length_Cons, simp only: j * nth_Cons_Suc)
+    from Cons(5) have "j0 < length (filter P xs)" unfolding len_ys j by auto
+    show ?thesis
+    proof (cases "i = 0")
+      case True
+      from \<open>j0 < length (filter P xs)\<close> obtain j' where "j' < length xs" and **: "(filter P xs) ! j0 = xs ! j'"
+        by (metis (no_types, lifting) in_set_conv_nth mem_Collect_eq nth_mem set_filter)
+      have "0 < Suc j'" by simp
+      thus ?thesis
+        by (rule Cons(2), simp, simp add: \<open>j' < length xs\<close>, simp only: True * nth_Cons_0,
+            simp only: ys_j nth_Cons_Suc **)
+    next
+      case False
+      then obtain i0 where i: "i = Suc i0" using lessE by blast
+      have ys_i: "?ys ! i = (filter P xs) ! i0" by (simp only: i * nth_Cons_Suc)
+      from Cons(3) have "i0 < j0" by (simp add: i j)
+      from Cons(4) have "i0 < length (filter P xs)" unfolding len_ys i by auto
+      from _ \<open>i0 < j0\<close> this \<open>j0 < length (filter P xs)\<close> obtain i' j'
+        where "i' < j'" and "i' < length xs" and "j' < length xs"
+          and i': "filter P xs ! i0 = xs ! i'" and j': "filter P xs ! j0 = xs ! j'"
+        by (rule Cons(1))
+      from \<open>i' < j'\<close> have "Suc i' < Suc j'" by simp
+      thus ?thesis
+        by (rule Cons(2), simp add: \<open>i' < length xs\<close>, simp add: \<open>j' < length xs\<close>,
+            simp only: ys_i nth_Cons_Suc i', simp only: ys_j nth_Cons_Suc j')
+    qed
+  next
+    case False
+    hence *: "?ys = filter P xs" by simp
+    with Cons(4) Cons(5) have "i < length (filter P xs)" and "j < length (filter P xs)" by simp_all
+    with _ \<open>i < j\<close> obtain i' j' where "i' < j'" and "i' < length xs" and "j' < length xs"
+      and i': "filter P xs ! i = xs ! i'" and j': "filter P xs ! j = xs ! j'"
+      by (rule Cons(1))
+    from \<open>i' < j'\<close> have "Suc i' < Suc j'" by simp
+    thus ?thesis
+      by (rule Cons(2), simp add: \<open>i' < length xs\<close>, simp add: \<open>j' < length xs\<close>,
+          simp only: * nth_Cons_Suc i', simp only: * nth_Cons_Suc j')
+  qed
+qed
+
+lemma distinct_filterI:
+  assumes "\<And>i j. i < j \<Longrightarrow> i < length xs \<Longrightarrow> j < length xs \<Longrightarrow> P (xs ! i) \<Longrightarrow> P (xs ! j) \<Longrightarrow> xs ! i \<noteq> xs ! j"
+  shows "distinct (filter P xs)"
+proof (rule distinctI)
+  fix i j::nat
+  assume "i < j" and "i < length (filter P xs)" and "j < length (filter P xs)"
+  then obtain i' j' where "i' < j'" and "i' < length xs" and "j' < length xs"
+    and i: "(filter P xs) ! i = xs ! i'" and j: "(filter P xs) ! j = xs ! j'" by (rule filter_nth_pairE)
+  from \<open>i' < j'\<close> \<open>i' < length xs\<close> \<open>j' < length xs\<close> show "(filter P xs) ! i \<noteq> (filter P xs) ! j" unfolding i j
+  proof (rule assms)
+    from \<open>i < length (filter P xs)\<close> show "P (xs ! i')" unfolding i[symmetric] using nth_mem by force
+  next
+    from \<open>j < length (filter P xs)\<close> show "P (xs ! j')" unfolding j[symmetric] using nth_mem by force
+  qed
+qed
+
 lemma (in linorder) sorted_sorted_list_of_set: "sorted (sorted_list_of_set A)"
   using sorted_list_of_set by (cases "finite A") auto
 
