@@ -393,6 +393,30 @@ end (* comm_powerprod *)
 
 subsection \<open>Ideals and Linear Hulls\<close>
 
+lemma ideal_like_subset_ideal_likeI:
+  assumes "\<And>r q. r \<in> C \<Longrightarrow> q \<in> C \<Longrightarrow> r * q \<in> C"
+  assumes "A \<subseteq> ideal_like C B"
+  shows "ideal_like C A \<subseteq> ideal_like C B"
+proof
+  fix p
+  assume "p \<in> ideal_like C A"
+  thus "p \<in> ideal_like C B"
+  proof (induct p)
+    case base: ideal_like_0
+    show ?case by (fact ideal_like_0)
+  next
+    case step: (ideal_like_plus a b q)
+    from step(3) assms(2) have "b \<in> ideal_like C B" ..
+    with _ have "q * b \<in> ideal_like C B"
+    proof (rule ideal_like_closed_times)
+      fix r
+      assume "r \<in> C"
+      with step(4) show "q * r \<in> C" by (rule assms(1))
+    qed
+    with step(2) show ?case by (rule ideal_like_closed_plus)
+  qed
+qed
+
 lemma poly_mapping_of_pp_in_pidealI:
   assumes "(f::('a::comm_powerprod, 'b::field) poly_mapping) \<in> pideal F" and "keys f = {t}"
   shows "poly_mapping_of_pp t \<in> pideal F"
@@ -449,6 +473,11 @@ next
   qed
 qed
 
+lemma pideal_subset_pidealI:
+  assumes "A \<subseteq> pideal B"
+  shows "pideal A \<subseteq> pideal B"
+  using _ assms unfolding pideal_def by (rule ideal_like_subset_ideal_likeI, intro UNIV_I)
+
 lemma replace_phull:
   fixes B::"('a::comm_powerprod, 'b::semiring_1) poly_mapping set" and p q
   assumes "q \<in> (phull B)"
@@ -458,6 +487,11 @@ lemma replace_phull:
     
 lemma remove_0_stable_phull: "phull (remove 0 B) = phull B"
   unfolding remove_def by (fact phull_minus_singleton_zero)
+
+lemma phull_subset_phullI:
+  assumes "A \<subseteq> phull B"
+  shows "phull A \<subseteq> phull B"
+  using _ assms unfolding phull_def by (rule ideal_like_subset_ideal_likeI, auto simp add: mult_single)
 
 text \<open>In the following lemma, the distinctness-condition could be removed, but then the proof gets
   harder.\<close>
