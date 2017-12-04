@@ -518,6 +518,29 @@ proof -
   qed
 qed
 
+subsection \<open>@{term map_dup}\<close>
+
+primrec map_dup :: "('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> 'a list \<Rightarrow> 'b list" where
+  "map_dup _ _ [] = []"|
+  "map_dup f g (x # xs) = (if x \<in> set xs then g x else f x) # (map_dup f g xs)"
+
+lemma length_map_dup[simp]: "length (map_dup f g xs) = length xs"
+  by (induct xs, simp_all)
+
+lemma map_dup_distinct:
+  assumes "distinct xs"
+  shows "map_dup f g xs = map f xs"
+  using assms by (induct xs, simp_all)
+
+lemma filter_map_dup_const:
+  "filter (\<lambda>x. x \<noteq> c) (map_dup f (\<lambda>_. c) xs) = filter (\<lambda>x. x \<noteq> c) (map f (remdups xs))"
+  by (induct xs, simp_all)
+
+lemma filter_zip_map_dup_const:
+  "filter (\<lambda>(a, b). a \<noteq> c) (zip (map_dup f (\<lambda>_. c) xs) xs) =
+    filter (\<lambda>(a, b). a \<noteq> c) (zip (map f (remdups xs)) (remdups xs))"
+  by (induct xs, simp_all)
+
 section \<open>Sums\<close>
 
 lemma additive_implies_homogenous:
