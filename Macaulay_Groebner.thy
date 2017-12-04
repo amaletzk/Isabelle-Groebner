@@ -873,13 +873,12 @@ proof
 qed
 
 lemma phull_subset_row_space:
-  assumes "distinct ps"
-  shows "phull (set ps) \<subseteq> row_to_poly (pps_to_list (Supp (set ps))) ` row_space (polys_to_mat ps)"
+  "phull (set ps) \<subseteq> row_to_poly (pps_to_list (Supp (set ps))) ` row_space (polys_to_mat ps)"
     (is "?h \<subseteq> ?r")
 proof
   fix q
   assume "q \<in> ?h"
-  with assms obtain cs where l: "length cs = length ps" and q: "q = (\<Sum>(c, p)\<leftarrow>zip cs ps. monom_mult c 0 p)"
+  then obtain cs where l: "length cs = length ps" and q: "q = (\<Sum>(c, p)\<leftarrow>zip cs ps. monom_mult c 0 p)"
     by (rule in_phull_listE)
   let ?v = "vec_of_list cs"
   from l have *: "?v \<in> carrier_vec (length ps)" by (simp only: carrier_dim_vec dim_vec_of_list)
@@ -894,9 +893,12 @@ proof
 qed
 
 lemma row_space_eq_phull:
-  assumes "distinct ps"
-  shows "row_to_poly (pps_to_list (Supp (set ps))) ` row_space (polys_to_mat ps) = phull (set ps)"
-  by (rule, fact row_space_subset_phull, rule phull_subset_row_space, fact)
+  "row_to_poly (pps_to_list (Supp (set ps))) ` row_space (polys_to_mat ps) = phull (set ps)"
+  by (rule, fact row_space_subset_phull, rule phull_subset_row_space)
+
+lemma row_space_row_echelon_eq_phull:
+  "row_to_poly (pps_to_list (Supp (set ps))) ` row_space (row_echelon (polys_to_mat ps)) = phull (set ps)"
+  by (simp add: row_space_eq_phull)
 
 lemma row_space_eq_phull':
   "row_to_poly (pps_to_list (Supp (set ps))) ` row_space (polys_to_mat (remdups ps)) = phull (set ps)"

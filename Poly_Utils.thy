@@ -441,20 +441,28 @@ lemma remove_0_stable_pideal: "pideal (remove 0 B) = pideal B"
   unfolding remove_def by (fact pideal_minus_singleton_zero)
 
 lemma in_pideal_listE:
-  assumes "distinct bs" and "p \<in> (pideal (set bs))"
+  assumes "p \<in> (pideal (set bs))"
   obtains qs where "length qs = length bs" and "p = (\<Sum>(q, b)\<leftarrow>zip qs bs. q * b)"
 proof -
   have "finite (set bs)" ..
-  from this assms(2) obtain q where p: "p = (\<Sum>b\<in>set bs. (q b) * b)" by (rule in_pideal_finiteE)
-  let ?qs = "map q bs"
+  from this assms obtain q where p: "p = (\<Sum>b\<in>set bs. (q b) * b)" by (rule in_pideal_finiteE)
+  let ?qs = "map_dup q (\<lambda>_. 0) bs"
   show ?thesis
   proof
     show "length ?qs = length bs" by simp
   next
-    from assms(1) have *: "distinct (zip ?qs bs)" by (rule distinct_zipI2)
-    have inj: "inj_on (\<lambda>x. (q x, x)) (set bs)" by (rule, simp)
-    show "p = (\<Sum>(q, b)\<leftarrow>zip ?qs bs. q * b)"
+    let ?zs = "zip (map q (remdups bs)) (remdups bs)"
+    have *: "distinct ?zs" by (rule distinct_zipI2, rule distinct_remdups)
+    have inj: "inj_on (\<lambda>b. (q b, b)) (set bs)" by (rule, simp)
+    have "p = (\<Sum>(q, b)\<leftarrow>?zs. q * b)"
       by (simp add: sum_list_distinct_conv_sum_set[OF *] set_zip_map1 p comm_monoid_add_class.sum.reindex[OF inj])
+    also have "... = (\<Sum>(q, b)\<leftarrow>(filter (\<lambda>(q, b). q \<noteq> 0) ?zs). q * b)"
+      by (rule monoid_add_class.sum_list_map_filter[symmetric], auto simp add: monom_mult_left0)
+    also have "... = (\<Sum>(q, b)\<leftarrow>(filter (\<lambda>(q, b). q \<noteq> 0) (zip ?qs bs)). q * b)"
+      by (simp only: filter_zip_map_dup_const)
+    also have "... = (\<Sum>(q, b)\<leftarrow>zip ?qs bs. q * b)"
+      by (rule monoid_add_class.sum_list_map_filter, auto simp add: monom_mult_left0)
+    finally show "p = (\<Sum>(q, b)\<leftarrow>zip ?qs bs. q * b)" .
   qed
 qed
 
@@ -493,23 +501,29 @@ lemma phull_subset_phullI:
   shows "phull A \<subseteq> phull B"
   using _ assms unfolding phull_def by (rule ideal_like_subset_ideal_likeI, auto simp add: mult_single)
 
-text \<open>In the following lemma, the distinctness-condition could be removed, but then the proof gets
-  harder.\<close>
 lemma in_phull_listE:
-  assumes "distinct bs" and "p \<in> (phull (set bs))"
+  assumes "p \<in> (phull (set bs))"
   obtains cs where "length cs = length bs" and "p = (\<Sum>(c, b)\<leftarrow>zip cs bs. monom_mult c 0 b)"
 proof -
   have "finite (set bs)" ..
-  from this assms(2) obtain c where p: "p = (\<Sum>b\<in>set bs. monom_mult (c b) 0 b)" by (rule in_phull_finiteE)
-  let ?cs = "map c bs"
+  from this assms obtain c where p: "p = (\<Sum>b\<in>set bs. monom_mult (c b) 0 b)" by (rule in_phull_finiteE)
+  let ?cs = "map_dup c (\<lambda>_. 0) bs"
   show ?thesis
   proof
     show "length ?cs = length bs" by simp
   next
-    from assms(1) have *: "distinct (zip ?cs bs)" by (rule distinct_zipI2)
+    let ?zs = "zip (map c (remdups bs)) (remdups bs)"
+    have *: "distinct ?zs" by (rule distinct_zipI2, rule distinct_remdups)
     have inj: "inj_on (\<lambda>x. (c x, x)) (set bs)" by (rule, simp)
-    show "p = (\<Sum>(q, b)\<leftarrow>zip ?cs bs. monom_mult q 0 b)"
+    have "p = (\<Sum>(q, b)\<leftarrow>?zs. monom_mult q 0 b)"
       by (simp add: sum_list_distinct_conv_sum_set[OF *] set_zip_map1 p comm_monoid_add_class.sum.reindex[OF inj])
+    also have "... = (\<Sum>(q, b)\<leftarrow>(filter (\<lambda>(c, b). c \<noteq> 0) ?zs). monom_mult q 0 b)"
+      by (rule monoid_add_class.sum_list_map_filter[symmetric], auto simp add: monom_mult_left0)
+    also have "... = (\<Sum>(q, b)\<leftarrow>(filter (\<lambda>(c, b). c \<noteq> 0) (zip ?cs bs)). monom_mult q 0 b)"
+      by (simp only: filter_zip_map_dup_const)
+    also have "... = (\<Sum>(q, b)\<leftarrow>zip ?cs bs. monom_mult q 0 b)"
+      by (rule monoid_add_class.sum_list_map_filter, auto simp add: monom_mult_left0)
+    finally show "p = (\<Sum>(q, b)\<leftarrow>zip ?cs bs. monom_mult q 0 b)" .
   qed
 qed
 
