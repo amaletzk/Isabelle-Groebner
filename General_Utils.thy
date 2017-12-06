@@ -328,6 +328,13 @@ next
   qed
 qed
 
+lemma map_remdups_by: "map f (remdups_by f xs) = remdups (map f xs)"
+  by (induct xs, auto)
+
+lemma remdups_by_append:
+  "remdups_by f (xs @ ys) = (filter (\<lambda>a. f a \<notin> f ` set ys) (remdups_by f xs)) @ (remdups_by f ys)"
+  by (induct xs, auto)
+
 lemma distinctI:
   assumes "\<And>i j. i < j \<Longrightarrow> i < length xs \<Longrightarrow> j < length xs \<Longrightarrow> xs ! i \<noteq> xs ! j"
   shows "distinct xs"
@@ -515,6 +522,39 @@ proof -
     hence "i < length ?l" and "i < length ?r" by (simp_all only: len_l len_r)
     thus "map (\<lambda>i. f (xs ! i) (ys ! i)) [0..<length ys] ! i = map (\<lambda>(x, y). f x y) (zip xs ys) ! i"
       by simp
+  qed
+qed
+
+subsection \<open>@{const map_of}\<close>
+
+lemma map_of_filter: "map_of (filter (\<lambda>x. fst x = y) xs) y = map_of xs y"
+  by (induct xs, auto)
+
+lemma map_of_remdups_by: "map_of (remdups_by fst (rev xs)) = map_of xs"
+proof (induct xs)
+  case Nil
+  show ?case by simp
+next
+  case (Cons x xs)
+  have "dom [fst x \<mapsto> snd x] \<inter> dom (map_of [a\<leftarrow>remdups_by fst (rev xs) . fst a \<noteq> fst x]) = {}"
+    by (auto simp add: dom_map_of_conv_image_fst)
+  hence eq: "[fst x \<mapsto> snd x] ++ map_of [a\<leftarrow>remdups_by fst (rev xs) . fst a \<noteq> fst x] =
+          map_of [a\<leftarrow>remdups_by fst (rev xs) . fst a \<noteq> fst x] ++ [fst x \<mapsto> snd x]"
+    by (rule map_add_comm)
+  show ?case
+  proof (simp add: remdups_by_append eq, rule, simp, rule)
+    fix y
+    assume "y \<noteq> fst x"
+    have *: "filter (\<lambda>x. fst x = y) (remdups_by fst (rev xs)) =
+          filter (\<lambda>x. fst x = y) (filter (\<lambda>a. fst a \<noteq> fst x) (remdups_by fst (rev xs)))"
+      by (simp, rule filter_cong, auto simp add: \<open>y \<noteq> fst x\<close>)
+    have "map_of xs y = map_of (remdups_by fst (rev xs)) y" by (simp only: Cons)
+    also have "... = map_of (filter (\<lambda>x. fst x = y) (remdups_by fst (rev xs))) y"
+      by (rule map_of_filter[symmetric])
+    also have "... = map_of (filter (\<lambda>x. fst x = y) (filter (\<lambda>a. fst a \<noteq> fst x) (remdups_by fst (rev xs)))) y"
+      by (simp only: *)
+    also have "... = map_of [a\<leftarrow>remdups_by fst (rev xs) . fst a \<noteq> fst x] y" by (rule map_of_filter)
+    finally show "map_of [a\<leftarrow>remdups_by fst (rev xs) . fst a \<noteq> fst x] y = map_of xs y" by (simp only:)
   qed
 qed
 

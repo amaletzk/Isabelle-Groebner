@@ -155,6 +155,16 @@ qed
 
 subsection \<open>Sums\<close>
 
+lemma sum_poly_mapping_eq_zeroI:
+  assumes "p ` A \<subseteq> {0}"
+  shows "sum p A = (0::('a, 'b::comm_monoid_add) poly_mapping)"
+proof (rule ccontr)
+  assume "sum p A \<noteq> 0"
+  then obtain a where "a \<in> A" and "p a \<noteq> 0"
+    by (rule comm_monoid_add_class.sum.not_neutral_contains_not_neutral)
+  with assms show False by auto
+qed
+
 lemma lookup_sum: "lookup (\<Sum>a\<in>A. f a) t = (\<Sum>a\<in>A. lookup (f a) t)"
 proof (cases "finite A")
   case True
@@ -1120,9 +1130,38 @@ next
     qed
   qed
 qed
+
+lemma lp_plus_eqI_2:
+  assumes "lp q \<prec> lp p"
+  shows "lp (p + q) = lp p"
+proof (cases "p = 0")
+  case True
+  with assms have "lp q \<prec> 0" by (simp add: lp_def)
+  with zero_min[of "lp q"] show ?thesis by simp
+next
+  case False
+  show ?thesis
+  proof (intro lp_eqI)
+    from lp_gr[of q "lp p" "lp q"] \<open>lp q \<prec> lp p\<close> have "lookup q (lp p) = 0" by blast
+    with lookup_add[of p q "lp p"] lc_not_0[OF False] show "lookup (p + q) (lp p) \<noteq> 0"
+      unfolding lc_def by simp
+  next
+    fix s
+    assume "lookup (p + q) s \<noteq> 0"
+    show "s \<preceq> lp p"
+    proof (rule ccontr)
+      assume "\<not> s \<preceq> lp p"
+      hence ps: "lp p \<prec> s" by simp
+      hence "lp q \<prec> s" using \<open>lp q \<prec> lp p\<close> by simp
+      with lp_gr[of q s "lp q"] have "lookup q s = 0" by blast
+      also from ps lp_gr[of p s "lp p"] have "lookup p s = 0" by blast
+      ultimately show False using \<open>lookup (p + q) s \<noteq> 0\<close> lookup_add[of p q s] by auto
+    qed
+  qed
+qed
     
 lemma lp_plus_precE:
-  assumes "lp p \<prec> lp (p + (q::('a, 'b::comm_monoid_add) poly_mapping))"
+  assumes "lp p \<prec> lp (p + (q::('a, 'b::monoid_add) poly_mapping))"
   shows "lp p \<prec> lp q"
 proof (rule ccontr)
   assume "\<not> lp p \<prec> lp q"
@@ -1142,7 +1181,7 @@ proof (rule ccontr)
     with assms show False by simp
   next
     assume "lp q \<prec> lp p"
-    from lp_plus_eqI[OF this] assms show False by (simp add: add.commute)
+    from lp_plus_eqI_2[OF this] assms show False by simp
   qed
 qed
   
@@ -1168,6 +1207,26 @@ proof (rule ccontr)
     hence "lp p \<noteq> lp q" by simp
     with lp_eq show False by simp
   qed
+qed
+
+lemma lp_plus_distinct_eq_max:
+  assumes "lp p \<noteq> lp q"
+  shows "lp (p + q) = ordered_powerprod_lin.max (lp p) (lp q)"
+proof (rule ordered_powerprod_lin.linorder_cases)
+  assume a: "lp p \<prec> lp q"
+  hence "lp (p + q) = lp q" by (rule lp_plus_eqI)
+  also from a have "... = ordered_powerprod_lin.max (lp p) (lp q)"
+    by (simp add: ordered_powerprod_lin.max.absorb2)
+  finally show ?thesis .
+next
+  assume a: "lp q \<prec> lp p"
+  hence "lp (p + q) = lp p" by (rule lp_plus_eqI_2)
+  also from a have "... = ordered_powerprod_lin.max (lp p) (lp q)"
+    by (simp add: ordered_powerprod_lin.max.absorb1)
+  finally show ?thesis .
+next
+  assume "lp p = lp q"
+  with assms show ?thesis ..
 qed
     
 lemma lp_max_keys:
@@ -1253,6 +1312,111 @@ proof
   then obtain f where "f \<in> F" and "f \<noteq> 0" and "lc f = 0" by (rule lc_setE)
   from \<open>f \<noteq> 0\<close> have "lc f \<noteq> 0" by (rule lc_not_0)
   from this \<open>lc f = 0\<close> show False ..
+qed
+
+lemma lp_sum_distinct_eq_Max:
+  assumes "finite I" and "sum p I \<noteq> 0"
+    and "\<And>i1 i2. i1 \<in> I \<Longrightarrow> i2 \<in> I \<Longrightarrow> p i1 \<noteq> 0 \<Longrightarrow> p i2 \<noteq> 0 \<Longrightarrow> lp (p i1) = lp (p i2) \<Longrightarrow> i1 = i2"
+  shows "lp (sum p I) = ordered_powerprod_lin.Max (lp_set (p ` I))"
+proof -
+  have "\<not> p ` I \<subseteq> {0}"
+  proof
+    assume "p ` I \<subseteq> {0}"
+    hence "sum p I = 0" by (rule sum_poly_mapping_eq_zeroI)
+    with assms(2) show False ..
+  qed
+  from assms(1) this assms(3) show ?thesis
+  proof (induct I)
+    case empty
+    from empty(1) show ?case by simp
+  next
+    case (insert x I)
+    show ?case
+    proof (cases "p ` I \<subseteq> {0}")
+      case True
+      hence "p ` I - {0} = {}" by simp
+      have "p x \<noteq> 0"
+      proof
+        assume "p x = 0"
+        with True have " p ` insert x I \<subseteq> {0}" by simp
+        with insert(4) show False ..
+      qed
+      hence "insert (p x) (p ` I) - {0} = insert (p x) (p ` I - {0})" by auto
+      hence "lp_set (p ` insert x I) = {lp (p x)}" by (simp add: lp_set_def \<open>p ` I - {0} = {}\<close>)
+      hence eq1: "ordered_powerprod_lin.Max (lp_set (p ` insert x I)) = lp (p x)" by simp
+      have eq2: "sum p I = 0"
+      proof (rule ccontr)
+        assume "sum p I \<noteq> 0"
+        then obtain y where "y \<in> I" and "p y \<noteq> 0" by (rule sum.not_neutral_contains_not_neutral)
+        with True show False by auto
+      qed
+      show ?thesis by (simp only: eq1 sum.insert[OF insert(1) insert(2)], simp add: eq2)
+    next
+      case False
+      hence IH: "lp (sum p I) = ordered_powerprod_lin.Max (lp_set (p ` I))"
+      proof (rule insert(3))
+        fix i1 i2
+        assume "i1 \<in> I" and "i2 \<in> I"
+        hence "i1 \<in> insert x I" and "i2 \<in> insert x I" by simp_all
+        moreover assume "p i1 \<noteq> 0" and "p i2 \<noteq> 0" and "lp (p i1) = lp (p i2)"
+        ultimately show "i1 = i2" by (rule insert(5))
+      qed
+      show ?thesis
+      proof (cases "p x = 0")
+        case True
+        hence eq: "lp_set (p ` insert x I) = lp_set (p ` I)" by (simp add: lp_set_def)
+        show ?thesis by (simp only: eq, simp add: sum.insert[OF insert(1) insert(2)] True, fact IH)
+      next
+        case False
+        hence eq1: "lp_set (p ` insert x I) = insert (lp (p x)) (lp_set (p ` I))"
+          by (auto simp add: lp_set_def)
+        from insert(1) have "finite (lp_set (p ` I))" by (simp add: lp_set_def)
+        moreover from \<open>\<not> p ` I \<subseteq> {0}\<close> have "lp_set (p ` I) \<noteq> {}" by (simp add: lp_set_def)
+        ultimately have eq2: "ordered_powerprod_lin.Max (insert (lp (p x)) (lp_set (p ` I))) =
+                          ordered_powerprod_lin.max (lp (p x)) (ordered_powerprod_lin.Max (lp_set (p ` I)))"
+          by (rule ordered_powerprod_lin.Max_insert)
+        show ?thesis
+        proof (simp only: eq1, simp add: sum.insert[OF insert(1) insert(2)] eq2 IH[symmetric],
+            rule lp_plus_distinct_eq_max, rule)
+          assume *: "lp (p x) = lp (sum p I)"
+          have "lp (p x) \<in> lp_set (p ` I)" by (simp only: * IH, rule ordered_powerprod_lin.Max_in, fact+)
+          then obtain f where "f \<in> p ` I" and "f \<noteq> 0" and lpf: "lp f = lp (p x)" by (rule lp_setE)
+          from this(1) obtain y where "y \<in> I" and "f = p y" ..
+          from this(2) \<open>f \<noteq> 0\<close> lpf have "p y \<noteq> 0" and lp_eq: "lp (p y) = lp (p x)" by simp_all
+          from _ _ this(1) \<open>p x \<noteq> 0\<close> this(2) have "y = x"
+          proof (rule insert(5))
+            from \<open>y \<in> I\<close> show "y \<in> insert x I" by simp
+          next
+            show "x \<in> insert x I" by simp
+          qed
+          with \<open>y \<in> I\<close> have "x \<in> I" by simp
+          with \<open>x \<notin> I\<close> show False ..
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma lp_sum_distinct_in_lp_set:
+  assumes "finite I" and "sum p I \<noteq> 0"
+    and "\<And>i1 i2. i1 \<in> I \<Longrightarrow> i2 \<in> I \<Longrightarrow> p i1 \<noteq> 0 \<Longrightarrow> p i2 \<noteq> 0 \<Longrightarrow> lp (p i1) = lp (p i2) \<Longrightarrow> i1 = i2"
+  shows "lp (sum p I) \<in> lp_set (p ` I)"
+proof -
+  have "\<not> p ` I \<subseteq> {0}"
+  proof
+    assume "p ` I \<subseteq> {0}"
+    hence "sum p I = 0" by (rule sum_poly_mapping_eq_zeroI)
+    with assms(2) show False ..
+  qed
+  have "lp (sum p I) = ordered_powerprod_lin.Max (lp_set (p ` I))"
+    by (rule lp_sum_distinct_eq_Max, fact+)
+  also have "... \<in> lp_set (p ` I)"
+  proof (rule ordered_powerprod_lin.Max_in)
+    from assms(1) show "finite (lp_set (p ` I))" by (simp add: lp_set_def)
+  next
+    from \<open>\<not> p ` I \<subseteq> {0}\<close> show "lp_set (p ` I) \<noteq> {}" by (simp add: lp_set_def)
+  qed
+  finally show ?thesis .
 qed
   
 subsection \<open>Trailing Power-Products and -Coefficients\<close>
@@ -2630,17 +2794,20 @@ proof (rule poly_mapping_eqI)
   also have "... = lookup p t" using \<open>lc p \<noteq> 0\<close> by simp
   finally show "lookup ?q t = lookup p t" by simp
 qed
-  
+
+lemma is_monic_setI:
+  assumes "\<And>b. b \<in> B \<Longrightarrow> b \<noteq> 0 \<Longrightarrow> lc b = 1"
+  shows "is_monic_set B"
+  unfolding is_monic_set_def using assms by auto
+
 lemma is_monic_setD:
-  fixes B b
   assumes "is_monic_set B" and "b \<in> B" and "b \<noteq> 0"
   shows "lc b = 1"
   using assms unfolding is_monic_set_def by auto
     
 lemma monic_set_is_monic_set:
   shows "is_monic_set (monic_set A)"
-  unfolding is_monic_set_def
-proof (intro ballI impI)
+proof (rule is_monic_setI)
   fix p
   assume pin: "p \<in> monic_set A" and "p \<noteq> 0"
   from pin obtain p' where p_def: "p = monic p'" and "p' \<in> A" unfolding monic_set_def ..

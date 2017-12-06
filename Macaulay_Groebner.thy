@@ -66,8 +66,11 @@ lemma scalar_prod_comm:
   shows "v \<bullet> w = w \<bullet> (v::'a::comm_semiring_0 vec)"
   by (simp add: scalar_prod_def assms, rule sum.cong, rule refl, simp only: ac_simps)
 
+lemma vec_scalar_mult_fun: "vec n (c \<cdot> f) = c \<cdot>\<^sub>v vec n f"
+  by (simp add: scalar_mult_fun_def smult_vec_def, rule vec_cong, rule refl, simp)
+
 definition mult_vec_mat :: "'a vec \<Rightarrow> 'a :: semiring_0 mat \<Rightarrow> 'a vec" (infixl "\<^sub>v*" 70)
-  where "v \<^sub>v* A \<equiv> vec (dim_col A) (\<lambda>i. v \<bullet> col A i)"
+  where "v \<^sub>v* A \<equiv> vec (dim_col A) (\<lambda>j. v \<bullet> col A j)"
 
 definition resize_vec :: "nat \<Rightarrow> 'a vec \<Rightarrow> 'a vec"
   where "resize_vec n v = vec n (vec_index v)"
@@ -100,19 +103,11 @@ lemma mult_vec_mat_transpose:
   assumes "dim_vec v = dim_row A"
   shows "v \<^sub>v* A = (transpose_mat A) *\<^sub>v (v::'a::comm_semiring_0 vec)"
 proof (simp add: mult_vec_mat_def mult_mat_vec_def, rule vec_cong, rule refl, simp)
-  fix i
-  show "v \<bullet> col A i = col A i \<bullet> v" by (rule scalar_prod_comm, simp add: assms)
+  fix j
+  show "v \<bullet> col A j = col A j \<bullet> v" by (rule scalar_prod_comm, simp add: assms)
 qed
 
 subsection \<open>More about Matrices\<close>
-
-lemma length_mat_to_list: "length (mat_to_list A) = dim_row A"
-  by (simp add: mat_to_list_def)
-
-lemma mat_to_list_nth:
-  assumes "i < dim_row A"
-  shows "mat_to_list A ! i = list_of_vec (row A i)"
-  by (simp add: mat_to_list_def assms list_of_vec_vec row_def)
 
 definition nzrows :: "'a::zero mat \<Rightarrow> 'a vec list"
   where "nzrows A = filter (\<lambda>r. r \<noteq> 0\<^sub>v (dim_col A)) (rows A)"
@@ -426,7 +421,7 @@ proof (rule distinct_filterI, simp del: dim_row_echelon)
   qed
 qed
 
-subsection \<open>Function "Supp"\<close>
+subsection \<open>Function @{term Supp}\<close>
 
 definition Supp :: "('a, 'b::zero) poly_mapping set \<Rightarrow> 'a set" where "Supp F = \<Union>(keys ` F)"
 
@@ -514,7 +509,7 @@ definition row_to_poly :: "'a list \<Rightarrow> 'b vec \<Rightarrow> ('a, 'b::z
   "row_to_poly ts r = list_to_poly ts (list_of_vec r)"
 
 definition mat_to_polys :: "'a list \<Rightarrow> 'b mat \<Rightarrow> ('a, 'b::zero) poly_mapping list" where
-  "mat_to_polys ts A = map (list_to_poly ts) (mat_to_list A)"
+  "mat_to_polys ts A = map (row_to_poly ts) (rows A)"
 
 lemma distinct_pps_to_list: "distinct (pps_to_list S)"
   unfolding pps_to_list_def distinct_rev by (rule ordered_powerprod_lin.distinct_sorted_list_of_set)
@@ -604,21 +599,21 @@ lemma poly_to_row_index:
   by (simp add: poly_to_row_def vec_of_list_index assms)
 
 lemma poly_to_row_scalar_mult:
-  assumes "keys p \<subseteq> S" and fin: "finite S"
-  shows "row_to_poly (pps_to_list S) (c \<cdot>\<^sub>v (poly_to_row (pps_to_list S) p)) = monom_mult c 0 p"
+  assumes "keys p \<subseteq> set ts"
+  shows "row_to_poly ts (c \<cdot>\<^sub>v (poly_to_row ts p)) = monom_mult c 0 p"
 proof -
-  have eq: "(vec (length (pps_to_list S)) (\<lambda>i. c * poly_to_row (pps_to_list S) p $ i)) =
-        (vec (length (pps_to_list S)) (\<lambda>i. c * lookup p ((pps_to_list S) ! i)))"
+  have eq: "(vec (length ts) (\<lambda>i. c * poly_to_row ts p $ i)) =
+        (vec (length ts) (\<lambda>i. c * lookup p (ts ! i)))"
     by (rule vec_cong, rule, simp only: poly_to_row_index)
-  have *: "list_to_fun (pps_to_list S) (list_of_vec (c \<cdot>\<^sub>v (poly_to_row (pps_to_list S) p))) = (\<lambda>t. c * lookup p t)"
+  have *: "list_to_fun ts (list_of_vec (c \<cdot>\<^sub>v (poly_to_row ts p))) = (\<lambda>t. c * lookup p t)"
   proof (rule, simp add: list_to_fun_def smult_vec_def dim_poly_to_row eq,
-        simp add: list_of_vec_vec map_upt[of "\<lambda>x. c * lookup p x"] map_of_zip_map set_pps_to_list[OF fin], rule)
+        simp add: list_of_vec_vec map_upt[of "\<lambda>x. c * lookup p x"] map_of_zip_map, rule)
     fix t
-    assume "t \<notin> S"
+    assume "t \<notin> set ts"
     with assms(1) have "t \<notin> keys p" by auto
     thus "c * lookup p t = 0" by simp
   qed
-  have **: "lookup (Abs_poly_mapping (list_to_fun (pps_to_list S) (list_of_vec (c \<cdot>\<^sub>v (poly_to_row (pps_to_list S) p))))) =
+  have **: "lookup (Abs_poly_mapping (list_to_fun ts (list_of_vec (c \<cdot>\<^sub>v (poly_to_row ts p))))) =
             (\<lambda>t. c * lookup p t)"
   proof (simp only: *, rule Abs_poly_mapping_inverse, simp, rule finite_subset, rule, simp)
     fix t
@@ -635,10 +630,10 @@ proof -
 qed
 
 lemma poly_to_row_to_poly:
-  assumes "keys p \<subseteq> S" and "finite S"
-  shows "row_to_poly (pps_to_list S) (poly_to_row (pps_to_list S) p) = (p::('a, 'b::semiring_1) poly_mapping)"
+  assumes "keys p \<subseteq> set ts"
+  shows "row_to_poly ts (poly_to_row ts p) = (p::('a, 'b::semiring_1) poly_mapping)"
 proof -
-  have "1 \<cdot>\<^sub>v (poly_to_row (pps_to_list S) p) = poly_to_row (pps_to_list S) p" by simp
+  have "1 \<cdot>\<^sub>v (poly_to_row ts p) = poly_to_row ts p" by simp
   thus ?thesis using monom_mult_left1[of p] poly_to_row_scalar_mult[OF assms, of 1] by simp
 qed
 
@@ -706,7 +701,7 @@ proof -
       simp add: lookup_list_to_poly list_to_fun_def eq map_of_zip_map)
 qed
 
-lemma row_to_poly_zero_iff:
+lemma row_to_poly_zeroD:
   assumes "distinct ts" and "dim_vec r = length ts" and "row_to_poly ts r = 0"
   shows "r = 0\<^sub>v (length ts)"
 proof (rule, simp_all add: assms(2))
@@ -729,6 +724,82 @@ proof (rule, simp_all add: assms(2) assms(3))
   also from assms(4) have "... = lookup (row_to_poly ts r2) (ts ! i)" by simp
   also from assms(1) assms(3) \<open>i < length ts\<close> have "... = r2 $ i" by (rule lookup_row_to_poly)
   finally show "r1 $ i = r2 $ i" .
+qed
+
+lemma row_to_poly_vec_plus:
+  assumes "distinct ts" and "length ts = n"
+  shows "row_to_poly ts (vec n (f1 + f2)) = row_to_poly ts (vec n f1) + row_to_poly ts (vec n f2)"
+proof (rule poly_mapping_eqI)
+  fix t
+  show "lookup (row_to_poly ts (vec n (f1 + f2))) t =
+         lookup (row_to_poly ts (vec n f1) + row_to_poly ts (vec n f2)) t"
+    (is "lookup ?l t = lookup (?r1 + ?r2) t")
+  proof (cases "t \<in> set ts")
+    case True
+    then obtain j where j: "j < length ts" and t: "t = ts ! j" by (metis in_set_conv_nth)
+    have d1: "dim_vec (vec n f1) = length ts" and d2: "dim_vec (vec n f2) = length ts"
+      and da: "dim_vec (vec n (f1 + f2)) = length ts" by (simp_all add: assms(2))
+    from j have j': "j < n" by (simp only: assms(2))
+    show ?thesis
+      by (simp only: t lookup_add lookup_row_to_poly[OF assms(1) d1 j]
+              lookup_row_to_poly[OF assms(1) d2 j] lookup_row_to_poly[OF assms(1) da j] index_vec[OF j'],
+             simp only: plus_fun_def)
+  next
+    case False
+    with keys_row_to_poly[of ts "vec n (f1 + f2)"] keys_row_to_poly[of ts "vec n f1"]
+      keys_row_to_poly[of ts "vec n f2"] have "t \<notin> keys ?l" and "t \<notin> keys ?r1" and "t \<notin> keys ?r2"
+      by auto
+    from this(2) this(3) have "t \<notin> keys (?r1 + ?r2)" using keys_add_subset[of ?r1 ?r2] by auto
+    with \<open>t \<notin> keys ?l\<close> show ?thesis by simp
+  qed
+qed
+
+lemma row_to_poly_vec_sum:
+  assumes "distinct ts" and "length ts = n"
+  shows "row_to_poly ts (vec n (\<lambda>j. \<Sum>i\<in>I. f i j)) = (\<Sum>i\<in>I. row_to_poly ts (vec n (f i)))"
+proof (cases "finite I")
+  case True
+  thus ?thesis
+  proof (induct I)
+    case empty
+    thus ?case by (simp add: zero_vec_def[symmetric] assms(2)[symmetric])
+  next
+    case (insert x I)
+    have "row_to_poly ts (vec n (\<lambda>j. \<Sum>i\<in>insert x I. f i j)) = row_to_poly ts (vec n (\<lambda>j. f x j + (\<Sum>i\<in>I. f i j)))"
+      by (simp only: sum.insert[OF insert(1) insert(2)])
+    also have "... = row_to_poly ts (vec n (f x + (\<lambda>j. (\<Sum>i\<in>I. f i j))))" by (simp only: plus_fun_def)
+    also from assms have "... = row_to_poly ts (vec n (f x)) + row_to_poly ts (vec n (\<lambda>j. (\<Sum>i\<in>I. f i j)))"
+      by (rule row_to_poly_vec_plus)
+    also have "... = row_to_poly ts (vec n (f x)) + (\<Sum>i\<in>I. row_to_poly ts (vec n (f i)))"
+      by (simp only: insert(3))
+    also have "... = (\<Sum>i\<in>insert x I. row_to_poly ts (vec n (f i)))"
+      by (simp only: sum.insert[OF insert(1) insert(2)])
+    finally show ?case .
+  qed
+next
+  case False
+  thus ?thesis by (simp add: zero_vec_def[symmetric] assms(2)[symmetric])
+qed
+
+lemma row_to_poly_smult:
+  assumes "distinct ts" and "dim_vec r = length ts"
+  shows "row_to_poly ts (c \<cdot>\<^sub>v r) = monom_mult c 0 (row_to_poly ts r)"
+proof (rule poly_mapping_eqI, simp only: lookup_monom_mult_const)
+  fix t
+  show "lookup (row_to_poly ts (c \<cdot>\<^sub>v r)) t = c * lookup (row_to_poly ts r) t" (is "lookup ?l t = c * lookup ?r t")
+  proof (cases "t \<in> set ts")
+    case True
+    then obtain j where j: "j < length ts" and t: "t = ts ! j" by (metis in_set_conv_nth)
+    from assms(2) have dm: "dim_vec (c \<cdot>\<^sub>v r) = length ts" by simp
+    from j have j': "j < dim_vec r" by (simp only: assms(2))
+    show ?thesis
+      by (simp add: t lookup_row_to_poly[OF assms j] lookup_row_to_poly[OF assms(1) dm j] index_smult_vec(1)[OF j'])
+  next
+    case False
+    with keys_row_to_poly[of ts "c \<cdot>\<^sub>v r"] keys_row_to_poly[of ts r] have
+      "t \<notin> keys ?l" and "t \<notin> keys ?r" by auto
+    thus ?thesis by simp
+  qed
 qed
 
 lemma poly_to_row_empty[simp]: "poly_to_row [] p = vec 0 f"
@@ -770,8 +841,8 @@ lemma mat_to_polys_nth:
   assumes "i < dim_row A"
   shows "(mat_to_polys ts A) ! i = row_to_poly ts (row A i)"
 proof -
-  from assms have "i < length (mat_to_list A)" by (simp only: length_mat_to_list)
-  thus ?thesis by (simp add: mat_to_polys_def row_to_poly_def mat_to_list_nth[OF assms])
+  from assms have "i < length (rows A)" by (simp only: length_rows)
+  thus ?thesis by (simp add: mat_to_polys_def)
 qed
 
 lemma Supp_mat_to_polys: "Supp (set (mat_to_polys ts A)) \<subseteq> set ts"
@@ -794,24 +865,10 @@ lemma polys_to_mat_to_polys:
 proof (simp add: mat_to_polys_def mat_to_list_def, rule nth_equalityI, simp_all, intro allI impI)
   fix i
   assume "i < length ps"
-  have eq: "map (\<lambda>j. polys_to_mat ts ps $$ (i, j)) [0..<length ts] =
-            map (\<lambda>j. lookup (ps ! i) (ts ! j)) [0..<length ts]"
-  proof (rule map_cong, simp_all add: length_pps_to_list)
-    fix j
-    assume "j < length ts"
-    thus "polys_to_mat ts ps $$ (i, j) = lookup (ps ! i) (ts ! j)"
-      by (simp add: polys_to_mat_def index_mat(2)[OF \<open>i < length ps\<close> \<open>j < length ts\<close>] poly_to_row_def vec_of_list_index)
-  qed
-  show "list_to_poly ts (map (\<lambda>j. polys_to_mat ts ps $$ (i, j)) [0..<length ts]) = ps ! i"
-  proof (simp add: eq map_upt, rule poly_mapping_eqI, simp add: lookup_list_to_poly list_to_fun_def
-        map_of_zip_map, rule)
-    fix t
-    assume "t \<notin> set ts"
-    with assms have "t \<notin> Supp (set ps)" by auto
-    moreover from \<open>i < length ps\<close> have "ps ! i \<in> set ps" by simp
-    ultimately have "t \<notin> keys (ps ! i)" using in_SuppI[of t "ps ! i" "set ps"] by blast
-    thus "lookup (ps ! i) t = 0" by simp
-  qed
+  have *: "keys (ps ! i) \<subseteq> set ts"
+    using \<open>i < length ps\<close> assms keys_subset_Supp nth_mem by blast
+  show "row_to_poly ts (row (polys_to_mat ts ps) i) = ps ! i"
+    by (simp only: row_polys_to_mat[OF \<open>i < length ps\<close>] poly_to_row_to_poly[OF *])
 qed
 
 lemma mat_to_polys_to_mat:
@@ -828,6 +885,25 @@ proof
 qed (simp_all add: assms)
 
 subsection \<open>Properties of Macaulay Matrices\<close>
+
+lemma row_to_poly_vec_times:
+  assumes "distinct ts" and "length ts = dim_col A"
+  shows "row_to_poly ts (v \<^sub>v* A) = (\<Sum>i=0..<dim_row A. monom_mult (v $ i) 0 (row_to_poly ts (row A i)))"
+proof (simp add: mult_vec_mat_def scalar_prod_def row_to_poly_vec_sum[OF assms], rule sum.cong, rule)
+  fix i
+  assume "i \<in> {0..<dim_row A}"
+  hence "i < dim_row A" by simp
+  have "dim_vec (row A i) = length ts" by (simp add: assms(2))
+  have *: "vec (dim_col A) (\<lambda>j. col A j $ i) = vec (dim_col A) (\<lambda>j. A $$ (i, j))"
+    by (rule vec_cong, rule refl, simp add: \<open>i < dim_row A\<close>)
+  have "(\<lambda>j. v $ i * col A j $ i) = v $ i \<cdot> (\<lambda>j. col A j $ i)" by (simp add: scalar_mult_fun_def)
+  hence "vec (dim_col A) (\<lambda>j. v $ i * col A j $ i) = v $ i \<cdot>\<^sub>v vec (dim_col A) (\<lambda>j. col A j $ i)"
+    by (simp only: vec_scalar_mult_fun)
+  also have "... = v $ i \<cdot>\<^sub>v (row A i)" by (simp only: * row_def[symmetric])
+  finally show "row_to_poly ts (vec (dim_col A) (\<lambda>j. v $ i * col A j $ i)) =
+                  monom_mult (v $ i) 0 (row_to_poly ts (row A i))"
+    by (simp add: row_to_poly_smult[OF assms(1) \<open>dim_vec (row A i) = length ts\<close>])
+qed
 
 lemma vec_times_polys_to_mat:
   assumes "Supp (set ps) \<subseteq> set ts" and "v \<in> carrier_vec (length ps)"
@@ -846,8 +922,7 @@ proof -
   qed
   show ?thesis
   proof (rule poly_mapping_eqI, simp add: mult_vec_mat_def row_to_poly_def lookup_list_to_poly
-      list_of_vec_vec eq list_to_fun_def map_of_zip_map set_pps_to_list[OF Supp_finite]
-      lookup_sum_list o_def, intro conjI impI)
+      list_of_vec_vec eq list_to_fun_def map_of_zip_map lookup_sum_list o_def, intro conjI impI)
     fix t
     assume "t \<in> set ts"
     have "v \<bullet> vec_of_list (map (\<lambda>p. lookup p t) ps) =
@@ -931,7 +1006,7 @@ lemma row_space_row_echelon_eq_phull:
   shows "row_to_poly ts ` row_space (row_echelon (polys_to_mat ts ps)) = phull (set ps)"
   by (simp add: row_space_eq_phull[OF assms])
 
-lemma phull_row_echelon_eq_phull:
+lemma phull_row_echelon:
   assumes "Supp (set ps) \<subseteq> set ts" and "distinct ts"
   shows "phull (set (mat_to_polys ts (row_echelon (polys_to_mat ts ps)))) = phull (set ps)"
 proof -
@@ -943,11 +1018,19 @@ proof -
         rule row_space_row_echelon_eq_phull, fact)
 qed
 
-lemma pideal_row_echelon_subset_pideal:
+lemma pideal_row_echelon:
   assumes "Supp (set ps) \<subseteq> set ts" and "distinct ts"
-  shows "pideal (set (mat_to_polys ts (row_echelon (polys_to_mat ts ps)))) \<subseteq> pideal (set ps)"
-  by (rule pideal_subset_pidealI, rule subset_trans, rule generator_subset_phull,
-      simp only: phull_row_echelon_eq_phull[OF assms] phull_subset_pideal)
+  shows "pideal (set (mat_to_polys ts (row_echelon (polys_to_mat ts ps)))) = pideal (set ps)"
+    (is "?l = ?r")
+proof
+  show "?l \<subseteq> ?r"
+    by (rule pideal_subset_pidealI, rule subset_trans, rule generator_subset_phull,
+      simp only: phull_row_echelon[OF assms] phull_subset_pideal)
+next
+  show "?r \<subseteq> ?l"
+    by (rule pideal_subset_pidealI, rule subset_trans, rule generator_subset_phull,
+        simp only: phull_row_echelon[OF assms, symmetric] phull_subset_pideal)
+qed
 
 lemma lp_row_to_poly_pivot_fun:
   assumes "card S = dim_col (A::'b::semiring_1 mat)" and "pivot_fun A f (dim_col A)"
@@ -1015,23 +1098,21 @@ proof -
         simp only: assms(1) assms(6))
 qed
 
-lemma lp_row_to_poly_pivot_fun_eq_iff:
+lemma lp_row_to_poly_pivot_fun_eqD:
   assumes "card S = dim_col (A::'b::semiring_1 mat)" and "pivot_fun A f (dim_col A)"
     and "i1 < dim_row A" and "i2 < dim_row A" and "f i1 < dim_col A" and "f i2 < dim_col A"
-  shows "((pps_to_list S) ! (f i2) = (pps_to_list S) ! (f i1)) \<longleftrightarrow> (i1 = i2)"
+    and "(pps_to_list S) ! (f i1) = (pps_to_list S) ! (f i2)"
+  shows "i1 = i2"
 proof (rule linorder_cases)
   assume "i1 < i2"
   from assms(1) assms(2) this assms(4) assms(5) assms(6) have
     "(pps_to_list S) ! (f i2) \<prec> (pps_to_list S) ! (f i1)" by (rule lp_row_to_poly_pivot_fun_less)
-  with \<open>i1 < i2\<close> show ?thesis by auto
+  with assms(7) show ?thesis by auto
 next
   assume "i2 < i1"
   from assms(1) assms(2) this assms(3) assms(6) assms(5) have
     "(pps_to_list S) ! (f i1) \<prec> (pps_to_list S) ! (f i2)" by (rule lp_row_to_poly_pivot_fun_less)
-  with \<open>i2 < i1\<close> show ?thesis by auto
-next
-  assume "i1 = i2"
-  thus ?thesis by simp
+  with assms(7) show ?thesis by auto
 qed
 
 lemma lp_row_to_poly_pivot_in_keysD:
@@ -1053,7 +1134,82 @@ proof (rule ccontr)
   ultimately show False ..
 qed
 
-thm comp_min_basis_def
+lemma lp_row_space_pivot_fun:
+  assumes "card S = dim_col (A::'b::semiring_1_no_zero_divisors mat)" and "pivot_fun A f (dim_col A)"
+    and "p \<in> row_to_poly (pps_to_list S) ` row_space A" and "p \<noteq> 0"
+  shows "lp p \<in> lp_set (set (mat_to_polys (pps_to_list S) A))"
+proof -
+  let ?ts = "pps_to_list S"
+  let ?I = "{0..<dim_row A}"
+  have len_ts: "length ?ts = dim_col A" by (simp add: length_pps_to_list assms(1))
+  from assms(3) obtain x where "x \<in> row_space A" and p: "p = row_to_poly ?ts x" ..
+  from this(1) obtain v where "v \<in> carrier_vec (dim_row A)" and x: "x = v \<^sub>v* A" by (rule row_spaceE)
+  
+  have p': "p = (\<Sum>i\<in>?I. monom_mult (v $ i) 0 (row_to_poly ?ts (row A i)))"
+    unfolding p x by (rule row_to_poly_vec_times, fact distinct_pps_to_list, fact len_ts)
+
+  have "lp (\<Sum>i = 0..<dim_row A. monom_mult (v $ i) 0 (row_to_poly ?ts (row A i)))
+          \<in> lp_set ((\<lambda>i. monom_mult (v $ i) 0 (row_to_poly ?ts (row A i))) ` {0..<dim_row A})"
+  proof (rule lp_sum_distinct_in_lp_set, rule, simp add: p'[symmetric] \<open>p \<noteq> 0\<close>)
+    fix i1 i2
+    let ?p1 = "monom_mult (v $ i1) 0 (row_to_poly ?ts (row A i1))"
+    let ?p2 = "monom_mult (v $ i2) 0 (row_to_poly ?ts (row A i2))"
+    assume "i1 \<in> ?I" and "i2 \<in> ?I"
+    hence "i1 < dim_row A" and "i2 < dim_row A" by simp_all
+
+    assume "?p1 \<noteq> 0"
+    hence "v $ i1 \<noteq> 0" and "row_to_poly ?ts (row A i1) \<noteq> 0"
+      by (auto simp add: monom_mult_left0 monom_mult_right0)
+    hence "row A i1 \<noteq> 0\<^sub>v (length ?ts)" by auto
+    hence "f i1 < dim_col A"
+      by (simp add: len_ts row_not_zero_iff_pivot_fun[OF assms(2) \<open>i1 < dim_row A\<close>])
+    have "lp ?p1 = 0 + lp (row_to_poly ?ts (row A i1))" by (rule lp_mult, fact+)
+    also have "... = lp (row_to_poly ?ts (row A i1))" by simp
+    also have "... = lp ((mat_to_polys ?ts A) ! i1)" by (simp only: mat_to_polys_nth[OF \<open>i1 < dim_row A\<close>])
+    also have "... = ?ts ! (f i1)" by (rule lp_row_to_poly_pivot_fun, fact+)
+    finally have lp1: "lp ?p1 = ?ts ! (f i1)" .
+
+    assume "?p2 \<noteq> 0"
+    hence "v $ i2 \<noteq> 0" and "row_to_poly ?ts (row A i2) \<noteq> 0"
+      by (auto simp add: monom_mult_left0 monom_mult_right0)
+    hence "row A i2 \<noteq> 0\<^sub>v (length ?ts)" by auto
+    hence "f i2 < dim_col A"
+      by (simp add: len_ts row_not_zero_iff_pivot_fun[OF assms(2) \<open>i2 < dim_row A\<close>])
+    have "lp ?p2 = 0 + lp (row_to_poly ?ts (row A i2))" by (rule lp_mult, fact+)
+    also have "... = lp (row_to_poly ?ts (row A i2))" by simp
+    also have "... = lp ((mat_to_polys ?ts A) ! i2)" by (simp only: mat_to_polys_nth[OF \<open>i2 < dim_row A\<close>])
+    also have "... = ?ts ! (f i2)" by (rule lp_row_to_poly_pivot_fun, fact+)
+    finally have lp2: "lp ?p2 = ?ts ! (f i2)" .
+
+    assume "lp ?p1 = lp ?p2"
+    with assms(1) assms(2) \<open>i1 < dim_row A\<close> \<open>i2 < dim_row A\<close> \<open>f i1 < dim_col A\<close> \<open>f i2 < dim_col A\<close>
+    show "i1 = i2" unfolding lp1 lp2 by (rule lp_row_to_poly_pivot_fun_eqD)
+  qed
+  also have "... \<subseteq> lp_set ((\<lambda>i. row_to_poly ?ts (row A i)) ` {0..<dim_row A})"
+  proof
+    fix s
+    assume "s \<in> lp_set ((\<lambda>i. monom_mult (v $ i) 0 (row_to_poly ?ts (row A i))) ` {0..<dim_row A})"
+    then obtain f
+      where "f \<in> (\<lambda>i. monom_mult (v $ i) 0 (row_to_poly ?ts (row A i))) ` {0..<dim_row A}"
+        and "f \<noteq> 0" and "lp f = s" by (rule lp_setE)
+    from this(1) obtain i where "i \<in> {0..<dim_row A}"
+      and f: "f = monom_mult (v $ i) 0 (row_to_poly ?ts (row A i))" ..
+    from this(2) \<open>f \<noteq> 0\<close> have "v $ i \<noteq> 0" and **: "row_to_poly ?ts (row A i) \<noteq> 0"
+      by (auto simp add: monom_mult_left0 monom_mult_right0)
+    from \<open>lp f = s\<close> have "s = lp (monom_mult (v $ i) 0 (row_to_poly ?ts (row A i)))" by (simp only: f)
+    also from \<open>v $ i \<noteq> 0\<close> ** have "... = 0 + lp (row_to_poly ?ts (row A i))" by (rule lp_mult)
+    also have "... = lp (row_to_poly ?ts (row A i))" by simp
+    finally have s: "s = lp (row_to_poly ?ts (row A i))" .
+    show "s \<in> lp_set ((\<lambda>i. row_to_poly ?ts (row A i)) ` {0..<dim_row A})"
+      unfolding s by (rule lp_setI, rule, rule refl, fact+)
+  qed
+  also have "... = lp_set ((\<lambda>r. row_to_poly ?ts r) ` (row A ` {0..<dim_row A}))"
+    by (simp only: image_comp o_def)
+  also have "... = lp_set (set (map (\<lambda>r. row_to_poly ?ts r) (map (row A) [0..<dim_row A])))"
+    by (metis image_set set_upt)
+  also have "... = lp_set (set (mat_to_polys ?ts A))" by (simp only: mat_to_polys_def rows_def)
+  finally show ?thesis unfolding p' .
+qed
 
 end (* ordered_powerprod *)
 
