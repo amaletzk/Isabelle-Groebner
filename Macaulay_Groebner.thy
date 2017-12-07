@@ -386,7 +386,7 @@ proof -
 qed
 
 lemma row_echelon_pivot_fun:
-  obtains f where "pivot_fun (row_echelon A) f (dim_col A)"
+  obtains f where "pivot_fun (row_echelon A) f (dim_col (row_echelon A))"
 proof -
   let ?B = "1\<^sub>m (dim_row A)"
   have "A \<in> carrier_mat (dim_row A) (dim_col A)" by simp
@@ -394,7 +394,6 @@ proof -
   ultimately have "row_echelon_form A'" by (rule gauss_jordan_row_echelon)
   then obtain f where "pivot_fun A' f (dim_col A')" unfolding row_echelon_form_def ..
   hence "pivot_fun (row_echelon A) f (dim_col (row_echelon A))" by (simp add: row_echelon_def *)
-  hence "pivot_fun (row_echelon A) f (dim_col A)" by simp
   thus ?thesis ..
 qed
 
@@ -406,8 +405,7 @@ proof (rule distinct_filterI, simp del: dim_row_echelon)
   assume "i < j" and "j < dim_row ?B"
   hence "i \<noteq> j" and "i < dim_row ?B" by simp_all
   assume ri: "row ?B i \<noteq> 0\<^sub>v (dim_col ?B)" and rj: "row ?B j \<noteq> 0\<^sub>v (dim_col ?B)"
-  obtain f where "pivot_fun ?B f (dim_col A)" by (fact row_echelon_pivot_fun)
-  hence pf: "pivot_fun ?B f (dim_col ?B)" by simp
+  obtain f where pf: "pivot_fun ?B f (dim_col ?B)" by (fact row_echelon_pivot_fun)
   from rj have "f j < dim_col ?B" by (simp only: row_not_zero_iff_pivot_fun[OF pf \<open>j < dim_row ?B\<close>])
   from _ pf \<open>j < dim_row ?B\<close> this \<open>i < dim_row ?B\<close> \<open>i \<noteq> j\<close> have *: "?B $$ (i, f j) = 0"
     by (rule pivot_funD(5), intro refl)
@@ -1211,7 +1209,342 @@ proof -
   finally show ?thesis unfolding p' .
 qed
 
+
+subsection \<open>Gr\"obner Bases\<close>
+
+definition Macaulay_mat :: "('a, 'b) poly_mapping list \<Rightarrow> 'b::field mat"
+  where "Macaulay_mat ps = polys_to_mat (pps_to_list (Supp (set ps))) ps"
+
+definition Macaulay_list :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::field) poly_mapping list"
+  where "Macaulay_list ps =
+     filter (\<lambda>p. p \<noteq> 0) (mat_to_polys (pps_to_list (Supp (set ps))) (row_echelon (Macaulay_mat ps)))"
+
+definition reduced_Macaulay_list :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::field) poly_mapping list"
+  where "reduced_Macaulay_list ps = comp_min_basis_aux (Macaulay_list ps) []"
+
+text \<open>It is important to note that in @{const reduced_Macaulay_list} there is no need to remove
+  duplicate leading power-products (because there are none), nor to make the polynomials monic
+  (because they already are).\<close>
+
+lemma dim_Macaulay_mat[simp]:
+  "dim_row (Macaulay_mat ps) = length ps"
+  "dim_col (Macaulay_mat ps) = card (Supp (set ps))"
+  by (simp_all add: Macaulay_mat_def length_pps_to_list)
+
+lemma set_Macaulay_list:
+  "set (Macaulay_list ps) =
+      set (mat_to_polys (pps_to_list (Supp (set ps))) (row_echelon (Macaulay_mat ps))) - {0}"
+  by (auto simp add: Macaulay_list_def)
+
+lemma in_Macaulay_listE:
+  assumes "p \<in> set (Macaulay_list ps)"
+    and "pivot_fun (row_echelon (Macaulay_mat ps)) f (dim_col (row_echelon (Macaulay_mat ps)))"
+  obtains i where "i < dim_row (row_echelon (Macaulay_mat ps))"
+    and "p = (mat_to_polys (pps_to_list (Supp (set ps))) (row_echelon (Macaulay_mat ps))) ! i"
+    and "f i < dim_col (row_echelon (Macaulay_mat ps))"
+proof -
+  let ?ts = "pps_to_list (Supp (set ps))"
+  let ?A = "Macaulay_mat ps"
+  let ?E = "row_echelon ?A"
+
+  from assms(1) have "p \<in> set (mat_to_polys ?ts ?E) - {0}" by (simp add: set_Macaulay_list)
+  hence "p \<in> set (mat_to_polys ?ts ?E)" and "p \<noteq> 0" by auto
+  from this(1) obtain i where "i < length (mat_to_polys ?ts ?E)" and p: "p = (mat_to_polys ?ts ?E) ! i"
+    by (metis in_set_conv_nth)
+  from this(1) have "i < dim_row ?E" and "i < dim_row ?A" by simp_all
+
+  from this(1) p show ?thesis
+  proof
+    from \<open>p \<noteq> 0\<close> have "0 \<noteq> (mat_to_polys ?ts ?E) ! i" by (simp only: p)
+    also have "(mat_to_polys ?ts ?E) ! i = row_to_poly ?ts (row ?E i)"
+      by (simp only: Macaulay_list_def mat_to_polys_nth[OF \<open>i < dim_row ?E\<close>])
+    finally have *: "row_to_poly ?ts (row ?E i) \<noteq> 0" by simp
+    have "row ?E i \<noteq> 0\<^sub>v (length ?ts)"
+    proof
+      assume "row ?E i = 0\<^sub>v (length ?ts)"
+      with * show False by simp
+    qed
+    hence "row ?E i \<noteq> 0\<^sub>v (dim_col ?E)" by (simp add: length_pps_to_list)
+    thus "f i < dim_col ?E"
+      by (simp only: row_not_zero_iff_pivot_fun[OF assms(2) \<open>i < dim_row ?E\<close>])
+  qed
+qed
+
+lemma phull_Macaulay_list: "phull (set (Macaulay_list ps)) = phull (set ps)"
+proof -
+  have *: "Supp (set ps) \<subseteq> set (pps_to_list (Supp (set ps)))"
+    by (simp add: Supp_finite set_pps_to_list)
+  have "phull (set (Macaulay_list ps)) =
+          phull (set (mat_to_polys (pps_to_list (Supp (set ps))) (row_echelon (Macaulay_mat ps))))"
+    by (simp only: set_Macaulay_list phull_minus_singleton_zero)
+  also have "... = phull (set ps)"
+    by (simp only: Macaulay_mat_def phull_row_echelon[OF * distinct_pps_to_list])
+  finally show ?thesis .
+qed
+
+lemma pideal_Macaulay_list: "pideal (set (Macaulay_list ps)) = pideal (set ps)"
+proof -
+  have *: "Supp (set ps) \<subseteq> set (pps_to_list (Supp (set ps)))"
+    by (simp add: Supp_finite set_pps_to_list)
+  have "pideal (set (Macaulay_list ps)) =
+          pideal (set (mat_to_polys (pps_to_list (Supp (set ps))) (row_echelon (Macaulay_mat ps))))"
+    by (simp only: set_Macaulay_list pideal_minus_singleton_zero)
+  also have "... = pideal (set ps)"
+    by (simp only: Macaulay_mat_def pideal_row_echelon[OF * distinct_pps_to_list])
+  finally show ?thesis .
+qed
+
+lemma Macaulay_list_is_monic_set: "is_monic_set (set (Macaulay_list ps))"
+proof (rule is_monic_setI)
+  let ?ts = "pps_to_list (Supp (set ps))"
+  let ?E = "row_echelon (Macaulay_mat ps)"
+
+  fix p
+  assume "p \<in> set (Macaulay_list ps)"
+  obtain h where "pivot_fun ?E h (dim_col ?E)" by (rule row_echelon_pivot_fun)
+  with \<open>p \<in> set (Macaulay_list ps)\<close> obtain i where "i < dim_row ?E"
+    and p: "p = (mat_to_polys ?ts ?E) ! i" and "h i < dim_col ?E"
+    by (rule in_Macaulay_listE)
+  
+  show "lc p = 1" unfolding p by (rule lc_row_to_poly_pivot_fun, simp, fact+)
+qed
+
+lemma Macaulay_list_not_zero: "0 \<notin> set (Macaulay_list ps)"
+  by (simp add: Macaulay_list_def)
+
+lemma Macaulay_list_distinct_lp:
+  assumes "x \<in> set (Macaulay_list ps)" and "y \<in> set (Macaulay_list ps)"
+    and "x \<noteq> y"
+  shows "lp x \<noteq> lp y"
+proof
+  let ?S = "Supp (set ps)"
+  let ?ts = "pps_to_list ?S"
+  let ?E = "row_echelon (Macaulay_mat ps)"
+
+  assume "lp x = lp y"
+  obtain h where pf: "pivot_fun ?E h (dim_col ?E)" by (rule row_echelon_pivot_fun)
+  with assms(1) obtain i1 where "i1 < dim_row ?E"
+    and x: "x = (mat_to_polys ?ts ?E) ! i1" and "h i1 < dim_col ?E"
+    by (rule in_Macaulay_listE)
+  from assms(2) pf obtain i2 where "i2 < dim_row ?E"
+    and y: "y = (mat_to_polys ?ts ?E) ! i2" and "h i2 < dim_col ?E"
+    by (rule in_Macaulay_listE)
+
+  have "lp x = ?ts ! (h i1)" by (simp only: x, rule lp_row_to_poly_pivot_fun, simp, fact+)
+  moreover have "lp y = ?ts ! (h i2)" by (simp only: y, rule lp_row_to_poly_pivot_fun, simp, fact+)
+  ultimately have "?ts ! (h i1) = ?ts ! (h i2)" by (simp only: \<open>lp x = lp y\<close>)
+
+  have "i1 = i2"
+  proof (rule lp_row_to_poly_pivot_fun_eqD)
+    show "card ?S = dim_col ?E" by simp
+  qed (fact+)
+  hence "x = y" by (simp only: x y)
+  with \<open>x \<noteq> y\<close> show False ..
+qed
+
+lemma reduced_Macaulay_list_subset_Macaulay_list:
+  "set (reduced_Macaulay_list ps) \<subseteq> set (Macaulay_list ps)"
+  by (simp only: reduced_Macaulay_list_def, rule comp_min_basis_aux_empty_subset)
+
+lemma reduced_Macaulay_list_not_zero: "0 \<notin> set (reduced_Macaulay_list ps)"
+  using Macaulay_list_not_zero reduced_Macaulay_list_subset_Macaulay_list by auto
+                                                               
+lemma reduced_Macaulay_list_is_monic_set: "is_monic_set (set (reduced_Macaulay_list ps))"
+proof (rule is_monic_setI)
+  fix b
+  assume "b \<in> set (reduced_Macaulay_list ps)"
+  with reduced_Macaulay_list_subset_Macaulay_list have "b \<in> set (Macaulay_list ps)" ..
+  moreover assume "b \<noteq> 0"
+  ultimately show "lc b = 1" by (rule is_monic_setD[OF Macaulay_list_is_monic_set])
+qed
+
 end (* ordered_powerprod *)
+
+context od_powerprod
+begin
+
+lemma reduced_Macaulay_list_is_minimal_basis: "is_minimal_basis (set (reduced_Macaulay_list ps))"
+proof (rule is_minimal_basisI)
+  fix p
+  assume "p \<in> set (reduced_Macaulay_list ps)"
+  with reduced_Macaulay_list_not_zero show "p \<noteq> 0" by auto
+next
+  fix p q
+  assume "p \<in> set (reduced_Macaulay_list ps)" and q_in: "q \<in> set (reduced_Macaulay_list ps)"
+    and "p \<noteq> q"
+  from reduced_Macaulay_list_subset_Macaulay_list this(1) have p_in: "p \<in> set (Macaulay_list ps)" ..
+  from q_in have "q \<in> set (comp_min_basis_aux (Macaulay_list ps) [])"
+    by (simp only: reduced_Macaulay_list_def)
+  moreover note p_in
+  moreover from \<open>p \<noteq> q\<close> have "q \<noteq> p" ..
+  ultimately show "\<not> lp p adds lp q"
+  proof (rule comp_min_basis_aux_empty_nadds)
+    show "0 \<notin> set (Macaulay_list ps)" by (fact Macaulay_list_not_zero)
+  next
+    fix x y :: "('a, 'b) poly_mapping"
+    assume "x \<in> set (Macaulay_list ps)" and "y \<in> set (Macaulay_list ps)"
+    moreover assume "x \<noteq> y"
+    ultimately show "lp x \<noteq> lp y" by (rule Macaulay_list_distinct_lp)
+  qed
+qed
+
+lemma pideal_reduced_Macaulay_list:
+  assumes "is_Groebner_basis (set (Macaulay_list ps))"
+  shows "pideal (set (reduced_Macaulay_list ps)) = pideal (set ps)"
+proof -
+  have "pideal (set (reduced_Macaulay_list ps)) = pideal (set (Macaulay_list ps))"
+    unfolding reduced_Macaulay_list_def by (rule comp_min_basis_aux_empty_pideal, fact assms,
+        fact Macaulay_list_not_zero, fact Macaulay_list_distinct_lp)
+  also have "... = pideal (set ps)" by (simp only: pideal_Macaulay_list)
+  finally show ?thesis .
+qed
+
+lemma Macaulay_list_lp:
+  assumes "p \<in> phull (set ps)" and "p \<noteq> 0"
+  obtains g where "g \<in> set (Macaulay_list ps)" and "g \<noteq> 0" and "lp p = lp g"
+proof -
+  let ?S = "Supp (set ps)"
+  let ?ts = "pps_to_list ?S"
+  let ?E = "row_echelon (Macaulay_mat ps)"
+  let ?gs = "mat_to_polys ?ts ?E"
+  have "finite ?S" by (rule Supp_finite, rule)
+  have "?S \<subseteq> set ?ts" by (simp only: set_pps_to_list[OF \<open>finite ?S\<close>])
+  
+  from assms(1) \<open>?S \<subseteq> set ?ts\<close> have "p \<in> row_to_poly ?ts ` row_space ?E"
+    by (simp only: Macaulay_mat_def row_space_row_echelon_eq_phull[symmetric])
+
+  obtain f where "pivot_fun ?E f (dim_col ?E)" by (rule row_echelon_pivot_fun)
+
+  have "lp p \<in> lp_set (set ?gs)"
+    by (rule lp_row_space_pivot_fun, simp, fact+)
+  then obtain g where "g \<in> set ?gs" and "g \<noteq> 0" and "lp g = lp p" by (rule lp_setE)
+  
+  show ?thesis
+  proof
+    from \<open>g \<in> set ?gs\<close> \<open>g \<noteq> 0\<close> show "g \<in> set (Macaulay_list ps)" by (simp add: set_Macaulay_list)
+  next
+    from \<open>lp g = lp p\<close> show "lp p = lp g" by simp
+  qed fact
+qed
+
+lemma Macaulay_list_is_GB:
+  assumes "is_Groebner_basis G" and "pideal (set ps) = pideal G" and "G \<subseteq> phull (set ps)"
+  shows "is_Groebner_basis (set (Macaulay_list ps))"
+proof (simp only: GB_alt_3 pideal_Macaulay_list, intro ballI impI)
+  fix f
+  assume "f \<in> pideal (set ps)"
+  also from assms(2) have "... = pideal G" .
+  finally have "f \<in> pideal G" .
+  assume "f \<noteq> 0"
+  from assms(1) \<open>f \<in> pideal G\<close> have "f \<noteq> 0 \<longrightarrow> (\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f)" unfolding GB_alt_3 ..
+  from this \<open>f \<noteq> 0\<close> have "\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f" ..
+  then obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds lp f" by auto
+  from assms(3) \<open>g \<in> G\<close> have "g \<in> phull (set ps)" ..
+  from this \<open>g \<noteq> 0\<close> obtain g' where "g' \<in> set (Macaulay_list ps)" and "g' \<noteq> 0" and "lp g = lp g'"
+    by (rule Macaulay_list_lp)
+  show "\<exists>g\<in>set (Macaulay_list ps). g \<noteq> 0 \<and> lp g adds lp f"
+  proof (rule, rule)
+    from \<open>lp g adds lp f\<close> show "lp g' adds lp f" by (simp only: \<open>lp g = lp g'\<close>)
+  qed fact+
+qed
+
+lemma reduced_Macaulay_list_lp:
+  assumes "p \<in> phull (set ps)" and "p \<noteq> 0"
+  obtains g where "g \<in> set (reduced_Macaulay_list ps)" and "g \<noteq> 0" and "lp g adds lp p"
+proof -
+  from assms obtain g' where "g' \<in> set (Macaulay_list ps)" and "g' \<noteq> 0" and "lp p = lp g'"
+    by (rule Macaulay_list_lp)
+  obtain g where "g \<in> set (reduced_Macaulay_list ps)" and "lp g adds lp g'"
+  proof (simp only: reduced_Macaulay_list_def, rule comp_min_basis_aux_empty_adds)
+    show "g' \<in> set (Macaulay_list ps)" by fact
+  next
+    show "0 \<notin> set (Macaulay_list ps)" by (fact Macaulay_list_not_zero)
+  next
+    fix x y
+    assume "x \<in> set (Macaulay_list ps)" and "y \<in> set (Macaulay_list ps)" and "x \<noteq> y"
+    thus "lp x \<noteq> lp y" by (rule Macaulay_list_distinct_lp)
+  qed
+
+  from this(1) show ?thesis
+  proof
+    from \<open>g \<in> set (reduced_Macaulay_list ps)\<close> reduced_Macaulay_list_not_zero show "g \<noteq> 0" by auto
+  next
+    from \<open>lp g adds lp g'\<close> show "lp g adds lp p" by (simp only: \<open>lp p = lp g'\<close>)
+  qed
+qed
+
+lemma reduced_Macaulay_list_is_GB:
+  assumes "is_Groebner_basis G" and "pideal (set ps) = pideal G" and "G \<subseteq> phull (set ps)"
+  shows "is_Groebner_basis (set (reduced_Macaulay_list ps))"
+  unfolding reduced_Macaulay_list_def
+  apply (rule comp_min_basis_aux_empty_GB)
+  subgoal by (rule Macaulay_list_is_GB, fact, fact, fact)
+  subgoal by (fact Macaulay_list_not_zero)
+  subgoal by (fact Macaulay_list_distinct_lp)
+  done
+
+lemma reduced_Macaulay_list_is_reduced_GB:
+  assumes "finite F" and "pideal (set ps) = pideal F" and "reduced_GB F \<subseteq> phull (set ps)"
+  shows "set (reduced_Macaulay_list ps) = reduced_GB F"
+proof -
+  from assms(1) have "is_reduced_GB (reduced_GB F)" by (rule reduced_GB_is_reduced_GB)
+  hence "is_Groebner_basis (reduced_GB F)" by (rule reduced_GB_D1)
+  have aux: "pideal (reduced_GB F) = pideal (set ps)"
+    by (simp only: assms(2), rule reduced_GB_pideal, fact)
+  have pideal: "pideal (set (reduced_Macaulay_list ps)) = pideal (reduced_GB F)"
+    unfolding aux
+    by (rule pideal_reduced_Macaulay_list, rule Macaulay_list_is_GB, fact, simp only: aux, fact)
+  show ?thesis
+  proof (rule minimal_basis_is_reduced_GB, fact reduced_Macaulay_list_is_minimal_basis,
+        fact reduced_Macaulay_list_is_monic_set, fact, rule reduced_GB_subsetI, fact,
+        rule reduced_Macaulay_list_is_GB, fact, simp only: aux, fact,
+        fact reduced_Macaulay_list_is_monic_set)
+    fix a b :: "('a, 'b) poly_mapping"
+    let ?c = "a - b"
+    let ?S = "Supp (set ps)"
+    let ?ts = "pps_to_list ?S"
+    let ?A = "Macaulay_mat ps"
+    let ?E = "row_echelon ?A"
+    have "card ?S = dim_col ?E" by simp
+
+    assume "b \<in> set (reduced_Macaulay_list ps)"
+    with reduced_Macaulay_list_subset_Macaulay_list have "b \<in> set (Macaulay_list ps)" ..
+    moreover obtain f where pf: "pivot_fun ?E f (dim_col ?E)" by (rule row_echelon_pivot_fun)
+    ultimately obtain i1 where "i1 < dim_row ?E" and b: "b = mat_to_polys ?ts ?E ! i1"
+      and "f i1 < dim_col ?E" by (rule in_Macaulay_listE)
+    from \<open>card ?S = dim_col ?E\<close> pf this(1) this(3) have lpb: "lp b = ?ts ! (f i1)"
+      by (simp only: b, rule lp_row_to_poly_pivot_fun)
+    from \<open>b \<in> set (Macaulay_list ps)\<close> have "b \<in> phull (set (Macaulay_list ps))"
+      by (rule generator_in_phull)
+    hence "b \<in> phull (set ps)" by (simp only: phull_Macaulay_list)
+
+    assume "a \<in> reduced_GB F"
+    from assms(3) this have "a \<in> phull (set ps)" ..
+    from this \<open>b \<in> phull (set ps)\<close> have "?c \<in> phull (set ps)" by (rule phull_closed_minus)
+    moreover assume "?c \<noteq> 0"
+    ultimately obtain r where "r \<in> set (Macaulay_list ps)" and "r \<noteq> 0" and "lp ?c = lp r"
+      by (rule Macaulay_list_lp)
+    from this(1) pf obtain i2 where "i2 < dim_row ?E" and r: "r = mat_to_polys ?ts ?E ! i2"
+      and "f i2 < dim_col ?E" by (rule in_Macaulay_listE)
+    from \<open>card ?S = dim_col ?E\<close> pf this(1) this(3) have lpr: "lp r = ?ts ! (f i2)"
+      by (simp only: r, rule lp_row_to_poly_pivot_fun)
+
+    assume "lp ?c \<in> keys b"
+    hence "(?ts ! (f i2)) \<in> keys (mat_to_polys ?ts ?E ! i1)"
+      by (simp only: \<open>lp ?c = lp r\<close> lpr b[symmetric])
+    with \<open>card ?S = dim_col ?E\<close> pf \<open>i2 < dim_row ?E\<close> \<open>i1 < dim_row ?E\<close> \<open>f i2 < dim_col ?E\<close> have "i2 = i1"
+      by (rule lp_row_to_poly_pivot_in_keysD)
+    hence "r = b" by (simp only: r b)
+    hence "lp ?c = lp b" by (simp only: \<open>lp ?c = lp r\<close>)
+
+    moreover assume "lp ?c \<prec> lp b"
+    ultimately show False by simp
+  next
+    show "pideal (reduced_GB F) = pideal (set (reduced_Macaulay_list ps))" by (simp only: pideal)
+  qed fact
+qed
+
+end (* od_powerprod *)
 
 (*
 subsection \<open>Fixing a Finite, Non-empty Set of Polynomials\<close>
