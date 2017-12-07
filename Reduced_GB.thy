@@ -483,6 +483,11 @@ lemma GB_insert:
   assumes "is_Groebner_basis G" and "f \<in> pideal G"
   shows "is_Groebner_basis (insert f G)"
   using assms by (metis GB_alt_1 GB_implies_zero_reducibility pideal_insert red_rtrancl_subset subset_insertI)
+
+lemma GB_subset:
+  assumes "is_Groebner_basis G" and "G \<subseteq> G'" and "pideal G' = pideal G"
+  shows "is_Groebner_basis G'"
+  using GB_alt_2 assms(1) assms(2) assms(3) is_red_subset by blast
   
 lemma monic_set_GB: "is_Groebner_basis (monic_set G) \<longleftrightarrow> is_Groebner_basis G"
   unfolding GB_alt_2 monic_set_pideal is_red_monic_set ..
@@ -865,9 +870,11 @@ lemma reduced_GB_lc:
   assumes major: "is_reduced_GB G" and "g \<in> G"
   shows "lc g = 1"
 by (rule is_monic_setD, rule reduced_GB_D3, fact major, fact \<open>g \<in> G\<close>, rule reduced_GB_D4, fact major, fact \<open>g \<in> G\<close>)
-  
-lemma (in od_powerprod) reduced_GB_unique':
-  assumes Ared: "is_reduced_GB A" and Bred: "is_reduced_GB B" and id_eq: "pideal A = pideal B"
+
+lemma (in od_powerprod) reduced_GB_subsetI:
+  assumes Ared: "is_reduced_GB A" and BGB: "is_Groebner_basis B" and Bmon: "is_monic_set B"
+    and *: "\<And>a b. a \<in> A \<Longrightarrow> b \<in> B \<Longrightarrow> a \<noteq> 0 \<Longrightarrow> b \<noteq> 0 \<Longrightarrow> a - b \<noteq> 0 \<Longrightarrow> lp (a - b) \<in> keys b \<Longrightarrow> lp (a - b) \<prec> lp b \<Longrightarrow> False"
+    and id_eq: "pideal A = pideal B"
   shows "A \<subseteq> B"
 proof
   fix a
@@ -876,14 +883,13 @@ proof
   have "a \<noteq> 0" by (rule reduced_GB_D4, fact Ared, fact \<open>a \<in> A\<close>)
   have lca: "lc a = 1" by (rule reduced_GB_lc, fact Ared, fact \<open>a \<in> A\<close>)
   have AGB: "is_Groebner_basis A" by (rule reduced_GB_D1, fact Ared)
-  have BGB: "is_Groebner_basis B" by (rule reduced_GB_D1, fact Bred)
       
   from \<open>a \<in> A\<close> generator_subset_pideal have "a \<in> pideal A" ..
   also have "... = pideal B" using id_eq by simp
   finally have "a \<in> pideal B" .
       
   with \<open>a \<noteq> 0\<close> GB_alt_3 BGB obtain b where "b \<in> B" and "b \<noteq> 0" and baddsa: "lp b adds lp a" by auto
-  have lcb: "lc b = 1" by (rule reduced_GB_lc, fact Bred, fact \<open>b \<in> B\<close>)
+  from Bmon this(1) this(2) have lcb: "lc b = 1" by (rule is_monic_setD)
   from \<open>b \<in> B\<close> generator_subset_pideal have "b \<in> pideal B" ..
   also have "... = pideal A" using id_eq by simp
   finally have "b \<in> pideal A" .
@@ -945,42 +951,66 @@ proof
       with is_red show False by simp
     next
       assume "lp ?c \<in> keys b"
-          
-      from \<open>?c \<in> pideal B\<close> \<open>?c \<noteq> 0\<close> GB_alt_3[of B] BGB obtain b'
-        where "b' \<in> B" and "b' \<noteq> 0" and b'addsc: "lp b' adds lp ?c" by auto
 
-      have "lp b' \<preceq> lp ?c" by (rule ord_adds, fact b'addsc)
-      also have "... = lp ((-b) + a)" by simp
-      also have "... \<prec> lp (-b)"
-      proof (rule lp_plus_precI)
-        from \<open>?c \<noteq> 0\<close> show "-b + a \<noteq> 0" by simp
-      next
-        from \<open>lp (-b) = lp a\<close> show "lp a = lp (-b)" by simp
-      next
-        from \<open>lc (-b) = - lc a\<close> show "lc a = - lc (-b)" by simp
+      with \<open>a \<in> A\<close> \<open>b \<in> B\<close> \<open>a \<noteq> 0\<close> \<open>b \<noteq> 0\<close> \<open>?c \<noteq> 0\<close> show False
+      proof (rule *)
+        have "lp ?c = lp ((-b) + a)" by simp
+        also have "... \<prec> lp (-b)"
+        proof (rule lp_plus_precI)
+          from \<open>?c \<noteq> 0\<close> show "-b + a \<noteq> 0" by simp
+        next
+          from \<open>lp (-b) = lp a\<close> show "lp a = lp (-b)" by simp
+        next
+          from \<open>lc (-b) = - lc a\<close> show "lc a = - lc (-b)" by simp
+        qed
+        finally show "lp ?c \<prec> lp b" unfolding lp_uminus[OF \<open>b \<noteq> 0\<close>] .
       qed
-      finally have "lp b' \<prec> lp b" unfolding lp_uminus[OF \<open>b \<noteq> 0\<close>] .
-      hence "lp b' \<noteq> lp b" by simp
-      hence "b' \<noteq> b" by auto
-      with \<open>b' \<in> B\<close> have "b' \<in> (remove b B)" by (intro in_removeI, auto)
-          
-      have is_red: "is_red (remove b B) b" by (intro is_red_addsI, fact, fact, fact+)
-      have "\<not> is_red (remove b B) b" by (rule is_auto_reducedD, rule reduced_GB_D2, fact Bred, fact+)
-      with is_red show False by simp
     qed
   qed
   
   hence "a = b" by simp
   with \<open>b \<in> B\<close> show "a \<in> B" by simp
 qed
+
+lemma (in od_powerprod) reduced_GB_unique':
+  assumes Ared: "is_reduced_GB A" and Bred: "is_reduced_GB B" and id_eq: "pideal A = pideal B"
+  shows "A \<subseteq> B"
+proof -
+  from Bred have BGB: "is_Groebner_basis B" by (rule reduced_GB_D1)
+  with assms(1) show ?thesis
+  proof (rule reduced_GB_subsetI)
+    from Bred show "is_monic_set B" by (rule reduced_GB_D3)
+  next
+    fix a b :: "('a, 'b) poly_mapping"
+    let ?c = "a - b"
+    assume "a \<in> A" and "b \<in> B" and "a \<noteq> 0" and "b \<noteq> 0" and "?c \<noteq> 0" and "lp ?c \<in> keys b" and "lp ?c \<prec> lp b"
+  
+    from \<open>a \<in> A\<close> have "a \<in> pideal B" by (simp only: id_eq[symmetric], rule generator_in_pideal)
+    moreover from \<open>b \<in> B\<close> have "b \<in> pideal B" by (rule generator_in_pideal)
+    ultimately have "?c \<in> pideal B" by (rule pideal_closed_minus)
+    from this \<open>?c \<noteq> 0\<close> GB_alt_3[of B] BGB obtain b'
+      where "b' \<in> B" and "b' \<noteq> 0" and b'addsc: "lp b' adds lp ?c" by auto
+  
+    have "lp b' \<preceq> lp ?c" by (rule ord_adds, fact b'addsc)
+    also have "... \<prec> lp b" by fact
+    finally have "lp b' \<prec> lp b" unfolding lp_uminus[OF \<open>b \<noteq> 0\<close>] .
+    hence "lp b' \<noteq> lp b" by simp
+    hence "b' \<noteq> b" by auto
+    with \<open>b' \<in> B\<close> have "b' \<in> (remove b B)" by (intro in_removeI, auto)
+        
+    have is_red: "is_red (remove b B) b" by (intro is_red_addsI, fact, fact, fact+)
+    have "\<not> is_red (remove b B) b" by (rule is_auto_reducedD, rule reduced_GB_D2, fact Bred, fact+)
+    with is_red show False by simp
+  qed fact
+qed
   
 theorem (in od_powerprod) is_reduced_GB_unique:
   assumes Ared: "is_reduced_GB A" and Bred: "is_reduced_GB B" and id_eq: "pideal A = pideal B"
   shows "A = B"
 proof
-  from reduced_GB_unique'[OF assms] show "A \<subseteq> B" .
+  from assms show "A \<subseteq> B" by (rule reduced_GB_unique')
 next
-  from reduced_GB_unique'[OF Bred Ared id_eq[symmetric]] show "B \<subseteq> A" .
+  from Bred Ared id_eq[symmetric] show "B \<subseteq> A" by (rule reduced_GB_unique')
 qed
   
 section \<open>Computing Reduced Gr\"obner Bases\<close>
@@ -1183,7 +1213,72 @@ next
     qed
   qed
 qed
-  
+
+lemma (in od_powerprod) minimal_basis_is_reduced_GB:
+  assumes "is_minimal_basis B" and "is_monic_set B" and "is_reduced_GB G" and "G \<subseteq> B"
+    and "pideal B = pideal G"
+  shows "B = G"
+  using _ assms(3) assms(5)
+proof (rule is_reduced_GB_unique)
+  from assms(3) have "is_Groebner_basis G" by (rule reduced_GB_D1)
+  show "is_reduced_GB B" unfolding is_reduced_GB_def
+  proof (intro conjI)
+    show "0 \<notin> B"
+    proof
+      assume "0 \<in> B"
+      with assms(1) have "0 \<noteq> (0::('a, 'b) poly_mapping)" by (rule is_minimal_basisD1)
+      thus False by simp
+    qed
+  next
+    from \<open>is_Groebner_basis G\<close> assms(4) assms(5) show "is_Groebner_basis B" by (rule GB_subset)
+  next
+    show "is_auto_reduced B" unfolding is_auto_reduced_def
+    proof (intro ballI notI)
+      fix b
+      assume "b \<in> B"
+      with assms(1) have "b \<noteq> 0" by (rule is_minimal_basisD1)
+      assume "is_red (remove b B) b"
+      then obtain f where "f \<in> remove b B" and "is_red {f} b" by (rule is_red_singletonI)
+      from this(1) have "f \<in> B" and "f \<noteq> b" by (simp_all add: in_remove)
+
+      from assms(1) \<open>f \<in> B\<close> have "f \<noteq> 0" by (rule is_minimal_basisD1)
+      from \<open>f \<in> B\<close> have "f \<in> pideal B" by (rule generator_in_pideal)
+      hence "f \<in> pideal G" by (simp only: assms(5))
+      with \<open>is_Groebner_basis G\<close> have "f \<noteq> 0 \<longrightarrow> (\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f)" unfolding GB_alt_3 ..
+      from this \<open>f \<noteq> 0\<close> have "\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f" ..
+      then obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds lp f" by auto
+      from \<open>g \<in> G\<close> \<open>G \<subseteq> B\<close> have "g \<in> B" ..
+      have "g = f"
+      proof (rule ccontr)
+        assume "g \<noteq> f"
+        with assms(1) \<open>g \<in> B\<close> \<open>f \<in> B\<close> have "\<not> lp g adds lp f" by (rule is_minimal_basisD2)
+        from this \<open>lp g adds lp f\<close> show False ..
+      qed
+      with \<open>g \<in> G\<close> have "f \<in> G" by simp
+      with \<open>f \<noteq> b\<close> \<open>is_red {f} b\<close> have red: "is_red (remove b G) b"
+        by (meson in_remove is_red_singletonD)
+
+      from \<open>b \<in> B\<close> have "b \<in> pideal B" by (rule generator_in_pideal)
+      hence "b \<in> pideal G" by (simp only: assms(5))
+      with \<open>is_Groebner_basis G\<close> have "b \<noteq> 0 \<longrightarrow> (\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp b)" unfolding GB_alt_3 ..
+      from this \<open>b \<noteq> 0\<close> have "\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp b" ..
+      then obtain g' where "g' \<in> G" and "g' \<noteq> 0" and "lp g' adds lp b" by auto
+      from \<open>g' \<in> G\<close> \<open>G \<subseteq> B\<close> have "g' \<in> B" ..
+      have "g' = b"
+      proof (rule ccontr)
+        assume "g' \<noteq> b"
+        with assms(1) \<open>g' \<in> B\<close> \<open>b \<in> B\<close> have "\<not> lp g' adds lp b" by (rule is_minimal_basisD2)
+        from this \<open>lp g' adds lp b\<close> show False ..
+      qed
+      with \<open>g' \<in> G\<close> have "b \<in> G" by simp
+
+      from assms(3) have "is_auto_reduced G" by (rule reduced_GB_D2)
+      from this \<open>b \<in> G\<close> have "\<not> is_red (remove b G) b" by (rule is_auto_reducedD)
+      from this red show False ..
+    qed
+  qed fact
+qed
+
 subsection \<open>Computing Minimal Bases\<close>
   
 primrec comp_min_basis_aux :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::zero) poly_mapping list" where
@@ -1226,146 +1321,8 @@ next
   
   from c1 c2 show ?case unfolding comp_min_basis_aux_rec by simp
 qed
-  
-lemma (in od_powerprod) comp_min_basis_aux_nadds:
-  assumes "p \<in> set (comp_min_basis_aux xs ys)" and "q \<in> set xs \<union> set ys" and "p \<noteq> q"
-    and "\<And>x. x \<in> set xs \<union> set ys \<Longrightarrow> x \<noteq> 0"
-    and "\<And>x y. x \<in> set xs \<union> set ys \<Longrightarrow> y \<in> set ys \<Longrightarrow> x \<noteq> y \<Longrightarrow> \<not> lp x adds lp y"
-    and "\<And>x y. x \<in> set xs \<union> set ys \<Longrightarrow> y \<in> set xs \<union> set ys \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
-  shows "\<not> lp q adds lp p"
-  using assms
-proof (induct xs arbitrary: p q ys)
-  case Nil
-  from Nil(1) Nil(2) have "p \<in> set ys" "q \<in> set ys" unfolding comp_min_basis_aux_base by simp_all
-  show ?case
-  proof (rule Nil(5))
-    from \<open>q \<in> set ys\<close> show "q \<in> set [] \<union> set ys" by simp
-  next
-    from \<open>p \<noteq> q\<close> show "q \<noteq> p" by simp
-  qed fact
-next
-  case (Cons a xs)
-  let ?A = "set (a#xs) \<union> set ys"
-  let ?B = "set xs \<union> set ys"
-  let ?C = "set xs \<union> set (a#ys)"
-  from Cons(2) show ?case unfolding comp_min_basis_aux_rec
-  proof (simp only: split: if_splits)
-    assume a1: "\<exists>q\<in>?B. lp q adds lp a"
-      and "p \<in> set (comp_min_basis_aux xs ys)"
-    have "\<And>x. x \<in> ?B \<Longrightarrow> x \<noteq> 0"
-    proof -
-      fix x
-      assume "x \<in> ?B"
-      hence "x \<in> ?A" by simp
-      thus "x \<noteq> 0" by (rule Cons(5))
-    qed
-    have "\<And>x y. x \<in> ?B \<Longrightarrow> y \<in> set ys \<Longrightarrow> x \<noteq> y \<Longrightarrow> \<not> lp x adds lp y"
-    proof -
-      fix x y
-      assume "x \<in> ?B"
-      hence "x \<in> ?A" by simp
-      assume "y \<in> set ys" and "x \<noteq> y"
-      show "\<not> lp x adds lp y" by (rule Cons(6), fact+)
-    qed
-    have "\<And>x y. x \<in> ?B \<Longrightarrow> y \<in> ?B \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
-    proof -
-      fix x y
-      assume "x \<in> ?B"
-      hence "x \<in> ?A" by simp
-      assume "y \<in> ?B"
-      hence "y \<in> ?A" by simp
-      assume "x \<noteq> y"
-      show "lp x \<noteq> lp y" by (rule Cons(7), fact+)
-    qed
-    have "q \<noteq> 0" by (rule Cons(5), fact)
-    from Cons(3) have "q = a \<or> q \<in> set xs \<union> set ys" by simp
-    thus ?thesis
-    proof
-      assume "q = a"
-      from a1 show ?thesis
-      proof
-        fix q1
-        assume "q1 \<in> set xs \<union> set ys" and "lp q1 adds lp a"
-        show ?thesis
-        proof (cases "p = q1")
-          case True
-          from \<open>lp q1 adds lp a\<close> have "lp p adds lp q" unfolding True \<open>q = a\<close> .
-          show ?thesis
-          proof
-            assume "lp q adds lp p"
-            with \<open>lp p adds lp q\<close> have "lp p = lp q" by (rule adds_antisym)
-            moreover have "lp p \<noteq> lp q"
-            proof (rule Cons(7))
-              from comp_min_basis_aux_subset Cons(2) show "p \<in> set (a # xs) \<union> set ys" by blast
-            qed fact+
-            ultimately show False by simp
-          qed
-        next
-          case False
-          have "\<not> lp q1 adds lp p" by (rule Cons.hyps, fact+)
-          show ?thesis
-          proof
-            from \<open>lp q1 adds lp a\<close> have "lp q1 adds lp q" unfolding \<open>q = a\<close> .
-            also assume "lp q adds lp p"
-            finally show False using \<open>\<not> lp q1 adds lp p\<close> by simp
-          qed
-        qed
-      qed
-    next
-      assume "q \<in> set xs \<union> set ys"
-      show ?thesis by (rule Cons.hyps, fact+)
-    qed
-  next
-    assume a: "\<not> (\<exists>q\<in>?B. lp q adds lp a)"
-      and "p \<in> set (comp_min_basis_aux xs (a # ys))"
-    show ?thesis
-    proof (rule Cons.hyps, fact)
-      from \<open>q \<in> ?A\<close> show "q \<in> ?C" by simp
-    next
-      fix x
-      assume "x \<in> ?C"
-      hence "x \<in> ?A" by simp
-      thus "x \<noteq> 0" by (rule Cons(5))
-    next
-      fix x y
-      assume "x \<in> ?C"
-      hence "x \<in> ?A" by simp
-      assume "x \<noteq> y"
-      assume "y \<in> set (a # ys)"
-      hence "y = a \<or> y \<in> set ys" by simp
-      thus "\<not> lp x adds lp y"
-      proof
-        assume "y = a"
-        from \<open>x \<in> ?A\<close> have "x = a \<or> x \<in> ?B" by simp
-        thus ?thesis
-        proof
-          assume "x = a"
-          with \<open>x \<noteq> y\<close> show ?thesis unfolding \<open>y = a\<close> ..
-        next
-          assume "x \<in> ?B"
-          from a have "\<And>q. q \<in> ?B \<Longrightarrow> q \<noteq> 0 \<Longrightarrow> \<not> lp q adds lp a" by auto
-          thus ?thesis unfolding \<open>y = a\<close>
-          proof this
-            show "x \<in> ?B" by fact
-          next
-            show "x \<noteq> 0" by (rule Cons(5), fact)
-          qed
-        qed
-      next
-        assume "y \<in> set ys"
-        show ?thesis by (rule Cons(6), fact+)
-      qed
-    next
-      fix x y
-      assume "x \<in> ?C"
-      hence "x \<in> ?A" by simp
-      assume "y \<in> ?C"
-      hence "y \<in> ?A" by simp
-      assume "x \<noteq> y"
-      show "lp x \<noteq> lp y" by (rule Cons(7), fact+)
-    qed fact
-  qed
-qed
+
+lemmas comp_min_basis_aux_empty_subset = comp_min_basis_aux_subset[of _ "[]", simplified]
   
 lemma comp_min_basis_aux_notin:
   assumes "x \<in> set xs \<union> set ys" and "x \<notin> set (comp_min_basis_aux xs ys)" and "x \<noteq> 0"
@@ -1531,6 +1488,34 @@ next
     qed
   qed
 qed
+
+lemma comp_min_basis_aux_empty_adds:
+  assumes "p \<in> set xs" and "0 \<notin> set xs"
+    and "\<And>x y. x \<in> set xs \<Longrightarrow> y \<in> set xs \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
+  obtains q where "q \<in> set (comp_min_basis_aux xs [])" and "lp q adds lp p"
+proof -
+  from assms(1) have "\<exists>q\<in>set (comp_min_basis_aux xs []). lp q adds lp p"
+  proof (rule comp_min_basis_aux_adds)
+    fix x
+    assume "x \<in> set xs \<union> set []"
+    hence "x \<in> set xs" by simp
+    with assms(2) show "x \<noteq> 0" by auto
+  next
+    fix x y :: "('a, 'b) poly_mapping"
+    assume "y \<in> set []"
+    thus "\<not> lp x adds lp y" by simp
+  next
+    fix x y :: "('a, 'b) poly_mapping"
+    assume "x \<in> set xs \<union> set []"
+    hence x: "x \<in> set xs" by simp
+    assume "y \<in> set xs \<union> set []"
+    hence y: "y \<in> set xs" by simp
+    assume "x \<noteq> y"
+    from x y this show "lp x \<noteq> lp y" by (rule assms(3))
+  qed
+  then obtain q where "q \<in> set (comp_min_basis_aux xs [])" and "lp q adds lp p" ..
+  thus ?thesis ..
+qed
   
 lemma comp_min_basis_aux_distinct:
   assumes "distinct ys"
@@ -1560,6 +1545,25 @@ next
     qed
   qed
 qed
+
+lemma comp_min_basis_aux_empty_is_red:
+  assumes "is_red (set xs) f" and "0 \<notin> set xs"
+    and "\<And>x y. x \<in> set xs \<Longrightarrow> y \<in> set xs \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
+  shows "is_red (set (comp_min_basis_aux xs [])) f"
+proof -
+  from assms(1) obtain x t where "x \<in> set xs" and "t \<in> keys f" and "lp x adds t"
+    by (rule is_red_addsE)
+  from \<open>x \<in> set xs\<close> assms(2) assms(3) obtain y
+    where yin: "y \<in> set (comp_min_basis_aux xs [])" and "lp y adds lp x"
+    by (rule comp_min_basis_aux_empty_adds)
+  show ?thesis
+  proof (rule is_red_addsI)
+    from \<open>lp y adds lp x\<close> \<open>lp x adds t\<close> show "lp y adds t" by (rule adds_trans)
+  next
+    from comp_min_basis_aux_empty_subset yin have "y \<in> set xs" ..
+    with assms(2) show "y \<noteq> 0" by auto
+  qed fact+
+qed
   
 definition comp_min_basis_pre :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::zero) poly_mapping list" where
   "comp_min_basis_pre xs = remdups_by lp (filter (\<lambda>x. x \<noteq> 0) xs)"
@@ -1572,6 +1576,9 @@ lemma comp_min_basis_pre_nonzero:
   assumes "p \<in> set (comp_min_basis_pre xs)"
   shows "p \<noteq> 0"
   using assms unfolding comp_min_basis_pre_def using subset_remdups_by by fastforce
+
+lemma comp_min_basis_pre_nonzero': "0 \<notin> set (comp_min_basis_pre xs)"
+  using comp_min_basis_pre_nonzero by fastforce
 
 lemma comp_min_basis_pre_distinct_lp:
   assumes pin: "p \<in> set (comp_min_basis_pre xs)" and qin: "q \<in> set (comp_min_basis_pre xs)" and "p \<noteq> q"
@@ -1593,17 +1600,28 @@ proof -
   qed fact
 qed
 
+lemma comp_min_basis_pre_is_red:
+  assumes "is_red (set xs) f"
+  shows "is_red (set (comp_min_basis_pre xs)) f"
+proof -
+  from assms obtain x t where "x \<in> set xs" and "t \<in> keys f" and "x \<noteq> 0" and "lp x adds t"
+    by (rule is_red_addsE)
+  from \<open>x \<in> set xs\<close> \<open>x \<noteq> 0\<close> obtain y where yin: "y \<in> set (comp_min_basis_pre xs)" and "lp y = lp x"
+    by (rule comp_min_basis_pre_lp)
+  show ?thesis
+  proof (rule is_red_addsI)
+    from \<open>lp x adds t\<close> show "lp y adds t" by (simp only: \<open>lp y = lp x\<close>)
+  next
+    from yin show "y \<noteq> 0" by (rule comp_min_basis_pre_nonzero)
+  qed fact+
+qed
+
 definition comp_min_basis :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::zero) poly_mapping list" where
   "comp_min_basis xs = comp_min_basis_aux (comp_min_basis_pre xs) []"
   
 lemma comp_min_basis_subset_comp_min_basis_pre:
   shows "set (comp_min_basis xs) \<subseteq> set (comp_min_basis_pre xs)"
-proof -
-  have "set (comp_min_basis xs) \<subseteq> set (comp_min_basis_pre xs) \<union> set []" unfolding comp_min_basis_def
-    by (rule comp_min_basis_aux_subset)
-  also have "... = set (comp_min_basis_pre xs)" by simp
-  finally show ?thesis .
-qed
+  unfolding comp_min_basis_def by (rule comp_min_basis_aux_empty_subset)
   
 lemma comp_min_basis_subset:
   shows "set (comp_min_basis xs) \<subseteq> set xs"
@@ -1618,60 +1636,20 @@ lemma comp_min_basis_nonzero:
   assumes "p \<in> set (comp_min_basis xs)"
   shows "p \<noteq> 0"
 by (rule comp_min_basis_pre_nonzero, rule, fact assms, fact comp_min_basis_subset_comp_min_basis_pre)
-  
-lemma (in od_powerprod) comp_min_basis_nadds:
-  assumes pin: "p \<in> set (comp_min_basis xs)" and qin: "q \<in> set (comp_min_basis xs)" and "p \<noteq> q"
-  shows "\<not> lp q adds lp p"
-proof (rule comp_min_basis_aux_nadds)
-  from pin show "p \<in> set (comp_min_basis_aux (comp_min_basis_pre xs) [])" unfolding comp_min_basis_def .
-next
-  have "q \<in> set (comp_min_basis_pre xs)"
-    by (rule, fact qin, fact comp_min_basis_subset_comp_min_basis_pre)
-  thus "q \<in> set (comp_min_basis_pre xs) \<union> set []" by simp
-next
-  fix x :: "('a, 'b) poly_mapping"
-  assume "x \<in> set (comp_min_basis_pre xs) \<union> set []"
-  hence "x \<in> set (comp_min_basis_pre xs)" by simp
-  thus "x \<noteq> 0" by (rule comp_min_basis_pre_nonzero)
-next
-  fix x y :: "('a, 'b) poly_mapping"
-  assume "y \<in> set []"
-  thus "\<not> lp x adds lp y" by simp
-next
-  fix x y :: "('a, 'b) poly_mapping"
-  assume "x \<in> set (comp_min_basis_pre xs) \<union> set []"
-  hence x: "x \<in> set (comp_min_basis_pre xs)" by simp
-  assume "y \<in> set (comp_min_basis_pre xs) \<union> set []"
-  hence y: "y \<in> set (comp_min_basis_pre xs)" by simp
-  assume "x \<noteq> y"
-  from x y this show "lp x \<noteq> lp y" by (rule comp_min_basis_pre_distinct_lp)
-qed fact
 
 lemma comp_min_basis_adds:
   assumes "p \<in> set xs" and "p \<noteq> 0"
   obtains q where "q \<in> set (comp_min_basis xs)" and "lp q adds lp p"
 proof -
-  from assms obtain q1 where "q1 \<in> set (comp_min_basis_pre xs)" and "lp q1 = lp p" by (rule comp_min_basis_pre_lp)
-  have "\<exists>q\<in>set (comp_min_basis_aux (comp_min_basis_pre xs) []). lp q adds lp q1"
-  proof (rule comp_min_basis_aux_adds)
-    fix x :: "('a, 'b) poly_mapping"
-    assume "x \<in> set (comp_min_basis_pre xs) \<union> set []"
-    hence "x \<in> set (comp_min_basis_pre xs)" by simp
-    thus "x \<noteq> 0" by (rule comp_min_basis_pre_nonzero)
-  next
-    fix x y :: "('a, 'b) poly_mapping"
-    assume "y \<in> set []"
-    thus "\<not> lp x adds lp y" by simp
-  next
-    fix x y :: "('a, 'b) poly_mapping"
-    assume "x \<in> set (comp_min_basis_pre xs) \<union> set []"
-    hence x: "x \<in> set (comp_min_basis_pre xs)" by simp
-    assume "y \<in> set (comp_min_basis_pre xs) \<union> set []"
-    hence y: "y \<in> set (comp_min_basis_pre xs)" by simp
-    assume "x \<noteq> y"
-    from x y this show "lp x \<noteq> lp y" by (rule comp_min_basis_pre_distinct_lp)
-  qed fact
-  then obtain q where "q \<in> set (comp_min_basis_aux (comp_min_basis_pre xs) [])" and "lp q adds lp q1" ..
+  from assms obtain q1 where q1_in: "q1 \<in> set (comp_min_basis_pre xs)" and "lp q1 = lp p"
+    by (rule comp_min_basis_pre_lp)
+  have "0 \<notin> set (comp_min_basis_pre xs)" using comp_min_basis_pre_nonzero by auto
+  with q1_in obtain q where "q \<in> set (comp_min_basis_aux (comp_min_basis_pre xs) [])" and "lp q adds lp q1"
+  proof (rule comp_min_basis_aux_empty_adds)
+    fix x y
+    assume "x \<in> set (comp_min_basis_pre xs)" and "y \<in> set (comp_min_basis_pre xs)" and "x \<noteq> y"
+    thus "lp x \<noteq> lp y" by (rule comp_min_basis_pre_distinct_lp)
+  qed
   show ?thesis
   proof
     show "q \<in> set (comp_min_basis xs)" unfolding comp_min_basis_def by fact
@@ -1701,55 +1679,304 @@ end (* ordered_powerprod *)
 context od_powerprod
 begin
 
-lemma comp_min_basis_GB:
-  assumes "is_Groebner_basis (set xs)"
-  shows "is_Groebner_basis (set (comp_min_basis xs))"
-  unfolding GB_alt_2
-proof (intro ballI impI, rule comp_min_basis_is_red)
-  fix f
-  assume fin: "f \<in> pideal (set (comp_min_basis xs))" and "f \<noteq> 0"
-  have "f \<in> pideal (set xs)" by (rule, fact fin, rule pideal_mono, rule comp_min_basis_subset)
-  with assms \<open>f \<noteq> 0\<close> show "is_red (set xs) f" unfolding GB_alt_2 by simp
+lemma comp_min_basis_aux_nadds:
+  assumes "p \<in> set (comp_min_basis_aux xs ys)" and "q \<in> set xs \<union> set ys" and "p \<noteq> q"
+    and "\<And>x. x \<in> set xs \<union> set ys \<Longrightarrow> x \<noteq> 0"
+    and "\<And>x y. x \<in> set xs \<union> set ys \<Longrightarrow> y \<in> set ys \<Longrightarrow> x \<noteq> y \<Longrightarrow> \<not> lp x adds lp y"
+    and "\<And>x y. x \<in> set xs \<union> set ys \<Longrightarrow> y \<in> set xs \<union> set ys \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
+  shows "\<not> lp q adds lp p"
+  using assms
+proof (induct xs arbitrary: p q ys)
+  case Nil
+  from Nil(1) Nil(2) have "p \<in> set ys" "q \<in> set ys" unfolding comp_min_basis_aux_base by simp_all
+  show ?case
+  proof (rule Nil(5))
+    from \<open>q \<in> set ys\<close> show "q \<in> set [] \<union> set ys" by simp
+  next
+    from \<open>p \<noteq> q\<close> show "q \<noteq> p" by simp
+  qed fact
+next
+  case (Cons a xs)
+  let ?A = "set (a#xs) \<union> set ys"
+  let ?B = "set xs \<union> set ys"
+  let ?C = "set xs \<union> set (a#ys)"
+  from Cons(2) show ?case unfolding comp_min_basis_aux_rec
+  proof (simp only: split: if_splits)
+    assume a1: "\<exists>q\<in>?B. lp q adds lp a"
+      and "p \<in> set (comp_min_basis_aux xs ys)"
+    have "\<And>x. x \<in> ?B \<Longrightarrow> x \<noteq> 0"
+    proof -
+      fix x
+      assume "x \<in> ?B"
+      hence "x \<in> ?A" by simp
+      thus "x \<noteq> 0" by (rule Cons(5))
+    qed
+    have "\<And>x y. x \<in> ?B \<Longrightarrow> y \<in> set ys \<Longrightarrow> x \<noteq> y \<Longrightarrow> \<not> lp x adds lp y"
+    proof -
+      fix x y
+      assume "x \<in> ?B"
+      hence "x \<in> ?A" by simp
+      assume "y \<in> set ys" and "x \<noteq> y"
+      show "\<not> lp x adds lp y" by (rule Cons(6), fact+)
+    qed
+    have "\<And>x y. x \<in> ?B \<Longrightarrow> y \<in> ?B \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
+    proof -
+      fix x y
+      assume "x \<in> ?B"
+      hence "x \<in> ?A" by simp
+      assume "y \<in> ?B"
+      hence "y \<in> ?A" by simp
+      assume "x \<noteq> y"
+      show "lp x \<noteq> lp y" by (rule Cons(7), fact+)
+    qed
+    have "q \<noteq> 0" by (rule Cons(5), fact)
+    from Cons(3) have "q = a \<or> q \<in> set xs \<union> set ys" by simp
+    thus ?thesis
+    proof
+      assume "q = a"
+      from a1 show ?thesis
+      proof
+        fix q1
+        assume "q1 \<in> set xs \<union> set ys" and "lp q1 adds lp a"
+        show ?thesis
+        proof (cases "p = q1")
+          case True
+          from \<open>lp q1 adds lp a\<close> have "lp p adds lp q" unfolding True \<open>q = a\<close> .
+          show ?thesis
+          proof
+            assume "lp q adds lp p"
+            with \<open>lp p adds lp q\<close> have "lp p = lp q" by (rule adds_antisym)
+            moreover have "lp p \<noteq> lp q"
+            proof (rule Cons(7))
+              from comp_min_basis_aux_subset Cons(2) show "p \<in> set (a # xs) \<union> set ys" by blast
+            qed fact+
+            ultimately show False by simp
+          qed
+        next
+          case False
+          have "\<not> lp q1 adds lp p" by (rule Cons.hyps, fact+)
+          show ?thesis
+          proof
+            from \<open>lp q1 adds lp a\<close> have "lp q1 adds lp q" unfolding \<open>q = a\<close> .
+            also assume "lp q adds lp p"
+            finally show False using \<open>\<not> lp q1 adds lp p\<close> by simp
+          qed
+        qed
+      qed
+    next
+      assume "q \<in> set xs \<union> set ys"
+      show ?thesis by (rule Cons.hyps, fact+)
+    qed
+  next
+    assume a: "\<not> (\<exists>q\<in>?B. lp q adds lp a)"
+      and "p \<in> set (comp_min_basis_aux xs (a # ys))"
+    show ?thesis
+    proof (rule Cons.hyps, fact)
+      from \<open>q \<in> ?A\<close> show "q \<in> ?C" by simp
+    next
+      fix x
+      assume "x \<in> ?C"
+      hence "x \<in> ?A" by simp
+      thus "x \<noteq> 0" by (rule Cons(5))
+    next
+      fix x y
+      assume "x \<in> ?C"
+      hence "x \<in> ?A" by simp
+      assume "x \<noteq> y"
+      assume "y \<in> set (a # ys)"
+      hence "y = a \<or> y \<in> set ys" by simp
+      thus "\<not> lp x adds lp y"
+      proof
+        assume "y = a"
+        from \<open>x \<in> ?A\<close> have "x = a \<or> x \<in> ?B" by simp
+        thus ?thesis
+        proof
+          assume "x = a"
+          with \<open>x \<noteq> y\<close> show ?thesis unfolding \<open>y = a\<close> ..
+        next
+          assume "x \<in> ?B"
+          from a have "\<And>q. q \<in> ?B \<Longrightarrow> q \<noteq> 0 \<Longrightarrow> \<not> lp q adds lp a" by auto
+          thus ?thesis unfolding \<open>y = a\<close>
+          proof this
+            show "x \<in> ?B" by fact
+          next
+            show "x \<noteq> 0" by (rule Cons(5), fact)
+          qed
+        qed
+      next
+        assume "y \<in> set ys"
+        show ?thesis by (rule Cons(6), fact+)
+      qed
+    next
+      fix x y
+      assume "x \<in> ?C"
+      hence "x \<in> ?A" by simp
+      assume "y \<in> ?C"
+      hence "y \<in> ?A" by simp
+      assume "x \<noteq> y"
+      show "lp x \<noteq> lp y" by (rule Cons(7), fact+)
+    qed fact
+  qed
 qed
-    
-lemma comp_min_basis_pideal:
-  assumes "is_Groebner_basis (set xs)"
-  shows "pideal (set (comp_min_basis xs)) = pideal (set xs)"
+
+lemma comp_min_basis_aux_empty_nadds:
+  assumes "p \<in> set (comp_min_basis_aux xs [])" and "q \<in> set xs" and "p \<noteq> q" and "0 \<notin> set xs"
+    and "\<And>x y. x \<in> set xs \<Longrightarrow> y \<in> set xs \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
+  shows "\<not> lp q adds lp p"
+  using assms(1) _ assms(3)
+proof (rule comp_min_basis_aux_nadds)
+  from assms(2) show "q \<in> set xs \<union> set []" by simp
+next
+  fix x
+  assume "x \<in> set xs \<union> set []"
+  with assms(4) show "x \<noteq> 0" by auto
+next
+  fix x y :: "('a, 'b) poly_mapping"
+  assume "y \<in> set []"
+  thus "\<not> lp x adds lp y" by simp
+next
+  fix x y
+  assume "x \<in> set xs \<union> set []" and "y \<in> set xs \<union> set []"
+  hence "x \<in> set xs" and "y \<in> set xs" by simp_all
+  moreover assume "x \<noteq> y"
+  ultimately show "lp x \<noteq> lp y" by (rule assms(5))
+qed
+
+lemma comp_min_basis_aux_empty_GB:
+  assumes "is_Groebner_basis (set xs)" and "0 \<notin> set xs"
+    and "\<And>x y. x \<in> set xs \<Longrightarrow> y \<in> set xs \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
+  shows "is_Groebner_basis (set (comp_min_basis_aux xs []))"
+  unfolding GB_alt_2
+proof (intro ballI impI)
+  fix f
+  assume fin: "f \<in> pideal (set (comp_min_basis_aux xs []))" and "f \<noteq> 0"
+  have "f \<in> pideal (set xs)" by (rule, fact fin, rule pideal_mono, fact comp_min_basis_aux_empty_subset)
+  show "is_red (set (comp_min_basis_aux xs [])) f"
+  proof (rule comp_min_basis_aux_empty_is_red)
+    from assms \<open>f \<noteq> 0\<close> \<open>f \<in> pideal (set xs)\<close> show "is_red (set xs) f" by (simp add: GB_alt_2)
+  qed (fact+)
+qed
+
+lemma comp_min_basis_aux_empty_pideal:
+  assumes "is_Groebner_basis (set xs)" and "0 \<notin> set xs"
+    and "\<And>x y. x \<in> set xs \<Longrightarrow> y \<in> set xs \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
+  shows "pideal (set (comp_min_basis_aux xs [])) = pideal (set xs)"
 proof -
   show ?thesis
-  proof (rule, rule pideal_mono, rule comp_min_basis_subset, rule)
+  proof (rule, rule pideal_mono, fact comp_min_basis_aux_empty_subset)
+    show "pideal (set xs) \<subseteq> pideal (set (comp_min_basis_aux xs []))"
+    proof
+      fix f
+      assume "f \<in> pideal (set xs)"
+      show "f \<in> pideal (set (comp_min_basis_aux xs []))"
+      proof (cases "f = 0")
+        case True
+        show ?thesis unfolding True by (rule zero_in_pideal)
+      next
+        case False
+        let ?xs = "comp_min_basis_aux xs []"
+        have "(red (set ?xs))\<^sup>*\<^sup>* f 0"
+        proof (rule is_red_implies_0_red, rule pideal_mono, fact comp_min_basis_aux_empty_subset)
+          fix q
+          assume "q \<noteq> 0" and "q \<in> pideal (set xs)"
+          with assms(1) have "is_red (set xs) q" by (rule GB_implies_reducibility)
+          from this assms(2) assms(3) show "is_red (set ?xs) q" by (rule comp_min_basis_aux_empty_is_red)
+        qed fact
+        thus ?thesis by (rule red_rtranclp_0_in_pideal)
+      qed
+    qed
+  qed
+qed
+
+lemma comp_min_basis_pre_GB:
+  assumes "is_Groebner_basis (set xs)"
+  shows "is_Groebner_basis (set (comp_min_basis_pre xs))"
+  unfolding GB_alt_3
+proof (intro ballI impI)
+  fix f
+  assume fin: "f \<in> pideal (set (comp_min_basis_pre xs))" and "f \<noteq> 0"
+  have "f \<in> pideal (set xs)" by (rule, fact fin, rule pideal_mono, rule comp_min_basis_pre_subset)
+  with assms have "f \<noteq> 0 \<longrightarrow> (\<exists>g \<in> set xs. g \<noteq> 0 \<and> lp g adds lp f)" unfolding GB_alt_3 ..
+  from this \<open>f \<noteq> 0\<close> have "\<exists>g \<in> set xs. g \<noteq> 0 \<and> lp g adds lp f" ..
+  then obtain g where "g \<in> set xs" and "g \<noteq> 0" and "lp g adds lp f" by auto
+  from this(1) this(2) obtain g' where g'_in: "g' \<in> set (comp_min_basis_pre xs)" and "lp g' = lp g"
+    by (rule comp_min_basis_pre_lp)
+  from this(1) show "\<exists>g\<in>set (comp_min_basis_pre xs). g \<noteq> 0 \<and> lp g adds lp f"
+  proof (rule, intro conjI)
+    from g'_in show "g' \<noteq> 0" by (rule comp_min_basis_pre_nonzero)
+  next
+    from \<open>lp g adds lp f\<close> show "lp g' adds lp f" by (simp only: \<open>lp g' = lp g\<close>)
+  qed
+qed
+
+lemma comp_min_basis_pre_pideal:
+  assumes "is_Groebner_basis (set xs)"
+  shows "pideal (set (comp_min_basis_pre xs)) = pideal (set xs)"
+proof -
+  show ?thesis
+  proof (rule, rule pideal_mono, rule comp_min_basis_pre_subset, rule)
     fix f
     assume "f \<in> pideal (set xs)"
-    show "f \<in> pideal (set (comp_min_basis xs))"
+    show "f \<in> pideal (set (comp_min_basis_pre xs))"
     proof (cases "f = 0")
       case True
       show ?thesis unfolding True by (rule zero_in_pideal)
     next
       case False
-      let ?xs = "comp_min_basis xs"
+      let ?xs = "comp_min_basis_pre xs"
       have "(red (set ?xs))\<^sup>*\<^sup>* f 0"
-      proof (rule is_red_implies_0_red, rule pideal_mono, rule comp_min_basis_subset)
+      proof (rule is_red_implies_0_red, rule pideal_mono, rule comp_min_basis_pre_subset)
         fix q
         assume "q \<noteq> 0" and "q \<in> pideal (set xs)"
         with assms have "is_red (set xs) q" by (rule GB_implies_reducibility)
-        thus "is_red (set (comp_min_basis xs)) q" by (rule comp_min_basis_is_red)
+        thus "is_red (set ?xs) q" by (rule comp_min_basis_pre_is_red)
       qed fact
       thus ?thesis by (rule red_rtranclp_0_in_pideal)
     qed
   qed
 qed
-    
+
+lemma comp_min_basis_nadds:
+  assumes pin: "p \<in> set (comp_min_basis xs)" and qin: "q \<in> set (comp_min_basis xs)" and "p \<noteq> q"
+  shows "\<not> lp q adds lp p"
+proof (rule comp_min_basis_aux_empty_nadds)
+  from pin show "p \<in> set (comp_min_basis_aux (comp_min_basis_pre xs) [])" unfolding comp_min_basis_def .
+next
+  show "q \<in> set (comp_min_basis_pre xs)"
+    by (rule, fact qin, fact comp_min_basis_subset_comp_min_basis_pre)
+qed (fact, fact comp_min_basis_pre_nonzero', fact comp_min_basis_pre_distinct_lp)
+
+lemma comp_min_basis_GB:
+  assumes "is_Groebner_basis (set xs)"
+  shows "is_Groebner_basis (set (comp_min_basis xs))"
+  unfolding comp_min_basis_def
+  by (rule comp_min_basis_aux_empty_GB, rule comp_min_basis_pre_GB, fact,
+      fact comp_min_basis_pre_nonzero', fact comp_min_basis_pre_distinct_lp)
+
+lemma comp_min_basis_pideal:
+  assumes "is_Groebner_basis (set xs)"
+  shows "pideal (set (comp_min_basis xs)) = pideal (set xs)"
+proof -
+  have "pideal (set (comp_min_basis xs)) = pideal (set (comp_min_basis_pre xs))"
+    unfolding comp_min_basis_def
+    by (rule comp_min_basis_aux_empty_pideal, rule comp_min_basis_pre_GB, fact,
+        fact comp_min_basis_pre_nonzero', fact comp_min_basis_pre_distinct_lp)
+  also from assms have "... = pideal (set xs)" by (rule comp_min_basis_pre_pideal)
+  finally show ?thesis .
+qed
+
 lemma comp_min_basis_is_minimal_basis:
   shows "is_minimal_basis (set (comp_min_basis xs))"
-  by (rule is_minimal_basisI, rule comp_min_basis_nonzero, assumption, rule comp_min_basis_nadds, assumption+, simp)
-    
+  by (rule is_minimal_basisI, rule comp_min_basis_nonzero, assumption, rule comp_min_basis_nadds,
+      assumption+, simp)
+
 lemma comp_min_basis_distinct:
   shows "distinct (comp_min_basis xs)"
   unfolding comp_min_basis_def
   by (rule comp_min_basis_aux_distinct, simp)
-  
+
 subsection \<open>Computing Reduced Bases\<close>
-  
+
 lemma is_minimal_basis_trd_is_minimal_basis:
   assumes min: "is_minimal_basis (set (x # xs))" and notin: "x \<notin> set xs"
   shows "is_minimal_basis (set ((trd xs x) # xs))"
@@ -2300,7 +2527,7 @@ lemma reduced_GB_unique:
 lemma reduced_GB_comp:
   shows "reduced_GB (set xs) = set (comp_red_monic_basis (gb xs))"
   by (rule reduced_GB_unique, simp, rule comp_red_monic_basis_of_gb_is_reduced_GB, rule comp_red_monic_basis_of_gb_pideal)
-    
+                                                                          
 end (* od_powerprod *)
   
 end (* theory *)
