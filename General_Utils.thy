@@ -507,7 +507,7 @@ proof -
 qed
 
 lemma map_upt: "map (\<lambda>i. f (xs ! i)) [0..<length xs] = map f xs"
-  by (smt atLeast_upt length_map lessThan_iff map_cong map_nth nth_map)
+  by (simp add: nth_equalityI)
 
 lemma map_upt_zip:
   assumes "length xs = length ys"

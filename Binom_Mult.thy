@@ -1136,7 +1136,8 @@ next
     also have "... = tp q + tp p" by (simp only: tp_tail_q)
     finally have tp_tail_times: "tp (tail q * p) = tp q + tp p" .
     from assms(1) have tail_p: "tail p = monomial (tc p) (tp p)"
-      by (smt binomial_def is_obd_def is_proper_binomial_binomial_od lp_monomial tail_monomial_plus tc_binomial tp_binomial)
+      by (metis binomial_def is_obd_def is_proper_binomial_binomial_od lp_monomial tail_monomial_plus
+          tc_binomial tp_binomial)
     let ?m = "monom_mult (lc q) (lp q) p"
     let ?r = "tail q * p"
     from \<open>lc q \<noteq> 0\<close> \<open>p \<noteq> 0\<close> have lp_m: "lp ?m = lp q + lp p" and tp_m: "tp ?m = lp q + tp p"

@@ -620,7 +620,7 @@ lemma diff_is_nat:
   assumes "is_int x" and "is_int y"
   shows "is_nat (x - y) \<longleftrightarrow> y \<le> x"
   using assms unfolding is_nat_def is_int_def
-  by (smt comp_apply floor_diff_of_int le_floor_iff of_int_diff of_nat_0_le_iff of_nat_nat to_nat_def zero_le_floor)
+  by (metis diff_ge_0_iff_ge int_is_nat is_nat_def of_int_diff of_int_is_int of_nat_0_le_iff)
 
 lemma plus_is_int:
   assumes "is_int x" and "is_int y"

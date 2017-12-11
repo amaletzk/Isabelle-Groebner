@@ -340,7 +340,7 @@ proof (rule subpolyI)
     hence "keys ?q = {}" by simp
     with \<open>s \<in> keys ?q\<close> show False by simp
   qed
-  from keys_single[of t] \<open>s \<in> keys ?q\<close> have "s = t" by (smt empty_iff insert_iff) 
+  from keys_single \<open>s \<in> keys ?q\<close> have "s = t" using \<open>lookup p t \<noteq> 0\<close> by auto
   show "lookup ?q s = lookup p s" by (simp add: \<open>s = t\<close> lookup_single)
 qed
 
@@ -825,7 +825,7 @@ proof
   assume "u \<in> keys (binomial c s d t)"
   hence "lookup (binomial c s d t) u \<noteq> 0" by simp
   hence "u = s \<or> u = t" unfolding binomial_def lookup_add lookup_single Poly_Mapping.when_def
-    by (smt monoid_add_class.add.right_neutral)
+    by (metis (full_types) add.comm_neutral)
   thus "u \<in> {s, t}" by simp
 qed
     
