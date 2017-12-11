@@ -1,5 +1,5 @@
 theory Reduced_GB
-imports "Groebner_Bases.Groebner_Bases" Poly_Utils
+imports Groebner_Bases.Groebner_Bases Poly_Utils
 begin
 
 section \<open>Further Properties of Relations\<close>
@@ -871,7 +871,7 @@ lemma reduced_GB_lc:
   shows "lc g = 1"
 by (rule is_monic_setD, rule reduced_GB_D3, fact major, fact \<open>g \<in> G\<close>, rule reduced_GB_D4, fact major, fact \<open>g \<in> G\<close>)
 
-lemma (in od_powerprod) reduced_GB_subsetI:
+lemma (in od_powerprod) is_reduced_GB_subsetI:
   assumes Ared: "is_reduced_GB A" and BGB: "is_Groebner_basis B" and Bmon: "is_monic_set B"
     and *: "\<And>a b. a \<in> A \<Longrightarrow> b \<in> B \<Longrightarrow> a \<noteq> 0 \<Longrightarrow> b \<noteq> 0 \<Longrightarrow> a - b \<noteq> 0 \<Longrightarrow> lp (a - b) \<in> keys b \<Longrightarrow> lp (a - b) \<prec> lp b \<Longrightarrow> False"
     and id_eq: "pideal A = pideal B"
@@ -972,13 +972,13 @@ proof
   with \<open>b \<in> B\<close> show "a \<in> B" by simp
 qed
 
-lemma (in od_powerprod) reduced_GB_unique':
+lemma (in od_powerprod) is_reduced_GB_unique':
   assumes Ared: "is_reduced_GB A" and Bred: "is_reduced_GB B" and id_eq: "pideal A = pideal B"
   shows "A \<subseteq> B"
 proof -
   from Bred have BGB: "is_Groebner_basis B" by (rule reduced_GB_D1)
   with assms(1) show ?thesis
-  proof (rule reduced_GB_subsetI)
+  proof (rule is_reduced_GB_subsetI)
     from Bred show "is_monic_set B" by (rule reduced_GB_D3)
   next
     fix a b :: "('a, 'b) poly_mapping"
@@ -1008,9 +1008,9 @@ theorem (in od_powerprod) is_reduced_GB_unique:
   assumes Ared: "is_reduced_GB A" and Bred: "is_reduced_GB B" and id_eq: "pideal A = pideal B"
   shows "A = B"
 proof
-  from assms show "A \<subseteq> B" by (rule reduced_GB_unique')
+  from assms show "A \<subseteq> B" by (rule is_reduced_GB_unique')
 next
-  from Bred Ared id_eq[symmetric] show "B \<subseteq> A" by (rule reduced_GB_unique')
+  from Bred Ared id_eq[symmetric] show "B \<subseteq> A" by (rule is_reduced_GB_unique')
 qed
   
 section \<open>Computing Reduced Gr\"obner Bases\<close>
@@ -2471,8 +2471,11 @@ proof -
   qed (fact rgb, fact eq)
 qed
   
-definition reduced_GB :: "('a, 'b) poly_mapping set \<Rightarrow> ('a, 'b::field) poly_mapping set" where
-  "reduced_GB B = (THE G. is_reduced_GB G \<and> pideal G = pideal B)"
+definition reduced_GB :: "('a, 'b) poly_mapping set \<Rightarrow> ('a, 'b::field) poly_mapping set"
+  where "reduced_GB B = (THE G. is_reduced_GB G \<and> pideal G = pideal B)"
+
+definition rgb :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::field) poly_mapping list"
+  where "rgb bs = comp_red_monic_basis (gb bs)"
 
 lemma reduced_GB_is_reduced_GB:
   assumes "finite B"
@@ -2511,22 +2514,76 @@ proof -
   from assms have "is_reduced_GB (reduced_GB B)" by (rule reduced_GB_is_reduced_GB)
   thus ?thesis unfolding is_reduced_GB_def by simp
 qed
-    
+
 lemma reduced_GB_pideal:
   assumes "finite B"
   shows "pideal (reduced_GB B) = pideal B"
   unfolding reduced_GB_def
   by (rule the1I2, rule exists_unique_reduced_GB, fact, auto)
-    
+
 lemma reduced_GB_unique:
   assumes "finite B" and "is_reduced_GB G" and "pideal G = pideal B"
   shows "reduced_GB B = G"
   unfolding reduced_GB_def
   by (rule the1_equality, rule exists_unique_reduced_GB, fact, rule conjI, fact+)
-    
+
 lemma reduced_GB_comp:
-  shows "reduced_GB (set xs) = set (comp_red_monic_basis (gb xs))"
-  by (rule reduced_GB_unique, simp, rule comp_red_monic_basis_of_gb_is_reduced_GB, rule comp_red_monic_basis_of_gb_pideal)
+  shows "reduced_GB (set xs) = set (rgb xs)"
+  by (rule reduced_GB_unique, simp_all add: rgb_def, rule comp_red_monic_basis_of_gb_is_reduced_GB,
+      rule comp_red_monic_basis_of_gb_pideal)
+
+section \<open>Properties of the Reduced Gr\"obner Basis of an Ideal\<close>
+
+lemma pideal_eq_UNIV_iff_contains_one:
+  "pideal F = UNIV \<longleftrightarrow> (1::('a, 'b::semiring_1) poly_mapping) \<in> pideal F"
+proof
+  assume *: "1 \<in> pideal F"
+  show "pideal F = UNIV"
+  proof
+    show "UNIV \<subseteq> pideal F"
+    proof
+      fix p
+      from * have "p * 1 \<in> pideal F" by (rule pideal_closed_times)
+      thus "p \<in> pideal F" by simp
+    qed
+  qed simp
+qed simp
+
+lemma not_is_red_empty: "\<not> is_red {} f"
+  by (simp add: is_red_adds_iff)
+
+lemma is_Groebner_basis_empty: "is_Groebner_basis {}"
+  by (rule Buchberger_criterion, simp)
+
+lemma is_Groebner_basis_singleton: "is_Groebner_basis {f}"
+  by (rule Buchberger_criterion, simp add: spoly_same)
+
+lemma pideal_eq_UNIV_iff_reduced_GB_eq_one:
+  assumes "finite F"
+  shows "pideal F = UNIV \<longleftrightarrow> reduced_GB F = {1}"
+proof
+  assume "pideal F = UNIV"
+  from assms show "reduced_GB F = {1}"
+  proof (rule reduced_GB_unique)
+    show "is_reduced_GB {1}" unfolding is_reduced_GB_def
+    proof (intro conjI, fact is_Groebner_basis_singleton)
+      show "is_auto_reduced {1}" unfolding is_auto_reduced_def
+        by (rule ballI, simp add: remove_def not_is_red_empty)
+    next
+      show "is_monic_set {1}"
+        by (rule is_monic_setI, simp del: single_one add: single_one[symmetric] lc_monomial)
+    qed simp
+  next
+    show "pideal {1} = pideal F"
+      by (simp only: \<open>pideal F = UNIV\<close> pideal_eq_UNIV_iff_contains_one, rule generator_in_pideal, simp)
+  qed
+next
+  assume "reduced_GB F = {1}"
+  hence "1 \<in> reduced_GB F" by simp
+  hence "1 \<in> pideal (reduced_GB F)" by (rule generator_in_pideal)
+  also from assms have "... = pideal F" by (rule reduced_GB_pideal)
+  finally show "pideal F = UNIV" by (simp only: pideal_eq_UNIV_iff_contains_one)
+qed
                                                                           
 end (* od_powerprod *)
   
