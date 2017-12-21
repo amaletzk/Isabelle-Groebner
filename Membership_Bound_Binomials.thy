@@ -6,7 +6,7 @@ begin
 
 subsection \<open>Structure of Binomial Ideals\<close>
   
-context od_powerprod
+context gd_powerprod
 begin
 
 lemma rem_3_1_4_aux_1:
@@ -106,7 +106,7 @@ proof (rule, rule)
   qed
 qed
 
-end (* od_powerprod *)
+end (* gd_powerprod *)
 
 subsection \<open>Preliminaries\<close>
   
@@ -1922,7 +1922,7 @@ end (* two_binomials *)
 subsection \<open>Standard Power-Products in Finitely Many Indeterminates\<close>
 
 locale standard_powerprod =
-  od_powerprod ord ord_strict
+  gd_powerprod ord ord_strict
   for ord::"('n \<Rightarrow> 'a) \<Rightarrow> ('n::{finite,linorder} \<Rightarrow> 'a::add_wellorder) \<Rightarrow> bool" (infixl "\<preceq>" 50)
   and ord_strict (infixl "\<prec>" 50)
 begin

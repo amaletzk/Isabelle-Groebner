@@ -1,6 +1,8 @@
 theory Macaulay_Groebner
-  imports Power_Products_Fun Reduced_GB "Jordan_Normal_Form.Gauss_Jordan_Elimination"
+  imports Power_Products_Fun Reduced_GB Jordan_Normal_Form.Gauss_Jordan_Elimination
 begin
+
+(* TODO: Maybe it is possible to replace 'row_space' by 'module.span', importing "Jordan_Normal_Form.VS_Connect". *)
 
 (* TODO: Pull "fun_powerprod" and "finite_nat" out, since they are also defined in "Binom_Mult.thy"
   and "Membership_Bound_Binomials.thy", respectively.
@@ -1209,7 +1211,6 @@ proof -
   finally show ?thesis unfolding p' .
 qed
 
-
 subsection \<open>Gr\"obner Bases\<close>
 
 definition Macaulay_mat :: "('a, 'b) poly_mapping list \<Rightarrow> 'b::field mat"
@@ -1360,7 +1361,7 @@ qed
 
 end (* ordered_powerprod *)
 
-context od_powerprod
+context gd_powerprod
 begin
 
 lemma reduced_Macaulay_list_is_minimal_basis: "is_minimal_basis (set (reduced_Macaulay_list ps))"
@@ -1430,15 +1431,13 @@ qed
 lemma Macaulay_list_is_GB:
   assumes "is_Groebner_basis G" and "pideal (set ps) = pideal G" and "G \<subseteq> phull (set ps)"
   shows "is_Groebner_basis (set (Macaulay_list ps))"
-proof (simp only: GB_alt_3 pideal_Macaulay_list, intro ballI impI)
+proof (simp only: GB_alt_3_finite[OF finite_set] pideal_Macaulay_list, intro ballI impI)
   fix f
   assume "f \<in> pideal (set ps)"
   also from assms(2) have "... = pideal G" .
   finally have "f \<in> pideal G" .
   assume "f \<noteq> 0"
-  from assms(1) \<open>f \<in> pideal G\<close> have "f \<noteq> 0 \<longrightarrow> (\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f)" unfolding GB_alt_3 ..
-  from this \<open>f \<noteq> 0\<close> have "\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f" ..
-  then obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds lp f" by auto
+  with assms(1) \<open>f \<in> pideal G\<close> obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds lp f" by (rule GB_adds_lp)
   from assms(3) \<open>g \<in> G\<close> have "g \<in> phull (set ps)" ..
   from this \<open>g \<noteq> 0\<close> obtain g' where "g' \<in> set (Macaulay_list ps)" and "g' \<noteq> 0" and "lp g = lp g'"
     by (rule Macaulay_list_lp)
@@ -1477,11 +1476,11 @@ lemma reduced_Macaulay_list_is_GB:
   assumes "is_Groebner_basis G" and "pideal (set ps) = pideal G" and "G \<subseteq> phull (set ps)"
   shows "is_Groebner_basis (set (reduced_Macaulay_list ps))"
   unfolding reduced_Macaulay_list_def
-  apply (rule comp_min_basis_aux_empty_GB)
+apply (rule comp_min_basis_aux_empty_GB)
   subgoal by (rule Macaulay_list_is_GB, fact, fact, fact)
   subgoal by (fact Macaulay_list_not_zero)
   subgoal by (fact Macaulay_list_distinct_lp)
-  done
+done
 
 lemma reduced_Macaulay_list_is_reduced_GB:
   assumes "finite F" and "pideal (set ps) = pideal F" and "reduced_GB F \<subseteq> phull (set ps)"
@@ -1496,7 +1495,7 @@ proof -
     by (rule pideal_reduced_Macaulay_list, rule Macaulay_list_is_GB, fact, simp only: aux, fact)
   show ?thesis
   proof (rule minimal_basis_is_reduced_GB, fact reduced_Macaulay_list_is_minimal_basis,
-        fact reduced_Macaulay_list_is_monic_set, fact, rule reduced_GB_subsetI, fact,
+        fact reduced_Macaulay_list_is_monic_set, fact, rule is_reduced_GB_subsetI, fact,
         rule reduced_Macaulay_list_is_GB, fact, simp only: aux, fact,
         fact reduced_Macaulay_list_is_monic_set)
     fix a b :: "('a, 'b) poly_mapping"

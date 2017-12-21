@@ -10,15 +10,6 @@ section \<open>Further Properties of Multivariate Polynomials\<close>
 context comm_powerprod
 begin
 
-lemma keys_of_monomial:
-  assumes "c \<noteq> 0"
-  shows "keys (monomial c t) = {t}"
-  using assms by simp
-
-lemma monomial_uminus:
-  shows "- monomial c s = monomial (-c) s"
-  by (transfer, rule ext, simp add: Poly_Mapping.when_def)
-
 definition poly_mapping_of_pp :: "'a \<Rightarrow> ('a, 'b::{one,zero}) poly_mapping" where
   "poly_mapping_of_pp t = monomial 1 t"
   
@@ -46,111 +37,6 @@ proof -
   also have "... = keys ((poly_mapping_of_pp t)::('a, 'b) poly_mapping)" unfolding assms ..
   finally have "{s} = {t}" by (simp add: keys_poly_mapping_of_pp)
   thus ?thesis by simp
-qed
-
-subsection \<open>@{const keys}\<close>
-
-lemma in_keys_plusI1:
-  assumes "t \<in> keys p" and "t \<notin> keys q"
-  shows "t \<in> keys (p + q)"
-  using assms unfolding in_keys_iff lookup_add by simp
-
-lemma in_keys_plusI2:
-  assumes "t \<in> keys q" and "t \<notin> keys p"
-  shows "t \<in> keys (p + q)"
-  using assms unfolding in_keys_iff lookup_add by simp
-
-lemma keys_plus_eqI:
-  assumes "keys p \<inter> keys q = {}"
-  shows "keys (p + q) = (keys p \<union> keys q)"
-proof (rule, rule keys_add_subset, rule)
-  fix t
-  assume "t \<in> keys p \<union> keys q"
-  thus "t \<in> keys (p + q)"
-  proof
-    assume "t \<in> keys p"
-    moreover from assms this have "t \<notin> keys q" by auto
-    ultimately show ?thesis by (rule in_keys_plusI1)
-  next
-    assume "t \<in> keys q"
-    moreover from assms this have "t \<notin> keys p" by auto
-    ultimately show ?thesis by (rule in_keys_plusI2)
-  qed
-qed
-
-lemma keys_uminus':
-  shows "keys (-p) \<subseteq> keys p"
-proof
-  fix t
-  assume "t \<in> keys (-p)"
-  hence "lookup (-p) t \<noteq> 0" unfolding in_keys_iff .
-  hence "- lookup p t \<noteq> 0" by simp
-  hence "lookup p t \<noteq> 0" by simp
-  thus "t \<in> keys p" unfolding in_keys_iff .
-qed
-  
-lemma keys_uminus:
-  shows "keys (-p) = keys p"
-  using keys_uminus'[of p] keys_uminus'[of "-p"] by simp
-
-lemma keys_minus:
-  shows "keys (p - q) \<subseteq> (keys p \<union> keys (q::'a \<Rightarrow>\<^sub>0 'b::ab_group_add))"
-  using keys_add_subset[of p "-q"] keys_uminus[of q] by simp
-    
-lemma keys_monom_multI:
-  assumes "s \<in> keys p" and "c \<noteq> (0::'b::semiring_no_zero_divisors)"
-  shows "t + s \<in> keys (monom_mult c t p)"
-  using assms unfolding in_keys_iff lookup_monom_mult by simp
-    
-lemma keys_monom_multE:
-  assumes "s \<in> keys (monom_mult c t p)"
-  obtains x where "x \<in> keys p" and "s = t + x"
-proof -
-  from assms have "t adds s \<and> lookup p (s - t) \<noteq> 0" by (transfer, auto split: if_splits)
-  hence a: "t adds s" and b: "lookup p (s - t) \<noteq> 0" by simp_all
-  from a obtain x where s: "s = t + x" by (rule addsE)
-  have "s - t = x" unfolding s by simp
-  with b have "lookup p x \<noteq> 0" by simp
-  show ?thesis
-  proof
-    from \<open>lookup p x \<noteq> 0\<close> show "x \<in> keys p" unfolding in_keys_iff .
-  qed fact
-qed
-
-lemma keys_monom_mult_subset: "keys (monom_mult c t p) \<subseteq> (op + t) ` (keys p)"
-proof
-  fix s
-  assume "s \<in> keys (monom_mult c t p)"
-  then obtain x where "x \<in> keys p" and "s = t + x" by (rule keys_monom_multE)
-  thus "s \<in> (op + t) ` (keys p)" unfolding image_iff ..
-qed
-
-lemma keys_monom_mult:
-  assumes "c \<noteq> (0::'b::semiring_no_zero_divisors)"
-  shows "keys (monom_mult c t p) = (op + t) ` (keys p)"
-proof (rule, fact keys_monom_mult_subset, rule)
-  fix s
-  assume "s \<in> op + t ` keys p"
-  hence "\<exists>x\<in>keys p. s = t + x" unfolding image_iff .
-  then obtain x where "x \<in> keys p" and s: "s = t + x" ..
-  from \<open>x \<in> keys p\<close> assms show "s \<in> keys (monom_mult c t p)" unfolding s by (rule keys_monom_multI)
-qed
-
-lemma poly_mapping_keys_eqI:
-  assumes a1: "keys p = keys q" and a2: "\<And>t. t \<in> keys p \<Longrightarrow> lookup p t = lookup q t"
-  shows "p = q"
-proof (rule poly_mapping_eqI)
-  fix t
-  show "lookup p t = lookup q t"
-  proof (cases "t \<in> keys p")
-    case True
-    thus ?thesis by (rule a2)
-  next
-    case False
-    moreover from this have "t \<notin> keys q" unfolding a1 .
-    ultimately have "lookup p t = 0" and "lookup q t = 0" unfolding in_keys_iff by simp_all
-    thus ?thesis by simp
-  qed
 qed
 
 subsection \<open>Sums\<close>
@@ -403,30 +289,6 @@ end (* comm_powerprod *)
 
 subsection \<open>Ideals and Linear Hulls\<close>
 
-lemma ideal_like_subset_ideal_likeI:
-  assumes "\<And>r q. r \<in> C \<Longrightarrow> q \<in> C \<Longrightarrow> r * q \<in> C"
-  assumes "A \<subseteq> ideal_like C B"
-  shows "ideal_like C A \<subseteq> ideal_like C B"
-proof
-  fix p
-  assume "p \<in> ideal_like C A"
-  thus "p \<in> ideal_like C B"
-  proof (induct p)
-    case base: ideal_like_0
-    show ?case by (fact ideal_like_0)
-  next
-    case step: (ideal_like_plus a b q)
-    from step(3) assms(2) have "b \<in> ideal_like C B" ..
-    with _ have "q * b \<in> ideal_like C B"
-    proof (rule ideal_like_closed_times)
-      fix r
-      assume "r \<in> C"
-      with step(4) show "q * r \<in> C" by (rule assms(1))
-    qed
-    with step(2) show ?case by (rule ideal_like_closed_plus)
-  qed
-qed
-
 lemma poly_mapping_of_pp_in_pidealI:
   assumes "(f::('a::comm_powerprod, 'b::field) poly_mapping) \<in> pideal F" and "keys f = {t}"
   shows "poly_mapping_of_pp t \<in> pideal F"
@@ -491,11 +353,6 @@ next
   qed
 qed
 
-lemma pideal_subset_pidealI:
-  assumes "A \<subseteq> pideal B"
-  shows "pideal A \<subseteq> pideal B"
-  using _ assms unfolding pideal_def by (rule ideal_like_subset_ideal_likeI, intro UNIV_I)
-
 lemma replace_phull:
   fixes B::"('a::comm_powerprod, 'b::semiring_1) poly_mapping set" and p q
   assumes "q \<in> (phull B)"
@@ -505,11 +362,6 @@ lemma replace_phull:
     
 lemma remove_0_stable_phull: "phull (remove 0 B) = phull B"
   unfolding remove_def by (fact phull_minus_singleton_zero)
-
-lemma phull_subset_phullI:
-  assumes "A \<subseteq> phull B"
-  shows "phull A \<subseteq> phull B"
-  using _ assms unfolding phull_def by (rule ideal_like_subset_ideal_likeI, auto simp add: mult_single)
 
 lemma in_phull_listE:
   assumes "p \<in> (phull (set bs))"
@@ -1062,206 +914,7 @@ next
   thus ?thesis by (simp add: zero_in_phull)
 qed
 
-subsection \<open>Leading Power-Products and -Coefficients\<close>
-
-lemma lp_le:
-  assumes a: "\<And>s. t \<prec> s \<Longrightarrow> lookup p s = 0"
-  shows "lp p \<preceq> t"
-proof (cases "p = 0")
-  case True
-  thus ?thesis using zero_min[of t] by (simp add: lp_def)
-next
-  case False
-  hence "keys p \<noteq> {}" using keys_eq_empty_iff[of p] by simp
-  have "\<forall>s\<in>keys p. s \<preceq> t"
-  proof
-    fix s::"'a"
-    assume "s \<in> keys p"
-    hence "lookup p s \<noteq> 0" unfolding keys_def by simp
-    hence "\<not> t \<prec> s" using a[of s] by auto
-    thus "s \<preceq> t" by simp
-  qed
-  with lp_alt[OF \<open>p \<noteq> 0\<close>] ordered_powerprod_lin.Max_le_iff[OF finite_keys[of p] \<open>keys p \<noteq> {}\<close>]
-    show ?thesis by simp
-qed
-   
-lemma lp_le_iff: "lp p \<preceq> t \<longleftrightarrow> (\<forall>s. t \<prec> s \<longrightarrow> lookup p s = 0)" (is "?L \<longleftrightarrow> ?R")
-proof
-  assume ?L
-  show ?R
-  proof (intro allI impI)
-    fix s
-    note \<open>lp p \<preceq> t\<close>
-    also assume "t \<prec> s"
-    finally have "lp p \<prec> s" .
-    hence "\<not> s \<preceq> lp p" by simp
-    with lp_max[of p s] show "lookup p s = 0" by blast
-  qed
-next
-  assume ?R
-  thus ?L using lp_le by auto
-qed
-
-lemma lp_plus_eqI:
-  assumes "lp p \<prec> lp q"
-  shows "lp (p + q) = lp q"
-proof (cases "q = 0")
-  case True
-  with assms have "lp p \<prec> 0" by (simp add: lp_def)
-  with zero_min[of "lp p"] show ?thesis by simp
-next
-  case False
-  show ?thesis
-  proof (intro lp_eqI)
-    from lp_gr[of p "lp q" "lp p"] \<open>lp p \<prec> lp q\<close> have "lookup p (lp q) = 0" by blast
-    with lookup_add[of p q "lp q"] lc_not_0[OF False] show "lookup (p + q) (lp q) \<noteq> 0"
-      unfolding lc_def by simp
-  next
-    fix s
-    assume "lookup (p + q) s \<noteq> 0"
-    show "s \<preceq> lp q"
-    proof (rule ccontr)
-      assume "\<not> s \<preceq> lp q"
-      hence qs: "lp q \<prec> s" by simp
-      hence "lp p \<prec> s" using \<open>lp p \<prec> lp q\<close> by simp
-      with lp_gr[of p s "lp p"] have "lookup p s = 0" by blast
-      also from qs lp_gr[of q s "lp q"] have "lookup q s = 0" by blast
-      ultimately show False using \<open>lookup (p + q) s \<noteq> 0\<close> lookup_add[of p q s] by auto
-    qed
-  qed
-qed
-
-lemma lp_plus_eqI_2:
-  assumes "lp q \<prec> lp p"
-  shows "lp (p + q) = lp p"
-proof (cases "p = 0")
-  case True
-  with assms have "lp q \<prec> 0" by (simp add: lp_def)
-  with zero_min[of "lp q"] show ?thesis by simp
-next
-  case False
-  show ?thesis
-  proof (intro lp_eqI)
-    from lp_gr[of q "lp p" "lp q"] \<open>lp q \<prec> lp p\<close> have "lookup q (lp p) = 0" by blast
-    with lookup_add[of p q "lp p"] lc_not_0[OF False] show "lookup (p + q) (lp p) \<noteq> 0"
-      unfolding lc_def by simp
-  next
-    fix s
-    assume "lookup (p + q) s \<noteq> 0"
-    show "s \<preceq> lp p"
-    proof (rule ccontr)
-      assume "\<not> s \<preceq> lp p"
-      hence ps: "lp p \<prec> s" by simp
-      hence "lp q \<prec> s" using \<open>lp q \<prec> lp p\<close> by simp
-      with lp_gr[of q s "lp q"] have "lookup q s = 0" by blast
-      also from ps lp_gr[of p s "lp p"] have "lookup p s = 0" by blast
-      ultimately show False using \<open>lookup (p + q) s \<noteq> 0\<close> lookup_add[of p q s] by auto
-    qed
-  qed
-qed
-    
-lemma lp_plus_precE:
-  assumes "lp p \<prec> lp (p + (q::('a, 'b::monoid_add) poly_mapping))"
-  shows "lp p \<prec> lp q"
-proof (rule ccontr)
-  assume "\<not> lp p \<prec> lp q"
-  hence "lp p = lp q \<or> lp q \<prec> lp p" by auto
-  thus False
-  proof
-    assume lp_eq: "lp p = lp q"
-    have "lp (p + q) \<preceq> lp p"
-    proof (rule lp_le)
-      fix s
-      assume "lp p \<prec> s"
-      with lp_gr[of p s "lp p"] have "lookup p s = 0" by blast
-      from \<open>lp p \<prec> s\<close> have "lp q \<prec> s" using lp_eq by simp
-      with lp_gr[of q s "lp q"] have "lookup q s = 0" by blast
-      with \<open>lookup p s = 0\<close> show "lookup (p + q) s = 0" using lookup_add[of p q s] by simp
-    qed
-    with assms show False by simp
-  next
-    assume "lp q \<prec> lp p"
-    from lp_plus_eqI_2[OF this] assms show False by simp
-  qed
-qed
-  
-lemma lp_plus_precI:
-  fixes p q :: "('a, 'b::ring) poly_mapping"
-  assumes "p + q \<noteq> 0" and lp_eq: "lp q = lp p" and lc_eq: "lc q = - lc p"
-  shows "lp (p + q) \<prec> lp p"
-proof (rule ccontr)
-  assume "\<not> lp (p + q) \<prec> lp p"
-  hence "lp (p + q) = lp p \<or> lp p \<prec> lp (p + q)" by auto
-  thus False
-  proof
-    assume "lp (p + q) = lp p"
-    have "lookup (p + q) (lp p) = (lookup p (lp p)) + (lookup q (lp q))" unfolding lp_eq lookup_add ..
-    also have "... = lc p + lc q" unfolding lc_def ..
-    also have "... = 0" unfolding lc_eq by simp
-    finally have "lookup (p + q) (lp p) = 0" .
-    hence "lp (p + q) \<noteq> lp p" using lc_not_0[OF \<open>p + q \<noteq> 0\<close>] unfolding lc_def by auto
-    with \<open>lp (p + q) = lp p\<close> show False by simp
-  next
-    assume "lp p \<prec> lp (p + q)"
-    have "lp p \<prec> lp q" by (rule lp_plus_precE, fact+)
-    hence "lp p \<noteq> lp q" by simp
-    with lp_eq show False by simp
-  qed
-qed
-
-lemma lp_plus_distinct_eq_max:
-  assumes "lp p \<noteq> lp q"
-  shows "lp (p + q) = ordered_powerprod_lin.max (lp p) (lp q)"
-proof (rule ordered_powerprod_lin.linorder_cases)
-  assume a: "lp p \<prec> lp q"
-  hence "lp (p + q) = lp q" by (rule lp_plus_eqI)
-  also from a have "... = ordered_powerprod_lin.max (lp p) (lp q)"
-    by (simp add: ordered_powerprod_lin.max.absorb2)
-  finally show ?thesis .
-next
-  assume a: "lp q \<prec> lp p"
-  hence "lp (p + q) = lp p" by (rule lp_plus_eqI_2)
-  also from a have "... = ordered_powerprod_lin.max (lp p) (lp q)"
-    by (simp add: ordered_powerprod_lin.max.absorb1)
-  finally show ?thesis .
-next
-  assume "lp p = lp q"
-  with assms show ?thesis ..
-qed
-    
-lemma lp_max_keys:
-  assumes "t \<in> keys p"
-  shows "t \<preceq> lp p"
-proof (rule lp_max)
-  from assms show "lookup p t \<noteq> 0" by simp
-qed
-
-lemma lp_eqI_keys:
-  assumes "t \<in> keys p" and a2: "\<And>s. s \<in> keys p \<Longrightarrow> s \<preceq> t"
-  shows "lp p = t"
-  by (rule lp_eqI, simp_all only: in_keys_iff[symmetric], fact+)
-    
-lemma lp_gr_keys:
-  assumes "s \<in> keys p" and "t \<prec> s"
-  shows "t \<prec> lp p"
-proof (rule lp_gr)
-  from assms(1) show "lookup p s \<noteq> 0" by simp
-qed fact
-
-lemma lp_uminus:
-  fixes p
-  assumes "p \<noteq> 0"
-  shows "lp (-p) = lp p"
-proof -
-  from assms have "-p \<noteq> 0" by simp
-  with assms show ?thesis unfolding lp_def keys_uminus by simp
-qed
-
-lemma lc_uminus:
-  fixes p
-  assumes "p \<noteq> 0"
-  shows "lc (-p) = - lc p"
-  unfolding lc_def lp_uminus[OF assms] lookup_uminus by simp
+subsection \<open>Sets of Leading Power-Products and -Coefficients\<close>
     
 lemma lp_poly_mapping_of_pp:
   shows "lp ((poly_mapping_of_pp t)::('a, 'b::{zero_neq_one}) poly_mapping) = t"
@@ -2707,8 +2360,7 @@ definition monic_set :: "('a, 'b) poly_mapping set \<Rightarrow> ('a, 'b::field)
 definition is_monic_set :: "('a, 'b::field) poly_mapping set \<Rightarrow> bool" where
   "is_monic_set B \<equiv> (\<forall>b\<in>B. b \<noteq> 0 \<longrightarrow> lc b = 1)"
 
-lemma lookup_monic:
-  shows "lookup (monic p) t = (lookup p t) / lc p"
+lemma lookup_monic: "lookup (monic p) t = (lookup p t) / lc p"
 proof -
   have "lookup (monic p) (0 + t) = (1 / lc p) * (lookup p t)" unfolding monic_def
     by (rule lookup_monom_mult)
@@ -2730,12 +2382,10 @@ proof -
   thus "lookup ?q (lp p) = 1" by simp
 qed
   
-lemma monic_0 [simp]:
-  shows "monic 0 = 0"
+lemma monic_0 [simp]: "monic 0 = 0"
   unfolding monic_def by (rule monom_mult_right0)
 
-lemma monic_0_iff:
-  shows "(monic p = 0) \<longleftrightarrow> (p = 0)"
+lemma monic_0_iff: "(monic p = 0) \<longleftrightarrow> (p = 0)"
 proof
   assume "monic p = 0"
   show "p = 0"
@@ -2750,8 +2400,7 @@ next
   show "monic p = 0" unfolding p0 by (fact monic_0)
 qed
   
-lemma keys_monic:
-  shows "keys (monic p) = keys p"
+lemma keys_monic [simp]: "keys (monic p) = keys p"
 proof (cases "p = 0")
   case True
   show ?thesis unfolding True monic_0 ..
@@ -2763,8 +2412,7 @@ next
     by (rule set_eqI, simp add: in_keys_iff lookup_monic \<open>lc p \<noteq> 0\<close> del: lookup_not_eq_zero_eq_in_keys)
 qed
 
-lemma lp_monic:
-  shows "lp (monic p) = lp p"
+lemma lp_monic [simp]: "lp (monic p) = lp p"
 proof (cases "p = 0")
   case True
   show ?thesis unfolding True monic_0 ..
@@ -2781,7 +2429,7 @@ qed
 lemma lc_monic:
   assumes "p \<noteq> 0"
   shows "lc (monic p) = 1"
-  using assms unfolding lc_def by (simp add: lp_monic lookup_monic_lp)
+  using assms by (simp add: lc_def lookup_monic_lp)
 
 lemma mult_lc_monic:
   assumes "p \<noteq> 0"
@@ -2805,8 +2453,7 @@ lemma is_monic_setD:
   shows "lc b = 1"
   using assms unfolding is_monic_set_def by auto
     
-lemma monic_set_is_monic_set:
-  shows "is_monic_set (monic_set A)"
+lemma monic_set_is_monic_set: "is_monic_set (monic_set A)"
 proof (rule is_monic_setI)
   fix p
   assume pin: "p \<in> monic_set A" and "p \<noteq> 0"
@@ -2815,8 +2462,7 @@ proof (rule is_monic_setI)
   thus "lc p = 1" unfolding p_def by (rule lc_monic)
 qed
   
-lemma monic_set_pideal:
-  shows "pideal (monic_set B) = pideal B"
+lemma monic_set_pideal [simp]: "pideal (monic_set B) = pideal B"
 proof
   show "pideal (monic_set B) \<subseteq> pideal B"
   proof

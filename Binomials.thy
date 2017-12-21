@@ -4,6 +4,34 @@ begin
 
 context ordered_powerprod
 begin
+
+section \<open>Monomial Ideals\<close>
+
+lemma keys_monomial_pideal:
+  assumes "is_monomial_set F" and "p \<in> pideal F" and "t \<in> keys p"
+  obtains f where "f \<in> F" and "f \<noteq> 0" and "lp f adds t"
+  using assms(2) assms(3)
+proof (induct arbitrary: thesis rule: pideal_induct)
+  case pideal_0
+  from this(2) show ?case by simp
+next
+  case step: (pideal_plus p f0 c s)
+  from assms(1) step(3) have "is_monomial f0" unfolding is_monomial_set_def ..
+  hence "keys f0 = {lp f0}" and "f0 \<noteq> 0" by (rule keys_monomial, rule monomial_not_0)
+  from keys_add_subset step(6) have "t \<in> keys p \<union> keys (monom_mult c s f0)" ..
+  thus ?case
+  proof
+    assume "t \<in> keys p"
+    from step(2)[OF _ this] obtain f where "f \<in> F" and "f \<noteq> 0" and "lp f adds t" by blast
+    thus ?thesis by (rule step(5))
+  next
+    assume "t \<in> keys (monom_mult c s f0)"
+    with keys_monom_mult_subset have "t \<in> op + s ` keys f0" ..
+    hence "t = s + lp f0" by (simp add: \<open>keys f0 = {lp f0}\<close>)
+    hence "lp f0 adds t" by simp
+    with \<open>f0 \<in> F\<close> \<open>f0 \<noteq> 0\<close> show ?thesis by (rule step(5))
+  qed
+qed
   
 section \<open>Reduction Modulo Monomials and Binomials\<close>
 
@@ -225,7 +253,7 @@ qed
 
 end (* ordered_powerprod *)
 
-context od_powerprod
+context gd_powerprod
 begin
 
 lemma has_bounded_keys_trd:
@@ -234,22 +262,44 @@ lemma has_bounded_keys_trd:
   by (rule has_bounded_keys_red_rtrancl, rule trd_red_rtrancl, fact+)
   
 section \<open>Gr\"obner Bases\<close>
-  
+
 lemma monomial_set_is_GB:
   assumes "is_monomial_set G"
   shows "is_Groebner_basis G"
-  unfolding GB_alt_3
-proof (intro ballI impI)
+  unfolding GB_alt_1
+proof
   fix f
-  assume "f \<in> pideal G" and "f \<noteq> 0"
-  from \<open>f \<noteq> 0\<close> have "lp f \<in> keys f" by (rule lp_in_keys)
-  from assms \<open>f \<in> pideal G\<close> this have "\<exists>g\<in>G. lp g adds lp f" by (rule monomial_set_pideal)
-  then obtain g where "g \<in> G" and "lp g adds lp f" ..
-  show "\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f"
-  proof (rule, intro conjI)
-    from assms \<open>g \<in> G\<close> have "is_monomial g" by (rule is_monomial_setD)
-    thus "g \<noteq> 0" by (rule monomial_not_0)
-  qed fact+
+  assume "f \<in> pideal G"
+  thus "(red G)\<^sup>*\<^sup>* f 0"
+  proof (induct f rule: poly_mapping_plus_induct)
+    case 1
+    show ?case ..
+  next
+    case (2 f c t)
+    let ?f = "monomial c t + f"
+    from 2(1) have "t \<in> keys (monomial c t)" by simp
+    from this 2(2) have "t \<in> keys ?f" by (rule in_keys_plusI1)
+    with assms \<open>?f \<in> pideal G\<close> obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds t"
+      by (rule keys_monomial_pideal)
+    from this(1) have "red G ?f f"
+    proof (rule red_setI)
+      from \<open>lp g adds t\<close> have eq: "t - lp g + lp g = t" by (rule adds_minus)
+      moreover from 2(2) have "lookup ?f t = c" by (simp add: lookup_add)
+      ultimately show "red_single (monomial c t + f) f g (t - lp g)"
+      proof (simp add: red_single_def \<open>g \<noteq> 0\<close> \<open>t \<in> keys ?f\<close> 2(1))
+        thm monom_mult_monomial
+        from \<open>g \<noteq> 0\<close> have "lc g \<noteq> 0" by (rule lc_not_0)
+        hence "monomial c t = monom_mult (c / lc g) (t - lp g) (monomial (lc g) (lp g))"
+          by (simp add: monom_mult_monomial eq)
+        moreover from assms \<open>g \<in> G\<close> have "is_monomial g" unfolding is_monomial_set_def ..
+        ultimately show "monomial c t = monom_mult (c / lc g) (t - lp g) g"
+          by (simp only: monomial_eq_itself)
+      qed
+    qed
+    have "f \<in> pideal G" by (rule pideal_closed_red, fact subset_refl, fact+)
+    hence "(red G)\<^sup>*\<^sup>* f 0" by (rule 2(3))
+    with \<open>red G ?f f\<close> show ?case by simp
+  qed
 qed
   
 section \<open>Function @{term gb}\<close>
@@ -622,7 +672,7 @@ theorem reduced_GB_is_monomial_set:
 proof -
   from finite_list[OF \<open>finite B\<close>] obtain xs where set: "set xs = B" ..
   from assms(1) have a: "is_monomial_set (set xs)" unfolding set[symmetric] .
-  show ?thesis unfolding set[symmetric] reduced_GB_comp gb_monomial_set[OF a]
+  show ?thesis unfolding set[symmetric] reduced_GB_comp gb_monomial_set[OF a] rgb_def
     by (rule comp_red_monic_basis_is_monomial_set, fact a)
 qed
 
@@ -644,10 +694,10 @@ theorem reduced_GB_is_binomial_set:
 proof -
   from finite_list[OF \<open>finite B\<close>] obtain xs where set: "set xs = B" ..
   from assms(1) have a: "is_binomial_set (set xs)" unfolding set[symmetric] .
-  show ?thesis unfolding set[symmetric] reduced_GB_comp
+  show ?thesis unfolding set[symmetric] reduced_GB_comp rgb_def
     by (rule comp_red_monic_basis_is_binomial_set, rule gb_is_binomial_set, fact a)
 qed
 
-end (* od_powerprod *)
+end (* gd_powerprod *)
 
 end (* theory *)

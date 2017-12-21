@@ -4,7 +4,7 @@ begin
 
 definition "dlex_pm_strict s t \<longleftrightarrow> dlex_pm s t \<and> \<not> dlex_pm t s"
 
-global_interpretation opp_dlex: od_powerprod dlex_pm dlex_pm_strict
+global_interpretation opp_dlex: gd_powerprod dlex_pm dlex_pm_strict
   defines lp_dlex = opp_dlex.lp
   and max_dlex = opp_dlex.ordered_powerprod_lin.max
   and list_max_dlex = opp_dlex.list_max

@@ -3,496 +3,63 @@ imports Groebner_Bases.Groebner_Bases Poly_Utils
 begin
 
 section \<open>Further Properties of Relations\<close>
-  
-context relation
-begin
-  
-lemma wf_implies_nf_existence:
-  fixes a
-  assumes wf: "wfP (r^--1)"
-  obtains b where "a \<rightarrow>\<^sup>* b" and "is_final b"
-proof -
-  from wf have "wf {(x, y). (r^--1) x y}" unfolding wfP_def .
-  hence "wf {(y, x). x \<rightarrow> y}" (is "wf ?R") by simp
-  let ?A = "{b. a \<rightarrow>\<^sup>* b}"
-  have "a \<in> ?A" by simp
-  show ?thesis
-  proof (rule wfE_min[OF \<open>wf ?R\<close> \<open>a \<in> ?A\<close>])
-    fix z
-    assume A1: "z \<in> {b. a \<rightarrow>\<^sup>* b}" and A2: "\<And>y. (y, z) \<in> {(y, x). x \<rightarrow> y} \<Longrightarrow> y \<notin> {b. a \<rightarrow>\<^sup>* b}"
-    from A1 have A3: "a \<rightarrow>\<^sup>* z" by simp
-    show thesis
-    proof (rule, rule A3)
-      show "is_final z" unfolding is_final_def
-      proof
-        assume "\<exists>y. z \<rightarrow> y"
-        then obtain y where "z \<rightarrow> y" ..
-        hence "(y, z) \<in> {(y, x). x \<rightarrow> y}" by simp
-        from A2[OF this] have "\<not> (a \<rightarrow>\<^sup>* y)" by simp
-        with rtranclp_trans[OF A3, of y] \<open>z \<rightarrow> y\<close> show False by auto
-      qed
-    qed
-  qed
-qed
-  
-lemma unique_nf_implies_confluence:
-  assumes major: "\<And>a b1 b2. (a \<rightarrow>\<^sup>* b1) \<Longrightarrow> (a \<rightarrow>\<^sup>* b2) \<Longrightarrow> is_final b1 \<Longrightarrow> is_final b2 \<Longrightarrow> b1 = b2"
-    and wf: "wfP (r^--1)"
-  shows "is_confluent"
-  unfolding is_confluent_def
-proof (intro allI, intro impI)
-  fix a b1 b2
-  assume "a \<rightarrow>\<^sup>* b1 \<and> a \<rightarrow>\<^sup>* b2"
-  hence "a \<rightarrow>\<^sup>* b1" and "a \<rightarrow>\<^sup>* b2" by simp_all
-  from wf_implies_nf_existence[OF wf] obtain c1 where "b1 \<rightarrow>\<^sup>* c1" and "is_final c1" .
-  from wf_implies_nf_existence[OF wf] obtain c2 where "b2 \<rightarrow>\<^sup>* c2" and "is_final c2" .
-  have "c1 = c2" by (rule major, rule rtranclp_trans[OF \<open>a \<rightarrow>\<^sup>* b1\<close>], fact, rule rtranclp_trans[OF \<open>a \<rightarrow>\<^sup>* b2\<close>], fact+)
-  show "b1 \<down>\<^sup>* b2" unfolding cs_def
-  proof (intro exI, intro conjI)
-    show "b1 \<rightarrow>\<^sup>* c1" by fact
-  next
-    show "b2 \<rightarrow>\<^sup>* c1" unfolding \<open>c1 = c2\<close> by fact
-  qed
-qed
 
-end (* relation *)
-
-section \<open>Properties of Reducibility\<close>
+section \<open>Reduction and Monic Sets\<close>
 
 context ordered_powerprod
 begin
-  
-lemma is_red_union: "is_red (A \<union> B) p \<longleftrightarrow> (is_red A p \<or> is_red B p)"
-  unfolding is_red_alt red_union by auto
 
-lemma red_single_0_lp:
-  fixes f h t
-  assumes "red_single f 0 h t"
-  shows "lp f = lp h + t"
-proof -
-  from red_single_nonzero1[OF assms] have "f \<noteq> 0" .
-  {
-    assume "h \<noteq> 0" and neq: "lookup f (t + lp h) \<noteq> 0" and
-      eq: "f = monom_mult (lookup f (t + lp h) / lc h) t h"
-    from lc_not_0[OF \<open>h \<noteq> 0\<close>] have "lc h \<noteq> 0" .
-    with neq have "(lookup f (t + lp h) / lc h) \<noteq> 0" by simp
-    from eq lp_mult[OF this \<open>h \<noteq> 0\<close>, of t] have "lp f = t + lp h" by simp
-    hence "lp f = lp h + t" by (simp add: ac_simps)
-  }
-  with assms show ?thesis unfolding red_single_def by auto
-qed
-
-lemma red_single_lp_distinct_lp:
-  fixes f g h t
-  assumes rs: "red_single f g h t" and "g \<noteq> 0" and "lp g \<noteq> lp f"
-  shows "lp f = lp h + t"
-proof -
-  from red_single_nonzero1[OF rs] have "f \<noteq> 0" .
-  from red_single_ord[OF rs] have "g \<preceq>p f" by simp
-  from ord_p_lp[OF this \<open>g \<noteq> 0\<close>] \<open>lp g \<noteq> lp f\<close> have "lp g \<prec> lp f" by simp
-  {
-    assume "h \<noteq> 0" and neq: "lookup f (t + lp h) \<noteq> 0" and
-      eq: "f = g + monom_mult (lookup f (t + lp h) / lc h) t h" (is "f = g + ?R")
-    from lc_not_0[OF \<open>h \<noteq> 0\<close>] have "lc h \<noteq> 0" .
-    with neq have "(lookup f (t + lp h) / lc h) \<noteq> 0" (is "?c \<noteq> 0") by simp
-    from eq lp_mult[OF this \<open>h \<noteq> 0\<close>, of t] have lpR: "lp ?R = t + lp h" by simp
-    from monom_mult_0_iff[of ?c t h] \<open>?c \<noteq> 0\<close> \<open>h \<noteq> 0\<close> have "?R \<noteq> 0" by auto
-    from lp_plus_precE[of g] eq \<open>lp g \<prec> lp f\<close> have "lp g \<prec> lp ?R" by auto
-    from lp_plus_eqI[OF this] eq lpR have "lp f = lp h + t" by (simp add: ac_simps)
-  }
-  with assms show ?thesis unfolding red_single_def by auto
-qed
-
-lemma zero_reducibility_implies_lp_divisibility':
-  assumes "(red F)\<^sup>*\<^sup>* f 0" and "f \<noteq> 0"
-  shows "\<exists>h\<in>F. h \<noteq> 0 \<and> (lp h adds lp f)"
-  using assms
-proof (induct rule: converse_rtranclp_induct)
-  case base
-  then show ?case by simp
-next
-  case (step f g)
-  show ?case
-  proof (cases "g = 0")
-    case True
-    with step.hyps have "red F f 0" by simp
-    from red_setE[OF this] obtain h t where "h \<in> F" and rs: "red_single f 0 h t" by auto
-    show ?thesis
-    proof
-      from red_single_0_lp[OF rs] have "lp h adds lp f" by simp
-      also from rs have "h \<noteq> 0" by (simp add: red_single_def) 
-      ultimately show "h \<noteq> 0 \<and> lp h adds lp f" by simp
-    qed (rule \<open>h \<in> F\<close>)
-  next
-    case False
-    show ?thesis
-    proof (cases "lp g = lp f")
-      case True
-      with False step.hyps show ?thesis by simp
-    next
-      case False
-      from red_setE[OF \<open>red F f g\<close>] obtain h t where "h \<in> F" and rs: "red_single f g h t" by auto
-      show ?thesis
-      proof
-        from red_single_lp_distinct_lp[OF rs \<open>g \<noteq> 0\<close> False] have "lp h adds lp f" by simp
-        also from rs have "h \<noteq> 0" by (simp add: red_single_def) 
-        ultimately show "h \<noteq> 0 \<and> lp h adds lp f" by simp
-      qed (rule \<open>h \<in> F\<close>)
-    qed
-  qed
-qed
-  
-lemma zero_reducibility_implies_lp_divisibility:
-  assumes "(red F)\<^sup>*\<^sup>* f 0" and "f \<noteq> 0"
-  obtains h where "h \<in> F" and "h \<noteq> 0" and "lp h adds lp f"
-  using zero_reducibility_implies_lp_divisibility'[OF assms] by auto
-
-lemma is_red_addsI:
-  assumes "f \<in> F" and "f \<noteq> 0" and "t \<in> (keys p)" and "lp f adds t"
-  shows "is_red F p"
-  using assms
-proof (induction p rule: poly_mapping_tail_induct)
-  case 0
-  from \<open>t \<in> (keys 0)\<close> keys_eq_empty_iff[of 0] show ?case by auto
-next
-  case (tail p)
-  from "tail.IH"[OF \<open>f \<in> F\<close> \<open>f \<noteq> 0\<close> _ \<open>lp f adds t\<close>] have imp: "t \<in> (keys (tail p)) \<Longrightarrow> is_red F (tail p)" .
-  show ?case
-  proof (cases "t = lp p")
-    case True
-    show ?thesis
-    proof (rule is_red_indI1[OF \<open>f \<in> F\<close> \<open>f \<noteq> 0\<close> \<open>p \<noteq> 0\<close>])
-      from \<open>lp f adds t\<close> True show "lp f adds lp p" by simp
-    qed
-  next
-    case False
-    with \<open>t \<in> (keys p)\<close> \<open>p \<noteq> 0\<close> have "t \<in> (keys (tail p))"
-      by (simp add: lookup_tail_2 in_keys_iff del: lookup_not_eq_zero_eq_in_keys) 
-    from is_red_indI2[OF \<open>p \<noteq> 0\<close> imp[OF this]] show ?thesis .
-  qed
-qed
-
-lemma is_red_addsE':
-  assumes "is_red F p"
-  shows "\<exists>f\<in>F. \<exists>t\<in>(keys p). f \<noteq> 0 \<and> lp f adds t"
-  using assms
-proof (induction p rule: poly_mapping_tail_induct)
-  case 0
-  with irred_0[of F] show ?case by simp
-next
-  case (tail p)
-  from is_red_indE[OF \<open>is_red F p\<close>] show ?case
-  proof
-    assume "\<exists>f\<in>F. f \<noteq> 0 \<and> lp f adds lp p"
-    then obtain f where "f \<in> F" and "f \<noteq> 0" and "lp f adds lp p" by auto
-    show ?case
-    proof
-      show "\<exists>t\<in>keys p. f \<noteq> 0 \<and> lp f adds t"
-      proof (intro bexI, intro conjI)
-        from \<open>p \<noteq> 0\<close> show "lp p \<in> (keys p)" by (metis in_keys_iff lc_def lc_not_0)
-      qed (rule \<open>f \<noteq> 0\<close>, rule \<open>lp f adds lp p\<close>)
-    qed (rule \<open>f \<in> F\<close>)
-  next
-    assume "is_red F (tail p)"
-    from "tail.IH"[OF this] obtain f t
-      where "f \<in> F" and "f \<noteq> 0" and t_in_keys_tail: "t \<in> (keys (tail p))" and "lp f adds t" by auto
-    from "tail.hyps" t_in_keys_tail have t_in_keys: "t \<in> (keys p)" by (metis lookup_tail in_keys_iff)
-    show ?case
-    proof
-      show "\<exists>t\<in>keys p. f \<noteq> 0 \<and> lp f adds t"
-        by (intro bexI, intro conjI, rule \<open>f \<noteq> 0\<close>, rule \<open>lp f adds t\<close>, rule t_in_keys)
-    qed (rule \<open>f \<in> F\<close>)
-  qed
-qed
-
-lemma is_red_addsE:
-  assumes "is_red F p"
-  obtains f t where "f \<in> F" and "t \<in> (keys p)" and "f \<noteq> 0" and "lp f adds t"
-  using is_red_addsE'[OF assms] by auto
-
-lemma is_red_adds_iff:
-  shows "(is_red F p) \<longleftrightarrow> (\<exists>f\<in>F. \<exists>t\<in>(keys p). f \<noteq> 0 \<and> lp f adds t)"
-  using is_red_addsE' is_red_addsI by auto
-    
-lemma is_red_subset:
-  assumes red: "is_red A p" and sub: "A \<subseteq> B"
-  shows "is_red B p"
-proof -
-  from red obtain f t where "f \<in> A" and "t \<in> keys p" and "f \<noteq> 0" and "lp f adds t" by (rule is_red_addsE)
-  show ?thesis by (rule is_red_addsI, rule, fact+)
-qed
-
-lemma red_diff_in_pideal:
-  assumes "red F p q"
-  shows "p - q \<in> pideal F"
-  using assms unfolding red_def
-proof
-  fix f
-  assume "f \<in> F" and A: "\<exists>t. red_single p q f t"
-  from A obtain t where "red_single p q f t" ..
-  hence q_def: "q = p - monom_mult (lookup p (t + lp f) / lc f) t f" unfolding red_single_def by simp
-  from monom_mult_in_pideal[OF \<open>f \<in> F\<close>] show ?thesis unfolding q_def by simp
-qed
-  
-lemma red_rtranclp_diff_in_pideal:
-  assumes "(red F)\<^sup>*\<^sup>* p q"
-  shows "p - q \<in> pideal F"
-  using assms
-proof (induct rule: rtranclp_induct)
-  case base
-  from zero_in_pideal show "?case" by simp
-next
-  case (step p0 q)
-  from red_diff_in_pideal[OF \<open>red F p0 q\<close>] have "p0 - q \<in> pideal F" .
-  from pideal_closed_plus[OF \<open>p - p0 \<in> pideal F\<close> this] show ?case by simp
-qed
-  
-corollary red_rtranclp_0_in_pideal:
-  assumes "(red F)\<^sup>*\<^sup>* p 0"
-  shows "p \<in> pideal F"
-  using assms red_rtranclp_diff_in_pideal by fastforce
-
-lemma pideal_closed_red:
-  assumes "pideal B \<subseteq> pideal A" and "p \<in> pideal A" and "red B p q"
-  shows "q \<in> pideal A"
-proof -
-  have "q - p \<in> pideal A"
-  proof
-    have "p - q \<in> pideal B" by (rule red_diff_in_pideal, fact)
-    hence "- (p - q) \<in> pideal B" by (rule pideal_closed_uminus)
-    thus "q - p \<in> pideal B" by simp
-  qed fact
-  from pideal_closed_plus[OF this \<open>p \<in> pideal A\<close>] show ?thesis by simp
-qed
-  
 lemma is_red_monic: "is_red B (monic p) \<longleftrightarrow> is_red B p"
   unfolding is_red_adds_iff keys_monic ..
 
-lemma is_red_monic_set: "is_red (monic_set B) p \<longleftrightarrow> is_red B p"
-proof
-  assume "is_red (monic_set B) p"
-  then obtain b t where bin: "b \<in> monic_set B" and "t \<in> keys p" and "b \<noteq> 0" and "lp b adds t"
-    by (rule is_red_addsE)
-  from bin obtain b' where b_def: "b = monic b'" and "b' \<in> B" unfolding monic_set_def ..
-  have lpb': "lp b' = lp b" unfolding b_def by (rule lp_monic[symmetric])
-  show "is_red B p"
-  proof (rule is_red_addsI, fact \<open>b' \<in> B\<close>)
-    from \<open>b \<noteq> 0\<close> show "b' \<noteq> 0" unfolding b_def by (simp add: monic_0_iff)
+lemma red_monic_set [simp]: "red (monic_set B) = red B"
+proof (rule, rule)
+  fix p q
+  show "red (monic_set B) p q \<longleftrightarrow> red B p q"
+  proof
+    assume "red (monic_set B) p q"
+    then obtain f t where "f \<in> monic_set B" and *: "red_single p q f t" by (rule red_setE)
+    from this(1) obtain g where "g \<in> B" and "f = monic g" unfolding monic_set_def ..
+    from * have "f \<noteq> 0" by (simp add: red_single_def)
+    hence "g \<noteq> 0" by (simp add: monic_0_iff \<open>f = monic g\<close>)
+    hence "lc g \<noteq> 0" by (rule lc_not_0)
+    have eq: "monom_mult (lc g) 0 f = g" by (simp add: \<open>f = monic g\<close> mult_lc_monic[OF \<open>g \<noteq> 0\<close>])
+    from \<open>g \<in> B\<close> show "red B p q"
+    proof (rule red_setI)
+      from * \<open>lc g \<noteq> 0\<close> have "red_single p q (monom_mult (lc g) 0 f) t" by (rule red_single_mult_const)
+      thus "red_single p q g t" by (simp only: eq)
+    qed
   next
-    from \<open>lp b adds t\<close> show "lp b' adds t" unfolding lpb' .
-  qed fact
-next
-  assume "is_red B p"
-  then obtain b t where bin: "b \<in> B" and "t \<in> keys p" and "b \<noteq> 0" and "lp b adds t"
-    by (rule is_red_addsE)
-  let ?b = "monic b"
-  have lp: "lp ?b = lp b" by (rule lp_monic)
-  show "is_red (monic_set B) p"
-  proof (rule is_red_addsI)
-    from bin show "?b \<in> monic_set B" unfolding monic_set_def by (rule imageI)
-  next
-    from \<open>b \<noteq> 0\<close> show "?b \<noteq> 0" by (simp add: monic_0_iff)
-  next
-    from \<open>lp b adds t\<close> show "lp ?b adds t" unfolding lp .
-  qed fact
+    assume "red B p q"
+    then obtain f t where "f \<in> B" and *: "red_single p q f t" by (rule red_setE)
+    from * have "f \<noteq> 0" by (simp add: red_single_def)
+    hence "lc f \<noteq> 0" by (rule lc_not_0)
+    hence "1 / lc f \<noteq> 0" by simp
+    from \<open>f \<in> B\<close> have "monic f \<in> monic_set B" by (simp add: monic_set_def)
+    thus "red (monic_set B) p q"
+    proof (rule red_setI)
+      from * \<open>1 / lc f \<noteq> 0\<close> show "red_single p q (monic f) t" unfolding monic_def
+        by (rule red_single_mult_const)
+    qed
+  qed
 qed
 
-section \<open>Properties of Gr\"obner Bases\<close>
-
-lemma GB_implies_zero_reducibility:
-  assumes "is_Groebner_basis G" and "f \<in> (pideal G)"
-  shows "(red G)\<^sup>*\<^sup>* f 0"
-proof -
-  from in_pideal_srtc[OF \<open>f \<in> (pideal G)\<close>] \<open>is_Groebner_basis G\<close> have "relation.cs (red G) f 0"
-    unfolding is_Groebner_basis_def relation.is_ChurchRosser_def by simp
-  then obtain s where rfs: "(red G)\<^sup>*\<^sup>* f s" and r0s: "(red G)\<^sup>*\<^sup>* 0 s" unfolding relation.cs_def by auto
-  from rtrancl_0[OF r0s] and rfs show ?thesis by simp
-qed
-
-lemma GB_implies_reducibility:
-  assumes "is_Groebner_basis G" and "f \<noteq> 0" and "f \<in> pideal G"
-  shows "is_red G f"
-    using assms by (meson GB_implies_zero_reducibility is_red_def relation.rtrancl_is_final)
+lemma is_red_monic_set [simp]: "is_red (monic_set B) p \<longleftrightarrow> is_red B p"
+  by (simp add: is_red_def)
 
 end (* ordered_powerprod *)
 
-subsection \<open>Weak Gr\"obner Bases and Strong Gr\"obner Bases\<close>
+section \<open>Properties of Gr\"obner Bases\<close>
 
-context od_powerprod
+context gd_powerprod
 begin
 
-lemma is_red_implies_0_red:
-  assumes "pideal B \<subseteq> pideal A" and major: "\<And>q. q \<in> (pideal A) \<Longrightarrow> q \<noteq> 0 \<Longrightarrow> is_red B q"
-    and in_ideal: "p \<in> (pideal A)"
-  shows "(red B)\<^sup>*\<^sup>* p 0"
-  using in_ideal
-proof (induction p rule: wfP_induct[OF ord_p_wf])
-  fix p
-  assume IH: "\<forall>q. q \<prec>p p \<longrightarrow> q \<in> pideal A \<longrightarrow> (red B)\<^sup>*\<^sup>* q 0" and "p \<in> (pideal A)"
-  show "(red B)\<^sup>*\<^sup>* p 0"
-  proof (cases "p = 0")
-    case True
-    then show ?thesis by simp
-  next
-    case False
-    from major[OF \<open>p \<in> (pideal A)\<close> False] obtain q where redpq: "red B p q" unfolding is_red_alt ..
-    from redpq have "q \<prec>p p" using red_ord by auto
-    from \<open>pideal B \<subseteq> pideal A\<close> \<open>p \<in> pideal A\<close> \<open>red B p q\<close> have "q \<in> pideal A"
-      by (rule pideal_closed_red)
-    from IH[rule_format, OF \<open>q \<prec>p p\<close> this] have "(red B)\<^sup>*\<^sup>* q 0" .
-    show ?thesis by (rule converse_rtranclp_into_rtranclp, rule redpq, fact)
-  qed
-qed
 
-lemma GB_implies_unique_nf:
-  assumes isGB: "is_Groebner_basis G"
-  shows "\<exists>! h. (red G)\<^sup>*\<^sup>* f h \<and> \<not> is_red G h"
-proof -
-  from relation.wf_implies_nf_existence[OF red_wf] obtain h
-    where ftoh: "(red G)\<^sup>*\<^sup>* f h" and irredh: "relation.is_final (red G) h" by auto
-  show ?thesis
-  proof
-    from ftoh and irredh show "(red G)\<^sup>*\<^sup>* f h \<and> \<not> is_red G h" unfolding is_red_def by simp
-  next
-    fix h'
-    assume "(red G)\<^sup>*\<^sup>* f h' \<and> \<not> is_red G h'"
-    hence ftoh': "(red G)\<^sup>*\<^sup>* f h'" and irredh': "relation.is_final (red G) h'" unfolding is_red_def by simp_all
-    show "h' = h"
-    proof (rule relation.ChurchRosser_unique_final)
-      from isGB show "relation.is_ChurchRosser (red G)" unfolding is_Groebner_basis_def .
-    qed (fact+)
-  qed
-qed
 
-lemma translation_property':
-  assumes "p \<noteq> 0" and red_p_0: "(red F)\<^sup>*\<^sup>* p 0"
-  shows "is_red F (p + q) \<or> is_red F q"
-proof (rule disjCI)
-  assume not_red: "\<not> is_red F q"
-  from zero_reducibility_implies_lp_divisibility[OF red_p_0 \<open>p \<noteq> 0\<close>] obtain f
-    where "f \<in> F" and "f \<noteq> 0" and lp_adds: "lp f adds lp p" .
-  show "is_red F (p + q)"
-  proof (cases "q = 0")
-    case True
-    with is_red_indI1[OF \<open>f \<in> F\<close> \<open>f \<noteq> 0\<close> \<open>p \<noteq> 0\<close> lp_adds] show ?thesis by simp
-  next
-    case False
-    from not_red is_red_addsI[OF \<open>f \<in> F\<close> \<open>f \<noteq> 0\<close> _ lp_adds, of q] have "\<not> lp p \<in> (keys q)" by blast
-    hence "lookup q (lp p) = 0" by simp
-    with lp_in_keys[OF \<open>p \<noteq> 0\<close>] have "lp p \<in> (keys (p + q))" unfolding in_keys_iff by (simp add: lookup_add)
-    from is_red_addsI[OF \<open>f \<in> F\<close> \<open>f \<noteq> 0\<close> this lp_adds] show ?thesis .
-  qed
-qed
-  
-lemma translation_property:
-  assumes "p \<noteq> q" and red_0: "(red F)\<^sup>*\<^sup>* (p - q) 0"
-  shows "is_red F p \<or> is_red F q"
-proof -
-  from \<open>p \<noteq> q\<close> have "p - q \<noteq> 0" by simp
-  from translation_property'[OF this red_0, of q] show ?thesis by simp
-qed
-
-lemma weak_GB_is_strong_GB:
-  assumes "\<And>f. f \<in> (pideal G) \<Longrightarrow> (red G)\<^sup>*\<^sup>* f 0"
-  shows "is_Groebner_basis G"
-  unfolding is_Groebner_basis_def
-proof (rule relation.confluence_implies_ChurchRosser, rule relation.unique_nf_implies_confluence, rule ccontr)
-  fix f p q
-  assume redfp: "(red G)\<^sup>*\<^sup>* f p" and redfq: "(red G)\<^sup>*\<^sup>* f q"
-    and finp: "relation.is_final (red G) p" and finq: "relation.is_final (red G) q"
-    and "p \<noteq> q"
-  from red_rtranclp_diff_in_pideal[OF redfp] have "f - p \<in> pideal G" .
-  from red_rtranclp_diff_in_pideal[OF redfq] have "f - q \<in> pideal G" .
-  from pideal_closed_minus[OF this \<open>f - p \<in> pideal G\<close>] have "p - q \<in> pideal G" by simp
-  from translation_property[OF \<open>p \<noteq> q\<close> assms[OF this]] have "is_red G p \<or> is_red G q" .
-  thus False
-  proof
-    assume "is_red G p"
-    with finp show ?thesis unfolding is_red_def by simp
-  next
-    assume "is_red G q"
-    with finq show ?thesis unfolding is_red_def by simp
-  qed
-qed (rule red_wf)
-  
-lemma GB_alt_1: "is_Groebner_basis G \<longleftrightarrow> (\<forall>f \<in> (pideal G). (red G)\<^sup>*\<^sup>* f 0)"
-  using weak_GB_is_strong_GB GB_implies_zero_reducibility by blast
-
-lemma GB_alt_2: "is_Groebner_basis G \<longleftrightarrow> (\<forall>f \<in> (pideal G). f \<noteq> 0 \<longrightarrow> is_red G f)"
-proof
-  assume "is_Groebner_basis G"
-  show "\<forall>f\<in>pideal G. f \<noteq> 0 \<longrightarrow> is_red G f"
-  proof (intro ballI, intro impI)
-    fix f
-    assume "f \<in> (pideal G)" and "f \<noteq> 0"
-    show "is_red G f" by (rule GB_implies_reducibility, fact+)
-  qed
-next
-  assume a2: "\<forall>f\<in>pideal G. f \<noteq> 0 \<longrightarrow> is_red G f"
-  show "is_Groebner_basis G" unfolding GB_alt_1
-  proof
-    fix f
-    assume "f \<in> pideal G"
-    show "(red G)\<^sup>*\<^sup>* f 0"
-    proof (rule is_red_implies_0_red, rule subset_refl)
-      fix q
-      assume "q \<in> pideal G" and "q \<noteq> 0"
-      from a2[rule_format, OF this] show "is_red G q" .
-    qed (fact)
-  qed
-qed
-  
-lemma GB_adds_lp:
-  assumes "is_Groebner_basis G" and "f \<in> pideal G" and "f \<noteq> 0"
-  obtains g where "g \<in> G" and "g \<noteq> 0" and "lp g adds lp f"
-proof -
-  from \<open>is_Groebner_basis G\<close> have "\<forall>f\<in>pideal G. (red G)\<^sup>*\<^sup>* f 0" unfolding GB_alt_1 .
-  from this \<open>f \<in> pideal G\<close> have "(red G)\<^sup>*\<^sup>* f 0" ..
-  show ?thesis by (rule zero_reducibility_implies_lp_divisibility, fact+)
-qed
-
-lemma GB_alt_3: "is_Groebner_basis G \<longleftrightarrow> (\<forall>f \<in> (pideal G). f \<noteq> 0 \<longrightarrow> (\<exists>g \<in> G. g \<noteq> 0 \<and> lp g adds lp f))"
-  unfolding GB_alt_1
-proof
-  assume a1: "\<forall>f\<in>pideal G. (red G)\<^sup>*\<^sup>* f 0"
-  show "\<forall>f\<in>pideal G. f \<noteq> 0 \<longrightarrow> (\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f)"
-  proof (intro ballI, intro impI)
-    fix f
-    assume "f \<in> (pideal G)" and "f \<noteq> 0"
-    with a1 have "(red G)\<^sup>*\<^sup>* f 0" by simp
-    from zero_reducibility_implies_lp_divisibility'[OF this \<open>f \<noteq> 0\<close>] show "\<exists>h\<in>G. h \<noteq> 0 \<and> lp h adds lp f" .
-  qed
-next
-  assume a2: "\<forall>f\<in>pideal G. f \<noteq> 0 \<longrightarrow> (\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f)"
-  show "\<forall>f\<in>pideal G. (red G)\<^sup>*\<^sup>* f 0"
-  proof (intro ballI)
-    fix f
-    assume "f \<in> (pideal G)"
-    show "(red G)\<^sup>*\<^sup>* f 0"
-    proof (rule is_red_implies_0_red, rule subset_refl)
-      fix q
-      assume "q \<in> (pideal G)" and "q \<noteq> 0"
-      with a2 have "\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp q" by simp
-      then obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds lp q" by auto
-      thus "is_red G q" using \<open>q \<noteq> 0\<close> is_red_indI1 by blast
-    qed (fact)
-  qed
-qed
-  
-lemma GB_insert:
-  assumes "is_Groebner_basis G" and "f \<in> pideal G"
-  shows "is_Groebner_basis (insert f G)"
-  using assms by (metis GB_alt_1 GB_implies_zero_reducibility pideal_insert red_rtrancl_subset subset_insertI)
-
-lemma GB_subset:
-  assumes "is_Groebner_basis G" and "G \<subseteq> G'" and "pideal G' = pideal G"
-  shows "is_Groebner_basis G'"
-  using GB_alt_2 assms(1) assms(2) assms(3) is_red_subset by blast
-  
 lemma monic_set_GB: "is_Groebner_basis (monic_set G) \<longleftrightarrow> is_Groebner_basis G"
-  unfolding GB_alt_2 monic_set_pideal is_red_monic_set ..
+  by (simp add: GB_alt_1)
 
-end (* od_powerprod *)
+end (* gd_powerprod *)
   
 subsection \<open>Replacing Elements in Gr\"obner Bases\<close>
 
@@ -612,18 +179,6 @@ proof -
     qed fact
   qed
 qed
-  
-lemma red_in_pideal:
-  assumes "p \<in> pideal A" and "B \<subseteq> A" and "red B p q"
-  shows "q \<in> pideal A"
-proof -
-  have "red A p q" by (rule red_subset, rule \<open>red B p q\<close>, rule \<open>B \<subseteq> A\<close>)
-  hence "(red A)\<^sup>*\<^sup>* p q" by simp
-  hence "relation.srtc (red A) p q" by (rule relation.rtc_implies_srtc)
-  hence "relation.srtc (red A) q p" by (rule relation.srtc_symmetric)
-  hence "q - p \<in> pideal A" by (rule srtc_in_pideal)
-  from pideal_closed_plus[OF this \<open>p \<in> pideal A\<close>] show "q \<in> pideal A" by simp
-qed
 
 lemma GB_remove_0_stable_GB:
   assumes "is_Groebner_basis G"
@@ -632,51 +187,71 @@ lemma GB_remove_0_stable_GB:
 
 end (* ordered_powerprod *)
 
-context od_powerprod
+context gd_powerprod
 begin
 
-lemma GB_replace_lp_adds_stable_GB:
+lemma replace_in_dgrad_p_set:
+  assumes "G \<subseteq> dgrad_p_set d m"
+  obtains n where "q \<in> dgrad_p_set d n" and "G \<subseteq> dgrad_p_set d n" and "replace p q G \<subseteq> dgrad_p_set d n"
+proof -
+  let ?m = "ord_class.max m (dgrad_p d q)"
+  have "m \<le> ?m" and "dgrad_p d q \<le> ?m" by simp_all
+  from dgrad_p_set_subset[OF this(2)] dgrad_p_set_dgrad_p have 1: "q \<in> dgrad_p_set d ?m" ..
+  moreover from assms dgrad_p_set_subset[OF \<open>m \<le> ?m\<close>] have 2: "G \<subseteq> dgrad_p_set d ?m"
+    by (rule subset_trans)
+  ultimately have 3: "replace p q G \<subseteq> dgrad_p_set d ?m" by (auto simp add: replace_def remove_def)
+  from 1 2 3 show ?thesis ..
+qed
+
+lemma GB_replace_lp_adds_stable_GB_dgrad_p_set:
+  assumes "dickson_grading (op +) d" and "G \<subseteq> dgrad_p_set d m"
   assumes isGB: "is_Groebner_basis G" and "q \<noteq> 0" and q: "q \<in> (pideal G)" and "lp q adds lp p"
   shows "is_Groebner_basis (replace p q G)" (is "is_Groebner_basis ?G'")
-  using isGB unfolding GB_alt_3
-proof (intro ballI, intro impI)
-  fix f
-  assume f1: "f \<in> (pideal ?G')" and "f \<noteq> 0"
-    and a1: "\<forall>f\<in>pideal G. f \<noteq> 0 \<longrightarrow> (\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f)"
-  from f1 replace_pideal[OF q, of p] have "f \<in> pideal G" ..
-  from a1[rule_format, OF this \<open>f \<noteq> 0\<close>] obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds lp f" by auto
-  show "\<exists>g\<in>?G'. g \<noteq> 0 \<and> lp g adds lp f"
-  proof (cases "g = p")
-    case True
-    show ?thesis
-    proof
-      from \<open>lp q adds lp p\<close> have "lp q adds lp g" unfolding True .
-      also have "... adds lp f" by fact
-      finally have "lp q adds lp f" .
-      with \<open>q \<noteq> 0\<close> show "q \<noteq> 0 \<and> lp q adds lp f" ..
+proof -
+  from assms(2) obtain n where 1: "G \<subseteq> dgrad_p_set d n" and 2: "replace p q G \<subseteq> dgrad_p_set d n"
+    by (rule replace_in_dgrad_p_set)
+  from isGB show ?thesis unfolding GB_alt_3_dgrad_p_set[OF assms(1) 1] GB_alt_3_dgrad_p_set[OF assms(1) 2]
+  proof (intro ballI impI)
+    fix f
+    assume f1: "f \<in> (pideal ?G')" and "f \<noteq> 0"
+      and a1: "\<forall>f\<in>pideal G. f \<noteq> 0 \<longrightarrow> (\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f)"
+    from f1 replace_pideal[OF q, of p] have "f \<in> pideal G" ..
+    from a1[rule_format, OF this \<open>f \<noteq> 0\<close>] obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds lp f" by auto
+    show "\<exists>g\<in>?G'. g \<noteq> 0 \<and> lp g adds lp f"
+    proof (cases "g = p")
+      case True
+      show ?thesis
+      proof
+        from \<open>lp q adds lp p\<close> have "lp q adds lp g" unfolding True .
+        also have "... adds lp f" by fact
+        finally have "lp q adds lp f" .
+        with \<open>q \<noteq> 0\<close> show "q \<noteq> 0 \<and> lp q adds lp f" ..
+      next
+        show "q \<in> ?G'" by (rule in_replaceI1)
+      qed
     next
-      show "q \<in> ?G'" by (rule in_replaceI1)
-    qed
-  next
-    case False
-    show ?thesis
-    proof
-      show "g \<noteq> 0 \<and> lp g adds lp f" by (rule, fact+)
-    next
-      show "g \<in> ?G'" by (rule in_replaceI2, fact+)
+      case False
+      show ?thesis
+      proof
+        show "g \<noteq> 0 \<and> lp g adds lp f" by (rule, fact+)
+      next
+        show "g \<in> ?G'" by (rule in_replaceI2, fact+)
+      qed
     qed
   qed
 qed
   
-lemma GB_replace_lp_adds_stable_pideal:
-  fixes G p q
+lemma GB_replace_lp_adds_stable_pideal_dgrad_p_set:
+  assumes "dickson_grading (op +) d" and "G \<subseteq> dgrad_p_set d m"
   assumes isGB: "is_Groebner_basis G" and "q \<noteq> 0" and "q \<in> pideal G" and "lp q adds lp p"
   shows "pideal (replace p q G) = pideal G" (is "pideal ?G' = pideal G")
 proof (rule, rule replace_pideal, fact, rule)
   fix f
   assume "f \<in> pideal G"
-  have "is_Groebner_basis ?G'" by (rule GB_replace_lp_adds_stable_GB, fact+)
-  hence "\<exists>! h. (red ?G')\<^sup>*\<^sup>* f h \<and> \<not> is_red ?G' h" by (rule GB_implies_unique_nf)
+  note assms(1)
+  moreover from assms(2) obtain n where "?G' \<subseteq> dgrad_p_set d n" by (rule replace_in_dgrad_p_set)
+  moreover have "is_Groebner_basis ?G'" by (rule GB_replace_lp_adds_stable_GB_dgrad_p_set, fact+)
+  ultimately have "\<exists>! h. (red ?G')\<^sup>*\<^sup>* f h \<and> \<not> is_red ?G' h" by (rule GB_implies_unique_nf_dgrad_p_set)
   then obtain h where ftoh: "(red ?G')\<^sup>*\<^sup>* f h" and irredh: "\<not> is_red ?G' h" by auto
   have "\<not> is_red G h"
   proof
@@ -693,39 +268,46 @@ proof (rule, rule replace_pideal, fact, rule)
   thus "f \<in> pideal ?G'" by (simp add: red_rtranclp_0_in_pideal)
 qed
   
-lemma GB_replace_red_stable_GB:
-  fixes G p q
+lemma GB_replace_red_stable_GB_dgrad_p_set:
+  assumes "dickson_grading (op +) d" and "G \<subseteq> dgrad_p_set d m"
   assumes isGB: "is_Groebner_basis G" and "p \<in> G" and q: "red (remove p G) p q"
   shows "is_Groebner_basis (replace p q G)" (is "is_Groebner_basis ?G'")
-  using isGB unfolding GB_alt_2
-proof (intro ballI, intro impI)
-  fix f
-  assume f1: "f \<in> (pideal ?G')" and "f \<noteq> 0"
-    and a1: "\<forall>f\<in>pideal G. f \<noteq> 0 \<longrightarrow> is_red G f"
-  have "q \<in> pideal G"
-  proof (rule red_in_pideal)
-    from generator_subset_pideal \<open>p \<in> G\<close> show "p \<in> pideal G" ..
-  next
-    show "(remove p G) \<subseteq> G" by (rule remove_subset)
-  qed (rule q)
-  from f1 replace_pideal[OF this, of p] have "f \<in> pideal G" ..
-  have "is_red G f" by (rule a1[rule_format], fact+)
-  show "is_red ?G' f" by (rule replace_red_stable_is_red, fact+)
+proof -
+  from assms(2) obtain n where 1: "G \<subseteq> dgrad_p_set d n" and 2: "replace p q G \<subseteq> dgrad_p_set d n"
+    by (rule replace_in_dgrad_p_set)
+  from isGB show ?thesis unfolding GB_alt_2_dgrad_p_set[OF assms(1) 1] GB_alt_2_dgrad_p_set[OF assms(1) 2]
+  proof (intro ballI impI)
+    fix f
+    assume f1: "f \<in> (pideal ?G')" and "f \<noteq> 0"
+      and a1: "\<forall>f\<in>pideal G. f \<noteq> 0 \<longrightarrow> is_red G f"
+    have "q \<in> pideal G"
+    proof (rule pideal_closed_red, rule pideal_mono)
+      from generator_subset_pideal \<open>p \<in> G\<close> show "p \<in> pideal G" ..
+    next
+      show "(remove p G) \<subseteq> G" by (rule remove_subset)
+    qed (rule q)
+    from f1 replace_pideal[OF this, of p] have "f \<in> pideal G" ..
+    have "is_red G f" by (rule a1[rule_format], fact+)
+    show "is_red ?G' f" by (rule replace_red_stable_is_red, fact+)
+  qed
 qed
 
-lemma GB_replace_red_stable_pideal:
-  fixes G p q
+lemma GB_replace_red_stable_pideal_dgrad_p_set:
+  assumes "dickson_grading (op +) d" and "G \<subseteq> dgrad_p_set d m"
   assumes isGB: "is_Groebner_basis G" and "p \<in> G" and ptoq: "red (remove p G) p q"
   shows "pideal (replace p q G) = pideal G" (is "pideal ?G' = _")
 proof -
   from \<open>p \<in> G\<close> generator_subset_pideal have "p \<in> pideal G" ..
-  have "q \<in> pideal G" by (rule red_in_pideal, rule \<open>p \<in> pideal G\<close>, rule remove_subset, rule ptoq)
+  have "q \<in> pideal G"
+    by (rule pideal_closed_red, rule pideal_mono, rule remove_subset, rule \<open>p \<in> pideal G\<close>, rule ptoq)
   show ?thesis
   proof (rule, rule replace_pideal, fact, rule)
     fix f
     assume "f \<in> pideal G"
-    have "is_Groebner_basis ?G'" by (rule GB_replace_red_stable_GB, fact+)
-    hence "\<exists>! h. (red ?G')\<^sup>*\<^sup>* f h \<and> \<not> is_red ?G' h" by (rule GB_implies_unique_nf)
+    note assms(1)
+    moreover from assms(2) obtain n where "?G' \<subseteq> dgrad_p_set d n" by (rule replace_in_dgrad_p_set)
+    moreover have "is_Groebner_basis ?G'" by (rule GB_replace_red_stable_GB_dgrad_p_set, fact+)
+    ultimately have "\<exists>! h. (red ?G')\<^sup>*\<^sup>* f h \<and> \<not> is_red ?G' h" by (rule GB_implies_unique_nf_dgrad_p_set)
     then obtain h where ftoh: "(red ?G')\<^sup>*\<^sup>* f h" and irredh: "\<not> is_red ?G' h" by auto
     have "\<not> is_red G h"
     proof
@@ -743,8 +325,8 @@ proof -
   qed
 qed
   
-lemma GB_replace_red_rtranclp_stable_GB:
-  fixes G p q
+lemma GB_replace_red_rtranclp_stable_GB_dgrad_p_set:
+  assumes "dickson_grading (op +) d" and "G \<subseteq> dgrad_p_set d m"
   assumes isGB: "is_Groebner_basis G" and "p \<in> G" and ptoq: "(red (remove p G))\<^sup>*\<^sup>* p q"
   shows "is_Groebner_basis (replace p q G)"
   using ptoq
@@ -756,7 +338,8 @@ next
   show ?case
   proof (cases "y = p")
     case True
-    show ?thesis proof (rule GB_replace_red_stable_GB, fact, fact)
+    from assms(1) assms(2) isGB \<open>p \<in> G\<close> show ?thesis
+    proof (rule GB_replace_red_stable_GB_dgrad_p_set)
       from \<open>red (remove p G) y z\<close> show "red (remove p G) p z" unfolding True .
     qed
   next
@@ -773,8 +356,10 @@ next
         thus ?thesis unfolding replace_def .
       next
         case False
+        from assms(2) obtain n where "replace p y G \<subseteq> dgrad_p_set d n"
+            by (rule replace_in_dgrad_p_set)
         have "is_Groebner_basis (replace y z (replace p y G))"
-        proof (rule GB_replace_red_stable_GB, fact, rule in_replaceI1)
+        proof (rule GB_replace_red_stable_GB_dgrad_p_set, fact, fact, fact, rule in_replaceI1)
           from \<open>red (remove p G) y z\<close> show "red (remove y (replace p y G)) y z"
             unfolding replace_remove[OF False, of p] .
         qed
@@ -783,9 +368,9 @@ next
       qed
   qed
 qed
-  
-lemma GB_replace_red_rtranclp_stable_pideal:
-  fixes G p q
+
+lemma GB_replace_red_rtranclp_stable_pideal_dgrad_p_set:
+  assumes "dickson_grading (op +) d" and "G \<subseteq> dgrad_p_set d m"
   assumes isGB: "is_Groebner_basis G" and "p \<in> G" and ptoq: "(red (remove p G))\<^sup>*\<^sup>* p q"
   shows "pideal (replace p q G) = pideal G"
   using ptoq
@@ -797,38 +382,53 @@ next
   show ?case
   proof (cases "y = p")
     case True
-    show ?thesis proof (rule GB_replace_red_stable_pideal, fact, fact)
+    from assms(1) assms(2) isGB \<open>p \<in> G\<close> show ?thesis
+    proof (rule GB_replace_red_stable_pideal_dgrad_p_set)
       from \<open>red (remove p G) y z\<close> show "red (remove p G) p z" unfolding True .
     qed
   next
     case False
-    have "is_Groebner_basis (replace p y G)" by (rule GB_replace_red_rtranclp_stable_GB, fact+)
+    have "is_Groebner_basis (replace p y G)" by (rule GB_replace_red_rtranclp_stable_GB_dgrad_p_set, fact+)
     show ?thesis
-      proof (cases "y \<in> G")
-        case True
-        have "y \<in> (remove p G)" (is "_ \<in> ?G'") by (intro in_removeI, fact+)
-        hence eq: "?G' = replace p y G" unfolding replace_def by auto
-        from \<open>y \<in> ?G'\<close> generator_subset_pideal have "y \<in> pideal ?G'" ..
-        have "z \<in> pideal ?G'" by (rule pideal_closed_red, rule subset_refl, fact+)
-        hence "pideal (insert z ?G') = pideal ?G'" by (rule pideal_insert)
-        moreover have "... = pideal G" unfolding eq by fact
-        ultimately show ?thesis unfolding replace_def by simp
-      next
-        case False
-        have "pideal (replace p z G) = pideal (replace y z (replace p y G))"
-          using replace_replace[OF False] by simp
-        moreover have "... = pideal (replace p y G)"
-        proof (rule GB_replace_red_stable_pideal, fact, rule in_replaceI1)
-          from \<open>red (remove p G) y z\<close> show "red (remove y (replace p y G)) y z"
-            unfolding replace_remove[OF False, of p] .
-        qed
-        moreover have "... = pideal G" by fact
-        ultimately show ?thesis by simp
+    proof (cases "y \<in> G")
+      case True
+      have "y \<in> (remove p G)" (is "_ \<in> ?G'") by (intro in_removeI, fact+)
+      hence eq: "?G' = replace p y G" unfolding replace_def by auto
+      from \<open>y \<in> ?G'\<close> generator_subset_pideal have "y \<in> pideal ?G'" ..
+      have "z \<in> pideal ?G'" by (rule pideal_closed_red, rule subset_refl, fact+)
+      hence "pideal (insert z ?G') = pideal ?G'" by (rule pideal_insert)
+      moreover have "... = pideal G" unfolding eq by fact
+      ultimately show ?thesis unfolding replace_def by simp
+    next
+      case False
+      from assms(2) obtain n where "replace p y G \<subseteq> dgrad_p_set d n" by (rule replace_in_dgrad_p_set)
+      have "pideal (replace p z G) = pideal (replace y z (replace p y G))"
+        using replace_replace[OF False] by simp
+      moreover have "... = pideal (replace p y G)"
+      proof (rule GB_replace_red_stable_pideal_dgrad_p_set, fact, fact, fact, rule in_replaceI1)
+        from \<open>red (remove p G) y z\<close> show "red (remove y (replace p y G)) y z"
+          unfolding replace_remove[OF False, of p] .
       qed
+      moreover have "... = pideal G" by fact
+      ultimately show ?thesis by simp
+    qed
   qed
 qed
 
-end (* od_powerprod *)
+lemmas GB_replace_lp_adds_stable_GB_finite =
+  GB_replace_lp_adds_stable_GB_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
+lemmas GB_replace_lp_adds_stable_pideal_finite =
+  GB_replace_lp_adds_stable_pideal_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
+lemmas GB_replace_red_stable_GB_finite =
+  GB_replace_red_stable_GB_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
+lemmas GB_replace_red_stable_pideal_finite =
+  GB_replace_red_stable_pideal_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
+lemmas GB_replace_red_rtranclp_stable_GB_finite =
+  GB_replace_red_rtranclp_stable_GB_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
+lemmas GB_replace_red_rtranclp_stable_pideal_finite =
+  GB_replace_red_rtranclp_stable_pideal_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
+
+end (* gd_powerprod *)
   
 section \<open>Reduced Gr\"obner Bases\<close>
 
@@ -871,7 +471,7 @@ lemma reduced_GB_lc:
   shows "lc g = 1"
 by (rule is_monic_setD, rule reduced_GB_D3, fact major, fact \<open>g \<in> G\<close>, rule reduced_GB_D4, fact major, fact \<open>g \<in> G\<close>)
 
-lemma (in od_powerprod) is_reduced_GB_subsetI:
+lemma (in gd_powerprod) is_reduced_GB_subsetI:
   assumes Ared: "is_reduced_GB A" and BGB: "is_Groebner_basis B" and Bmon: "is_monic_set B"
     and *: "\<And>a b. a \<in> A \<Longrightarrow> b \<in> B \<Longrightarrow> a \<noteq> 0 \<Longrightarrow> b \<noteq> 0 \<Longrightarrow> a - b \<noteq> 0 \<Longrightarrow> lp (a - b) \<in> keys b \<Longrightarrow> lp (a - b) \<prec> lp b \<Longrightarrow> False"
     and id_eq: "pideal A = pideal B"
@@ -887,8 +487,9 @@ proof
   from \<open>a \<in> A\<close> generator_subset_pideal have "a \<in> pideal A" ..
   also have "... = pideal B" using id_eq by simp
   finally have "a \<in> pideal B" .
-      
-  with \<open>a \<noteq> 0\<close> GB_alt_3 BGB obtain b where "b \<in> B" and "b \<noteq> 0" and baddsa: "lp b adds lp a" by auto
+
+  from BGB this \<open>a \<noteq> 0\<close> obtain b where "b \<in> B" and "b \<noteq> 0" and baddsa: "lp b adds lp a"
+    by (rule GB_adds_lp)
   from Bmon this(1) this(2) have lcb: "lc b = 1" by (rule is_monic_setD)
   from \<open>b \<in> B\<close> generator_subset_pideal have "b \<in> pideal B" ..
   also have "... = pideal A" using id_eq by simp
@@ -897,8 +498,8 @@ proof
   have lp_eq: "lp b = lp a"
   proof (rule ccontr)
     assume "lp b \<noteq> lp a"
-    from \<open>b \<in> pideal A\<close> \<open>b \<noteq> 0\<close> GB_alt_3 AGB obtain a'
-      where "a' \<in> A" and "a' \<noteq> 0" and a'addsb: "lp a' adds lp b" by auto
+    from AGB \<open>b \<in> pideal A\<close> \<open>b \<noteq> 0\<close> obtain a'
+      where "a' \<in> A" and "a' \<noteq> 0" and a'addsb: "lp a' adds lp b" by (rule GB_adds_lp)
     have a'addsa: "lp a' adds lp a" by (rule adds_trans, fact a'addsb, fact baddsa)
     have "lp a' \<noteq> lp a"
     proof
@@ -935,8 +536,8 @@ proof
     proof
       assume "lp ?c \<in> keys a"
           
-      from \<open>?c \<in> pideal A\<close> \<open>?c \<noteq> 0\<close> GB_alt_3[of A] AGB obtain a'
-        where "a' \<in> A" and "a' \<noteq> 0" and a'addsc: "lp a' adds lp ?c" by auto
+      from AGB \<open>?c \<in> pideal A\<close> \<open>?c \<noteq> 0\<close> obtain a'
+        where "a' \<in> A" and "a' \<noteq> 0" and a'addsc: "lp a' adds lp ?c" by (rule GB_adds_lp)
 
       have "lp a' \<preceq> lp ?c" by (rule ord_adds, fact a'addsc)
       also have "... = lp (a + (-b))" by simp
@@ -972,7 +573,7 @@ proof
   with \<open>b \<in> B\<close> show "a \<in> B" by simp
 qed
 
-lemma (in od_powerprod) is_reduced_GB_unique':
+lemma (in gd_powerprod) is_reduced_GB_unique':
   assumes Ared: "is_reduced_GB A" and Bred: "is_reduced_GB B" and id_eq: "pideal A = pideal B"
   shows "A \<subseteq> B"
 proof -
@@ -988,8 +589,8 @@ proof -
     from \<open>a \<in> A\<close> have "a \<in> pideal B" by (simp only: id_eq[symmetric], rule generator_in_pideal)
     moreover from \<open>b \<in> B\<close> have "b \<in> pideal B" by (rule generator_in_pideal)
     ultimately have "?c \<in> pideal B" by (rule pideal_closed_minus)
-    from this \<open>?c \<noteq> 0\<close> GB_alt_3[of B] BGB obtain b'
-      where "b' \<in> B" and "b' \<noteq> 0" and b'addsc: "lp b' adds lp ?c" by auto
+    from BGB this \<open>?c \<noteq> 0\<close> obtain b'
+      where "b' \<in> B" and "b' \<noteq> 0" and b'addsc: "lp b' adds lp ?c" by (rule GB_adds_lp)
   
     have "lp b' \<preceq> lp ?c" by (rule ord_adds, fact b'addsc)
     also have "... \<prec> lp b" by fact
@@ -1004,7 +605,7 @@ proof -
   qed fact
 qed
   
-theorem (in od_powerprod) is_reduced_GB_unique:
+theorem (in gd_powerprod) is_reduced_GB_unique:
   assumes Ared: "is_reduced_GB A" and Bred: "is_reduced_GB B" and id_eq: "pideal A = pideal B"
   shows "A = B"
 proof
@@ -1214,7 +815,7 @@ next
   qed
 qed
 
-lemma (in od_powerprod) minimal_basis_is_reduced_GB:
+lemma (in gd_powerprod) minimal_basis_is_reduced_GB:
   assumes "is_minimal_basis B" and "is_monic_set B" and "is_reduced_GB G" and "G \<subseteq> B"
     and "pideal B = pideal G"
   shows "B = G"
@@ -1244,9 +845,8 @@ proof (rule is_reduced_GB_unique)
       from assms(1) \<open>f \<in> B\<close> have "f \<noteq> 0" by (rule is_minimal_basisD1)
       from \<open>f \<in> B\<close> have "f \<in> pideal B" by (rule generator_in_pideal)
       hence "f \<in> pideal G" by (simp only: assms(5))
-      with \<open>is_Groebner_basis G\<close> have "f \<noteq> 0 \<longrightarrow> (\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f)" unfolding GB_alt_3 ..
-      from this \<open>f \<noteq> 0\<close> have "\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f" ..
-      then obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds lp f" by auto
+      from \<open>is_Groebner_basis G\<close> this \<open>f \<noteq> 0\<close> obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds lp f"
+        by (rule GB_adds_lp)
       from \<open>g \<in> G\<close> \<open>G \<subseteq> B\<close> have "g \<in> B" ..
       have "g = f"
       proof (rule ccontr)
@@ -1260,9 +860,8 @@ proof (rule is_reduced_GB_unique)
 
       from \<open>b \<in> B\<close> have "b \<in> pideal B" by (rule generator_in_pideal)
       hence "b \<in> pideal G" by (simp only: assms(5))
-      with \<open>is_Groebner_basis G\<close> have "b \<noteq> 0 \<longrightarrow> (\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp b)" unfolding GB_alt_3 ..
-      from this \<open>b \<noteq> 0\<close> have "\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp b" ..
-      then obtain g' where "g' \<in> G" and "g' \<noteq> 0" and "lp g' adds lp b" by auto
+      from \<open>is_Groebner_basis G\<close> this \<open>b \<noteq> 0\<close> obtain g' where "g' \<in> G" and "g' \<noteq> 0" and "lp g' adds lp b"
+        by (rule GB_adds_lp)
       from \<open>g' \<in> G\<close> \<open>G \<subseteq> B\<close> have "g' \<in> B" ..
       have "g' = b"
       proof (rule ccontr)
@@ -1676,7 +1275,7 @@ qed
 
 end (* ordered_powerprod *)
 
-context od_powerprod
+context gd_powerprod
 begin
 
 lemma comp_min_basis_aux_nadds:
@@ -1846,15 +1445,16 @@ lemma comp_min_basis_aux_empty_GB:
   assumes "is_Groebner_basis (set xs)" and "0 \<notin> set xs"
     and "\<And>x y. x \<in> set xs \<Longrightarrow> y \<in> set xs \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
   shows "is_Groebner_basis (set (comp_min_basis_aux xs []))"
-  unfolding GB_alt_2
+  unfolding GB_alt_2_finite[OF finite_set]
 proof (intro ballI impI)
   fix f
   assume fin: "f \<in> pideal (set (comp_min_basis_aux xs []))" and "f \<noteq> 0"
   have "f \<in> pideal (set xs)" by (rule, fact fin, rule pideal_mono, fact comp_min_basis_aux_empty_subset)
   show "is_red (set (comp_min_basis_aux xs [])) f"
   proof (rule comp_min_basis_aux_empty_is_red)
-    from assms \<open>f \<noteq> 0\<close> \<open>f \<in> pideal (set xs)\<close> show "is_red (set xs) f" by (simp add: GB_alt_2)
-  qed (fact+)
+    from assms \<open>f \<noteq> 0\<close> \<open>f \<in> pideal (set xs)\<close> show "is_red (set xs) f"
+      by (simp add: GB_alt_2_finite[OF finite_set])
+  qed fact+
 qed
 
 lemma comp_min_basis_aux_empty_pideal:
@@ -1876,7 +1476,8 @@ proof -
         case False
         let ?xs = "comp_min_basis_aux xs []"
         have "(red (set ?xs))\<^sup>*\<^sup>* f 0"
-        proof (rule is_red_implies_0_red, rule pideal_mono, fact comp_min_basis_aux_empty_subset)
+        proof (rule is_red_implies_0_red_finite[OF finite_set], rule pideal_mono,
+                fact comp_min_basis_aux_empty_subset)
           fix q
           assume "q \<noteq> 0" and "q \<in> pideal (set xs)"
           with assms(1) have "is_red (set xs) q" by (rule GB_implies_reducibility)
@@ -1891,14 +1492,12 @@ qed
 lemma comp_min_basis_pre_GB:
   assumes "is_Groebner_basis (set xs)"
   shows "is_Groebner_basis (set (comp_min_basis_pre xs))"
-  unfolding GB_alt_3
+  unfolding GB_alt_3_finite[OF finite_set]
 proof (intro ballI impI)
   fix f
   assume fin: "f \<in> pideal (set (comp_min_basis_pre xs))" and "f \<noteq> 0"
   have "f \<in> pideal (set xs)" by (rule, fact fin, rule pideal_mono, rule comp_min_basis_pre_subset)
-  with assms have "f \<noteq> 0 \<longrightarrow> (\<exists>g \<in> set xs. g \<noteq> 0 \<and> lp g adds lp f)" unfolding GB_alt_3 ..
-  from this \<open>f \<noteq> 0\<close> have "\<exists>g \<in> set xs. g \<noteq> 0 \<and> lp g adds lp f" ..
-  then obtain g where "g \<in> set xs" and "g \<noteq> 0" and "lp g adds lp f" by auto
+  from assms this \<open>f \<noteq> 0\<close> obtain g where "g \<in> set xs" and "g \<noteq> 0" and "lp g adds lp f" by (rule GB_adds_lp)
   from this(1) this(2) obtain g' where g'_in: "g' \<in> set (comp_min_basis_pre xs)" and "lp g' = lp g"
     by (rule comp_min_basis_pre_lp)
   from this(1) show "\<exists>g\<in>set (comp_min_basis_pre xs). g \<noteq> 0 \<and> lp g adds lp f"
@@ -1925,7 +1524,7 @@ proof -
       case False
       let ?xs = "comp_min_basis_pre xs"
       have "(red (set ?xs))\<^sup>*\<^sup>* f 0"
-      proof (rule is_red_implies_0_red, rule pideal_mono, rule comp_min_basis_pre_subset)
+      proof (rule is_red_implies_0_red_finite[OF finite_set], rule pideal_mono, rule comp_min_basis_pre_subset)
         fix q
         assume "q \<noteq> 0" and "q \<in> pideal (set xs)"
         with assms have "is_red (set xs) q" by (rule GB_implies_reducibility)
@@ -2336,7 +1935,7 @@ proof -
       case False
       let ?xs = "comp_red_basis xs"
       have "(red (set ?xs))\<^sup>*\<^sup>* f 0"
-      proof (rule is_red_implies_0_red, fact a)
+      proof (rule is_red_implies_0_red_finite, fact finite_set, fact a)
         fix q
         assume "q \<noteq> 0" and "q \<in> pideal (set xs)"
         with assms have "is_red (set xs) q" by (rule GB_implies_reducibility)
@@ -2350,14 +1949,14 @@ qed
 lemma comp_red_basis_GB:
   assumes "is_Groebner_basis (set xs)"
   shows "is_Groebner_basis (set (comp_red_basis xs))"
-  unfolding GB_alt_2
+  unfolding GB_alt_2_finite[OF finite_set]
 proof (intro ballI impI)
   fix f
   assume fin: "f \<in> pideal (set (comp_red_basis xs))"
   hence "f \<in> pideal (set xs)" unfolding comp_red_basis_pideal[OF assms] .
   assume "f \<noteq> 0"
   from assms \<open>f \<noteq> 0\<close> \<open>f \<in> pideal (set xs)\<close> show "is_red (set (comp_red_basis xs)) f"
-    unfolding comp_red_basis_is_red GB_alt_2 by simp
+    by (simp add: comp_red_basis_is_red GB_alt_2_finite)
 qed
     
 lemma comp_red_basis_is_auto_reduced:
@@ -2534,30 +2133,6 @@ lemma reduced_GB_comp:
 
 section \<open>Properties of the Reduced Gr\"obner Basis of an Ideal\<close>
 
-lemma pideal_eq_UNIV_iff_contains_one:
-  "pideal F = UNIV \<longleftrightarrow> (1::('a, 'b::semiring_1) poly_mapping) \<in> pideal F"
-proof
-  assume *: "1 \<in> pideal F"
-  show "pideal F = UNIV"
-  proof
-    show "UNIV \<subseteq> pideal F"
-    proof
-      fix p
-      from * have "p * 1 \<in> pideal F" by (rule pideal_closed_times)
-      thus "p \<in> pideal F" by simp
-    qed
-  qed simp
-qed simp
-
-lemma not_is_red_empty: "\<not> is_red {} f"
-  by (simp add: is_red_adds_iff)
-
-lemma is_Groebner_basis_empty: "is_Groebner_basis {}"
-  by (rule Buchberger_criterion, simp)
-
-lemma is_Groebner_basis_singleton: "is_Groebner_basis {f}"
-  by (rule Buchberger_criterion, simp add: spoly_same)
-
 lemma pideal_eq_UNIV_iff_reduced_GB_eq_one:
   assumes "finite F"
   shows "pideal F = UNIV \<longleftrightarrow> reduced_GB F = {1}"
@@ -2585,6 +2160,6 @@ next
   finally show "pideal F = UNIV" by (simp only: pideal_eq_UNIV_iff_contains_one)
 qed
                                                                           
-end (* od_powerprod *)
+end (* gd_powerprod *)
   
 end (* theory *)
