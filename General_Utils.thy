@@ -240,50 +240,50 @@ lemma distinct_reorder: "distinct (xs @ (y # ys)) = distinct (y # (xs @ ys))" by
     
 lemma set_reorder: "set (xs @ (y # ys)) = set (y # (xs @ ys))" by simp
 
-primrec remdups_by :: "('a \<Rightarrow> 'b) \<Rightarrow> 'a list \<Rightarrow> 'a list" where
-remdups_by_base: "remdups_by _ [] = []" |
-remdups_by_rec: "remdups_by f (x # xs) = (if f x \<in> f ` set xs then remdups_by f xs else x # remdups_by f xs)"
+primrec remdups_wrt :: "('a \<Rightarrow> 'b) \<Rightarrow> 'a list \<Rightarrow> 'a list" where
+remdups_wrt_base: "remdups_wrt _ [] = []" |
+remdups_wrt_rec: "remdups_wrt f (x # xs) = (if f x \<in> f ` set xs then remdups_wrt f xs else x # remdups_wrt f xs)"
     
-lemma set_remdups_by: "f ` set (remdups_by f xs) = f ` set xs"
+lemma set_remdups_wrt: "f ` set (remdups_wrt f xs) = f ` set xs"
 proof (induct xs)
   case Nil
-  show ?case unfolding remdups_by_base ..
+  show ?case unfolding remdups_wrt_base ..
 next
   case (Cons a xs)
-  show ?case unfolding remdups_by_rec
+  show ?case unfolding remdups_wrt_rec
   proof (simp only: split: if_splits, intro conjI, intro impI)
     assume "f a \<in> f ` set xs"
       have "f ` set (a # xs) = insert (f a) (f ` set xs)" by simp
-    have "f ` set (remdups_by f xs) = f ` set xs" by fact
+    have "f ` set (remdups_wrt f xs) = f ` set xs" by fact
     also from \<open>f a \<in> f ` set xs\<close> have "... = insert (f a) (f ` set xs)" by (simp add: insert_absorb)
     also have "... = f ` set (a # xs)" by simp
-    finally show "f ` set (remdups_by f xs) = f ` set (a # xs)" .
+    finally show "f ` set (remdups_wrt f xs) = f ` set (a # xs)" .
   qed (simp add: Cons.hyps)
 qed
 
-lemma subset_remdups_by: "set (remdups_by f xs) \<subseteq> set xs"
+lemma subset_remdups_wrt: "set (remdups_wrt f xs) \<subseteq> set xs"
   by (induct xs, auto)
 
-lemma remdups_by_distinct_by:
-  assumes "x \<in> set (remdups_by f xs)" and "y \<in> set (remdups_by f xs)" and "x \<noteq> y"
+lemma remdups_wrt_distinct_wrt:
+  assumes "x \<in> set (remdups_wrt f xs)" and "y \<in> set (remdups_wrt f xs)" and "x \<noteq> y"
   shows "f x \<noteq> f y"
   using assms(1) assms(2)
 proof (induct xs)
   case Nil
-  thus ?case unfolding remdups_by_base by simp
+  thus ?case unfolding remdups_wrt_base by simp
 next
   case (Cons a xs)
-  from Cons(2) Cons(3) show ?case unfolding remdups_by_rec
+  from Cons(2) Cons(3) show ?case unfolding remdups_wrt_rec
   proof (simp only: split: if_splits)
-    assume "x \<in> set (remdups_by f xs)" and "y \<in> set (remdups_by f xs)"
+    assume "x \<in> set (remdups_wrt f xs)" and "y \<in> set (remdups_wrt f xs)"
     thus "f x \<noteq> f y" by (rule Cons.hyps)
   next
     assume "\<not> True"
     thus "f x \<noteq> f y" by simp
   next
-    assume "f a \<notin> f ` set xs" and xin: "x \<in> set (a # remdups_by f xs)" and yin: "y \<in> set (a # remdups_by f xs)"
-    from yin have y: "y = a \<or> y \<in> set (remdups_by f xs)" by simp
-    from xin have "x = a \<or> x \<in> set (remdups_by f xs)" by simp
+    assume "f a \<notin> f ` set xs" and xin: "x \<in> set (a # remdups_wrt f xs)" and yin: "y \<in> set (a # remdups_wrt f xs)"
+    from yin have y: "y = a \<or> y \<in> set (remdups_wrt f xs)" by simp
+    from xin have "x = a \<or> x \<in> set (remdups_wrt f xs)" by simp
     thus "f x \<noteq> f y"
     proof
       assume "x = a"
@@ -292,47 +292,47 @@ next
         assume "y = a"
         with \<open>x \<noteq> y\<close> show ?thesis unfolding \<open>x = a\<close> by simp
       next
-        assume "y \<in> set (remdups_by f xs)"
-        have "y \<in> set xs" by (rule, fact, rule subset_remdups_by)
+        assume "y \<in> set (remdups_wrt f xs)"
+        have "y \<in> set xs" by (rule, fact, rule subset_remdups_wrt)
         hence "f y \<in> f ` set xs" by simp
         with \<open>f a \<notin> f ` set xs\<close> show ?thesis unfolding \<open>x = a\<close> by auto
       qed
     next
-      assume "x \<in> set (remdups_by f xs)"
+      assume "x \<in> set (remdups_wrt f xs)"
       from y show ?thesis
       proof
         assume "y = a"
-        have "x \<in> set xs" by (rule, fact, rule subset_remdups_by)
+        have "x \<in> set xs" by (rule, fact, rule subset_remdups_wrt)
         hence "f x \<in> f ` set xs" by simp
         with \<open>f a \<notin> f ` set xs\<close> show ?thesis unfolding \<open>y = a\<close> by auto
       next
-        assume "y \<in> set (remdups_by f xs)"
-        with \<open>x \<in> set (remdups_by f xs)\<close> show ?thesis by (rule Cons.hyps)
+        assume "y \<in> set (remdups_wrt f xs)"
+        with \<open>x \<in> set (remdups_wrt f xs)\<close> show ?thesis by (rule Cons.hyps)
       qed
     qed
   qed
 qed
   
-lemma distinct_remdups_by: "distinct (remdups_by f xs)"
+lemma distinct_remdups_wrt: "distinct (remdups_wrt f xs)"
 proof (induct xs)
   case Nil
-  show ?case unfolding remdups_by_base by simp
+  show ?case unfolding remdups_wrt_base by simp
 next
   case (Cons a xs)
-  show ?case unfolding remdups_by_rec
+  show ?case unfolding remdups_wrt_rec
   proof (split if_split, intro conjI impI, rule Cons.hyps)
     assume "f a \<notin> f ` set xs"
     hence "a \<notin> set xs" by auto
-    hence "a \<notin> set (remdups_by f xs)" using subset_remdups_by[of f xs] by auto
-    with Cons.hyps show "distinct (a # remdups_by f xs)" by simp
+    hence "a \<notin> set (remdups_wrt f xs)" using subset_remdups_wrt[of f xs] by auto
+    with Cons.hyps show "distinct (a # remdups_wrt f xs)" by simp
   qed
 qed
 
-lemma map_remdups_by: "map f (remdups_by f xs) = remdups (map f xs)"
+lemma map_remdups_wrt: "map f (remdups_wrt f xs) = remdups (map f xs)"
   by (induct xs, auto)
 
-lemma remdups_by_append:
-  "remdups_by f (xs @ ys) = (filter (\<lambda>a. f a \<notin> f ` set ys) (remdups_by f xs)) @ (remdups_by f ys)"
+lemma remdups_wrt_append:
+  "remdups_wrt f (xs @ ys) = (filter (\<lambda>a. f a \<notin> f ` set ys) (remdups_wrt f xs)) @ (remdups_wrt f ys)"
   by (induct xs, auto)
 
 lemma distinctI:
@@ -530,31 +530,31 @@ subsection \<open>@{const map_of}\<close>
 lemma map_of_filter: "map_of (filter (\<lambda>x. fst x = y) xs) y = map_of xs y"
   by (induct xs, auto)
 
-lemma map_of_remdups_by: "map_of (remdups_by fst (rev xs)) = map_of xs"
+lemma map_of_remdups_wrt: "map_of (remdups_wrt fst (rev xs)) = map_of xs"
 proof (induct xs)
   case Nil
   show ?case by simp
 next
   case (Cons x xs)
-  have "dom [fst x \<mapsto> snd x] \<inter> dom (map_of [a\<leftarrow>remdups_by fst (rev xs) . fst a \<noteq> fst x]) = {}"
+  have "dom [fst x \<mapsto> snd x] \<inter> dom (map_of [a\<leftarrow>remdups_wrt fst (rev xs) . fst a \<noteq> fst x]) = {}"
     by (auto simp add: dom_map_of_conv_image_fst)
-  hence eq: "[fst x \<mapsto> snd x] ++ map_of [a\<leftarrow>remdups_by fst (rev xs) . fst a \<noteq> fst x] =
-          map_of [a\<leftarrow>remdups_by fst (rev xs) . fst a \<noteq> fst x] ++ [fst x \<mapsto> snd x]"
+  hence eq: "[fst x \<mapsto> snd x] ++ map_of [a\<leftarrow>remdups_wrt fst (rev xs) . fst a \<noteq> fst x] =
+          map_of [a\<leftarrow>remdups_wrt fst (rev xs) . fst a \<noteq> fst x] ++ [fst x \<mapsto> snd x]"
     by (rule map_add_comm)
   show ?case
-  proof (simp add: remdups_by_append eq, rule, simp, rule)
+  proof (simp add: remdups_wrt_append eq, rule, simp, rule)
     fix y
     assume "y \<noteq> fst x"
-    have *: "filter (\<lambda>x. fst x = y) (remdups_by fst (rev xs)) =
-          filter (\<lambda>x. fst x = y) (filter (\<lambda>a. fst a \<noteq> fst x) (remdups_by fst (rev xs)))"
+    have *: "filter (\<lambda>x. fst x = y) (remdups_wrt fst (rev xs)) =
+          filter (\<lambda>x. fst x = y) (filter (\<lambda>a. fst a \<noteq> fst x) (remdups_wrt fst (rev xs)))"
       by (simp, rule filter_cong, auto simp add: \<open>y \<noteq> fst x\<close>)
-    have "map_of xs y = map_of (remdups_by fst (rev xs)) y" by (simp only: Cons)
-    also have "... = map_of (filter (\<lambda>x. fst x = y) (remdups_by fst (rev xs))) y"
+    have "map_of xs y = map_of (remdups_wrt fst (rev xs)) y" by (simp only: Cons)
+    also have "... = map_of (filter (\<lambda>x. fst x = y) (remdups_wrt fst (rev xs))) y"
       by (rule map_of_filter[symmetric])
-    also have "... = map_of (filter (\<lambda>x. fst x = y) (filter (\<lambda>a. fst a \<noteq> fst x) (remdups_by fst (rev xs)))) y"
+    also have "... = map_of (filter (\<lambda>x. fst x = y) (filter (\<lambda>a. fst a \<noteq> fst x) (remdups_wrt fst (rev xs)))) y"
       by (simp only: *)
-    also have "... = map_of [a\<leftarrow>remdups_by fst (rev xs) . fst a \<noteq> fst x] y" by (rule map_of_filter)
-    finally show "map_of [a\<leftarrow>remdups_by fst (rev xs) . fst a \<noteq> fst x] y = map_of xs y" by (simp only:)
+    also have "... = map_of [a\<leftarrow>remdups_wrt fst (rev xs) . fst a \<noteq> fst x] y" by (rule map_of_filter)
+    finally show "map_of [a\<leftarrow>remdups_wrt fst (rev xs) . fst a \<noteq> fst x] y = map_of xs y" by (simp only:)
   qed
 qed
 

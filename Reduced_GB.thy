@@ -54,8 +54,6 @@ section \<open>Properties of Gr\"obner Bases\<close>
 context gd_powerprod
 begin
 
-
-
 lemma monic_set_GB: "is_Groebner_basis (monic_set G) \<longleftrightarrow> is_Groebner_basis G"
   by (simp add: GB_alt_1)
 
@@ -132,7 +130,7 @@ proof -
           hence "q = 0" by simp
           hence "?q' = -?m" by simp
           hence "lp ?q' = lp (-?m)" by simp
-          also have "... = lp ?m" using lp_uminus[OF \<open>?m \<noteq> 0\<close>] .
+          also have "... = lp ?m" using lp_uminus .
           finally have "lp ?q' = lp ?m" .
           with \<open>lp ?q' \<prec> lp ?m\<close> show False by simp
         qed (fact)
@@ -263,7 +261,7 @@ proof (rule, rule replace_pideal, fact, rule)
   have "f - h \<in> pideal G" by (rule, fact, rule replace_pideal, fact)
   from pideal_closed_minus[OF this \<open>f \<in> pideal G\<close>] have "-h \<in> pideal G" by simp
   from pideal_closed_uminus[OF this] have "h \<in> pideal G" by simp
-  with isGB \<open>\<not> is_red G h\<close> have "h = 0" using GB_implies_reducibility by auto
+  with isGB \<open>\<not> is_red G h\<close> have "h = 0" using GB_imp_reducibility by auto
   with ftoh have "(red ?G')\<^sup>*\<^sup>* f 0" by simp
   thus "f \<in> pideal ?G'" by (simp add: red_rtranclp_0_in_pideal)
 qed
@@ -319,7 +317,7 @@ proof -
     have "f - h \<in> pideal G" by (rule, fact, rule replace_pideal, fact)
     from pideal_closed_minus[OF this \<open>f \<in> pideal G\<close>] have "-h \<in> pideal G" by simp
     from pideal_closed_uminus[OF this] have "h \<in> pideal G" by simp
-    with isGB \<open>\<not> is_red G h\<close> have "h = 0" using GB_implies_reducibility by auto
+    with isGB \<open>\<not> is_red G h\<close> have "h = 0" using GB_imp_reducibility by auto
     with ftoh have "(red ?G')\<^sup>*\<^sup>* f 0" by simp
     thus "f \<in> pideal ?G'" by (simp add: red_rtranclp_0_in_pideal)
   qed
@@ -435,7 +433,7 @@ section \<open>Reduced Gr\"obner Bases\<close>
 context ordered_powerprod
 begin
 
-definition is_auto_reduced :: "('a, 'b::field) poly_mapping set \<Rightarrow> bool" where
+definition is_auto_reduced :: "('a \<Rightarrow>\<^sub>0 'b::field) set \<Rightarrow> bool" where
   "is_auto_reduced B \<equiv> (\<forall>b\<in>B. \<not> is_red (remove b B) b)"
   
 definition is_reduced_GB :: "('a, 'b::field) poly_mapping set \<Rightarrow> bool" where
@@ -525,8 +523,8 @@ proof
     finally have "?c \<in> pideal B" .
         
     from \<open>b \<noteq> 0\<close> have "- b \<noteq> 0" by simp
-    have "lp (-b) = lp a" unfolding lp_uminus[OF \<open>b \<noteq> 0\<close>] by fact
-    have "lc (-b) = - lc a" unfolding lc_uminus[OF \<open>b \<noteq> 0\<close>] lca lcb ..
+    have "lp (-b) = lp a" unfolding lp_uminus by fact
+    have "lc (-b) = - lc a" unfolding lc_uminus lca lcb ..
     from \<open>?c \<noteq> 0\<close> have "a + (-b) \<noteq> 0" by simp
     
     have "lp ?c \<in> keys ?c" by (rule lp_in_keys, fact)
@@ -541,7 +539,7 @@ proof
 
       have "lp a' \<preceq> lp ?c" by (rule ord_adds, fact a'addsc)
       also have "... = lp (a + (-b))" by simp
-      also have "... \<prec> lp a" by (rule lp_plus_precI, fact+)
+      also have "... \<prec> lp a" by (rule lp_plus_lessI, fact+)
       finally have "lp a' \<prec> lp a" .
       hence "lp a' \<noteq> lp a" by simp
       hence "a' \<noteq> a" by auto
@@ -557,14 +555,14 @@ proof
       proof (rule *)
         have "lp ?c = lp ((-b) + a)" by simp
         also have "... \<prec> lp (-b)"
-        proof (rule lp_plus_precI)
+        proof (rule lp_plus_lessI)
           from \<open>?c \<noteq> 0\<close> show "-b + a \<noteq> 0" by simp
         next
           from \<open>lp (-b) = lp a\<close> show "lp a = lp (-b)" by simp
         next
           from \<open>lc (-b) = - lc a\<close> show "lc a = - lc (-b)" by simp
         qed
-        finally show "lp ?c \<prec> lp b" unfolding lp_uminus[OF \<open>b \<noteq> 0\<close>] .
+        finally show "lp ?c \<prec> lp b" unfolding lp_uminus .
       qed
     qed
   qed
@@ -594,7 +592,7 @@ proof -
   
     have "lp b' \<preceq> lp ?c" by (rule ord_adds, fact b'addsc)
     also have "... \<prec> lp b" by fact
-    finally have "lp b' \<prec> lp b" unfolding lp_uminus[OF \<open>b \<noteq> 0\<close>] .
+    finally have "lp b' \<prec> lp b" unfolding lp_uminus .
     hence "lp b' \<noteq> lp b" by simp
     hence "b' \<noteq> b" by auto
     with \<open>b' \<in> B\<close> have "b' \<in> (remove b B)" by (intro in_removeI, auto)
@@ -674,7 +672,7 @@ proof -
   let ?m = "monom_mult (lookup p (t + lp q) / lc q) t q"
   from \<open>lookup p (t + lp q) \<noteq> 0\<close> lc_not_0[OF \<open>q \<noteq> 0\<close>] have c0: "lookup p (t + lp q) / lc q \<noteq> 0" by simp
   from \<open>q \<noteq> 0\<close> c0 have "?m \<noteq> 0" unfolding monom_mult_0_iff by simp
-  hence "lp (-?m) = lp ?m" by (rule lp_uminus)
+  have "lp (-?m) = lp ?m" by (fact lp_uminus)
   also have lp1: "lp ?m = t + lp q" by (rule lp_mult, fact+)
   finally have lp2: "lp (-?m) = t + lp q" .
   
@@ -1165,16 +1163,16 @@ proof -
 qed
   
 definition comp_min_basis_pre :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::zero) poly_mapping list" where
-  "comp_min_basis_pre xs = remdups_by lp (filter (\<lambda>x. x \<noteq> 0) xs)"
+  "comp_min_basis_pre xs = remdups_wrt lp (filter (\<lambda>x. x \<noteq> 0) xs)"
   
 lemma comp_min_basis_pre_subset:
   shows "set (comp_min_basis_pre xs) \<subseteq> set xs"
-  unfolding comp_min_basis_pre_def by (meson filter_is_subset subset_remdups_by subset_trans)
+  unfolding comp_min_basis_pre_def by (meson filter_is_subset subset_remdups_wrt subset_trans)
 
 lemma comp_min_basis_pre_nonzero:
   assumes "p \<in> set (comp_min_basis_pre xs)"
   shows "p \<noteq> 0"
-  using assms unfolding comp_min_basis_pre_def using subset_remdups_by by fastforce
+  using assms unfolding comp_min_basis_pre_def using subset_remdups_wrt by fastforce
 
 lemma comp_min_basis_pre_nonzero': "0 \<notin> set (comp_min_basis_pre xs)"
   using comp_min_basis_pre_nonzero by fastforce
@@ -1182,7 +1180,7 @@ lemma comp_min_basis_pre_nonzero': "0 \<notin> set (comp_min_basis_pre xs)"
 lemma comp_min_basis_pre_distinct_lp:
   assumes pin: "p \<in> set (comp_min_basis_pre xs)" and qin: "q \<in> set (comp_min_basis_pre xs)" and "p \<noteq> q"
   shows "lp p \<noteq> lp q"
-  using assms unfolding comp_min_basis_pre_def by (rule remdups_by_distinct_by)
+  using assms unfolding comp_min_basis_pre_def by (rule remdups_wrt_distinct_wrt)
 
 lemma comp_min_basis_pre_lp:
   assumes "p \<in> set xs" and "p \<noteq> 0"
@@ -1190,9 +1188,9 @@ lemma comp_min_basis_pre_lp:
 proof -
   from assms have pin: "p \<in> set (filter (\<lambda>x. x \<noteq> 0) xs)" (is "p \<in> set ?ys") by simp
   hence "lp p \<in> lp ` set ?ys" by simp
-  also have "... = lp ` set (remdups_by lp ?ys)" by (simp add: set_remdups_by)
-  finally have "lp p \<in> lp ` set (remdups_by lp ?ys)" .
-  then obtain q where qin: "q \<in> set (remdups_by lp ?ys)" and "lp q = lp p" by auto
+  also have "... = lp ` set (remdups_wrt lp ?ys)" by (simp add: set_remdups_wrt)
+  finally have "lp p \<in> lp ` set (remdups_wrt lp ?ys)" .
+  then obtain q where qin: "q \<in> set (remdups_wrt lp ?ys)" and "lp q = lp p" by auto
   show ?thesis
   proof
     from qin show "q \<in> set (comp_min_basis_pre xs)" unfolding comp_min_basis_pre_def .
@@ -1480,7 +1478,7 @@ proof -
                 fact comp_min_basis_aux_empty_subset)
           fix q
           assume "q \<noteq> 0" and "q \<in> pideal (set xs)"
-          with assms(1) have "is_red (set xs) q" by (rule GB_implies_reducibility)
+          with assms(1) have "is_red (set xs) q" by (rule GB_imp_reducibility)
           from this assms(2) assms(3) show "is_red (set ?xs) q" by (rule comp_min_basis_aux_empty_is_red)
         qed fact
         thus ?thesis by (rule red_rtranclp_0_in_pideal)
@@ -1527,7 +1525,7 @@ proof -
       proof (rule is_red_implies_0_red_finite[OF finite_set], rule pideal_mono, rule comp_min_basis_pre_subset)
         fix q
         assume "q \<noteq> 0" and "q \<in> pideal (set xs)"
-        with assms have "is_red (set xs) q" by (rule GB_implies_reducibility)
+        with assms have "is_red (set xs) q" by (rule GB_imp_reducibility)
         thus "is_red (set ?xs) q" by (rule comp_min_basis_pre_is_red)
       qed fact
       thus ?thesis by (rule red_rtranclp_0_in_pideal)
@@ -1938,7 +1936,7 @@ proof -
       proof (rule is_red_implies_0_red_finite, fact finite_set, fact a)
         fix q
         assume "q \<noteq> 0" and "q \<in> pideal (set xs)"
-        with assms have "is_red (set xs) q" by (rule GB_implies_reducibility)
+        with assms have "is_red (set xs) q" by (rule GB_imp_reducibility)
         thus "is_red (set (comp_red_basis xs)) q" unfolding comp_red_basis_is_red .
       qed fact
       thus ?thesis by (rule red_rtranclp_0_in_pideal)

@@ -2,7 +2,7 @@ text \<open>Some further general properties of (ordered) multivariate polynomial
   regarded an extension of theory Abstract_Poly.thy.\<close>
 
 theory Poly_Utils
-imports "Polynomials.MPoly_Type_Class" General_Utils
+imports Polynomials.MPoly_Type_Class General_Utils
 begin
   
 section \<open>Further Properties of Multivariate Polynomials\<close>
@@ -1074,152 +1074,6 @@ qed
   
 subsection \<open>Trailing Power-Products and -Coefficients\<close>
 
-definition tp::"('a, 'b::zero) poly_mapping \<Rightarrow> 'a" where
-  "tp p \<equiv> (if p = 0 then 0 else ordered_powerprod_lin.Min (keys p))"
-
-definition tc::"('a, 'b::zero) poly_mapping \<Rightarrow> 'b" where
-  "tc p \<equiv> lookup p (tp p)"
-  
-lemma tp_alt:
-  assumes "p \<noteq> 0"
-  shows "tp p = ordered_powerprod_lin.Min (keys p)"
-using assms unfolding tp_def by simp
-
-lemma tp_min_keys:
-  assumes "t \<in> keys p"
-  shows "tp p \<preceq> t"
-proof -
-  from assms have "keys p \<noteq> {}" by auto
-  hence "p \<noteq> 0" by simp
-  from tp_alt[OF this] ordered_powerprod_lin.Min_le[OF finite_keys assms] show ?thesis by simp
-qed
-
-lemma tp_min:
-  assumes "lookup p t \<noteq> 0"
-  shows "tp p \<preceq> t"
-proof -
-  from assms have t_in: "t \<in> keys p" unfolding keys_def by simp
-  thus ?thesis by (rule tp_min_keys)
-qed
-  
-lemma tp_in_keys:
-  assumes "p \<noteq> 0"
-  shows "tp p \<in> keys p"
-  unfolding tp_alt[OF assms]
-  by (rule ordered_powerprod_lin.Min_in, fact finite_keys, simp add: assms)
-
-lemma tp_eqI:
-  assumes a1: "t \<in> keys p" and a2: "\<And>s. s \<in> keys p \<Longrightarrow> t \<preceq> s"
-  shows "tp p = t"
-proof -
-  from a1 have "keys p \<noteq> {}" by auto
-  hence "p \<noteq> 0" by simp
-  from a1 have "tp p \<preceq> t" by (rule tp_min_keys)
-  moreover have "t \<preceq> tp p" by (rule a2, rule tp_in_keys, fact \<open>p \<noteq> 0\<close>)
-  ultimately show ?thesis by simp
-qed
-
-lemma tp_gr:
-  assumes a: "\<And>s. s \<in> keys p \<Longrightarrow> t \<prec> s" and "p \<noteq> 0"
-  shows "t \<prec> tp p"
-proof -
-  from \<open>p \<noteq> 0\<close> have "keys p \<noteq> {}" using keys_eq_empty_iff[of p] by simp
-  show ?thesis by (rule a, rule tp_in_keys, fact \<open>p \<noteq> 0\<close>)
-qed
-
-lemma tp_less:
-  assumes "s \<in> keys p" and "s \<prec> t"
-  shows "tp p \<prec> t"
-proof -
-  from \<open>s \<in> keys p\<close> have "tp p \<preceq> s" by (rule tp_min_keys)
-  also have "... \<prec> t" by fact
-  finally show "tp p \<prec> t" .
-qed
-  
-lemma tp_ge:
-  assumes a: "\<And>s. s \<prec> t \<Longrightarrow> lookup p s = 0" and "p \<noteq> 0"
-  shows "t \<preceq> tp p"
-proof -
-  from \<open>p \<noteq> 0\<close> have "keys p \<noteq> {}" using keys_eq_empty_iff[of p] by simp
-  have "\<forall>s\<in>keys p. t \<preceq> s"
-  proof
-    fix s::"'a"
-    assume "s \<in> keys p"
-    hence "lookup p s \<noteq> 0" unfolding keys_def by simp
-    hence "\<not> s \<prec> t" using a[of s] by auto
-    thus "t \<preceq> s" by simp
-  qed
-  with tp_alt[OF \<open>p \<noteq> 0\<close>] ordered_powerprod_lin.Min_ge_iff[OF finite_keys[of p] \<open>keys p \<noteq> {}\<close>]
-    show ?thesis by simp
-qed
-  
-lemma tp_ge_keys:
-  assumes a: "\<And>s. s \<in> keys p \<Longrightarrow> t \<preceq> s" and "p \<noteq> 0"
-  shows "t \<preceq> tp p"
-  by (rule a, rule tp_in_keys, fact)
-    
-lemma tp_ge_iff: "t \<preceq> tp p \<longleftrightarrow> ((p \<noteq> 0 \<or> t = 0) \<and> (\<forall>s. s \<prec> t \<longrightarrow> lookup p s = 0))" (is "?L \<longleftrightarrow> (?A \<and> ?B)")
-proof
-  assume ?L
-  show "?A \<and> ?B"
-  proof (intro conjI allI impI)
-    show "p \<noteq> 0 \<or> t = 0"
-    proof (cases "p = 0")
-      case True
-      show ?thesis
-      proof (rule disjI2)
-        from \<open>?L\<close> True have "t \<preceq> 0" by (simp add: tp_def)
-        with zero_min[of t] show "t = 0" by simp
-      qed
-    next
-      case False
-      thus ?thesis ..
-    qed
-  next
-    fix s
-    assume "s \<prec> t"
-    also note \<open>t \<preceq> tp p\<close>
-    finally have "s \<prec> tp p" .
-    hence "\<not> tp p \<preceq> s" by simp
-    with tp_min[of p s] show "lookup p s = 0" by blast
-  qed
-next
-  assume "?A \<and> ?B"
-  hence ?A and ?B by simp_all
-  show ?L
-  proof (cases "p = 0")
-    case True
-    with \<open>?A\<close> have "t = 0" by simp
-    with True show ?thesis by (simp add: tp_def)
-  next
-    case False
-    from \<open>?B\<close> show ?thesis using tp_ge[OF _ False] by auto
-  qed
-qed
-
-lemma tc_not_0:
-  assumes "p \<noteq> 0"
-  shows "tc p \<noteq> 0"
-  unfolding tc_def in_keys_iff[symmetric] using assms by (rule tp_in_keys)
-
-lemma tp_monomial:
-  assumes "c \<noteq> 0"
-  shows "tp (monomial c t) = t"
-proof (rule tp_eqI)
-  from keys_of_monomial[OF assms, of t] show "t \<in> keys (monomial c t)" by simp
-next
-  fix s
-  assume "s \<in> keys (monomial c t)"
-  with keys_of_monomial[OF assms, of t] have "s = t" by simp
-  thus "t \<preceq> s" by simp
-qed
-
-lemma tc_monomial:
-  assumes "c \<noteq> 0"
-  shows "tc (monomial c t) = c"
-  unfolding tc_def tp_monomial[OF assms] by (simp add: lookup_single)
-
-
 lemma lp_eq_tp_monomial:
   assumes "is_monomial p"
   shows "lp p = tp p"
@@ -1228,140 +1082,12 @@ proof -
   from \<open>c \<noteq> 0\<close> have "lp p = t" and "tp p = t" unfolding p by (rule lp_monomial, rule tp_monomial)
   thus ?thesis by simp
 qed
-
-lemma tp_monom_mult:
-  fixes c::"'b::semiring_no_zero_divisors"
-  assumes "c \<noteq> 0" and "p \<noteq> 0"
-  shows "tp (monom_mult c t p) = t + tp p"
-proof (intro tp_eqI, rule keys_monom_multI, rule tp_in_keys, fact, fact)
-  fix s
-  assume "s \<in> keys (monom_mult c t p)"
-  then obtain x where "x \<in> keys p" and s: "s = t + x" by (rule keys_monom_multE)
-  show "t + tp p \<preceq> s" unfolding s add.commute[of t] by (rule plus_monotone, rule tp_min_keys, fact)
-qed
-
-lemma tc_monom_mult:
-  fixes c::"'b::semiring_no_zero_divisors"
-  assumes "c \<noteq> 0" and "p \<noteq> 0"
-  shows "tc (monom_mult c t p) = c * tc p"
-  unfolding tc_def tp_monom_mult[OF assms] lookup_monom_mult ..
-  
-lemma tp_plus_eqI:
-  fixes p q
-  assumes "p \<noteq> 0" and "tp p \<prec> tp q"
-  shows "tp (p + q) = tp p"
-proof (intro tp_eqI)
-  from tp_less[of "tp p" q "tp q"] \<open>tp p \<prec> tp q\<close> have "tp p \<notin> keys q" by blast
-  with lookup_add[of p q "tp p"] tc_not_0[OF \<open>p \<noteq> 0\<close>] show "tp p \<in> keys (p + q)"
-    unfolding in_keys_iff tc_def by simp
-next
-  fix s
-  assume "s \<in> keys (p + q)"
-  show "tp p \<preceq> s"
-  proof (rule ccontr)
-    assume "\<not> tp p \<preceq> s"
-    hence sp: "s \<prec> tp p" by simp
-    hence "s \<prec> tp q" using \<open>tp p \<prec> tp q\<close> by simp
-    with tp_less[of s q "tp q"] have "s \<notin> keys q" by blast
-    moreover from sp tp_less[of s p "tp p"] have "s \<notin> keys p" by blast
-    ultimately show False using \<open>s \<in> keys (p + q)\<close> keys_add_subset[of p q] by auto
-  qed
-qed
-    
-lemma tp_plus_precE:
-  fixes p q
-  assumes "p + q \<noteq> 0" and tp: "tp (p + q) \<prec> tp p"
-  shows "tp q \<prec> tp p"
-proof (cases "p = 0")
-  case True
-  with tp show ?thesis by simp
-next
-  case False
-  show ?thesis
-  proof (rule ccontr)
-    assume "\<not> tp q \<prec> tp p"
-    hence "tp p = tp q \<or> tp p \<prec> tp q" by auto
-    thus False
-    proof
-      assume tp_eq: "tp p = tp q"
-      have "tp p \<preceq> tp (p + q)"
-      proof (rule tp_ge_keys)
-        fix s
-        assume "s \<in> keys (p + q)"
-        hence "s \<in> keys p \<union> keys q"
-        proof
-          show "keys (p + q) \<subseteq> keys p \<union> keys q" by (fact keys_add_subset)
-        qed
-        thus "tp p \<preceq> s"
-        proof
-          assume "s \<in> keys p"
-          thus ?thesis by (rule tp_min_keys)
-        next
-          assume "s \<in> keys q"
-          thus ?thesis unfolding tp_eq by (rule tp_min_keys)
-        qed
-      qed (fact \<open>p + q \<noteq> 0\<close>)
-      with tp show False by simp
-    next
-      assume "tp p \<prec> tp q"
-      from tp_plus_eqI[OF False this] tp show False by (simp add: ac_simps)
-    qed
-  qed
-qed
-  
-lemma tp_plus_precI:
-  fixes p q :: "('a, 'b::ring) poly_mapping"
-  assumes "p + q \<noteq> 0" and tp_eq: "tp q = tp p" and tc_eq: "tc q = - tc p"
-  shows "tp p \<prec> tp (p + q)"
-proof (rule ccontr)
-  assume "\<not> tp p \<prec> tp (p + q)"
-  hence "tp p = tp (p + q) \<or> tp (p + q) \<prec> tp p" by auto
-  thus False
-  proof
-    assume "tp p = tp (p + q)"
-    have "lookup (p + q) (tp p) = (lookup p (tp p)) + (lookup q (tp q))" unfolding tp_eq lookup_add ..
-    also have "... = tc p + tc q" unfolding tc_def ..
-    also have "... = 0" unfolding tc_eq by simp
-    finally have "lookup (p + q) (tp p) = 0" .
-    hence "tp (p + q) \<noteq> tp p" using tc_not_0[OF \<open>p + q \<noteq> 0\<close>] unfolding tc_def by auto
-    with \<open>tp p = tp (p + q)\<close> show False by simp
-  next
-    assume "tp (p + q) \<prec> tp p"
-    have "tp q \<prec> tp p" by (rule tp_plus_precE, fact+)
-    hence "tp q \<noteq> tp p" by simp
-    with tp_eq show False by simp
-  qed
-qed
-
-lemma tp_uminus:
-  fixes p
-  assumes "p \<noteq> 0"
-  shows "tp (-p) = tp p"
-proof -
-  from assms have "-p \<noteq> 0" by simp
-  with assms show ?thesis unfolding tp_def keys_uminus by simp
-qed
-
-lemma tc_uminus:
-  fixes p
-  assumes "p \<noteq> 0"
-  shows "tc (-p) = - tc p"
-  unfolding tc_def tp_uminus[OF assms] lookup_uminus by simp
     
 lemma tp_poly_mapping_of_pp: "tp ((poly_mapping_of_pp t)::('a, 'b::{zero_neq_one}) poly_mapping) = t"
   unfolding poly_mapping_of_pp_def by (rule tp_monomial, simp)
     
 lemma tc_poly_mapping_of_pp: "tc ((poly_mapping_of_pp t)::('a, 'b::{zero_neq_one}) poly_mapping) = 1"
   unfolding poly_mapping_of_pp_def by (rule tc_monomial, simp)
-
-lemma lp_geq_tp: "tp p \<preceq> lp p"
-proof (cases "p = 0")
-  case True
-  show ?thesis unfolding True lp_def tp_def by simp
-next
-  case False
-  show ?thesis by (rule lp_max_keys, rule tp_in_keys, fact False)
-qed
 
 lemma lp_gr_tp_iff: "(tp p \<prec> lp p) \<longleftrightarrow> (\<not> has_bounded_keys 1 p)"
   unfolding not_has_bounded_keys
@@ -1409,7 +1135,7 @@ qed
 lemma lp_eq_tp_iff: "lp p = tp p \<longleftrightarrow> has_bounded_keys 1 p" (is "?A \<longleftrightarrow> ?B")
 proof -
   have "?A \<longleftrightarrow> (tp p \<preceq> lp p \<and> \<not> tp p \<prec> lp p)" by auto
-  also from lp_geq_tp[of p] have "... \<longleftrightarrow> \<not> tp p \<prec> lp p" by simp
+  also from lp_ge_tp[of p] have "... \<longleftrightarrow> \<not> tp p \<prec> lp p" by simp
   finally show ?thesis by (simp add: lp_gr_tp_iff)
 qed
   
@@ -1915,7 +1641,7 @@ lemma keys_plus_eq_lp_tp_D:
   shows "tail p + higher q (tp q) = 0"
 proof -
   note assms(3)
-  also have "... \<preceq> lp p" by (rule lp_geq_tp)
+  also have "... \<preceq> lp p" by (rule lp_ge_tp)
   finally have "tp q \<prec> lp p" .
   hence "lp p \<noteq> tp q" by simp
   have "q \<noteq> 0"
@@ -2215,7 +1941,7 @@ next
   have eq: "tp (monomial c t) = t" by (simp only: tp_monomial[OF \<open>c \<noteq> 0\<close>])
   moreover have "tp (p + monomial c t) = tp p"
   proof (rule tp_plus_eqI, fact, simp only: eq)
-    from lp_geq_tp[of p] assms(2) show "tp p \<prec> t" by simp
+    from lp_ge_tp[of p] assms(2) show "tp p \<prec> t" by simp
   qed
   ultimately show ?thesis by (simp add: ac_simps)
 qed
@@ -2227,7 +1953,7 @@ proof (simp add: tc_def tp_monomial_plus[OF assms] lookup_add lookup_single Poly
     rule impI)
   assume "t = tp p"
   with assms(2) have "lp p \<prec> tp p" by simp
-  with lp_geq_tp[of p] show "c + lookup p (tp p) = lookup p (tp p)" by simp
+  with lp_ge_tp[of p] show "c + lookup p (tp p) = lookup p (tp p)" by simp
 qed
 
 lemma tail_monomial_plus:
@@ -2661,7 +2387,7 @@ proof (rule tp_eqI, simp only: in_keys_iff lookup_times_tp_tp)
   ultimately show "tc p * tc q \<noteq> 0" by simp
 qed (rule in_keys_times_geq)
 
-lemma lc_times_poly_mapping': "lc (p * q) = lc p * lc (q::('a, 'b::semiring_no_zero_divisors) poly_mapping)"
+lemma lc_times_poly_mapping: "lc (p * q) = lc p * lc (q::('a, 'b::semiring_no_zero_divisors) poly_mapping)"
 proof (cases "p = 0")
   case True
   thus ?thesis by (simp add: lc_def)
@@ -2677,7 +2403,7 @@ next
   qed
 qed
 
-lemma tc_times_poly_mapping': "tc (p * q) = tc p * tc (q::('a, 'b::semiring_no_zero_divisors) poly_mapping)"
+lemma tc_times_poly_mapping: "tc (p * q) = tc p * tc (q::('a, 'b::semiring_no_zero_divisors) poly_mapping)"
 proof (cases "p = 0")
   case True
   thus ?thesis by (simp add: tc_def)
@@ -2699,7 +2425,7 @@ lemma times_not_0:
 proof
   assume "p * q = 0"
   hence "0 = lc (p * q)" by (simp add: lc_def)
-  also have "... = lc p * lc q" by (rule lc_times_poly_mapping')
+  also have "... = lc p * lc q" by (rule lc_times_poly_mapping)
   finally have "lc p * lc q = 0" by simp
   moreover from assms(1) have "lc p \<noteq> 0" by (rule lc_not_0)
   moreover from assms(2) have "lc q \<noteq> 0" by (rule lc_not_0)

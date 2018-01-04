@@ -1,5 +1,5 @@
 theory Number_Classes
-imports "Polynomials.Power_Products"
+imports Polynomials.Power_Products
 begin
 
 subsection \<open>Class @{term div_semiring}\<close>

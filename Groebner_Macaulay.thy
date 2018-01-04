@@ -1,8 +1,6 @@
-theory Macaulay_Groebner
+theory Groebner_Macaulay
   imports Power_Products_Fun Reduced_GB Jordan_Normal_Form.Gauss_Jordan_Elimination
 begin
-
-(* TODO: Maybe it is possible to replace 'row_space' by 'module.span', importing "Jordan_Normal_Form.VS_Connect". *)
 
 (* TODO: Pull "fun_powerprod" and "finite_nat" out, since they are also defined in "Binom_Mult.thy"
   and "Membership_Bound_Binomials.thy", respectively.
@@ -533,7 +531,6 @@ qed
 
 lemma pps_to_list_sorted_wrt: "sorted_wrt (op \<preceq>\<inverse>\<inverse>) (pps_to_list S)"
 proof -
-  have "transp (op \<preceq>)" by simp
   have *: "(\<lambda>x y. op \<preceq>\<inverse>\<inverse> y x) = (op \<preceq>)" by simp
   show ?thesis
     by (simp only: pps_to_list_def sorted_wrt_rev * ordered_powerprod_lin.sorted_iff_wrt[symmetric],
@@ -1543,7 +1540,25 @@ proof -
   qed fact
 qed
 
-end (* od_powerprod *)
+subsection \<open>Bounds\<close>
+
+definition is_cofactor_bound :: "('a, 'b::semiring_0) poly_mapping set \<Rightarrow> nat \<Rightarrow> bool"
+  where "is_cofactor_bound F d \<longleftrightarrow> (\<forall>p\<in>pideal F. \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> deg (q f) \<le> deg p + d))"
+
+definition is_GB_bound :: "('a, 'b::field) poly_mapping set \<Rightarrow> nat \<Rightarrow> bool"
+  where "is_GB_bound F d \<longleftrightarrow> (\<forall>g\<in>reduced_GB F. deg g \<le> d)"
+
+theorem Hermann_bound:
+  assumes "finite F"
+  shows "is_cofactor_bound F (\<Sum>j=0..<card (UNIV::'a set). (card F * maxdeg F)^(2^j))"
+  sorry
+
+theorem Dube_bound:
+  assumes "finite F"
+  shows "is_GB_bound F (2 * ((maxdeg F)^2 / 2 + maxdeg F)^(2^(card (UNIV::'a set))))"
+  sorry
+
+end (* gd_powerprod *)
 
 (*
 subsection \<open>Fixing a Finite, Non-empty Set of Polynomials\<close>

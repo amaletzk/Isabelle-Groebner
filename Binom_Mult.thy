@@ -65,7 +65,7 @@ begin
   
 subsubsection \<open>associated\<close>
 
-definition associated :: "(('n \<Rightarrow> nat, 'b::zero) poly_mapping) \<Rightarrow> ('n \<Rightarrow> nat) \<Rightarrow> ('n \<Rightarrow> nat) \<Rightarrow> nat \<Rightarrow> bool"
+definition associated :: "(('n \<Rightarrow> nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> ('n \<Rightarrow> nat) \<Rightarrow> ('n \<Rightarrow> nat) \<Rightarrow> nat \<Rightarrow> bool"
   where "associated q s t k \<longleftrightarrow> (\<forall>x. t x + k * lp q x = s x + k * tp q x)"
 
 lemma associatedI:
@@ -349,7 +349,7 @@ next
   hence "t + lp q \<preceq> s + tp q" by (rule ind(1))
   also have "... \<preceq> s + lp q"
   proof -
-    from lp_geq_tp[of q] have "tp q + s \<preceq> lp q + s" by (rule plus_monotone)
+    from lp_ge_tp[of q] have "tp q + s \<preceq> lp q + s" by (rule plus_monotone)
     thus ?thesis by (simp add: ac_simps)
   qed
   finally show ?case by (rule ord_canc)
@@ -910,7 +910,7 @@ lemma associated_poly_associated_lp_tp:
   shows "associated p (lp q) (tp q) (card (keys q) - 1)"
 proof -
   from assms(1) have 1: "lp q \<in> keys q" and 2: "tp q \<in> keys q" by (rule lp_in_keys, rule tp_in_keys)
-  have 3: "tp q \<preceq> lp q" by (rule lp_geq_tp)
+  have 3: "tp q \<preceq> lp q" by (rule lp_ge_tp)
   have eq: "card (keys q) - 1 = card {u\<in>(keys q). u \<prec> lp q \<and> tp q \<preceq> u}" (is "?l = card ?r")
   proof -
     have "?r = keys q - {lp q}"
@@ -1148,7 +1148,7 @@ next
     finally have tail_m: "tail ?m = monomial (lc q * tc p) (lp q + tp p)" .
     from \<open>tail q \<noteq> 0\<close> \<open>p \<noteq> 0\<close> have lp_r: "lp ?r = lp (tail q) + lp p" and tp_r: "tp ?r = tp q + tp p"
       by (rule lp_times, simp add: tp_times tp_tail_q)
-    from tc_tail[OF \<open>tail q \<noteq> 0\<close>] have tc_r: "tc ?r = tc q * tc p" by (simp add: tc_times_poly_mapping')
+    from tc_tail[OF \<open>tail q \<noteq> 0\<close>] have tc_r: "tc ?r = tc q * tc p" by (simp add: tc_times_poly_mapping)
     from step(3) have "keys (?m + ?r) = {lp ?m, tp ?r}"
       by (simp only: times_tail_rec_left[of q] tp_tail_times lp_mult[OF \<open>lc q \<noteq> 0\<close> \<open>p \<noteq> 0\<close>])
     hence "tail ?m + higher ?r (tp ?r) = 0"
@@ -1187,7 +1187,7 @@ next
     from lp_r obd have lp_tp: "lp q + tp p = lp (tail q) + lp p" by (simp only: r_eq lp_binomial)
     show ?thesis
     proof (rule associated_poly_recI, fact False, simp only: associated_1 lp_tp)
-      from lc_times_poly_mapping'[of "tail q" p] obd c show "lc q * tc p + lc (tail q) * lc p = 0"
+      from lc_times_poly_mapping[of "tail q" p] obd c show "lc q * tc p + lc (tail q) * lc p = 0"
         by (simp only: r_eq lc_binomial)
     next
       show "associated_poly p (tail q)"
@@ -1421,7 +1421,7 @@ proof (induct q arbitrary: thesis v rule: poly_mapping_except_induct')
     from this(1) have keys_q': "keys ?q' = {v} \<union> keys q'" unfolding keys_m[symmetric] by (rule keys_plus_eqI)
     have tp_q': "tp ?q' = tp q'"
     proof (simp only: add.commute, rule tp_plus_eqI, fact, simp only: tp_m)
-      have "tp q' \<preceq> lp q'" by (rule lp_geq_tp)
+      have "tp q' \<preceq> lp q'" by (rule lp_ge_tp)
       also from \<open>v' \<prec> v\<close> have "... \<prec> v" by (simp only: \<open>lp q' = v'\<close>)
       finally show "tp q' \<prec> v" .
     qed
@@ -1546,7 +1546,7 @@ next
     have "q' \<sqsubseteq> q" by (rule subpoly_trans, fact, rule except_subpoly)
     note \<open>v \<prec> v'\<close>
     also have "v' = tp q'" by (simp only: \<open>tp q' = v'\<close>)
-    also have "... \<preceq> lp q'" by (rule lp_geq_tp)
+    also have "... \<preceq> lp q'" by (rule lp_ge_tp)
     finally have "v \<prec> lp q'" .
     have "?q' \<noteq> 0"
     proof
@@ -1619,7 +1619,7 @@ next
         next
           assume "lp q' + lp p = ?t"
           from \<open>v \<prec> lp q'\<close> have "?t \<prec> lp q' + tp p" by (rule plus_monotone_strict)
-          also have "... \<preceq> lp q' + lp p" by (rule plus_monotone_left, rule lp_geq_tp)
+          also have "... \<preceq> lp q' + lp p" by (rule plus_monotone_left, rule lp_ge_tp)
           finally show False by (simp add: \<open>lp q' + lp p = ?t\<close>)
         qed
       qed
