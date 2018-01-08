@@ -169,6 +169,12 @@ proof (rule poly_mapping_eqI)
   with assms(2) show "lookup p1 s = lookup p2 s" by simp
 qed
 
+lemma lookup_monom_mult': "lookup (monom_mult c t p) s = (if t adds s then c * lookup p (s - t) else 0)"
+  by (transfer, rule refl)
+
+lemma lookup_monom_mult_right': "lookup (monom_mult_right p c t) s = (if t adds s then lookup p (s - t) * c else 0)"
+  by (transfer, rule refl)
+
 subsection \<open>Sub-Polynomials\<close>
 
 definition subpoly :: "('a, 'b) poly_mapping \<Rightarrow> ('a, 'b::zero) poly_mapping \<Rightarrow> bool" (infixl "\<sqsubseteq>" 50)

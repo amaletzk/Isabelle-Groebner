@@ -1,17 +1,6 @@
 theory Groebner_Macaulay
-  imports Power_Products_Fun Reduced_GB Jordan_Normal_Form.Gauss_Jordan_Elimination
+  imports Power_Products_PM Reduced_GB Jordan_Normal_Form.Gauss_Jordan_Elimination
 begin
-
-(* TODO: Pull "fun_powerprod" and "finite_nat" out, since they are also defined in "Binom_Mult.thy"
-  and "Membership_Bound_Binomials.thy", respectively.
-  Maybe it's even possible to replace "finite_nat" by some type class also used in "Gauss_Jordan". *)
-locale fun_powerprod =
-  ordered_powerprod ord ord_strict
-  for ord::"('n \<Rightarrow> nat) \<Rightarrow> ('n \<Rightarrow> nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)
-  and ord_strict (infixl "\<prec>" 50)
-
-class finite_nat = finite + linorder + zero +
-  assumes zero_min: "0 \<le> n"
 
 text \<open>We build upon vectors and matrices represented by dimension and characteristic function, because
   later on we need to quantify the dimensions of certain matrices existentially. This is not possible
@@ -66,8 +55,8 @@ lemma scalar_prod_comm:
   shows "v \<bullet> w = w \<bullet> (v::'a::comm_semiring_0 vec)"
   by (simp add: scalar_prod_def assms, rule sum.cong, rule refl, simp only: ac_simps)
 
-lemma vec_scalar_mult_fun: "vec n (c \<cdot> f) = c \<cdot>\<^sub>v vec n f"
-  by (simp add: scalar_mult_fun_def smult_vec_def, rule vec_cong, rule refl, simp)
+lemma vec_scalar_mult_fun: "vec n (\<lambda>x. c * f x) = c \<cdot>\<^sub>v vec n f"
+  by (simp add: smult_vec_def, rule vec_cong, rule refl, simp)
 
 definition mult_vec_mat :: "'a vec \<Rightarrow> 'a :: semiring_0 mat \<Rightarrow> 'a vec" (infixl "\<^sub>v*" 70)
   where "v \<^sub>v* A \<equiv> vec (dim_col A) (\<lambda>j. v \<bullet> col A j)"
@@ -893,8 +882,7 @@ proof (simp add: mult_vec_mat_def scalar_prod_def row_to_poly_vec_sum[OF assms],
   have "dim_vec (row A i) = length ts" by (simp add: assms(2))
   have *: "vec (dim_col A) (\<lambda>j. col A j $ i) = vec (dim_col A) (\<lambda>j. A $$ (i, j))"
     by (rule vec_cong, rule refl, simp add: \<open>i < dim_row A\<close>)
-  have "(\<lambda>j. v $ i * col A j $ i) = v $ i \<cdot> (\<lambda>j. col A j $ i)" by (simp add: scalar_mult_fun_def)
-  hence "vec (dim_col A) (\<lambda>j. v $ i * col A j $ i) = v $ i \<cdot>\<^sub>v vec (dim_col A) (\<lambda>j. col A j $ i)"
+  have "vec (dim_col A) (\<lambda>j. v $ i * col A j $ i) = v $ i \<cdot>\<^sub>v vec (dim_col A) (\<lambda>j. col A j $ i)"
     by (simp only: vec_scalar_mult_fun)
   also have "... = v $ i \<cdot>\<^sub>v (row A i)" by (simp only: * row_def[symmetric])
   finally show "row_to_poly ts (vec (dim_col A) (\<lambda>j. v $ i * col A j $ i)) =
@@ -1210,14 +1198,14 @@ qed
 
 subsection \<open>Gr\"obner Bases\<close>
 
-definition Macaulay_mat :: "('a, 'b) poly_mapping list \<Rightarrow> 'b::field mat"
+definition Macaulay_mat :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> 'b::field mat"
   where "Macaulay_mat ps = polys_to_mat (pps_to_list (Supp (set ps))) ps"
 
-definition Macaulay_list :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::field) poly_mapping list"
+definition Macaulay_list :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
   where "Macaulay_list ps =
      filter (\<lambda>p. p \<noteq> 0) (mat_to_polys (pps_to_list (Supp (set ps))) (row_echelon (Macaulay_mat ps)))"
 
-definition reduced_Macaulay_list :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::field) poly_mapping list"
+definition reduced_Macaulay_list :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
   where "reduced_Macaulay_list ps = comp_min_basis_aux (Macaulay_list ps) []"
 
 text \<open>It is important to note that in @{const reduced_Macaulay_list} there is no need to remove
@@ -1540,49 +1528,115 @@ proof -
   qed fact
 qed
 
+end (* gd_powerprod *)
+
 subsection \<open>Bounds\<close>
 
-definition is_cofactor_bound :: "('a, 'b::semiring_0) poly_mapping set \<Rightarrow> nat \<Rightarrow> bool"
-  where "is_cofactor_bound F d \<longleftrightarrow> (\<forall>p\<in>pideal F. \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> deg (q f) \<le> deg p + d))"
+context pm_powerprod
+begin
 
-definition is_GB_bound :: "('a, 'b::field) poly_mapping set \<Rightarrow> nat \<Rightarrow> bool"
-  where "is_GB_bound F d \<longleftrightarrow> (\<forall>g\<in>reduced_GB F. deg g \<le> d)"
+definition varnum_p :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> nat"
+  where "varnum_p p = (if keys p = {} then 0 else Max (varnum ` keys p))"
+
+definition Polys :: "nat \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) set"
+  where "Polys n = dgrad_p_set varnum n"
+
+definition deg_set :: "nat \<Rightarrow> nat \<Rightarrow> ('n \<Rightarrow>\<^sub>0 nat) set"
+  where "deg_set n d = {t. varnum t \<le> n \<and> deg_pm t \<le> d}"
+
+definition deg_shifts :: "nat \<Rightarrow> nat \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_1) list"
+  where "deg_shifts n d fs = concat (map (\<lambda>f. (map (\<lambda>t. monom_mult 1 t f) (pps_to_list (deg_set n d)))) fs)"
+
+lemma finite_deg_set: "finite (deg_set n d)"
+  sorry
+
+lemma zero_in_deg_set: "0 \<in> deg_set n d"
+  sorry
+
+lemma set_deg_shifts: "set (deg_shifts n d fs) = (\<Union>t\<in>deg_set n d. monom_mult 1 t ` set fs)"
+  sorry
+
+lemma deg_shifts_superset: "set fs \<subseteq> set (deg_shifts n d fs)"
+  sorry
+
+lemma deg_shifts_mono:
+  assumes "set fs \<subseteq> set gs"
+  shows "set (deg_shifts n d fs) \<subseteq> set (deg_shifts n d gs)"
+  sorry
+
+lemma pideal_deg_shifts [simp]: "pideal (set (deg_shifts n d fs)) = pideal (set fs)"
+  sorry
+
+definition is_cofactor_bound :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_0) set \<Rightarrow> nat \<Rightarrow> bool"
+  where "is_cofactor_bound F b \<longleftrightarrow> (\<forall>p\<in>pideal F. \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg p + b))"
+
+definition is_GB_bound :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::field) set \<Rightarrow> nat \<Rightarrow> bool"
+  where "is_GB_bound F b \<longleftrightarrow> (\<forall>g\<in>reduced_GB F. poly_deg g \<le> b)"
+
+(* TODO: Prove membership of elements of reduced GB individually; then thm_2_3_7 follows as a mere corollary. *)
+theorem thm_2_3_6:
+  assumes "set fs \<subseteq> Polys n" and "is_cofactor_bound (set fs) b1" and "is_GB_bound (set fs) b2"
+  shows "set (reduced_Macaulay_list (deg_shifts n (b1 + b2) fs)) = reduced_GB (set fs)"
+proof (rule reduced_Macaulay_list_is_reduced_GB)
+  let ?H = "phull (set (deg_shifts n (b1 + b2) fs))"
+  show "reduced_GB (set fs) \<subseteq> ?H"
+  proof
+    fix g
+    assume "g \<in> reduced_GB (set fs)"
+    hence "g \<in> pideal (reduced_GB (set fs))" by (rule generator_in_pideal)
+    hence "g \<in> pideal (set fs)" by (simp add: reduced_GB_pideal)
+    then obtain q where g: "g = (\<Sum>f\<in>(set fs). q f * f)"
+      and 1: "\<forall>f\<in>set fs. q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg g + b1" sorry
+    have *: "f \<in> set fs \<Longrightarrow> q f * f \<in> ?H" for f
+    proof -
+      assume "f \<in> set fs"
+      with 1 have 2: "q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg g + b1" ..
+      show "q f * f \<in> ?H"
+      proof (cases "f = 0 \<or> q f = 0")
+        case True
+        thus ?thesis by (auto simp add: zero_in_phull)
+      next
+        case False
+        hence "f \<noteq> 0" and "q f \<noteq> 0" by simp_all
+        from 2 this(2) have "poly_deg (q f) \<le> poly_deg g + b1" ..
+        moreover have "poly_deg g \<le> b2" sorry
+        ultimately have "poly_deg (q f) \<le> b1 + b2" by simp
+        hence "keys (q f) \<subseteq> deg_set n (b1 + b2)" sorry
+        with finite_deg_set have "q f * f = (\<Sum>t\<in>deg_set n (b1 + b2). monom_mult (lookup (q f) t) t f)"
+          unfolding times_sum_monomials
+        proof (rule sum.mono_neutral_left)
+          show "\<forall>t\<in>deg_set n (b1 + b2) - keys (q f). monom_mult (lookup (q f) t) t f = 0" sorry
+        qed
+        thm sum.reindex
+        also have "... = (\<Sum>t\<in>deg_set n (b1 + b2). monom_mult (lookup (q f) t) 0 (monom_mult 1 t f))" sorry
+        also have "... = (\<Sum>f0\<in>set (deg_shifts n (b1 + b2) [f]). monom_mult (lookup (q f) (lp f0 - lp f)) 0 f0)" sorry
+        finally have "q f * f \<in> phull (set (deg_shifts n (b1 + b2) [f]))" by (simp add: sum_in_phullI)
+        thus ?thesis
+        proof
+          show "phull (set (deg_shifts n (b1 + b2) [f])) \<subseteq> ?H"
+            by (rule phull_mono, rule deg_shifts_mono, simp add: \<open>f \<in> set fs\<close>)
+        qed
+      qed
+    qed
+    show "g \<in> ?H" unfolding g sorry
+  qed
+qed simp_all
+
+theorem thm_2_3_7:
+  assumes "set fs \<subseteq> Polys n" and "is_cofactor_bound (set fs) b"
+  shows "monomial 1 0 \<in> pideal (set fs) \<longleftrightarrow> monomial 1 0 \<in> set (Macaulay_list (deg_shifts n b fs))"
+  sorry
 
 theorem Hermann_bound:
-  assumes "finite F"
-  shows "is_cofactor_bound F (\<Sum>j=0..<card (UNIV::'a set). (card F * maxdeg F)^(2^j))"
+  assumes "finite F" and "F \<subseteq> Polys n"
+  shows "is_cofactor_bound F (\<Sum>j=0..<n. (card F * maxdeg F)^(2^j))"
   sorry
 
 theorem Dube_bound:
-  assumes "finite F"
-  shows "is_GB_bound F (2 * ((maxdeg F)^2 / 2 + maxdeg F)^(2^(card (UNIV::'a set))))"
+  assumes "finite F" and "F \<subseteq> Polys n"
+  shows "is_GB_bound F (2 * ((maxdeg F)^2 div 2 + maxdeg F)^(2^(n - 1)))"
   sorry
 
-end (* gd_powerprod *)
-
-(*
-subsection \<open>Fixing a Finite, Non-empty Set of Polynomials\<close>
-
-locale poly_set = fun_powerprod ord ord_strict
-  for ord::"('n \<Rightarrow> nat) \<Rightarrow> ('n::finite_nat \<Rightarrow> nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)
-  and ord_strict (infixl "\<prec>" 50) +
-  (* The reason why we have to name the order relations again is that otherwise we cannot call the
-    type variables 'n and 'b. *)
-  fixes F :: "('n \<Rightarrow> nat, 'b::field) poly_mapping set"
-  assumes fin: "finite F"
-  assumes nz: "\<exists>f\<in>F. f \<noteq> 0"
-begin
-
-sublocale od_powerprod ..
-
-lemma non_empty: "F \<noteq> {}"
-proof
-  assume "F = {}"
-  from nz obtain f where "f \<in> F" ..
-  with \<open>F = {}\<close> show False by simp
-qed
-
-end (* poly_set *)
-*)
+end (* pm_powerprod *)
 
 end (* theory *)

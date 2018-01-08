@@ -1,7 +1,7 @@
 section \<open>Multiplication by Binomials\<close>
 
 theory Binom_Mult
-  imports Power_Products_Fun Poly_Utils
+  imports Power_Products_PM Poly_Utils
 begin
 
 context ordered_powerprod
@@ -57,41 +57,56 @@ qed
 
 end (* ordered_powerprod *)
 
-locale fun_powerprod =
-  ordered_powerprod ord ord_strict
-  for ord::"('n \<Rightarrow> nat) \<Rightarrow> ('n \<Rightarrow> nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)
-  and ord_strict (infixl "\<prec>" 50)
+context pm_powerprod
 begin
   
 subsubsection \<open>associated\<close>
 
-definition associated :: "(('n \<Rightarrow> nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> ('n \<Rightarrow> nat) \<Rightarrow> ('n \<Rightarrow> nat) \<Rightarrow> nat \<Rightarrow> bool"
-  where "associated q s t k \<longleftrightarrow> (\<forall>x. t x + k * lp q x = s x + k * tp q x)"
+definition associated :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> ('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow> nat \<Rightarrow> bool"
+  where "associated q s t k \<longleftrightarrow> (t + k \<cdot> (lp q) = s + k \<cdot> (tp q))"
 
 lemma associatedI:
-  assumes "\<And>x. t x + k * lp q x = s x + k * tp q x"
+  assumes "t + k \<cdot> (lp q) = s + k \<cdot> (tp q)"
   shows "associated q s t k"
-  unfolding associated_def using assms ..
+  unfolding associated_def using assms .
+
+lemma associatedI_lookup:
+  assumes "\<And>x. lookup t x + k * lookup (lp q) x = lookup s x + k * lookup (tp q) x"
+  shows "associated q s t k"
+  by (intro associatedI poly_mapping_eqI, simp add: lookup_add, fact)
 
 lemma associatedD:
   assumes "associated q s t k"
-  shows "t x + k * lp q x = s x + k * tp q x"
-  using assms unfolding associated_def ..
+  shows "t + k \<cdot> (lp q) = s + k \<cdot> (tp q)"
+  using assms unfolding associated_def .
+
+lemma associatedD_lookup:
+  assumes "associated q s t k"
+  shows "lookup t x + k * lookup (lp q) x = lookup s x + k * lookup (tp q) x"
+proof -
+  from assms have "t + k \<cdot> lp q = s + k \<cdot> tp q" by (rule associatedD)
+  hence "lookup (t + k \<cdot> (lp q)) x = lookup (s + k \<cdot> tp q) x" by simp
+  thus ?thesis by (simp add: lookup_add)
+qed
 
 lemma associated_0: "associated q s t 0 \<longleftrightarrow> (s = t)"
-  by (auto simp add: associated_def)
+  by (auto simp add: associated_def poly_mapping_eq_iff)
 
 lemma associated_1: "associated q s t 1 \<longleftrightarrow> (s + tp q = t + lp q)"
-  by (simp add: associated_def plus_fun_def, metis)
+  by (simp only: associated_def scalar_one_left, auto)
 
 lemma associated_Suc: "associated q s t (Suc k) \<longleftrightarrow> associated q (s + tp q) (t + lp q) k"
-  by (simp add: associated_def ac_simps)
+  by (simp add: associated_def scalar_Suc ac_simps)
 
 lemma associated_canc_left: "associated q (u + s) (u + t) k \<longleftrightarrow> associated q s t k"
-  by (simp add: associated_def ac_simps)
+proof -
+  have "u + t + k \<cdot> lp q = u + (t + k \<cdot> lp q)" by (simp add: ac_simps)
+  moreover have "u + s + k \<cdot> tp q = u + (s + k \<cdot> tp q)" by (simp add: ac_simps)
+  ultimately show ?thesis by (simp add: associated_def scalar_distrib_right)
+qed
 
 lemma associated_canc_right: "associated q (s + u) (t + u) k \<longleftrightarrow> associated q s t k"
-  by (simp add: associated_def ac_simps)
+  by (simp only: add.commute[of _ u] associated_canc_left)
 
 lemma associated_1_plus_tp:
   assumes "associated q s (u + tp q) 1"
@@ -111,55 +126,55 @@ lemma associated_trans:
   assumes "associated q s t k" and "associated q u s m"
   shows "associated q u t (k + m)"
 proof (rule associatedI)
-  fix x
-  from assms(1) have "t x + k * lp q x = s x + k * tp q x" by (rule associatedD)
-  moreover from assms(2) have "s x + m * lp q x = u x + m * tp q x" by (rule associatedD)
-  ultimately show "t x + (k + m) * lp q x = u x + (k + m) * tp q x"
-    using add_mult_distrib by auto
+  from assms(1) have "t + k \<cdot> (lp q) = s + k \<cdot> (tp q)"
+    by (rule associatedD)
+  moreover from assms(2) have "s + m \<cdot> (lp q) = u + m \<cdot> (tp q)"
+    by (rule associatedD)
+  ultimately show "t + (k + m) \<cdot> (lp q) = u + (k + m) \<cdot> (tp q)"
+    by (simp only: scalar_distrib_right, metis (no_types, lifting) add.assoc add.commute)
 qed
 
 lemma associated_trans_rev:
   assumes "associated q s t (k + m)"
   obtains u where "associated q u t k" and "associated q s u m"
 proof -
-  from assms have a: "(\<And>x. t x + (k + m) * lp q x = s x + (k + m) * tp q x)" by (simp add: associated_def)
-  have ge: "\<And>x. k * tp q x \<le> t x + k * lp q x"
-  proof -
+  let ?lp = "lookup (lp q)"
+  let ?tp = "lookup (tp q)"
+  have adds: "k \<cdot> (tp q) adds (t + k \<cdot> (lp q))"
+  proof (rule adds_poly_mappingI, rule le_funI, simp add: lookup_add)
     fix x
-    show "k * tp q x \<le> t x + k * lp q x"
-    proof (cases "tp q x \<le> lp q x")
+    show "k * ?tp x \<le> lookup t x + k * ?lp x"
+    proof (cases "?tp x \<le> ?lp x")
       case True
-      hence "k * tp q x \<le> k * lp q x" by simp
+      hence "k * ?tp x \<le> k * ?lp x" by simp
       thus ?thesis by linarith
     next
       case False
-      hence "lp q x \<le> tp q x" by simp
-      hence "m * lp q x \<le> m * tp q x" by simp
-      hence "t x + (k + m) * lp q x \<le> t x + k * lp q x + m * tp q x" by (simp add: algebra_simps)
-      with a[of x] have "s x + k * tp q x + m * tp q x \<le> t x + k * lp q x + m * tp q x"
+      hence "?lp x \<le> ?tp x" by simp
+      hence "m * ?lp x \<le> m * ?tp x" by simp
+      hence "lookup t x + (k + m) * ?lp x \<le> lookup t x + k * ?lp x + m * ?tp x"
         by (simp add: algebra_simps)
-      hence "s x + k * tp q x \<le> t x + k * lp q x" by simp
+      with associatedD_lookup[OF assms] have "lookup s x + k * ?tp x + m * ?tp x \<le> lookup t x + k * ?lp x + m * ?tp x"
+        by (simp add: algebra_simps)
+      hence "lookup s x + k * ?tp x \<le> lookup t x + k * ?lp x" by simp
       thus ?thesis by linarith
     qed
   qed
-  let ?u = "\<lambda>x. (t x + k * lp q x) - k * tp q x"
+  let ?u = "(t + k \<cdot> (lp q)) - k \<cdot> (tp q)"
   show ?thesis
   proof
-    show "associated q ?u t k" unfolding associated_def
-    proof
-      fix x
-      from ge[of x] have "((t x + k * lp q x) - k * tp q x) + k * tp q x = t x + k * lp q x" by simp
-      thus "t x + k * lp q x = ?u x + k * tp q x" by simp
+    show "associated q ?u t k"
+    proof (rule associatedI)
+      from adds show "t + k \<cdot> lp q = t + k \<cdot> lp q - k \<cdot> tp q + k \<cdot> tp q" by (simp add: adds_minus)
     qed
   next
-    show "associated q s ?u m" unfolding associated_def
-    proof
-      fix x
-      from ge[of x] have "?u x + m * lp q x = t x + (k + m) * lp q x - k * tp q x"
-        by (simp add: algebra_simps)
-      also from a[of x] have "... = (s x + m * tp q x + k * tp q x) - k * tp q x"
-        by (simp add: algebra_simps)
-      finally show "?u x + m * lp q x = s x + m * tp q x" by simp
+    show "associated q s ?u m"
+    proof (rule associatedI)
+      have "?u + m \<cdot> lp q = t + (k + m) \<cdot> lp q - k \<cdot> tp q"
+        by (simp add: add.assoc adds minus_plus scalar_distrib_right)
+      also from associatedD[OF assms] have "... = (s + m \<cdot> tp q + k \<cdot> tp q) - k \<cdot> tp q"
+        by (simp add: scalar_distrib_right ac_simps)
+      finally show "?u + m \<cdot> lp q = s + m \<cdot> tp q" by simp
     qed
   qed
 qed
@@ -167,72 +182,75 @@ qed
 lemma associated_inj_1:
   assumes "associated q s1 t k" and "associated q s2 t k"
   shows "s1 = s2"
-proof
-  fix x
-  from assms(1) have "t x + k * lp q x = s1 x + k * tp q x" by (rule associatedD)
-  moreover from assms(2) have "t x + k * lp q x = s2 x + k * tp q x" by (rule associatedD)
-  ultimately show "s1 x = s2 x" by simp
+proof -
+  from assms(1) have "t + k \<cdot> lp q = s1 + k \<cdot> tp q" by (rule associatedD)
+  moreover from assms(2) have "t + k \<cdot> lp q = s2 + k \<cdot> tp q" by (rule associatedD)
+  ultimately show ?thesis by simp
 qed
 
 lemma associated_inj_2:
   assumes "associated q s t1 k" and "associated q s t2 k"
   shows "t1 = t2"
-proof
-  fix x
-  from assms(1) have "t1 x + k * lp q x = s x + k * tp q x" by (rule associatedD)
-  moreover from assms(2) have "t2 x + k * lp q x = s x + k * tp q x" by (rule associatedD)
-  ultimately show "t1 x = t2 x" by simp
+proof -
+  from assms(1) have "t1 + k \<cdot> lp q = s + k \<cdot> tp q" by (rule associatedD)
+  moreover from assms(2) have "t2 + k \<cdot> lp q = s + k \<cdot> tp q" by (rule associatedD)
+  ultimately show ?thesis by (metis add_right_cancel)
 qed
 
 lemma associated_inj_3:
   assumes "\<not> has_bounded_keys 1 q" and "associated q s t k1" and "associated q s t k2"
   shows "k1 = k2"
 proof -
+  let ?lp = "lookup (lp q)"
+  let ?tp = "lookup (tp q)"
   from assms(1) have "lp q \<noteq> tp q" by (simp add: lp_eq_tp_iff)
-  then obtain x where "lp q x \<noteq> tp q x" by auto
-  from assms(2) have 1: "t x + k1 * lp q x = s x + k1 * tp q x" by (rule associatedD)
-  from assms(3) have 2: "t x + k2 * lp q x = s x + k2 * tp q x" by (rule associatedD)
+  hence "?lp \<noteq> ?tp" by (simp add: lookup_inject)
+  then obtain x where "?lp x \<noteq> ?tp x" by auto
+  from assms(2) have 1: "lookup t x + k1 * ?lp x = lookup s x + k1 * ?tp x" by (rule associatedD_lookup)
+  from assms(3) have 2: "lookup t x + k2 * ?lp x = lookup s x + k2 * ?tp x" by (rule associatedD_lookup)
   show ?thesis
   proof (rule linorder_cases)
-    from 1 have "t x - s x = k1 * (tp q x - lp q x)" by (simp add: diff_mult_distrib2)
-    moreover from 2 have "t x - s x = k2 * (tp q x - lp q x)" by (simp add: diff_mult_distrib2)
-    ultimately have eq: "k1 * (tp q x - lp q x) = k2 * (tp q x - lp q x)" by (simp only:)
-    assume c2: "lp q x < tp q x"
-    hence "0 < tp q x - lp q x" by simp
+    from 1 have "lookup t x - lookup s x = k1 * (?tp x - ?lp x)" by (simp add: diff_mult_distrib2)
+    moreover from 2 have "lookup t x - lookup s x = k2 * (?tp x - ?lp x)" by (simp add: diff_mult_distrib2)
+    ultimately have eq: "k1 * (?tp x - ?lp x) = k2 * (?tp x - ?lp x)" by (simp only:)
+    assume c2: "?lp x < ?tp x"
+    hence "0 < ?tp x - ?lp x" by simp
     with eq show ?thesis by simp
   next
-    from 1 have "s x - t x = k1 * (lp q x - tp q x)" by (simp add: diff_mult_distrib2)
-    moreover from 2 have "s x - t x = k2 * (lp q x - tp q x)" by (simp add: diff_mult_distrib2)
-    ultimately have eq: "k1 * (lp q x - tp q x) = k2 * (lp q x - tp q x)" by (simp only:)
-    assume c1: "tp q x < lp q x"
-    hence "0 < lp q x - tp q x" by simp
+    from 1 have "lookup s x - lookup t x = k1 * (?lp x - ?tp x)" by (simp add: diff_mult_distrib2)
+    moreover from 2 have "lookup s x - lookup t x = k2 * (?lp x - ?tp x)" by (simp add: diff_mult_distrib2)
+    ultimately have eq: "k1 * (?lp x - ?tp x) = k2 * (?lp x - ?tp x)" by (simp only:)
+    assume c1: "?tp x < ?lp x"
+    hence "0 < ?lp x - ?tp x" by simp
     with eq show ?thesis by simp
   next
-    assume c3: "lp q x = tp q x"
-    with \<open>lp q x \<noteq> tp q x\<close> show ?thesis ..
+    assume c3: "?lp x = ?tp x"
+    with \<open>?lp x \<noteq> ?tp x\<close> show ?thesis ..
   qed
 qed
 
 lemma associated_lp_adds_between:
   assumes "associated q s u m" and "associated q u t k" and "lp q adds s" and "lp q adds t"
   shows "lp q adds u"
-proof (simp only: adds_fun le_fun_def, rule)
+proof (simp only: adds_poly_mapping le_fun_def, rule)
+  let ?lp = "lookup (lp q)"
+  let ?tp = "lookup (tp q)"
   fix x
-  from assms(3) have "lp q x \<le> s x" by (simp add: adds_fun le_fun_def)
-  from assms(4) have "lp q x \<le> t x" by (simp add: adds_fun le_fun_def)
-  from assms(1) have a: "u x + m * lp q x = s x + m * tp q x" by (rule associatedD)
-  from assms(2) have b: "t x + k * lp q x = u x + k * tp q x" by (rule associatedD)
-  show "lp q x \<le> u x"
-  proof (cases "tp q x \<le> lp q x")
+  from assms(3) have "?lp x \<le> lookup s x" by (simp add: adds_poly_mapping le_fun_def)
+  from assms(4) have "?lp x \<le> lookup t x" by (simp add: adds_poly_mapping le_fun_def)
+  from assms(1) have a: "lookup u x + m * ?lp x = lookup s x + m * ?tp x" by (rule associatedD_lookup)
+  from assms(2) have b: "lookup t x + k * ?lp x = lookup u x + k * ?tp x" by (rule associatedD_lookup)
+  show "?lp x \<le> lookup u x"
+  proof (cases "?tp x \<le> ?lp x")
     case True
-    hence "k * tp q x \<le> k * lp q x" by simp
-    with b have "t x \<le> u x" by linarith
-    with \<open>lp q x \<le> t x\<close> show ?thesis by simp
+    hence "k * ?tp x \<le> k * ?lp x" by simp
+    with b have "lookup t x \<le> lookup u x" by linarith
+    with \<open>?lp x \<le> lookup t x\<close> show ?thesis by simp
   next
     case False
-    hence "m * lp q x \<le> m * tp q x" by simp
-    with a have "s x \<le> u x" by linarith
-    with \<open>lp q x \<le> s x\<close> show ?thesis by simp
+    hence "m * ?lp x \<le> m * ?tp x" by simp
+    with a have "lookup s x \<le> lookup u x" by linarith
+    with \<open>?lp x \<le> lookup s x\<close> show ?thesis by simp
   qed
 qed
   
@@ -267,23 +285,25 @@ qed
 lemma associated_tp_adds_between:
   assumes "associated q s u m" and "associated q u t k" and "tp q adds s" and "tp q adds t"
   shows "tp q adds u"
-proof (simp only: adds_fun le_fun_def, rule)
+proof (simp only: adds_poly_mapping le_fun_def, rule)
+  let ?lp = "lookup (lp q)"
+  let ?tp = "lookup (tp q)"
   fix x
-  from assms(3) have "tp q x \<le> s x" by (simp add: adds_fun le_fun_def)
-  from assms(4) have "tp q x \<le> t x" by (simp add: adds_fun le_fun_def)
-  from assms(1) have a: "u x + m * lp q x = s x + m * tp q x" by (rule associatedD)
-  from assms(2) have b: "t x + k * lp q x = u x + k * tp q x" by (rule associatedD)
-  show "tp q x \<le> u x"
-  proof (cases "tp q x \<le> lp q x")
+  from assms(3) have "?tp x \<le> lookup s x" by (simp add: adds_poly_mapping le_fun_def)
+  from assms(4) have "?tp x \<le> lookup t x" by (simp add: adds_poly_mapping le_fun_def)
+  from assms(1) have a: "lookup u x + m * ?lp x = lookup s x + m * ?tp x" by (rule associatedD_lookup)
+  from assms(2) have b: "lookup t x + k * ?lp x = lookup u x + k * ?tp x" by (rule associatedD_lookup)
+  show "?tp x \<le> lookup u x"
+  proof (cases "?tp x \<le> ?lp x")
     case True
-    hence "k * tp q x \<le> k * lp q x" by simp
-    with b have "t x \<le> u x" by linarith
-    with \<open>tp q x \<le> t x\<close> show ?thesis by simp
+    hence "k * ?tp x \<le> k * ?lp x" by simp
+    with b have "lookup t x \<le> lookup u x" by linarith
+    with \<open>?tp x \<le> lookup t x\<close> show ?thesis by simp
   next
     case False
-    hence "m * lp q x \<le> m * tp q x" by simp
-    with a have "s x \<le> u x" by linarith
-    with \<open>tp q x \<le> s x\<close> show ?thesis by simp
+    hence "m * ?lp x \<le> m * ?tp x" by simp
+    with a have "lookup s x \<le> lookup u x" by linarith
+    with \<open>?tp x \<le> lookup s x\<close> show ?thesis by simp
   qed
 qed
 
@@ -311,7 +331,7 @@ lemma associated_monomial:
   shows "s = t"
 proof (cases "c = 0")
   case True
-  from assms have "associated (0::('n \<Rightarrow> nat, 'a) poly_mapping) s t k" by (simp add: True monomial_0I)
+  from assms have "associated (0::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) s t k" by (simp add: True monomial_0I)
   thus ?thesis by (rule associated_0_left)
 next
   case False
@@ -361,10 +381,11 @@ lemma associated_eq_iff:
 proof
   assume "s = t"
   from assms(1) have "lp q \<noteq> tp q" by (simp add: lp_eq_tp_iff)
-  then obtain x where "tp q x \<noteq> lp q x" by fastforce
-  from assms(2) have "t x + k * lp q x = s x + k * tp q x" by (rule associatedD)
-  hence "k * lp q x = k * tp q x" unfolding \<open>s = t\<close> by simp
-  with \<open>tp q x \<noteq> lp q x\<close> show "k = 0" by simp
+  then obtain x where "lookup (tp q) x \<noteq> lookup (lp q) x" using poly_mapping_eqI by fastforce
+  from assms(2) have "lookup t x + k * lookup (lp q) x = lookup s x + k * lookup (tp q) x"
+    by (rule associatedD_lookup)
+  hence "k * lookup (lp q) x = k * lookup (tp q) x" unfolding \<open>s = t\<close> by simp
+  with \<open>lookup (tp q) x \<noteq> lookup (lp q) x\<close> show "k = 0" by simp
 next
   assume "k = 0"
   from assms(2) show "s = t" by (simp add: \<open>k = 0\<close> associated_0)
@@ -383,19 +404,21 @@ lemma associated_lp_not_in_keys:
   assumes "is_proper_binomial p" and "associated p u (v + lp p) k" and "k \<noteq> 0"
   shows "u \<notin> {v + lp p, v + tp p}" (is "_ \<notin> {?s, ?t}")
 proof -
+  let ?lp = "lookup (lp p)"
+  let ?tp = "lookup (tp p)"
   from \<open>is_proper_binomial p\<close> have "tp p \<prec> lp p" by (rule lp_gr_tp_binomial)
-  have "\<exists>x. tp p x < lp p x"
+  have "\<exists>x. ?tp x < ?lp x"
   proof (rule ccontr)
-    assume "\<nexists>x. tp p x < lp p x"
-    hence "lp p adds tp p" unfolding adds_fun le_fun_def
+    assume "\<nexists>x. ?tp x < ?lp x"
+    hence "lp p adds tp p" unfolding adds_poly_mapping adds_fun le_fun_def
       by (metis eq_imp_le less_imp_le_nat linorder_neqE_nat)
     hence "lp p \<preceq> tp p" by (rule ord_adds)
     with \<open>tp p \<prec> lp p\<close> show False by simp
   qed
-  then obtain x where "tp p x < lp p x" ..
-  with \<open>k \<noteq> 0\<close> have ineq: "k * tp p x < k * lp p x" by simp
-  from assms(2) have "(v + lp p) x + k * lp p x = u x + k * tp p x" by (rule associatedD)
-  with ineq have "?s x < u x" by linarith
+  then obtain x where "?tp x < ?lp x" ..
+  with \<open>k \<noteq> 0\<close> have ineq: "k * ?tp x < k * ?lp x" by simp
+  from assms(2) have "lookup (v + lp p) x + k * ?lp x = lookup u x + k * ?tp x" by (rule associatedD_lookup)
+  with ineq have "lookup ?s x < lookup u x" by linarith
   show ?thesis
   proof
     assume "u \<in> {?s, ?t}"
@@ -403,14 +426,14 @@ proof -
     thus False
     proof
       assume "u = ?s"
-      hence "?s x = u x" by simp
-      with \<open>?s x < u x\<close> show ?thesis by simp
+      hence "lookup ?s x = lookup u x" by simp
+      with \<open>lookup ?s x < lookup u x\<close> show ?thesis by simp
     next
       assume "u = ?t"
-      hence "?t x = u x" by simp
-      from \<open>tp p x < lp p x\<close> have "?t x < ?s x" unfolding times_fun_def by simp
-      also have "... < u x" using \<open>?s x < u x\<close> .
-      finally show ?thesis using \<open>?t x = u x\<close> by simp
+      hence "lookup ?t x = lookup u x" by simp
+      from \<open>?tp x < ?lp x\<close> have "lookup ?t x < lookup ?s x" by (simp add: lookup_add)
+      also have "... < lookup u x" using \<open>lookup ?s x < lookup u x\<close> .
+      finally show ?thesis using \<open>lookup ?t x = lookup u x\<close> by simp
     qed
   qed
 qed
@@ -419,19 +442,21 @@ lemma associated_tp_not_in_keys:
   assumes "is_proper_binomial p" and "associated p (v + tp p) u k" and "k \<noteq> 0"
   shows "u \<notin> {v + lp p, v + tp p}" (is "_ \<notin> {?s, ?t}")
 proof -
+  let ?lp = "lookup (lp p)"
+  let ?tp = "lookup (tp p)"
   from \<open>is_proper_binomial p\<close> have "tp p \<prec> lp p" by (rule lp_gr_tp_binomial)
-  have "\<exists>x. tp p x < lp p x"
+  have "\<exists>x. ?tp x < ?lp x"
   proof (rule ccontr)
-    assume "\<nexists>x. tp p x < lp p x"
-    hence "lp p adds tp p" unfolding adds_fun le_fun_def
+    assume "\<nexists>x. ?tp x < ?lp x"
+    hence "lp p adds tp p" unfolding adds_poly_mapping adds_fun le_fun_def
       by (metis eq_imp_le less_imp_le_nat linorder_neqE_nat)
     hence "lp p \<preceq> tp p" by (rule ord_adds)
     with \<open>tp p \<prec> lp p\<close> show False by simp
   qed
-  then obtain x where "tp p x < lp p x" ..
-  with \<open>k \<noteq> 0\<close> have ineq: "k * tp p x < k * lp p x" by simp
-  from assms(2) have "u x + k * lp p x = (v + tp p) x + k * tp p x" by (rule associatedD)
-  with ineq have "u x < ?t x" by linarith
+  then obtain x where "?tp x < ?lp x" ..
+  with \<open>k \<noteq> 0\<close> have ineq: "k * ?tp x < k * ?lp x" by simp
+  from assms(2) have "lookup u x + k * ?lp x = lookup (v + tp p) x + k * ?tp x" by (rule associatedD_lookup)
+  with ineq have "lookup u x < lookup ?t x" by linarith
   show ?thesis
   proof
     assume "u \<in> {?s, ?t}"
@@ -439,14 +464,14 @@ proof -
     thus False
     proof
       assume "u = ?t"
-      hence "?t x = u x" by simp
-      with \<open>u x < ?t x\<close> show ?thesis by simp
+      hence "lookup ?t x = lookup u x" by simp
+      with \<open>lookup u x < lookup ?t x\<close> show ?thesis by simp
     next
       assume "u = ?s"
-      hence "u x = ?s x" by simp
-      with \<open>u x < ?t x\<close> have "?s x < ?t x" by simp
-      also from \<open>tp p x < lp p x\<close> have "... < ?s x" unfolding times_fun_def by simp
-      finally have "?s x < ?s x" .
+      hence "lookup u x = lookup ?s x" by simp
+      with \<open>lookup u x < lookup ?t x\<close> have "lookup ?s x < lookup ?t x" by simp
+      also from \<open>?tp x < ?lp x\<close> have "... < lookup ?s x" by (simp add: lookup_add)
+      finally have "lookup ?s x < lookup ?s x" .
       thus ?thesis by simp
     qed
   qed
@@ -455,16 +480,15 @@ qed
 lemma associated_plus:
   assumes "associated p s t k" and "associated p u v m"
   shows "associated p (s + u) (t + v) (k + m)"
-proof (rule associatedI, simp add: times_fun_def algebra_simps)
-  fix x
-  from assms(1) have "t x + k * lp p x = s x + k * tp p x" by (rule associatedD)
-  moreover from assms(2) have "v x + m * lp p x = u x + m * tp p x" by (rule associatedD)
-  ultimately show "t x + (v x + (k * lp p x + m * lp p x)) = s x + (u x + (k * tp p x + m * tp p x))"
-    by simp
+proof (rule associatedI, simp add: scalar_distrib_right)
+  from assms(1) have "t + k \<cdot> lp p = s + k \<cdot> tp p" by (rule associatedD)
+  moreover from assms(2) have "v + m \<cdot> lp p = u + m \<cdot> tp p" by (rule associatedD)
+  ultimately show "t + v + (k \<cdot> lp p + m \<cdot> lp p) = s + u + (k \<cdot> tp p + m \<cdot> tp p)"
+    by (metis (no_types, lifting) add.assoc add.commute)
 qed
 
 lemma associated_adds_obtains_cofactor_keys:
-  assumes "is_binomial p" and "associated (p::('n \<Rightarrow> nat, 'a::field) poly_mapping) s t k" and "k \<noteq> 0"
+  assumes "is_binomial p" and "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
     and "lp p adds s" and "tp p adds t"
   obtains q where "keys (q * p) = {s, t}"
 proof (cases "is_monomial p")
@@ -535,7 +559,7 @@ next
 qed
 
 lemma associated_adds_obtains_cofactor_binomial_lc:
-  assumes "is_proper_binomial p" and "associated (p::('n \<Rightarrow> nat, 'a::field) poly_mapping) s t k" and "k \<noteq> 0"
+  assumes "is_proper_binomial p" and "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
     and "lp p adds s" and "tp p adds t" and "c \<noteq> 0"
   obtains q d where "q * p = binomial c s d t" and "is_obd c s d t"
 proof -
@@ -572,7 +596,7 @@ proof -
 qed
 
 lemma associated_adds_obtains_cofactor_binomial_tc:
-  assumes "is_proper_binomial p" and "associated (p::('n \<Rightarrow> nat, 'a::field) poly_mapping) s t k" and "k \<noteq> 0"
+  assumes "is_proper_binomial p" and "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
     and "lp p adds s" and "tp p adds t" and "d \<noteq> 0"
   obtains q c where "q * p = binomial c s d t" and "is_obd c s d t"
 proof -
@@ -599,7 +623,7 @@ qed
 
 subsection \<open>associated_poly\<close>
   
-definition associated_poly :: "('n \<Rightarrow> nat, 'b::semiring_0) poly_mapping \<Rightarrow> ('n \<Rightarrow> nat, 'b) poly_mapping \<Rightarrow> bool"
+definition associated_poly :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_0) \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> bool"
   where "associated_poly p q \<longleftrightarrow>
     ((\<forall>s\<in>(keys q). \<forall>t\<in>(keys q). t \<prec> s \<longrightarrow> associated p s t (card {u\<in>(keys q). u \<prec> s \<and> t \<preceq> u})) \<and>
     (\<forall>s\<in>(keys q). tp q \<prec> s \<longrightarrow> lookup q s * tc p + lc (lower q s) * lc p = 0))"
@@ -937,7 +961,7 @@ proof -
 qed
 
 lemma associated_associated_poly:
-  assumes "associated (p::('n \<Rightarrow> nat, 'a::field) poly_mapping) s t k"
+  assumes "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k"
   obtains q where "q \<noteq> 0" and "lp q = s" and "tp q = t" and "associated_poly p q"
 proof (cases "has_bounded_keys 1 p")
   assume rl: "(\<And>q. q \<noteq> 0 \<Longrightarrow> lp q = s \<Longrightarrow> tp q = t \<Longrightarrow> associated_poly p q \<Longrightarrow> thesis)"
@@ -1022,7 +1046,7 @@ proof -
 qed
 
 lemma associated_poly_times_binomial_keys:
-  assumes "is_proper_binomial (p::('n \<Rightarrow> nat, 'b::semiring_no_zero_divisors) poly_mapping)" and "q \<noteq> 0"
+  assumes "is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)" and "q \<noteq> 0"
     and "associated_poly p q"
   shows "keys (q * p) = {lp q + lp p, tp q + tp p}"
   using assms(2) assms(3)
@@ -1106,7 +1130,7 @@ next
 qed
 
 lemma times_binomial_keys_associated_poly:
-  assumes "is_proper_binomial (p::('n \<Rightarrow> nat, 'b::semiring_no_zero_divisors) poly_mapping)"
+  assumes "is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)"
     and "keys (q * p) = {lp q + lp p, tp q + tp p}"
   shows "associated_poly p q"
   using assms(2)
@@ -1250,7 +1274,7 @@ next
     with u show False by (simp add: ac_simps)
   qed
   hence eq2: "lookup (monom_mult_right q d t) (v + lp p) = 0" unfolding lp_p tp_p
-    by (transfer, split if_split, simp)
+    by (simp add: lookup_monom_mult_right')
   show ?thesis unfolding eq1 lookup_add eq2 by (simp add: lp_p lc_p tp_p tc_p lookup_monom_mult_right)
 qed
 
@@ -1288,12 +1312,12 @@ next
     with v show False by (simp add: ac_simps)
   qed
   hence eq2: "lookup (monom_mult_right q c s) (u + tp p) = 0" unfolding lp_p tp_p
-    by (transfer, split if_split, simp)
+    by (simp add: lookup_monom_mult_right')
   show ?thesis unfolding eq1 lookup_add eq2 by (simp add: lp_p lc_p tp_p tc_p lookup_monom_mult_right)
 qed
 
 lemma times_binomial_lp_not_in_keys:
-  assumes "is_proper_binomial (p::('n \<Rightarrow> nat, 'b::idom) poly_mapping)" and "v \<in> keys q" and "v + lp p \<notin> keys (q * p)"
+  assumes "is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + lp p \<notin> keys (q * p)"
   obtains v' where "v' \<in> keys q" and "v \<prec> v'" and "v' + tp p = v + lp p" and "lookup q v' * tc p = -(lookup q v * lc p)"
 proof (cases "\<exists>v'\<in>(keys q). v' + tp p = v + lp p")
   case True
@@ -1330,7 +1354,7 @@ next
 qed
 
 lemma times_binomial_tp_not_in_keys:
-  assumes "is_proper_binomial (p::('n \<Rightarrow> nat, 'b::idom) poly_mapping)" and "v \<in> keys q" and "v + tp p \<notin> keys (q * p)"
+  assumes "is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + tp p \<notin> keys (q * p)"
   obtains v' where "v' \<in> keys q" and "v' \<prec> v" and "v' + lp p = v + tp p" and "lookup q v' * lc p = -(lookup q v * tc p)"
 proof (cases "\<exists>v'\<in>(keys q). v' + lp p = v + tp p")
   case True
@@ -1367,7 +1391,7 @@ next
 qed
 
 lemma binomial_mult_shape_lp':
-  assumes "is_proper_binomial (p::('n \<Rightarrow> nat, 'b::idom) poly_mapping)" and "v \<in> keys q" and "v + lp p \<in> keys (q * p)"
+  assumes "is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + lp p \<in> keys (q * p)"
   obtains q' where "q' \<noteq> 0" and "q' \<sqsubseteq> q" and "lp q' = v" and "associated_poly p q'" and "tp q' + tp p \<in> keys (q * p)"
   using assms(2) assms(3)
 proof (induct q arbitrary: thesis v rule: poly_mapping_except_induct')
@@ -1468,7 +1492,7 @@ proof (induct q arbitrary: thesis v rule: poly_mapping_except_induct')
 qed
   
 lemma binomial_mult_shape_lp:
-  assumes "is_proper_binomial (p::('n \<Rightarrow> nat, 'b::idom) poly_mapping)" and "v \<in> keys q" and "v + lp p \<in> keys (q * p)"
+  assumes "is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + lp p \<in> keys (q * p)"
   obtains q' where "q' \<noteq> 0" and "q' \<sqsubseteq> q" and "lp q' = v" and "keys (q' * p) = {v + lp p, tp q' + tp p}"
     and "tp q' + tp p \<in> keys (q * p)"
 proof -
@@ -1484,7 +1508,7 @@ qed
 text \<open>If the following lemma shall be proved in the same style as the one above, the analogue of
   @{thm associated_poly_recI} for @{term higher} instead of @{term tail} is needed.\<close>
 lemma binomial_mult_shape_tp:
-  assumes "is_proper_binomial (p::('n \<Rightarrow> nat, 'b::idom) poly_mapping)" and "v \<in> keys q" and "v + tp p \<in> keys (q * p)"
+  assumes "is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + tp p \<in> keys (q * p)"
   obtains q' where "q' \<noteq> 0" and "q' \<sqsubseteq> q" and "tp q' = v" and "keys (q' * p) = {lp q' + lp p, v + tp p}"
     and "lp q' + lp p \<in> keys (q * p)"
   using assms(2) assms(3)
@@ -1630,7 +1654,7 @@ next
 qed
 
 lemma binomial_mult_shape_tp':
-  assumes "is_proper_binomial (p::('n \<Rightarrow> nat, 'b::idom) poly_mapping)" and "v \<in> keys q" and "v + tp p \<in> keys (q * p)"
+  assumes "is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + tp p \<in> keys (q * p)"
   obtains q' where "q' \<noteq> 0" and "q' \<sqsubseteq> q" and "tp q' = v" and "associated_poly p q'" and "lp q' + lp p \<in> keys (q * p)"
 proof -
   from assms obtain q' where 1: "q' \<noteq> 0" and 2: "q' \<sqsubseteq> q" and 3: "tp q' = v"
