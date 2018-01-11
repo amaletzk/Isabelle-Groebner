@@ -1,6 +1,6 @@
-section \<open>Faug\'ere's F4 Algorithm\<close>
+section \<open>A General Algorithm Schema for Computing Gr\"obner Bases\<close>
 
-theory F4
+theory Algorithm_Schema
   imports Groebner_Bases.Groebner_Bases
 begin
 
