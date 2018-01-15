@@ -1119,7 +1119,7 @@ next
           show "tp q + tp p \<notin> keys ?m"
           proof
             assume "tp q + tp p \<in> keys ?m"
-            hence "lp q + tp p \<preceq> tp q + tp p" by (rule in_keys_monom_mult_geq)
+            hence "lp q + tp p \<preceq> tp q + tp p" by (rule in_keys_monom_mult_ge)
             hence "lp q \<preceq> tp q" by (rule ord_canc)
             with \<open>tp q \<prec> lp q\<close> show False by simp
           qed

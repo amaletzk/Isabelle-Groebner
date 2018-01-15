@@ -10,35 +10,6 @@ section \<open>Further Properties of Multivariate Polynomials\<close>
 context comm_powerprod
 begin
 
-definition poly_mapping_of_pp :: "'a \<Rightarrow> ('a, 'b::{one,zero}) poly_mapping" where
-  "poly_mapping_of_pp t = monomial 1 t"
-  
-lemma keys_poly_mapping_of_pp:
-  shows "keys ((poly_mapping_of_pp t)::('a, 'b::{zero_neq_one}) poly_mapping) = {t}"
-  by (simp add: poly_mapping_of_pp_def)
-    
-lemma lookup_poly_mapping_of_pp:
-  shows "lookup (poly_mapping_of_pp t) t = 1"
-  by (simp add: poly_mapping_of_pp_def)
-
-lemma poly_mapping_of_pp_nonzero:
-  shows "poly_mapping_of_pp t \<noteq> (0::('a, 'b::{zero_neq_one}) poly_mapping)"
-proof
-  assume "poly_mapping_of_pp t = (0::('a, 'b) poly_mapping)"
-  hence "keys ((poly_mapping_of_pp t)::('a, 'b) poly_mapping) = {}" by simp
-  thus False unfolding keys_poly_mapping_of_pp by simp
-qed
-  
-lemma poly_mapping_of_pp_inj:
-  assumes "poly_mapping_of_pp s = ((poly_mapping_of_pp t)::('a, 'b::{zero_neq_one}) poly_mapping)"
-  shows "s = t"
-proof -
-  have "{s} = keys ((poly_mapping_of_pp s)::('a, 'b) poly_mapping)" unfolding keys_poly_mapping_of_pp ..
-  also have "... = keys ((poly_mapping_of_pp t)::('a, 'b) poly_mapping)" unfolding assms ..
-  finally have "{s} = {t}" by (simp add: keys_poly_mapping_of_pp)
-  thus ?thesis by simp
-qed
-
 subsection \<open>Sums\<close>
 
 lemma sum_poly_mapping_eq_zeroI:
@@ -295,16 +266,16 @@ end (* comm_powerprod *)
 
 subsection \<open>Ideals and Linear Hulls\<close>
 
-lemma poly_mapping_of_pp_in_pidealI:
+lemma monomial_1_in_pidealI:
   assumes "(f::('a::comm_powerprod, 'b::field) poly_mapping) \<in> pideal F" and "keys f = {t}"
-  shows "poly_mapping_of_pp t \<in> pideal F"
+  shows "monomial 1 t \<in> pideal F"
 proof -
   define c where "c \<equiv> lookup f t"
   from assms(2) have f_eq: "f = monomial c t" unfolding c_def
     by (metis (mono_tags, lifting) Diff_insert_absorb cancel_comm_monoid_add_class.add_cancel_right_right
         plus_except insert_absorb insert_not_empty keys_eq_empty_iff keys_except)
   from assms(2) have "c \<noteq> 0" by (simp add: c_def)
-  hence "poly_mapping_of_pp t = monom_mult (1 / c) 0 f" by (simp add: f_eq monom_mult_monomial poly_mapping_of_pp_def)
+  hence "monomial 1 t = monom_mult (1 / c) 0 f" by (simp add: f_eq monom_mult_monomial)
   also from assms(1) have "... \<in> pideal F" by (rule pideal_closed_monom_mult)
   finally show ?thesis .
 qed
@@ -445,7 +416,13 @@ lemma has_bounded_keys_setD:
   using assms unfolding has_bounded_keys_set_def by simp
     
 subsection \<open>Monomials and Binomials\<close>
-  
+
+lemma monomial_inj:
+  assumes "monomial c s = monomial (d::'b::zero_neq_one) t"
+  shows "(c = 0 \<and> d = 0) \<or> (c = d \<and> s = t)"
+  using assms unfolding poly_mapping_eq_iff
+  by (metis (mono_tags, hide_lams) lookup_single_eq lookup_single_not_eq)
+
 definition is_monomial :: "('a, 'b::zero) poly_mapping \<Rightarrow> bool" where "is_monomial p \<longleftrightarrow> card (keys p) = 1"
   
 definition is_binomial :: "('a, 'b::zero) poly_mapping \<Rightarrow> bool"
@@ -583,9 +560,6 @@ lemma monomial_is_monomial:
   assumes "c \<noteq> 0"
   shows "is_monomial (monomial c t)"
   using keys_single[of t c] assms unfolding is_monomial_def by simp
-    
-lemma poly_mapping_of_pp_is_monomial: "is_monomial ((poly_mapping_of_pp t)::('a::comm_powerprod, 'b::zero_neq_one) poly_mapping)"
-  unfolding poly_mapping_of_pp_def by (rule monomial_is_monomial, simp)
 
 lemma is_monomial_monomial:
   assumes "is_monomial p"
@@ -921,14 +895,6 @@ next
 qed
 
 subsection \<open>Sets of Leading Power-Products and -Coefficients\<close>
-    
-lemma lp_poly_mapping_of_pp:
-  shows "lp ((poly_mapping_of_pp t)::('a, 'b::{zero_neq_one}) poly_mapping) = t"
-  unfolding poly_mapping_of_pp_def by (rule lp_monomial, simp)
-    
-lemma lc_poly_mapping_of_pp:
-  shows "lc ((poly_mapping_of_pp t)::('a, 'b::{zero_neq_one}) poly_mapping) = 1"
-  unfolding poly_mapping_of_pp_def by (rule lc_monomial, simp)
   
 definition lp_set :: "('a, 'b::zero) poly_mapping set \<Rightarrow> 'a set" where
   "lp_set F = lp ` (F - {0})"
@@ -1088,12 +1054,6 @@ proof -
   from \<open>c \<noteq> 0\<close> have "lp p = t" and "tp p = t" unfolding p by (rule lp_monomial, rule tp_monomial)
   thus ?thesis by simp
 qed
-    
-lemma tp_poly_mapping_of_pp: "tp ((poly_mapping_of_pp t)::('a, 'b::{zero_neq_one}) poly_mapping) = t"
-  unfolding poly_mapping_of_pp_def by (rule tp_monomial, simp)
-    
-lemma tc_poly_mapping_of_pp: "tc ((poly_mapping_of_pp t)::('a, 'b::{zero_neq_one}) poly_mapping) = 1"
-  unfolding poly_mapping_of_pp_def by (rule tc_monomial, simp)
 
 lemma lp_gr_tp_iff: "(tp p \<prec> lp p) \<longleftrightarrow> (\<not> has_bounded_keys 1 p)"
   unfolding not_has_bounded_keys
@@ -1378,7 +1338,7 @@ next
   qed
 qed
 
-lemma in_keys_monom_mult_leq:
+lemma in_keys_monom_mult_le:
   assumes "s \<in> keys (monom_mult c t p)"
   shows "s \<preceq> t + lp p"
 proof -
@@ -1388,7 +1348,7 @@ proof -
   thus "s \<preceq> t + lp p" unfolding \<open>s = t + u\<close> by (metis add.commute plus_monotone)
 qed
 
-lemma in_keys_monom_mult_geq:
+lemma in_keys_monom_mult_ge:
   assumes "s \<in> keys (monom_mult c t p)"
   shows "t + tp p \<preceq> s"
 proof -
@@ -1397,6 +1357,9 @@ proof -
   from \<open>u \<in> keys p\<close> have "tp p \<preceq> u" by (rule tp_min_keys)
   thus "t + tp p \<preceq> s" unfolding \<open>s = t + u\<close> by (metis add.commute plus_monotone)
 qed
+
+lemma lp_monom_mult_le: "lp (monom_mult c t p) \<preceq> t + lp p"
+  by (metis aux in_keys_monom_mult_le lp_in_keys lp_le_iff)
 
 lemma lower_0_iff:
   shows "lower p t = 0 \<longleftrightarrow> (p = 0 \<or> t \<preceq> tp p)"
@@ -1458,6 +1421,11 @@ lemma lp_tail_max:
 proof (rule lp_max_keys, simp add: keys_tail assms(2))
   from assms(3) show "s \<noteq> lp p" by auto
 qed
+
+lemma keys_tail_less_lp:
+  assumes "s \<in> keys (tail p)"
+  shows "s \<prec> lp p"
+  using assms by (meson in_keys_iff lookup_tail)
 
 lemma tp_tail:
   assumes "tail p \<noteq> 0"
@@ -2365,7 +2333,7 @@ next
     proof (rule ccontr)
       assume "lookup (monom_mult (lc p) (lp p) q) ?t \<noteq> 0"
       hence "?t \<in> keys (monom_mult (lc p) (lp p) q)" by simp
-      hence "lp p + tp q \<preceq> ?t" by (rule in_keys_monom_mult_geq)
+      hence "lp p + tp q \<preceq> ?t" by (rule in_keys_monom_mult_ge)
       hence "lp p \<preceq> tp p" by (rule ord_canc)
       also have "... \<prec> lp p" by fact
       finally show False ..

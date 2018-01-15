@@ -59,49 +59,48 @@ qed
 
 lemma rem_3_1_4_2:
   assumes fin: "finite F" and "g \<in> reduced_GB F" and bin: "is_proper_binomial g"
-  shows "poly_mapping_of_pp`(keys g) \<inter> pideal F = {}"
+  shows "monomial 1 ` (keys g) \<inter> pideal F = {}"
   unfolding disjoint_eq_subset_Compl
 proof (rule, rule)
   let ?G = "reduced_GB F"
   fix x
-  assume xin1: "x \<in> poly_mapping_of_pp`(keys g)" and xin2: "x \<in> pideal F"
+  assume xin1: "x \<in> monomial 1 ` (keys g)" and xin2: "x \<in> pideal F"
   from bin obtain c d s t where obd: "is_obd c s d t" and g: "g = binomial c s d t"
     by (rule is_proper_binomial_binomial_od)
   from obd have pbd: "is_pbd c s d t" by (rule obd_imp_pbd)
   have keysg: "keys g = {s, t}" unfolding g by (rule keys_binomial_pbd, fact pbd)
   
-  have a: "poly_mapping_of_pp t \<notin> pideal F"
+  have a: "monomial 1 t \<notin> pideal F"
   proof
-    assume "poly_mapping_of_pp t \<in> pideal F" (is "?p \<in> pideal F")
+    assume "monomial 1 t \<in> pideal F" (is "?p \<in> pideal F")
     hence "?p \<in> pideal ?G" unfolding reduced_GB_pideal[OF fin] .
-    have "?p \<noteq> 0" by (rule poly_mapping_of_pp_nonzero)
+    have "?p \<noteq> 0" by (simp add: monomial_0_iff)
     from reduced_GB_is_GB[OF fin] \<open>?p \<in> pideal ?G\<close> this obtain g'
       where "g' \<in> ?G" and "g' \<noteq> 0" and lpg': "lp g' adds lp ?p" by (rule GB_adds_lp)
-    from lpg' have lpg'': "lp g' adds t" unfolding lp_poly_mapping_of_pp .
+    from lpg' have lpg'': "lp g' adds t" by (simp add: lp_monomial)
     have "t \<in> keys g" unfolding keysg by simp
     from fin \<open>g \<in> ?G\<close> \<open>g' \<in> ?G\<close> this lpg'' have "t = lp g" by (rule rem_3_1_4_aux_2)
     also have "... = s" unfolding g lp_binomial[OF obd] ..
     finally show False using obd unfolding is_obd_def by simp
   qed
 
-  from xin1 have "x = poly_mapping_of_pp s \<or> x = poly_mapping_of_pp t" unfolding keysg by simp
+  from xin1 have "x = monomial 1 s \<or> x = monomial 1 t" unfolding keysg by simp
   thus False
   proof
-    assume x: "x = poly_mapping_of_pp s"
+    assume x: "x = monomial 1 s"
     from pbd have "d \<noteq> 0" by (rule is_pbdE2)
     have "g \<in> pideal F" unfolding reduced_GB_pideal[OF fin, symmetric]
       by (rule, fact \<open>g \<in> ?G\<close>, rule generator_subset_pideal)
-    from xin2 have "monomial 1 s \<in> pideal F" unfolding x poly_mapping_of_pp_def .
+    from xin2 have "monomial 1 s \<in> pideal F" unfolding x .
     hence "monom_mult c 0 (monomial 1 s) \<in> pideal F" by (rule pideal_closed_monom_mult)
     hence "monomial c s \<in> pideal F" by (simp add: monom_mult_monomial)
     with \<open>g \<in> pideal F\<close> have "g - monomial c s \<in> pideal F" by (rule pideal_closed_minus)
     hence "monomial d t \<in> pideal F" unfolding g binomial_def by simp
     hence "monom_mult (1 / d) 0 (monomial d t) \<in> pideal F" by (rule pideal_closed_monom_mult)
     hence "monomial 1 t \<in> pideal F" using \<open>d \<noteq> 0\<close> by (simp add: monom_mult_monomial)
-    hence "poly_mapping_of_pp t \<in> pideal F" unfolding poly_mapping_of_pp_def .
     with a show False ..
   next
-    assume x: "x = poly_mapping_of_pp t"
+    assume x: "x = monomial 1 t"
     from a xin2 show False unfolding x ..
   qed
 qed
@@ -324,7 +323,7 @@ definition membership_problem_assms ::
     "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::field) \<Rightarrow> bool"
     where "membership_problem_assms f1 f2 g =
         (is_binomial f1 \<and> is_binomial f2 \<and> is_binomial g \<and> g \<in> pideal {f1, f2} \<and>
-          \<not> is_red {f1, f2} g \<and> (is_proper_binomial g \<longrightarrow> \<not> (poly_mapping_of_pp ` keys g) \<subseteq> pideal {f1, f2}))"
+          \<not> is_red {f1, f2} g \<and> (is_proper_binomial g \<longrightarrow> \<not> (monomial 1 ` keys g) \<subseteq> pideal {f1, f2}))"
 
 definition membership_problem_concl ::
     "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_1) \<Rightarrow> nat \<Rightarrow> bool"
@@ -365,7 +364,7 @@ lemma membership_problem_assmsD5:
 
 lemma membership_problem_assmsD6:
   assumes "membership_problem_assms f1 f2 g" and "is_proper_binomial g"
-  shows "\<not> (poly_mapping_of_pp ` keys g) \<subseteq> pideal {f1, f2}"
+  shows "\<not> (monomial 1 ` keys g) \<subseteq> pideal {f1, f2}"
   using assms unfolding membership_problem_assms_def by simp
 
 lemma membership_problemI:
@@ -1302,7 +1301,7 @@ proof -
     from assms obtain q1 q2 where g_eq: "g = q1 * f1 + q2 * f2" and keys_g_sub: "keys g \<subseteq> keys (q1 * f1)"
       and *: "\<forall>t\<in>(keys g). \<exists>v\<in>(keys q1). t = v + tp f1" by (rule thm_3_2_1_aux_2)
       
-    have **: "\<And>t. t \<in> keys g \<Longrightarrow> poly_mapping_of_pp t \<in> pideal {f1, f2}"
+    have **: "\<And>t. t \<in> keys g \<Longrightarrow> monomial 1 t \<in> pideal {f1, f2}"
     proof -
       fix t
       assume "t \<in> keys g"
@@ -1342,16 +1341,16 @@ proof -
         qed
         thus "{v + tp f1} \<subseteq> keys (q1' * f1 + ?p)" by simp
       qed
-      with _ show "poly_mapping_of_pp t \<in> pideal {f1, f2}"
-      proof (rule poly_mapping_of_pp_in_pidealI)
+      with _ show "monomial 1 t \<in> pideal {f1, f2}"
+      proof (rule monomial_1_in_pidealI)
         show "q1' * f1 + ?q2 * f2 \<in> pideal {f1, f2}" by (rule in_pideal_2I)
       qed
     qed
       
-    from assms(2) \<open>is_proper_binomial g\<close> have "\<not> poly_mapping_of_pp ` (keys g) \<subseteq> pideal {f1, f2}"
+    from assms(2) \<open>is_proper_binomial g\<close> have "\<not> monomial 1 ` (keys g) \<subseteq> pideal {f1, f2}"
       by (rule membership_problem_assmsD6)
     moreover from **[OF \<open>lp g \<in> keys g\<close>] **[OF \<open>tp g \<in> keys g\<close>]
-      have "poly_mapping_of_pp ` (keys g) \<subseteq> pideal {f1, f2}" unfolding keys_g by simp
+      have "monomial 1 ` (keys g) \<subseteq> pideal {f1, f2}" unfolding keys_g by simp
     ultimately show ?thesis ..
   qed
 qed
