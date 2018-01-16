@@ -408,67 +408,78 @@ proof (rule distinct_filterI, simp del: dim_row_echelon)
   qed
 qed
 
-subsection \<open>Function @{term Supp}\<close>
+subsection \<open>Function @{term Keys}\<close>
 
-definition Supp :: "('a, 'b::zero) poly_mapping set \<Rightarrow> 'a set" where "Supp F = \<Union>(keys ` F)"
+definition Keys :: "('a \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> 'a set"
+  where "Keys F = \<Union>(keys ` F)"
 
-lemma in_Supp: "s \<in> Supp F \<longleftrightarrow> (\<exists>f\<in>F. s \<in> keys f)"
-  unfolding Supp_def by simp
+lemma in_Keys: "s \<in> Keys F \<longleftrightarrow> (\<exists>f\<in>F. s \<in> keys f)"
+  unfolding Keys_def by simp
 
-lemma in_SuppI:
+lemma in_KeysI:
   assumes "s \<in> keys f" and "f \<in> F"
-  shows "s \<in> Supp F"
-  unfolding in_Supp using assms ..
+  shows "s \<in> Keys F"
+  unfolding in_Keys using assms ..
 
-lemma in_SuppE:
-  assumes "s \<in> Supp F"
+lemma in_KeysE:
+  assumes "s \<in> Keys F"
   obtains f where "s \<in> keys f" and "f \<in> F"
-  using assms unfolding in_Supp ..
+  using assms unfolding in_Keys ..
 
-lemma Supp_union: "Supp (A \<union> B) = Supp A \<union> Supp B"
-  by (simp add: Supp_def)
+lemma Keys_mono:
+  assumes "A \<subseteq> B"
+  shows "Keys A \<subseteq> Keys B"
+  using assms by (auto simp add: Keys_def)
 
-lemma Supp_finite:
+lemma Keys_insert: "Keys (insert a A) = keys a \<union> Keys A"
+  by (simp add: Keys_def)
+
+lemma Keys_Un: "Keys (A \<union> B) = Keys A \<union> Keys B"
+  by (simp add: Keys_def)
+
+lemma finite_Keys:
   assumes "finite F"
-  shows "finite (Supp F)"
-  unfolding Supp_def by (rule, fact assms, rule finite_keys)
+  shows "finite (Keys F)"
+  unfolding Keys_def by (rule, fact assms, rule finite_keys)
 
-lemma Supp_not_empty:
+lemma Keys_not_empty:
   assumes "f \<in> F" and "f \<noteq> 0"
-  shows "Supp F \<noteq> {}"
+  shows "Keys F \<noteq> {}"
 proof
-  assume "Supp F = {}"
+  assume "Keys F = {}"
   from \<open>f \<noteq> 0\<close> have "keys f \<noteq> {}" by simp
   then obtain s where "s \<in> keys f" by blast
-  from this assms(1) have "s \<in> Supp F" by (rule in_SuppI)
-  with \<open>Supp F = {}\<close> show False by simp
+  from this assms(1) have "s \<in> Keys F" by (rule in_KeysI)
+  with \<open>Keys F = {}\<close> show False by simp
 qed
 
-lemma Supp_of_empty: "Supp {} = {}"
-  by (simp add: Supp_def)
+lemma Keys_empty [simp]: "Keys {} = {}"
+  by (simp add: Keys_def)
 
-lemma Supp_of_zero: "Supp {0} = {}"
-  by (simp add: Supp_def)
+lemma Keys_zero [simp]: "Keys {0} = {}"
+  by (simp add: Keys_def)
 
-lemma keys_subset_Supp:
+lemma keys_subset_Keys:
   assumes "f \<in> F"
-  shows "keys f \<subseteq> Supp F"
-  using in_SuppI[OF _ assms] by auto
+  shows "keys f \<subseteq> Keys F"
+  using in_KeysI[OF _ assms] by auto
 
-lemma Supp_minus_zero: "Supp (A - {0::('a, 'b::zero) poly_mapping}) = Supp A"
+lemma Keys_minus: "Keys (A - B) \<subseteq> Keys A"
+  by (auto simp add: Keys_def)
+
+lemma Keys_minus_zero: "Keys (A - {0::('a, 'b::zero) poly_mapping}) = Keys A"
 proof (cases "0 \<in> A")
   case True
   hence "(A - {0}) \<union> {0} = A" by auto
-  hence "Supp A = Supp ((A - {0}) \<union> {0})" by simp
-  also have "... = Supp (A - {0}) \<union> Supp {0::('a, 'b) poly_mapping}" by (fact Supp_union)
-  also have "... = Supp (A - {0})" by (simp add: Supp_of_zero)
+  hence "Keys A = Keys ((A - {0}) \<union> {0})" by simp
+  also have "... = Keys (A - {0}) \<union> Keys {0::('a, 'b) poly_mapping}" by (fact Keys_Un)
+  also have "... = Keys (A - {0})" by simp
   finally show ?thesis by simp
 next
   case False
   hence "A - {0} = A" by simp
   thus ?thesis by simp
 qed
-
 
 subsection \<open>Converting Between Polynomials and Macaulay Matrices\<close>
 
@@ -520,6 +531,7 @@ qed
 
 lemma pps_to_list_sorted_wrt: "sorted_wrt (op \<preceq>\<inverse>\<inverse>) (pps_to_list S)"
 proof -
+  (*have tr: "transp (op \<preceq>\<inverse>\<inverse>)" using transp_def by fastforce*)
   have *: "(\<lambda>x y. op \<preceq>\<inverse>\<inverse> y x) = (op \<preceq>)" by simp
   show ?thesis
     by (simp only: pps_to_list_def sorted_wrt_rev * ordered_powerprod_lin.sorted_iff_wrt[symmetric],
@@ -635,14 +647,14 @@ proof (rule Abs_poly_mapping_inverse, rule, rule finite_subset)
   qed
 qed simp
 
-lemma list_to_fun_empty[simp]: "list_to_fun [] cs = 0"
+lemma list_to_fun_Nil [simp]: "list_to_fun [] cs = 0"
   by (simp only: zero_fun_def, rule, simp add: list_to_fun_def)
 
-lemma list_to_poly_empty[simp]: "list_to_poly [] cs = 0"
+lemma list_to_poly_Nil [simp]: "list_to_poly [] cs = 0"
   by (rule poly_mapping_eqI, simp add: lookup_list_to_poly)
 
-lemma row_to_poly_empty[simp]: "row_to_poly [] r = 0"
-  by (simp only: row_to_poly_def, fact list_to_poly_empty)
+lemma row_to_poly_Nil [simp]: "row_to_poly [] r = 0"
+  by (simp only: row_to_poly_def, fact list_to_poly_Nil)
 
 lemma lookup_row_to_poly:
   assumes "distinct ts" and "dim_vec r = length ts" and "i < length ts"
@@ -788,13 +800,13 @@ proof (rule poly_mapping_eqI, simp only: lookup_monom_mult_const)
   qed
 qed
 
-lemma poly_to_row_empty[simp]: "poly_to_row [] p = vec 0 f"
+lemma poly_to_row_Nil [simp]: "poly_to_row [] p = vec 0 f"
 proof -
   have "dim_vec (poly_to_row [] p) = 0" by (simp add: dim_poly_to_row)
   thus ?thesis by auto
 qed
 
-lemma polys_to_mat_empty[simp]: "polys_to_mat ts [] = mat 0 (length ts) f"
+lemma polys_to_mat_Nil [simp]: "polys_to_mat ts [] = mat 0 (length ts) f"
   by (simp add: polys_to_mat_def mat_eq_iff)
 
 lemma dim_row_polys_to_mat[simp]: "dim_row (polys_to_mat ts ps) = length ps"
@@ -831,11 +843,11 @@ proof -
   thus ?thesis by (simp add: mat_to_polys_def)
 qed
 
-lemma Supp_mat_to_polys: "Supp (set (mat_to_polys ts A)) \<subseteq> set ts"
+lemma Keys_mat_to_polys: "Keys (set (mat_to_polys ts A)) \<subseteq> set ts"
 proof
   fix t
-  assume "t \<in> Supp (set (mat_to_polys ts A))"
-  then obtain p where "p \<in> set (mat_to_polys ts A)" and t: "t \<in> keys p" by (rule in_SuppE)
+  assume "t \<in> Keys (set (mat_to_polys ts A))"
+  then obtain p where "p \<in> set (mat_to_polys ts A)" and t: "t \<in> keys p" by (rule in_KeysE)
   from this(1) obtain i where "i < length (mat_to_polys ts A)" and p: "p = (mat_to_polys ts A) ! i"
     by (metis in_set_conv_nth)
   from this(1) have "i < dim_row A" by simp
@@ -846,13 +858,13 @@ proof
 qed
 
 lemma polys_to_mat_to_polys:
-  assumes "Supp (set ps) \<subseteq> set ts"
+  assumes "Keys (set ps) \<subseteq> set ts"
   shows "mat_to_polys ts (polys_to_mat ts ps) = (ps::('a, 'b::semiring_1) poly_mapping list)"
 proof (simp add: mat_to_polys_def mat_to_list_def, rule nth_equalityI, simp_all, intro allI impI)
   fix i
   assume "i < length ps"
   have *: "keys (ps ! i) \<subseteq> set ts"
-    using \<open>i < length ps\<close> assms keys_subset_Supp nth_mem by blast
+    using \<open>i < length ps\<close> assms keys_subset_Keys nth_mem by blast
   show "row_to_poly ts (row (polys_to_mat ts ps) i) = ps ! i"
     by (simp only: row_polys_to_mat[OF \<open>i < length ps\<close>] poly_to_row_to_poly[OF *])
 qed
@@ -891,7 +903,7 @@ proof (simp add: mult_vec_mat_def scalar_prod_def row_to_poly_vec_sum[OF assms],
 qed
 
 lemma vec_times_polys_to_mat:
-  assumes "Supp (set ps) \<subseteq> set ts" and "v \<in> carrier_vec (length ps)"
+  assumes "Keys (set ps) \<subseteq> set ts" and "v \<in> carrier_vec (length ps)"
   shows "row_to_poly ts (v \<^sub>v* (polys_to_mat ts ps)) = (\<Sum>(c, p)\<leftarrow>zip (list_of_vec v) ps. monom_mult c 0 p)"
     (is "?l = ?r")
 proof -
@@ -927,7 +939,7 @@ proof -
   next
     fix t
     assume "t \<notin> set ts"
-    with assms(1) have "t \<notin> Supp (set ps)" by auto
+    with assms(1) have "t \<notin> Keys (set ps)" by auto
     have "(\<Sum>(c, p)\<leftarrow>zip (list_of_vec v) ps. lookup (monom_mult c 0 p) t) = 0"
     proof (rule sum_list_zeroI, rule, simp add: lookup_monom_mult_const)
       fix x
@@ -935,7 +947,7 @@ proof -
       then obtain c p where cp: "(c, p) \<in> set (zip (list_of_vec v) ps)"
         and x: "x = c * lookup p t" by auto
       from cp have "p \<in> set ps" by (rule set_zip_rightD)
-      with \<open>t \<notin> Supp (set ps)\<close> have "t \<notin> keys p" by (auto intro: in_SuppI)
+      with \<open>t \<notin> Keys (set ps)\<close> have "t \<notin> keys p" by (auto intro: in_KeysI)
       thus "x = 0" by (simp add: x)
     qed
     thus "(\<Sum>x\<leftarrow>zip (list_of_vec v) ps. lookup (case x of (c, x) \<Rightarrow> monom_mult c 0 x) t) = 0"
@@ -944,7 +956,7 @@ proof -
 qed
 
 lemma row_space_subset_phull:
-  assumes "Supp (set ps) \<subseteq> set ts"
+  assumes "Keys (set ps) \<subseteq> set ts"
   shows "row_to_poly ts ` row_space (polys_to_mat ts ps) \<subseteq> phull (set ps)"
     (is "?r \<subseteq> ?h")
 proof
@@ -961,7 +973,7 @@ proof
 qed
 
 lemma phull_subset_row_space:
-  assumes "Supp (set ps) \<subseteq> set ts"
+  assumes "Keys (set ps) \<subseteq> set ts"
   shows "phull (set ps) \<subseteq> row_to_poly ts ` row_space (polys_to_mat ts ps)"
     (is "?h \<subseteq> ?r")
 proof
@@ -982,29 +994,29 @@ proof
 qed
 
 lemma row_space_eq_phull:
-  assumes "Supp (set ps) \<subseteq> set ts"
+  assumes "Keys (set ps) \<subseteq> set ts"
   shows "row_to_poly ts ` row_space (polys_to_mat ts ps) = phull (set ps)"
   by (rule, rule row_space_subset_phull, fact, rule phull_subset_row_space, fact)
 
 lemma row_space_row_echelon_eq_phull:
-  assumes "Supp (set ps) \<subseteq> set ts"
+  assumes "Keys (set ps) \<subseteq> set ts"
   shows "row_to_poly ts ` row_space (row_echelon (polys_to_mat ts ps)) = phull (set ps)"
   by (simp add: row_space_eq_phull[OF assms])
 
 lemma phull_row_echelon:
-  assumes "Supp (set ps) \<subseteq> set ts" and "distinct ts"
+  assumes "Keys (set ps) \<subseteq> set ts" and "distinct ts"
   shows "phull (set (mat_to_polys ts (row_echelon (polys_to_mat ts ps)))) = phull (set ps)"
 proof -
   have len_ts: "length ts = dim_col (row_echelon (polys_to_mat ts ps))" by simp
-  have *: "Supp (set (mat_to_polys ts (row_echelon (polys_to_mat ts ps)))) \<subseteq> set ts"
-    by (fact Supp_mat_to_polys)
+  have *: "Keys (set (mat_to_polys ts (row_echelon (polys_to_mat ts ps)))) \<subseteq> set ts"
+    by (fact Keys_mat_to_polys)
   show ?thesis
     by (simp only: row_space_eq_phull[OF *, symmetric] mat_to_polys_to_mat[OF assms(2) len_ts],
         rule row_space_row_echelon_eq_phull, fact)
 qed
 
 lemma pideal_row_echelon:
-  assumes "Supp (set ps) \<subseteq> set ts" and "distinct ts"
+  assumes "Keys (set ps) \<subseteq> set ts" and "distinct ts"
   shows "pideal (set (mat_to_polys ts (row_echelon (polys_to_mat ts ps)))) = pideal (set ps)"
     (is "?l = ?r")
 proof
@@ -1199,11 +1211,11 @@ qed
 subsection \<open>Gr\"obner Bases\<close>
 
 definition Macaulay_mat :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> 'b::field mat"
-  where "Macaulay_mat ps = polys_to_mat (pps_to_list (Supp (set ps))) ps"
+  where "Macaulay_mat ps = polys_to_mat (pps_to_list (Keys (set ps))) ps"
 
 definition Macaulay_list :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
   where "Macaulay_list ps =
-     filter (\<lambda>p. p \<noteq> 0) (mat_to_polys (pps_to_list (Supp (set ps))) (row_echelon (Macaulay_mat ps)))"
+     filter (\<lambda>p. p \<noteq> 0) (mat_to_polys (pps_to_list (Keys (set ps))) (row_echelon (Macaulay_mat ps)))"
 
 definition reduced_Macaulay_list :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
   where "reduced_Macaulay_list ps = comp_min_basis_aux (Macaulay_list ps) []"
@@ -1214,22 +1226,39 @@ text \<open>It is important to note that in @{const reduced_Macaulay_list} there
 
 lemma dim_Macaulay_mat[simp]:
   "dim_row (Macaulay_mat ps) = length ps"
-  "dim_col (Macaulay_mat ps) = card (Supp (set ps))"
+  "dim_col (Macaulay_mat ps) = card (Keys (set ps))"
   by (simp_all add: Macaulay_mat_def length_pps_to_list)
+
+lemma Macaulay_list_Nil [simp]: "Macaulay_list [] = ([]::('a \<Rightarrow>\<^sub>0 'b::field) list)" (is "?l = _")
+proof -
+  have "length ?l \<le> length (mat_to_polys (pps_to_list (Keys (set ([]::('a \<Rightarrow>\<^sub>0 'b) list))))
+                    (row_echelon (Macaulay_mat ([]::('a \<Rightarrow>\<^sub>0 'b) list))))"
+    unfolding Macaulay_list_def by (fact length_filter_le)
+  also have "... = 0" by simp
+  finally show ?thesis by simp
+qed
 
 lemma set_Macaulay_list:
   "set (Macaulay_list ps) =
-      set (mat_to_polys (pps_to_list (Supp (set ps))) (row_echelon (Macaulay_mat ps))) - {0}"
+      set (mat_to_polys (pps_to_list (Keys (set ps))) (row_echelon (Macaulay_mat ps))) - {0}"
   by (auto simp add: Macaulay_list_def)
+
+lemma Keys_Macaulay_list: "Keys (set (Macaulay_list ps)) \<subseteq> Keys (set ps)"
+proof -
+  have "Keys (set (Macaulay_list ps)) \<subseteq> set (pps_to_list (Keys (set ps)))"
+    by (simp only: set_Macaulay_list Keys_minus_zero, fact Keys_mat_to_polys)
+  also have "... = Keys (set ps)" by (rule set_pps_to_list, rule finite_Keys, fact finite_set)
+  finally show ?thesis .
+qed
 
 lemma in_Macaulay_listE:
   assumes "p \<in> set (Macaulay_list ps)"
     and "pivot_fun (row_echelon (Macaulay_mat ps)) f (dim_col (row_echelon (Macaulay_mat ps)))"
   obtains i where "i < dim_row (row_echelon (Macaulay_mat ps))"
-    and "p = (mat_to_polys (pps_to_list (Supp (set ps))) (row_echelon (Macaulay_mat ps))) ! i"
+    and "p = (mat_to_polys (pps_to_list (Keys (set ps))) (row_echelon (Macaulay_mat ps))) ! i"
     and "f i < dim_col (row_echelon (Macaulay_mat ps))"
 proof -
-  let ?ts = "pps_to_list (Supp (set ps))"
+  let ?ts = "pps_to_list (Keys (set ps))"
   let ?A = "Macaulay_mat ps"
   let ?E = "row_echelon ?A"
 
@@ -1258,10 +1287,10 @@ qed
 
 lemma phull_Macaulay_list: "phull (set (Macaulay_list ps)) = phull (set ps)"
 proof -
-  have *: "Supp (set ps) \<subseteq> set (pps_to_list (Supp (set ps)))"
-    by (simp add: Supp_finite set_pps_to_list)
+  have *: "Keys (set ps) \<subseteq> set (pps_to_list (Keys (set ps)))"
+    by (simp add: finite_Keys set_pps_to_list)
   have "phull (set (Macaulay_list ps)) =
-          phull (set (mat_to_polys (pps_to_list (Supp (set ps))) (row_echelon (Macaulay_mat ps))))"
+          phull (set (mat_to_polys (pps_to_list (Keys (set ps))) (row_echelon (Macaulay_mat ps))))"
     by (simp only: set_Macaulay_list phull_minus_singleton_zero)
   also have "... = phull (set ps)"
     by (simp only: Macaulay_mat_def phull_row_echelon[OF * distinct_pps_to_list])
@@ -1270,10 +1299,10 @@ qed
 
 lemma pideal_Macaulay_list: "pideal (set (Macaulay_list ps)) = pideal (set ps)"
 proof -
-  have *: "Supp (set ps) \<subseteq> set (pps_to_list (Supp (set ps)))"
-    by (simp add: Supp_finite set_pps_to_list)
+  have *: "Keys (set ps) \<subseteq> set (pps_to_list (Keys (set ps)))"
+    by (simp add: finite_Keys set_pps_to_list)
   have "pideal (set (Macaulay_list ps)) =
-          pideal (set (mat_to_polys (pps_to_list (Supp (set ps))) (row_echelon (Macaulay_mat ps))))"
+          pideal (set (mat_to_polys (pps_to_list (Keys (set ps))) (row_echelon (Macaulay_mat ps))))"
     by (simp only: set_Macaulay_list pideal_minus_singleton_zero)
   also have "... = pideal (set ps)"
     by (simp only: Macaulay_mat_def pideal_row_echelon[OF * distinct_pps_to_list])
@@ -1282,7 +1311,7 @@ qed
 
 lemma Macaulay_list_is_monic_set: "is_monic_set (set (Macaulay_list ps))"
 proof (rule is_monic_setI)
-  let ?ts = "pps_to_list (Supp (set ps))"
+  let ?ts = "pps_to_list (Keys (set ps))"
   let ?E = "row_echelon (Macaulay_mat ps)"
 
   fix p
@@ -1303,7 +1332,7 @@ lemma Macaulay_list_distinct_lp:
     and "x \<noteq> y"
   shows "lp x \<noteq> lp y"
 proof
-  let ?S = "Supp (set ps)"
+  let ?S = "Keys (set ps)"
   let ?ts = "pps_to_list ?S"
   let ?E = "row_echelon (Macaulay_mat ps)"
 
@@ -1330,7 +1359,7 @@ qed
 
 lemma reduced_Macaulay_list_subset_Macaulay_list:
   "set (reduced_Macaulay_list ps) \<subseteq> set (Macaulay_list ps)"
-  by (simp only: reduced_Macaulay_list_def, rule comp_min_basis_aux_empty_subset)
+  by (simp only: reduced_Macaulay_list_def, rule comp_min_basis_aux_Nil_subset)
 
 lemma reduced_Macaulay_list_not_zero: "0 \<notin> set (reduced_Macaulay_list ps)"
   using Macaulay_list_not_zero reduced_Macaulay_list_subset_Macaulay_list by auto
@@ -1342,6 +1371,34 @@ proof (rule is_monic_setI)
   with reduced_Macaulay_list_subset_Macaulay_list have "b \<in> set (Macaulay_list ps)" ..
   moreover assume "b \<noteq> 0"
   ultimately show "lc b = 1" by (rule is_monic_setD[OF Macaulay_list_is_monic_set])
+qed
+
+lemma Macaulay_list_lp:
+  assumes "p \<in> phull (set ps)" and "p \<noteq> 0"
+  obtains g where "g \<in> set (Macaulay_list ps)" and "g \<noteq> 0" and "lp p = lp g"
+proof -
+  let ?S = "Keys (set ps)"
+  let ?ts = "pps_to_list ?S"
+  let ?E = "row_echelon (Macaulay_mat ps)"
+  let ?gs = "mat_to_polys ?ts ?E"
+  have "finite ?S" by (rule finite_Keys, rule)
+  have "?S \<subseteq> set ?ts" by (simp only: set_pps_to_list[OF \<open>finite ?S\<close>])
+  
+  from assms(1) \<open>?S \<subseteq> set ?ts\<close> have "p \<in> row_to_poly ?ts ` row_space ?E"
+    by (simp only: Macaulay_mat_def row_space_row_echelon_eq_phull[symmetric])
+
+  obtain f where "pivot_fun ?E f (dim_col ?E)" by (rule row_echelon_pivot_fun)
+
+  have "lp p \<in> lp_set (set ?gs)"
+    by (rule lp_row_space_pivot_fun, simp, fact+)
+  then obtain g where "g \<in> set ?gs" and "g \<noteq> 0" and "lp g = lp p" by (rule lp_setE)
+  
+  show ?thesis
+  proof
+    from \<open>g \<in> set ?gs\<close> \<open>g \<noteq> 0\<close> show "g \<in> set (Macaulay_list ps)" by (simp add: set_Macaulay_list)
+  next
+    from \<open>lp g = lp p\<close> show "lp p = lp g" by simp
+  qed fact
 qed
 
 end (* ordered_powerprod *)
@@ -1364,7 +1421,7 @@ next
   moreover note p_in
   moreover from \<open>p \<noteq> q\<close> have "q \<noteq> p" ..
   ultimately show "\<not> lp p adds lp q"
-  proof (rule comp_min_basis_aux_empty_nadds)
+  proof (rule comp_min_basis_aux_Nil_nadds)
     show "0 \<notin> set (Macaulay_list ps)" by (fact Macaulay_list_not_zero)
   next
     fix x y :: "('a, 'b) poly_mapping"
@@ -1379,38 +1436,10 @@ lemma pideal_reduced_Macaulay_list:
   shows "pideal (set (reduced_Macaulay_list ps)) = pideal (set ps)"
 proof -
   have "pideal (set (reduced_Macaulay_list ps)) = pideal (set (Macaulay_list ps))"
-    unfolding reduced_Macaulay_list_def by (rule comp_min_basis_aux_empty_pideal, fact assms,
+    unfolding reduced_Macaulay_list_def by (rule comp_min_basis_aux_Nil_pideal, fact assms,
         fact Macaulay_list_not_zero, fact Macaulay_list_distinct_lp)
   also have "... = pideal (set ps)" by (simp only: pideal_Macaulay_list)
   finally show ?thesis .
-qed
-
-lemma Macaulay_list_lp:
-  assumes "p \<in> phull (set ps)" and "p \<noteq> 0"
-  obtains g where "g \<in> set (Macaulay_list ps)" and "g \<noteq> 0" and "lp p = lp g"
-proof -
-  let ?S = "Supp (set ps)"
-  let ?ts = "pps_to_list ?S"
-  let ?E = "row_echelon (Macaulay_mat ps)"
-  let ?gs = "mat_to_polys ?ts ?E"
-  have "finite ?S" by (rule Supp_finite, rule)
-  have "?S \<subseteq> set ?ts" by (simp only: set_pps_to_list[OF \<open>finite ?S\<close>])
-  
-  from assms(1) \<open>?S \<subseteq> set ?ts\<close> have "p \<in> row_to_poly ?ts ` row_space ?E"
-    by (simp only: Macaulay_mat_def row_space_row_echelon_eq_phull[symmetric])
-
-  obtain f where "pivot_fun ?E f (dim_col ?E)" by (rule row_echelon_pivot_fun)
-
-  have "lp p \<in> lp_set (set ?gs)"
-    by (rule lp_row_space_pivot_fun, simp, fact+)
-  then obtain g where "g \<in> set ?gs" and "g \<noteq> 0" and "lp g = lp p" by (rule lp_setE)
-  
-  show ?thesis
-  proof
-    from \<open>g \<in> set ?gs\<close> \<open>g \<noteq> 0\<close> show "g \<in> set (Macaulay_list ps)" by (simp add: set_Macaulay_list)
-  next
-    from \<open>lp g = lp p\<close> show "lp p = lp g" by simp
-  qed fact
 qed
 
 lemma Macaulay_list_is_GB:
@@ -1439,7 +1468,7 @@ proof -
   from assms obtain g' where "g' \<in> set (Macaulay_list ps)" and "g' \<noteq> 0" and "lp p = lp g'"
     by (rule Macaulay_list_lp)
   obtain g where "g \<in> set (reduced_Macaulay_list ps)" and "lp g adds lp g'"
-  proof (simp only: reduced_Macaulay_list_def, rule comp_min_basis_aux_empty_adds)
+  proof (simp only: reduced_Macaulay_list_def, rule comp_min_basis_aux_Nil_adds)
     show "g' \<in> set (Macaulay_list ps)" by fact
   next
     show "0 \<notin> set (Macaulay_list ps)" by (fact Macaulay_list_not_zero)
@@ -1461,7 +1490,7 @@ lemma reduced_Macaulay_list_is_GB:
   assumes "is_Groebner_basis G" and "pideal (set ps) = pideal G" and "G \<subseteq> phull (set ps)"
   shows "is_Groebner_basis (set (reduced_Macaulay_list ps))"
   unfolding reduced_Macaulay_list_def
-apply (rule comp_min_basis_aux_empty_GB)
+apply (rule comp_min_basis_aux_Nil_GB)
   subgoal by (rule Macaulay_list_is_GB, fact, fact, fact)
   subgoal by (fact Macaulay_list_not_zero)
   subgoal by (fact Macaulay_list_distinct_lp)
@@ -1485,7 +1514,7 @@ proof -
         fact reduced_Macaulay_list_is_monic_set)
     fix a b :: "('a, 'b) poly_mapping"
     let ?c = "a - b"
-    let ?S = "Supp (set ps)"
+    let ?S = "Keys (set ps)"
     let ?ts = "pps_to_list ?S"
     let ?A = "Macaulay_mat ps"
     let ?E = "row_echelon ?A"

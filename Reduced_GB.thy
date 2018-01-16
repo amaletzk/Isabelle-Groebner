@@ -919,7 +919,7 @@ next
   from c1 c2 show ?case unfolding comp_min_basis_aux_rec by simp
 qed
 
-lemmas comp_min_basis_aux_empty_subset = comp_min_basis_aux_subset[of _ "[]", simplified]
+lemmas comp_min_basis_aux_Nil_subset = comp_min_basis_aux_subset[of _ "[]", simplified]
   
 lemma comp_min_basis_aux_notin:
   assumes "x \<in> set xs \<union> set ys" and "x \<notin> set (comp_min_basis_aux xs ys)" and "x \<noteq> 0"
@@ -1086,7 +1086,7 @@ next
   qed
 qed
 
-lemma comp_min_basis_aux_empty_adds:
+lemma comp_min_basis_aux_Nil_adds:
   assumes "p \<in> set xs" and "0 \<notin> set xs"
     and "\<And>x y. x \<in> set xs \<Longrightarrow> y \<in> set xs \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
   obtains q where "q \<in> set (comp_min_basis_aux xs [])" and "lp q adds lp p"
@@ -1143,7 +1143,7 @@ next
   qed
 qed
 
-lemma comp_min_basis_aux_empty_is_red:
+lemma comp_min_basis_aux_Nil_is_red:
   assumes "is_red (set xs) f" and "0 \<notin> set xs"
     and "\<And>x y. x \<in> set xs \<Longrightarrow> y \<in> set xs \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
   shows "is_red (set (comp_min_basis_aux xs [])) f"
@@ -1152,12 +1152,12 @@ proof -
     by (rule is_red_addsE)
   from \<open>x \<in> set xs\<close> assms(2) assms(3) obtain y
     where yin: "y \<in> set (comp_min_basis_aux xs [])" and "lp y adds lp x"
-    by (rule comp_min_basis_aux_empty_adds)
+    by (rule comp_min_basis_aux_Nil_adds)
   show ?thesis
   proof (rule is_red_addsI)
     from \<open>lp y adds lp x\<close> \<open>lp x adds t\<close> show "lp y adds t" by (rule adds_trans)
   next
-    from comp_min_basis_aux_empty_subset yin have "y \<in> set xs" ..
+    from comp_min_basis_aux_Nil_subset yin have "y \<in> set xs" ..
     with assms(2) show "y \<noteq> 0" by auto
   qed fact+
 qed
@@ -1218,7 +1218,7 @@ definition comp_min_basis :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::
   
 lemma comp_min_basis_subset_comp_min_basis_pre:
   shows "set (comp_min_basis xs) \<subseteq> set (comp_min_basis_pre xs)"
-  unfolding comp_min_basis_def by (rule comp_min_basis_aux_empty_subset)
+  unfolding comp_min_basis_def by (rule comp_min_basis_aux_Nil_subset)
   
 lemma comp_min_basis_subset:
   shows "set (comp_min_basis xs) \<subseteq> set xs"
@@ -1242,7 +1242,7 @@ proof -
     by (rule comp_min_basis_pre_lp)
   have "0 \<notin> set (comp_min_basis_pre xs)" using comp_min_basis_pre_nonzero by auto
   with q1_in obtain q where "q \<in> set (comp_min_basis_aux (comp_min_basis_pre xs) [])" and "lp q adds lp q1"
-  proof (rule comp_min_basis_aux_empty_adds)
+  proof (rule comp_min_basis_aux_Nil_adds)
     fix x y
     assume "x \<in> set (comp_min_basis_pre xs)" and "y \<in> set (comp_min_basis_pre xs)" and "x \<noteq> y"
     thus "lp x \<noteq> lp y" by (rule comp_min_basis_pre_distinct_lp)
@@ -1416,7 +1416,7 @@ next
   qed
 qed
 
-lemma comp_min_basis_aux_empty_nadds:
+lemma comp_min_basis_aux_Nil_nadds:
   assumes "p \<in> set (comp_min_basis_aux xs [])" and "q \<in> set xs" and "p \<noteq> q" and "0 \<notin> set xs"
     and "\<And>x y. x \<in> set xs \<Longrightarrow> y \<in> set xs \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
   shows "\<not> lp q adds lp p"
@@ -1439,7 +1439,7 @@ next
   ultimately show "lp x \<noteq> lp y" by (rule assms(5))
 qed
 
-lemma comp_min_basis_aux_empty_GB:
+lemma comp_min_basis_aux_Nil_GB:
   assumes "is_Groebner_basis (set xs)" and "0 \<notin> set xs"
     and "\<And>x y. x \<in> set xs \<Longrightarrow> y \<in> set xs \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
   shows "is_Groebner_basis (set (comp_min_basis_aux xs []))"
@@ -1447,21 +1447,21 @@ lemma comp_min_basis_aux_empty_GB:
 proof (intro ballI impI)
   fix f
   assume fin: "f \<in> pideal (set (comp_min_basis_aux xs []))" and "f \<noteq> 0"
-  have "f \<in> pideal (set xs)" by (rule, fact fin, rule pideal_mono, fact comp_min_basis_aux_empty_subset)
+  have "f \<in> pideal (set xs)" by (rule, fact fin, rule pideal_mono, fact comp_min_basis_aux_Nil_subset)
   show "is_red (set (comp_min_basis_aux xs [])) f"
-  proof (rule comp_min_basis_aux_empty_is_red)
+  proof (rule comp_min_basis_aux_Nil_is_red)
     from assms \<open>f \<noteq> 0\<close> \<open>f \<in> pideal (set xs)\<close> show "is_red (set xs) f"
       by (simp add: GB_alt_2_finite[OF finite_set])
   qed fact+
 qed
 
-lemma comp_min_basis_aux_empty_pideal:
+lemma comp_min_basis_aux_Nil_pideal:
   assumes "is_Groebner_basis (set xs)" and "0 \<notin> set xs"
     and "\<And>x y. x \<in> set xs \<Longrightarrow> y \<in> set xs \<Longrightarrow> x \<noteq> y \<Longrightarrow> lp x \<noteq> lp y"
   shows "pideal (set (comp_min_basis_aux xs [])) = pideal (set xs)"
 proof -
   show ?thesis
-  proof (rule, rule pideal_mono, fact comp_min_basis_aux_empty_subset)
+  proof (rule, rule pideal_mono, fact comp_min_basis_aux_Nil_subset)
     show "pideal (set xs) \<subseteq> pideal (set (comp_min_basis_aux xs []))"
     proof
       fix f
@@ -1475,11 +1475,11 @@ proof -
         let ?xs = "comp_min_basis_aux xs []"
         have "(red (set ?xs))\<^sup>*\<^sup>* f 0"
         proof (rule is_red_implies_0_red_finite[OF finite_set], rule pideal_mono,
-                fact comp_min_basis_aux_empty_subset)
+                fact comp_min_basis_aux_Nil_subset)
           fix q
           assume "q \<noteq> 0" and "q \<in> pideal (set xs)"
           with assms(1) have "is_red (set xs) q" by (rule GB_imp_reducibility)
-          from this assms(2) assms(3) show "is_red (set ?xs) q" by (rule comp_min_basis_aux_empty_is_red)
+          from this assms(2) assms(3) show "is_red (set ?xs) q" by (rule comp_min_basis_aux_Nil_is_red)
         qed fact
         thus ?thesis by (rule red_rtranclp_0_in_pideal)
       qed
@@ -1536,7 +1536,7 @@ qed
 lemma comp_min_basis_nadds:
   assumes pin: "p \<in> set (comp_min_basis xs)" and qin: "q \<in> set (comp_min_basis xs)" and "p \<noteq> q"
   shows "\<not> lp q adds lp p"
-proof (rule comp_min_basis_aux_empty_nadds)
+proof (rule comp_min_basis_aux_Nil_nadds)
   from pin show "p \<in> set (comp_min_basis_aux (comp_min_basis_pre xs) [])" unfolding comp_min_basis_def .
 next
   show "q \<in> set (comp_min_basis_pre xs)"
@@ -1547,7 +1547,7 @@ lemma comp_min_basis_GB:
   assumes "is_Groebner_basis (set xs)"
   shows "is_Groebner_basis (set (comp_min_basis xs))"
   unfolding comp_min_basis_def
-  by (rule comp_min_basis_aux_empty_GB, rule comp_min_basis_pre_GB, fact,
+  by (rule comp_min_basis_aux_Nil_GB, rule comp_min_basis_pre_GB, fact,
       fact comp_min_basis_pre_nonzero', fact comp_min_basis_pre_distinct_lp)
 
 lemma comp_min_basis_pideal:
@@ -1556,7 +1556,7 @@ lemma comp_min_basis_pideal:
 proof -
   have "pideal (set (comp_min_basis xs)) = pideal (set (comp_min_basis_pre xs))"
     unfolding comp_min_basis_def
-    by (rule comp_min_basis_aux_empty_pideal, rule comp_min_basis_pre_GB, fact,
+    by (rule comp_min_basis_aux_Nil_pideal, rule comp_min_basis_pre_GB, fact,
         fact comp_min_basis_pre_nonzero', fact comp_min_basis_pre_distinct_lp)
   also from assms have "... = pideal (set xs)" by (rule comp_min_basis_pre_pideal)
   finally show ?thesis .
