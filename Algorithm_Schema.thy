@@ -125,155 +125,159 @@ subsubsection \<open>Type synonyms\<close>
 
 type_synonym ('a, 'b, 'c) pdata = "('a \<Rightarrow>\<^sub>0 'b) \<times> 'c"
 type_synonym ('a, 'b, 'c) pdata_pair = "('a, 'b, 'c) pdata \<times> ('a, 'b, 'c) pdata"
-type_synonym ('a, 'b, 'c) selT = "('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
-                                    ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata_pair list"
-type_synonym ('a, 'b, 'c) complT = "('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+type_synonym ('a, 'b, 'c, 'd) selT = "('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+                                    ('a, 'b, 'c) pdata_pair list \<Rightarrow> 'd \<Rightarrow> ('a, 'b, 'c) pdata_pair list"
+type_synonym ('a, 'b, 'c, 'd) complT = "('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
                                     ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata_pair list \<Rightarrow>
-                                    ('a, 'b, 'c) pdata list"
-type_synonym ('a, 'b, 'c) apT = "('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
-                                    ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+                                    'd \<Rightarrow> (('a, 'b, 'c) pdata list \<times> 'd)"
+type_synonym ('a, 'b, 'c, 'd) apT = "('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+                                    ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> 'd \<Rightarrow>
                                     ('a, 'b, 'c) pdata_pair list"
-type_synonym ('a, 'b, 'c) abT = "('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
-                                    ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list"
+type_synonym ('a, 'b, 'c, 'd) abT = "('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+                                    ('a, 'b, 'c) pdata list \<Rightarrow> 'd \<Rightarrow> ('a, 'b, 'c) pdata list"
 
 subsubsection \<open>Specification of the @{emph \<open>selector\<close>} parameter\<close>
 
-definition sel_spec :: "('a, 'b, 'c) selT \<Rightarrow> bool"
-  where "sel_spec sel \<longleftrightarrow> (\<forall>gs bs ps. ps \<noteq> [] \<longrightarrow> (sel gs bs ps \<noteq> [] \<and> set (sel gs bs ps) \<subseteq> set ps))"
+definition sel_spec :: "('a, 'b, 'c, 'd) selT \<Rightarrow> bool"
+  where "sel_spec sel \<longleftrightarrow>
+          (\<forall>gs bs ps data. ps \<noteq> [] \<longrightarrow> (sel gs bs ps data \<noteq> [] \<and> set (sel gs bs ps data) \<subseteq> set ps))"
 
 lemma sel_specI:
-  assumes "\<And>gs bs ps. ps \<noteq> [] \<Longrightarrow> (sel gs bs ps \<noteq> [] \<and> set (sel gs bs ps) \<subseteq> set ps)"
+  assumes "\<And>gs bs ps data. ps \<noteq> [] \<Longrightarrow> (sel gs bs ps data \<noteq> [] \<and> set (sel gs bs ps data) \<subseteq> set ps)"
   shows "sel_spec sel"
   unfolding sel_spec_def using assms by blast
 
 lemma sel_specD1:
   assumes "sel_spec sel" and "ps \<noteq> []"
-  shows "sel gs bs ps \<noteq> []"
+  shows "sel gs bs ps data \<noteq> []"
   using assms unfolding sel_spec_def by blast
 
 lemma sel_specD2:
   assumes "sel_spec sel" and "ps \<noteq> []"
-  shows "set (sel gs bs ps) \<subseteq> set ps"
+  shows "set (sel gs bs ps data) \<subseteq> set ps"
   using assms unfolding sel_spec_def by blast
 
 subsubsection \<open>Specification of the @{emph \<open>add-pairs\<close>} parameter\<close>
 
-definition ap_spec :: "('a, 'b, 'c) apT \<Rightarrow> bool"
-  where "ap_spec ap \<longleftrightarrow> (\<forall>gs bs ps ns.
-      set (ap gs bs ps ns) \<subseteq> set ps \<union> (set ns \<times> (set gs \<union> set bs \<union> set ns)) \<and>
-      set ps \<union> (set ns \<times> (set gs \<union> set bs)) \<subseteq> set (ap gs bs ps ns) \<and>
-      (\<forall>h1\<in>set ns. \<forall>h2\<in> set ns. h1 \<noteq> h2 \<longrightarrow> ((h1, h2) \<in> set (ap gs bs ps ns) \<or> (h2, h1) \<in> set (ap gs bs ps ns))))"
+definition ap_spec :: "('a, 'b, 'c, 'd) apT \<Rightarrow> bool"
+  where "ap_spec ap \<longleftrightarrow> (\<forall>gs bs ps ns data.
+      set (ap gs bs ps ns data) \<subseteq> set ps \<union> (set ns \<times> (set gs \<union> set bs \<union> set ns)) \<and>
+      set ps \<union> (set ns \<times> (set gs \<union> set bs)) \<subseteq> set (ap gs bs ps ns data) \<and>
+      (\<forall>h1\<in>set ns. \<forall>h2\<in> set ns. h1 \<noteq> h2 \<longrightarrow>
+        ((h1, h2) \<in> set (ap gs bs ps ns data) \<or> (h2, h1) \<in> set (ap gs bs ps ns data))))"
 
 lemma ap_specI:
-  assumes "\<And>gs bs ps ns.
-        set (ap gs bs ps ns) \<subseteq> set ps \<union> (set ns \<times> (set gs \<union> set bs \<union> set ns)) \<and>
-        set ps \<union> (set ns \<times> (set gs \<union> set bs)) \<subseteq> set (ap gs bs ps ns) \<and>
-        (\<forall>h1\<in>set ns. \<forall>h2\<in> set ns. h1 \<noteq> h2 \<longrightarrow> ((h1, h2) \<in> set (ap gs bs ps ns) \<or> (h2, h1) \<in> set (ap gs bs ps ns)))"
+  assumes "\<And>gs bs ps ns data.
+        set (ap gs bs ps ns data) \<subseteq> set ps \<union> (set ns \<times> (set gs \<union> set bs \<union> set ns)) \<and>
+        set ps \<union> (set ns \<times> (set gs \<union> set bs)) \<subseteq> set (ap gs bs ps ns data) \<and>
+        (\<forall>h1\<in>set ns. \<forall>h2\<in> set ns. h1 \<noteq> h2 \<longrightarrow>
+            ((h1, h2) \<in> set (ap gs bs ps ns data) \<or> (h2, h1) \<in> set (ap gs bs ps ns data)))"
   shows "ap_spec ap"
   unfolding ap_spec_def using assms by blast
 
 lemma ap_specD1:
   assumes "ap_spec ap"
-  shows "set (ap gs bs ps ns) \<subseteq> set ps \<union> (set ns \<times> (set gs \<union> set bs \<union> set ns))"
+  shows "set (ap gs bs ps ns data) \<subseteq> set ps \<union> (set ns \<times> (set gs \<union> set bs \<union> set ns))"
   using assms unfolding ap_spec_def by blast
 
 lemma ap_specD2:
   assumes "ap_spec ap"
-  shows "set ps \<union> (set ns \<times> (set gs \<union> set bs)) \<subseteq> set (ap gs bs ps ns)"
+  shows "set ps \<union> (set ns \<times> (set gs \<union> set bs)) \<subseteq> set (ap gs bs ps ns data)"
   using assms unfolding ap_spec_def by blast
 
 lemma ap_specE:
   assumes "ap_spec ap" and "h1 \<in> set ns" and "h2 \<in> set ns" and "h1 \<noteq> h2"
-  obtains "(h1, h2) \<in> set (ap gs bs ps ns)"|"(h2, h1) \<in> set (ap gs bs ps ns)"
+  obtains "(h1, h2) \<in> set (ap gs bs ps ns data)"|"(h2, h1) \<in> set (ap gs bs ps ns data)"
   using assms unfolding ap_spec_def by blast
 
-lemma ap_spec_empty_new:
+lemma ap_spec_Nil_new:
   assumes "ap_spec ap"
-  shows "set (ap gs bs ps []) = set ps"
+  shows "set (ap gs bs ps [] data) = set ps"
 proof
-  from ap_specD1[OF assms] show "set (ap gs bs ps []) \<subseteq> set ps" by fastforce
+  from ap_specD1[OF assms] show "set (ap gs bs ps [] data) \<subseteq> set ps" by fastforce
 next
-  from ap_specD2[OF assms] show "set ps \<subseteq> set (ap gs bs ps [])" by blast
+  from ap_specD2[OF assms] show "set ps \<subseteq> set (ap gs bs ps [] data)" by blast
 qed
 
 lemma ap_spec_inI1:
   assumes "ap_spec ap" and "p \<in> set ps"
-  shows "p \<in> set (ap gs bs ps ns)"
+  shows "p \<in> set (ap gs bs ps ns data)"
   using ap_specD2[OF assms(1)] assms(2) by blast
 
 lemma ap_spec_inI2:
   assumes "ap_spec ap" and "h \<in> set ns" and "g \<in> set gs \<union> set bs"
-  shows "(h, g) \<in> set (ap gs bs ps ns)"
+  shows "(h, g) \<in> set (ap gs bs ps ns data)"
   using ap_specD2[OF assms(1)] assms(2, 3) by blast
 
 lemma ap_spec_fst_subset:
   assumes "ap_spec ap"
-  shows "fst ` set (ap gs bs ps ns) \<subseteq> fst ` set ps \<union> set ns"
+  shows "fst ` set (ap gs bs ps ns data) \<subseteq> fst ` set ps \<union> set ns"
 proof -
   from ap_specD1[OF assms]
-  have "fst ` set (ap gs bs ps ns) \<subseteq> fst ` (set ps \<union> set ns \<times> (set gs \<union> set bs \<union> set ns))"
+  have "fst ` set (ap gs bs ps ns data) \<subseteq> fst ` (set ps \<union> set ns \<times> (set gs \<union> set bs \<union> set ns))"
     by (rule image_mono)
   thus ?thesis by auto
 qed
 
 lemma ap_spec_snd_subset:
   assumes "ap_spec ap"
-  shows "snd ` set (ap gs bs ps ns) \<subseteq> snd ` set ps \<union> set gs \<union> set bs \<union> set ns"
+  shows "snd ` set (ap gs bs ps ns data) \<subseteq> snd ` set ps \<union> set gs \<union> set bs \<union> set ns"
 proof -
   from ap_specD1[OF assms]
-  have "snd ` set (ap gs bs ps ns) \<subseteq> snd ` (set ps \<union> set ns \<times> (set gs \<union> set bs \<union> set ns))"
+  have "snd ` set (ap gs bs ps ns data) \<subseteq> snd ` (set ps \<union> set ns \<times> (set gs \<union> set bs \<union> set ns))"
     by (rule image_mono)
   thus ?thesis by auto
 qed
 
 lemma ap_spec_fst_superset:
   assumes "ap_spec ap"
-  shows "fst ` set ps \<subseteq> fst ` set (ap gs bs ps ns)"
+  shows "fst ` set ps \<subseteq> fst ` set (ap gs bs ps ns data)"
 proof -
   from ap_specD2[OF assms]
-  have "fst ` (set ps \<union> set ns \<times> (set gs \<union> set bs)) \<subseteq> fst ` set (ap gs bs ps ns)"
+  have "fst ` (set ps \<union> set ns \<times> (set gs \<union> set bs)) \<subseteq> fst ` set (ap gs bs ps ns data)"
     by (rule image_mono)
   thus ?thesis by auto
 qed
 
 lemma ap_spec_fst:
   assumes "ap_spec ap" and "set gs \<union> set bs \<noteq> {}"
-  shows "fst ` set (ap gs bs ps ns) = fst ` set ps \<union> set ns"
+  shows "fst ` set (ap gs bs ps ns data) = fst ` set ps \<union> set ns"
 proof
-  from assms(1) show "fst ` set (ap gs bs ps ns) \<subseteq> fst ` set ps \<union> set ns" by (rule ap_spec_fst_subset)
+  from assms(1) show "fst ` set (ap gs bs ps ns data) \<subseteq> fst ` set ps \<union> set ns"
+    by (rule ap_spec_fst_subset)
 next
-  show "fst ` set ps \<union> set ns \<subseteq> fst ` set (ap gs bs ps ns)"
+  show "fst ` set ps \<union> set ns \<subseteq> fst ` set (ap gs bs ps ns data)"
   proof (simp only: Un_subset_iff, rule conjI, rule ap_spec_fst_superset, fact)
     from ap_specD2[OF assms(1)]
-    have "fst ` (set ps \<union> set ns \<times> (set gs \<union> set bs)) \<subseteq> fst ` set (ap gs bs ps ns)"
+    have "fst ` (set ps \<union> set ns \<times> (set gs \<union> set bs)) \<subseteq> fst ` set (ap gs bs ps ns data)"
       by (rule image_mono)
-    hence "fst ` (set ns \<times> (set gs \<union> set bs)) \<subseteq> fst ` set (ap gs bs ps ns)" by blast
-    with assms(2) show "set ns \<subseteq> fst ` set (ap gs bs ps ns)" by auto
+    hence "fst ` (set ns \<times> (set gs \<union> set bs)) \<subseteq> fst ` set (ap gs bs ps ns data)" by blast
+    with assms(2) show "set ns \<subseteq> fst ` set (ap gs bs ps ns data)" by auto
   qed
 qed
 
 lemma ap_spec_snd_superset1:
   assumes "ap_spec ap"
-  shows "snd ` set ps \<subseteq> snd ` set (ap gs bs ps ns)"
+  shows "snd ` set ps \<subseteq> snd ` set (ap gs bs ps ns data)"
 proof -
   from ap_specD2[OF assms]
-  have "snd ` (set ps \<union> set ns \<times> (set gs \<union> set bs)) \<subseteq> snd ` set (ap gs bs ps ns)"
+  have "snd ` (set ps \<union> set ns \<times> (set gs \<union> set bs)) \<subseteq> snd ` set (ap gs bs ps ns data)"
     by (rule image_mono)
   thus ?thesis by auto
 qed
 
 lemma ap_spec_snd_superset2:
   assumes "ap_spec ap" and "ns \<noteq> []"
-  shows "snd ` set ps \<union> set gs \<union> set bs \<subseteq> snd ` set (ap gs bs ps ns)"
+  shows "snd ` set ps \<union> set gs \<union> set bs \<subseteq> snd ` set (ap gs bs ps ns data)"
 proof -
   from ap_specD2[OF assms(1)]
-  have "snd ` (set ps \<union> set ns \<times> (set gs \<union> set bs)) \<subseteq> snd ` set (ap gs bs ps ns)"
+  have "snd ` (set ps \<union> set ns \<times> (set gs \<union> set bs)) \<subseteq> snd ` set (ap gs bs ps ns data)"
     by (rule image_mono)
   with assms(2) show ?thesis by (simp add: image_Un)
 qed
 
 lemma ap_spec_inE:
-  assumes "ap_spec ap" and "(p, q) \<in> set (ap gs bs ps ns)"
+  assumes "ap_spec ap" and "(p, q) \<in> set (ap gs bs ps ns data)"
   assumes 1: "(p, q) \<in> set ps \<Longrightarrow> thesis"
   assumes 2: "p \<in> set ns \<Longrightarrow> q \<in> set gs \<union> set bs \<union> set ns \<Longrightarrow> thesis"
   shows thesis
@@ -292,31 +296,34 @@ qed
 
 subsubsection \<open>Specification of the @{emph \<open>add-basis\<close>} parameter\<close>
 
-definition ab_spec :: "('a, 'b, 'c) abT \<Rightarrow> bool"
-  where "ab_spec ab \<longleftrightarrow> (\<forall>gs bs ns. ns \<noteq> [] \<longrightarrow> set (ab gs bs ns) = set bs \<union> set ns) \<and> (\<forall>gs bs. ab gs bs [] = bs)"
+definition ab_spec :: "('a, 'b, 'c, 'd) abT \<Rightarrow> bool"
+  where "ab_spec ab \<longleftrightarrow>
+              (\<forall>gs bs ns data. ns \<noteq> [] \<longrightarrow> set (ab gs bs ns data) = set bs \<union> set ns) \<and>
+              (\<forall>gs bs data. ab gs bs [] data = bs)"
 
 lemma ab_specI:
-  assumes "\<And>gs bs ns. ns \<noteq> [] \<Longrightarrow> set (ab gs bs ns) = set bs \<union> set ns" and "\<And>gs bs. ab gs bs [] = bs"
+  assumes "\<And>gs bs ns data. ns \<noteq> [] \<Longrightarrow> set (ab gs bs ns data) = set bs \<union> set ns"
+    and "\<And>gs bs data. ab gs bs [] data = bs"
   shows "ab_spec ab"
   unfolding ab_spec_def using assms by blast
 
 lemma ab_specD1:
   assumes "ab_spec ab"
-  shows "set (ab gs bs ns) = set bs \<union> set ns"
+  shows "set (ab gs bs ns data) = set bs \<union> set ns"
   using assms unfolding ab_spec_def by (metis empty_set sup_bot.right_neutral)
 
 lemma ab_specD2:
   assumes "ab_spec ab"
-  shows "ab gs bs [] = bs"
+  shows "ab gs bs [] data = bs"
   using assms unfolding ab_spec_def by blast
 
 lemma subset_Times_ap:
   assumes "ap_spec ap" and "ab_spec ab" and "set ps \<subseteq> set bs \<times> (set gs \<union> set bs)"
-  shows "set (ap gs bs (ps -- sps) ns) \<subseteq> set (ab gs bs ns) \<times> (set gs \<union> set (ab gs bs ns))"
+  shows "set (ap gs bs (ps -- sps) ns data) \<subseteq> set (ab gs bs ns data) \<times> (set gs \<union> set (ab gs bs ns data))"
 proof
   fix p q
-  assume "(p, q) \<in> set (ap gs bs (ps -- sps) ns)"
-  with assms(1) show "(p, q) \<in> set (ab gs bs ns) \<times> (set gs \<union> set (ab gs bs ns))"
+  assume "(p, q) \<in> set (ap gs bs (ps -- sps) ns data)"
+  with assms(1) show "(p, q) \<in> set (ab gs bs ns data) \<times> (set gs \<union> set (ab gs bs ns data))"
   proof (rule ap_spec_inE)
     assume "(p, q) \<in> set (ps -- sps)"
     hence "(p, q) \<in> set ps" by (simp add: set_diff_list)
@@ -330,13 +337,13 @@ proof
 qed
 
 lemma processed'_apE:
-  assumes "ap_spec ap" and "ab_spec ab" and "processed' (f, g) (gs @ (ab gs bs ns)) (ap gs bs ps ns)"
+  assumes "ap_spec ap" and "ab_spec ab" and "processed' (f, g) (gs @ (ab gs bs ns data)) (ap gs bs ps ns data)"
   assumes 1: "processed' (f, g) (gs @ bs) ps \<Longrightarrow> thesis"
   assumes 2: "f \<in> set ns \<Longrightarrow> g \<in> set ns \<Longrightarrow> thesis"
   shows thesis
 proof -
   from assms(3) have d1: "f \<in> set gs \<union> set bs \<or> f \<in> set ns" and d2: "g \<in> set gs \<union> set bs \<or> g \<in> set ns"
-    and a: "(f, g) \<notin> set (ap gs bs ps ns)" and b: "(g, f) \<notin> set (ap gs bs ps ns)"
+    and a: "(f, g) \<notin> set (ap gs bs ps ns data)" and b: "(g, f) \<notin> set (ap gs bs ps ns data)"
     by (simp_all add: processed'_def ab_specD1[OF assms(2)])
   from d1 show ?thesis
   proof
@@ -347,7 +354,7 @@ proof -
       with \<open>f \<in> set ns\<close> show ?thesis by (rule 2)
     next
       assume "g \<in> set gs \<union> set bs"
-      with assms(1) \<open>f \<in> set ns\<close> have "(f, g) \<in> set (ap gs bs ps ns)" by (rule ap_spec_inI2)
+      with assms(1) \<open>f \<in> set ns\<close> have "(f, g) \<in> set (ap gs bs ps ns data)" by (rule ap_spec_inI2)
       with a show ?thesis ..
     qed
   next
@@ -356,7 +363,7 @@ proof -
     from d2 show ?thesis
     proof
       assume "g \<in> set ns"
-      from assms(1) this \<open>f \<in> set gs \<union> set bs\<close> have "(g, f) \<in> set (ap gs bs ps ns)"
+      from assms(1) this \<open>f \<in> set gs \<union> set bs\<close> have "(g, f) \<in> set (ap gs bs ps ns data)"
         by (rule ap_spec_inI2)
       with b show ?thesis ..
     next
@@ -367,14 +374,14 @@ proof -
         show "(f, g) \<notin> set ps"
         proof
           assume "(f, g) \<in> set ps"
-          with assms(1) have "(f, g) \<in> set (ap gs bs ps ns)" by (rule ap_spec_inI1)
+          with assms(1) have "(f, g) \<in> set (ap gs bs ps ns data)" by (rule ap_spec_inI1)
           with a show False ..
         qed
       next
         show "(g, f) \<notin> set ps"
         proof
           assume "(g, f) \<in> set ps"
-          with assms(1) have "(g, f) \<in> set (ap gs bs ps ns)" by (rule ap_spec_inI1)
+          with assms(1) have "(g, f) \<in> set (ap gs bs ps ns data)" by (rule ap_spec_inI1)
           with b show False ..
         qed
       qed
@@ -402,39 +409,39 @@ lemma args_to_set_subset_Times:
 
 lemma args_to_set_alt2:
   assumes "ap_spec ap" and "ab_spec ab"
-  shows "args_to_set (gs, ab gs bs ns, ap gs bs ps ns) = fst ` (set gs \<union> set bs \<union>
+  shows "args_to_set (gs, ab gs bs ns data, ap gs bs ps ns data) = fst ` (set gs \<union> set bs \<union>
               fst ` set ps \<union> snd ` set ps \<union> set ns)" (is "?l = fst ` ?r")
 proof
   show "?l \<subseteq> fst ` ?r"
   proof (simp only: args_to_set_alt Un_subset_iff, intro conjI image_mono)
-    show "set (ab gs bs ns) \<subseteq> ?r" by (auto simp add: ab_specD1[OF assms(2)])
+    show "set (ab gs bs ns data) \<subseteq> ?r" by (auto simp add: ab_specD1[OF assms(2)])
   next
-    from assms(1) have "fst ` set (ap gs bs ps ns) \<subseteq> fst ` set ps \<union> set ns"
+    from assms(1) have "fst ` set (ap gs bs ps ns data) \<subseteq> fst ` set ps \<union> set ns"
       by (rule ap_spec_fst_subset)
-    thus "fst ` set (ap gs bs ps ns) \<subseteq> ?r" by blast
+    thus "fst ` set (ap gs bs ps ns data) \<subseteq> ?r" by blast
   next
-    from assms(1) have "snd ` set (ap gs bs ps ns) \<subseteq> snd ` set ps \<union> set gs \<union> set bs \<union> set ns"
+    from assms(1) have "snd ` set (ap gs bs ps ns data) \<subseteq> snd ` set ps \<union> set gs \<union> set bs \<union> set ns"
       by (rule ap_spec_snd_subset)
-    thus "snd ` set (ap gs bs ps ns) \<subseteq> ?r" by blast
+    thus "snd ` set (ap gs bs ps ns data) \<subseteq> ?r" by blast
   qed blast
 next
-  let ?u = "set gs \<union> set (ab gs bs ns) \<union> fst ` set (ap gs bs ps ns) \<union> snd ` set (ap gs bs ps ns)"
+  let ?u = "set gs \<union> set (ab gs bs ns data) \<union> fst ` set (ap gs bs ps ns data) \<union> snd ` set (ap gs bs ps ns data)"
   show "fst ` ?r \<subseteq> ?l"
   proof (simp only: args_to_set_alt image_Un[symmetric], rule image_mono, simp only: Un_subset_iff, intro conjI)
     show "set gs \<subseteq> ?u" by blast
   next
-    from assms(2) have "set bs \<subseteq> set (ab gs bs ns)" by (simp add: ab_specD1)
+    from assms(2) have "set bs \<subseteq> set (ab gs bs ns data)" by (simp add: ab_specD1)
     thus "set bs \<subseteq> ?u" by blast
   next
-    from assms(1) have "fst ` set ps \<subseteq> fst ` set (ap gs bs ps ns)"
+    from assms(1) have "fst ` set ps \<subseteq> fst ` set (ap gs bs ps ns data)"
       by (rule ap_spec_fst_superset)
     thus "fst ` set ps \<subseteq> ?u" by blast
   next
-    from assms(1) have "snd ` set ps \<subseteq> snd ` set (ap gs bs ps ns)"
+    from assms(1) have "snd ` set ps \<subseteq> snd ` set (ap gs bs ps ns data)"
       by (rule ap_spec_snd_superset1)
     thus "snd ` set ps \<subseteq> ?u" by blast
   next
-    from assms(2) have "set ns \<subseteq> set (ab gs bs ns)" by (simp add: ab_specD1)
+    from assms(2) have "set ns \<subseteq> set (ab gs bs ns data)" by (simp add: ab_specD1)
     thus "set ns \<subseteq> ?u" by blast
   qed
 qed
@@ -456,40 +463,41 @@ lemma args_to_set_subset3:
 
 subsubsection \<open>Specification of the @{emph \<open>completion\<close>} parameter\<close>
 
-definition compl_struct :: "('a, 'b::field, 'c) complT \<Rightarrow> bool"
+definition compl_struct :: "('a, 'b::field, 'c, 'd) complT \<Rightarrow> bool"
   where "compl_struct compl \<longleftrightarrow>
-          (\<forall>gs bs ps sps. sps \<noteq> [] \<longrightarrow> set sps \<subseteq> set ps \<longrightarrow>
+          (\<forall>gs bs ps sps data. sps \<noteq> [] \<longrightarrow> set sps \<subseteq> set ps \<longrightarrow>
               (\<forall>d. dickson_grading (op +) d \<longrightarrow>
-                  dgrad_p_set_le d (fst ` (set (compl gs bs (ps -- sps) sps))) (args_to_set (gs, bs, ps))) \<and>
-              0 \<notin> fst ` set (compl gs bs (ps -- sps) sps) \<and>
-              (\<forall>h\<in>set (compl gs bs (ps -- sps) sps). \<forall>b\<in>set bs. fst b \<noteq> 0 \<longrightarrow> \<not> lp (fst b) adds lp (fst h)))"
+                  dgrad_p_set_le d (fst ` (set (fst (compl gs bs (ps -- sps) sps data)))) (args_to_set (gs, bs, ps))) \<and>
+              0 \<notin> fst ` set (fst (compl gs bs (ps -- sps) sps data)) \<and>
+              (\<forall>h\<in>set (fst (compl gs bs (ps -- sps) sps data)). \<forall>b\<in>set bs. fst b \<noteq> 0 \<longrightarrow> \<not> lp (fst b) adds lp (fst h)))"
 
 lemma compl_structI:
-  assumes "\<And>d gs bs ps sps. dickson_grading (op +) d \<Longrightarrow> sps \<noteq> [] \<Longrightarrow> set sps \<subseteq> set ps \<Longrightarrow>
-              dgrad_p_set_le d (fst ` (set (compl gs bs (ps -- sps) sps))) (args_to_set (gs, bs, ps))"
-  assumes "\<And>gs bs ps sps. sps \<noteq> [] \<Longrightarrow> set sps \<subseteq> set ps \<Longrightarrow> 0 \<notin> fst ` set (compl gs bs (ps -- sps) sps)"
-  assumes "\<And>gs bs ps sps h b. sps \<noteq> [] \<Longrightarrow> set sps \<subseteq> set ps \<Longrightarrow> h \<in> set (compl gs bs (ps -- sps) sps) \<Longrightarrow>
+  assumes "\<And>d gs bs ps sps data. dickson_grading (op +) d \<Longrightarrow> sps \<noteq> [] \<Longrightarrow> set sps \<subseteq> set ps \<Longrightarrow>
+              dgrad_p_set_le d (fst ` (set (fst (compl gs bs (ps -- sps) sps data)))) (args_to_set (gs, bs, ps))"
+  assumes "\<And>gs bs ps sps data. sps \<noteq> [] \<Longrightarrow> set sps \<subseteq> set ps \<Longrightarrow> 0 \<notin> fst ` set (fst (compl gs bs (ps -- sps) sps data))"
+  assumes "\<And>gs bs ps sps h b data. sps \<noteq> [] \<Longrightarrow> set sps \<subseteq> set ps \<Longrightarrow> h \<in> set (fst (compl gs bs (ps -- sps) sps data)) \<Longrightarrow>
               b \<in> set bs \<Longrightarrow> fst b \<noteq> 0 \<Longrightarrow> \<not> lp (fst b) adds lp (fst h)"
   shows "compl_struct compl"
   unfolding compl_struct_def using assms by auto
 
 lemma compl_structD1:
   assumes "compl_struct compl" and "dickson_grading (op +) d" and "sps \<noteq> []" and "set sps \<subseteq> set ps"
-  shows "dgrad_p_set_le d (fst ` (set (compl gs bs (ps -- sps) sps))) (args_to_set (gs, bs, ps))"
+  shows "dgrad_p_set_le d (fst ` (set (fst (compl gs bs (ps -- sps) sps data)))) (args_to_set (gs, bs, ps))"
   using assms unfolding compl_struct_def by blast
 
 lemma compl_structD2:
   assumes "compl_struct compl" and "sps \<noteq> []" and "set sps \<subseteq> set ps"
-  shows "0 \<notin> fst ` set (compl gs bs (ps -- sps) sps)"
+  shows "0 \<notin> fst ` set (fst (compl gs bs (ps -- sps) sps data))"
   using assms unfolding compl_struct_def by blast
 
 lemma compl_structD3:
   assumes "compl_struct compl" and "sps \<noteq> []" and "set sps \<subseteq> set ps"
-    and "h \<in> set (compl gs bs (ps -- sps) sps)" and "b \<in> set bs" and "fst b \<noteq> 0"
+    and "h \<in> set (fst (compl gs bs (ps -- sps) sps data))" and "b \<in> set bs" and "fst b \<noteq> 0"
   shows "\<not> lp (fst b) adds lp (fst h)"
   using assms unfolding compl_struct_def by blast
 
-definition struct_spec :: "('a, 'b::field, 'c) selT \<Rightarrow> ('a, 'b, 'c) apT \<Rightarrow> ('a, 'b, 'c) abT \<Rightarrow> ('a, 'b, 'c) complT \<Rightarrow> bool"
+definition struct_spec :: "('a, 'b::field, 'c, 'd) selT \<Rightarrow> ('a, 'b, 'c, 'd) apT \<Rightarrow> ('a, 'b, 'c, 'd) abT \<Rightarrow>
+                            ('a, 'b, 'c, 'd) complT \<Rightarrow> bool"
   where "struct_spec sel ap ab compl \<longleftrightarrow> (sel_spec sel \<and> ap_spec ap \<and> ab_spec ab \<and> compl_struct compl)"
 
 lemma struct_specI:
@@ -519,32 +527,32 @@ lemma struct_specD4:
 
 lemmas struct_specD = struct_specD1 struct_specD2 struct_specD3 struct_specD4
 
-definition compl_pideal :: "('a, 'b::field, 'c) complT \<Rightarrow> bool"
+definition compl_pideal :: "('a, 'b::field, 'c, 'd) complT \<Rightarrow> bool"
   where "compl_pideal compl \<longleftrightarrow>
-          (\<forall>gs bs ps sps. is_Groebner_basis (fst ` set gs) \<longrightarrow> sps \<noteq> [] \<longrightarrow> set sps \<subseteq> set ps \<longrightarrow>
-              fst ` (set (compl gs bs (ps -- sps) sps)) \<subseteq> pideal (args_to_set (gs, bs, ps)))"
+          (\<forall>gs bs ps sps data. is_Groebner_basis (fst ` set gs) \<longrightarrow> sps \<noteq> [] \<longrightarrow> set sps \<subseteq> set ps \<longrightarrow>
+              fst ` (set (fst (compl gs bs (ps -- sps) sps data))) \<subseteq> pideal (args_to_set (gs, bs, ps)))"
 
 lemma compl_pidealI:
-  assumes "\<And>gs bs ps sps. is_Groebner_basis (fst ` set gs) \<Longrightarrow> sps \<noteq> [] \<Longrightarrow> set sps \<subseteq> set ps \<Longrightarrow>
-              fst ` (set (compl gs bs (ps -- sps) sps)) \<subseteq> pideal (args_to_set (gs, bs, ps))"
+  assumes "\<And>gs bs ps sps data. is_Groebner_basis (fst ` set gs) \<Longrightarrow> sps \<noteq> [] \<Longrightarrow> set sps \<subseteq> set ps \<Longrightarrow>
+              fst ` (set (fst (compl gs bs (ps -- sps) sps data))) \<subseteq> pideal (args_to_set (gs, bs, ps))"
   shows "compl_pideal compl"
   unfolding compl_pideal_def using assms by blast
 
 lemma compl_pidealD:
   assumes "compl_pideal compl" and "is_Groebner_basis (fst ` set gs)"
     and "sps \<noteq> []" and "set sps \<subseteq> set ps"
-  shows "fst ` (set (compl gs bs (ps -- sps) sps)) \<subseteq> pideal (args_to_set (gs, bs, ps))"
+  shows "fst ` (set (fst (compl gs bs (ps -- sps) sps data))) \<subseteq> pideal (args_to_set (gs, bs, ps))"
   using assms unfolding compl_pideal_def by blast
 
-definition compl_conn :: "('a, 'b::field, 'c) complT \<Rightarrow> bool"
+definition compl_conn :: "('a, 'b::field, 'c, 'd) complT \<Rightarrow> bool"
   where "compl_conn compl \<longleftrightarrow>
-            (\<forall>d m gs bs ps sps p q. dickson_grading (op +) d \<longrightarrow> fst ` set gs \<subseteq> dgrad_p_set d m \<longrightarrow>
+            (\<forall>d m gs bs ps sps p q data. dickson_grading (op +) d \<longrightarrow> fst ` set gs \<subseteq> dgrad_p_set d m \<longrightarrow>
               is_Groebner_basis (fst ` set gs) \<longrightarrow> fst ` set bs \<subseteq> dgrad_p_set d m \<longrightarrow>
               set ps \<subseteq> set bs \<times> (set gs \<union> set bs) \<longrightarrow> sps \<noteq> [] \<longrightarrow> set sps \<subseteq> set ps \<longrightarrow>
               (\<forall>p' q'. processed' (p', q') (gs @ bs) ps \<longrightarrow> fst p' \<noteq> 0 \<longrightarrow> fst q' \<noteq> 0 \<longrightarrow>
                   crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs)) (fst p') (fst q')) \<longrightarrow>
               (p, q) \<in> set sps \<longrightarrow> fst p \<noteq> 0 \<longrightarrow> fst q \<noteq> 0 \<longrightarrow>
-              crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs \<union> set (compl gs bs (ps -- sps) sps))) (fst p) (fst q))"
+              crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs \<union> set (fst (compl gs bs (ps -- sps) sps data)))) (fst p) (fst q))"
 
 text \<open>Informally, @{term "compl_conn compl"} means that, for suitable arguments @{term gs}, @{term bs},
   @{term ps} and @{term sps}, the value of @{term "compl gs bs ps sps"} is a list @{term ns} such that
@@ -553,13 +561,13 @@ text \<open>Informally, @{term "compl_conn compl"} means that, for suitable argu
   modulo the smaller set @{term "set gs \<union> set bs"}.\<close>
 
 lemma compl_connI:
-  assumes "\<And>d m gs bs ps sps p q. dickson_grading (op +) d \<Longrightarrow> fst ` set gs \<subseteq> dgrad_p_set d m \<Longrightarrow>
+  assumes "\<And>d m gs bs ps sps p q data. dickson_grading (op +) d \<Longrightarrow> fst ` set gs \<subseteq> dgrad_p_set d m \<Longrightarrow>
             is_Groebner_basis (fst ` set gs) \<Longrightarrow> fst ` set bs \<subseteq> dgrad_p_set d m \<Longrightarrow>
             set ps \<subseteq> set bs \<times> (set gs \<union> set bs) \<Longrightarrow> sps \<noteq> [] \<Longrightarrow> set sps \<subseteq> set ps \<Longrightarrow>
             (\<And>p' q'. processed' (p', q') (gs @ bs) ps \<Longrightarrow> fst p' \<noteq> 0 \<Longrightarrow> fst q' \<noteq> 0 \<Longrightarrow>
                       crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs)) (fst p') (fst q')) \<Longrightarrow>
             (p, q) \<in> set sps \<Longrightarrow> fst p \<noteq> 0 \<Longrightarrow> fst q \<noteq> 0 \<Longrightarrow>
-            crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs \<union> set (compl gs bs (ps -- sps) sps))) (fst p) (fst q)"
+            crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs \<union> set (fst (compl gs bs (ps -- sps) sps data)))) (fst p) (fst q)"
   shows "compl_conn compl"
   unfolding compl_conn_def using assms by presburger
 
@@ -570,7 +578,7 @@ lemma compl_connD:
     and "\<And>p' q'. processed' (p', q') (gs @ bs) ps \<Longrightarrow> fst p' \<noteq> 0 \<Longrightarrow> fst q' \<noteq> 0 \<Longrightarrow>
                  crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs)) (fst p') (fst q')"
     and "(p, q) \<in> set sps" and "fst p \<noteq> 0" and "fst q \<noteq> 0"
-  shows "crit_pair_cbelow_on d m (fst ` (set gs \<union> (set bs \<union> set (compl gs bs (ps -- sps) sps)))) (fst p) (fst q)"
+  shows "crit_pair_cbelow_on d m (fst ` (set gs \<union> (set bs \<union> set (fst (compl gs bs (ps -- sps) sps data))))) (fst p) (fst q)"
   using assms unfolding compl_conn_def Un_assoc by blast
 
 subsubsection \<open>More facts about Reduction and Gr\"obner bases\<close>
@@ -785,8 +793,8 @@ lemma dgrad_p_set_leI_Un:
 
 lemma dgrad_p_set_le_args_to_set_ab:
   assumes "dickson_grading (op +) d" and "ap_spec ap" and "ab_spec ab" and "compl_struct compl"
-  assumes "sps \<noteq> []" and "set sps \<subseteq> set ps" and "ns = compl gs bs (ps -- sps) sps"
-  shows "dgrad_p_set_le d (args_to_set (gs, ab gs bs ns, ap gs bs (ps -- sps) ns)) (args_to_set (gs, bs, ps))"
+  assumes "sps \<noteq> []" and "set sps \<subseteq> set ps" and "ns = fst (compl gs bs (ps -- sps) sps data)"
+  shows "dgrad_p_set_le d (args_to_set (gs, ab gs bs ns data', ap gs bs (ps -- sps) ns data')) (args_to_set (gs, bs, ps))"
   unfolding args_to_set_alt2[OF assms(2, 3)] image_Un
 proof (intro dgrad_p_set_leI_Un)
   show "dgrad_p_set_le d (fst ` set gs) (args_to_set (gs, bs, ps))"
@@ -808,8 +816,8 @@ qed
 
 corollary dgrad_p_set_le_args_to_set_struct:
   assumes "dickson_grading (op +) d" and "struct_spec sel ap ab compl" and "ps \<noteq> []"
-  assumes "sps = sel gs bs ps" and "ns = compl gs bs (ps -- sps) sps"
-  shows "dgrad_p_set_le d (args_to_set (gs, ab gs bs ns, ap gs bs (ps -- sps) ns)) (args_to_set (gs, bs, ps))"
+  assumes "sps = sel gs bs ps data" and "ns = fst (compl gs bs (ps -- sps) sps data)"
+  shows "dgrad_p_set_le d (args_to_set (gs, ab gs bs ns data', ap gs bs (ps -- sps) ns data')) (args_to_set (gs, bs, ps))"
 proof -
   from assms(2) have sel: "sel_spec sel" and ap: "ap_spec ap" and ab: "ab_spec ab"
     and compl: "compl_struct compl" by (rule struct_specD)+
@@ -820,8 +828,8 @@ qed
 
 lemma struct_spec_red_supset:
   assumes "struct_spec sel ap ab compl" and "ps \<noteq> []"
-    and "sps = sel gs bs ps" and "ns = compl gs bs (ps -- sps) sps" and "ns \<noteq> []"
-  shows "(fst ` set (ab gs bs ns)) \<sqsupset>p (fst ` set bs)"
+    and "sps = sel gs bs ps data" and "ns = fst (compl gs bs (ps -- sps) sps data)" and "ns \<noteq> []"
+  shows "(fst ` set (ab gs bs ns data')) \<sqsupset>p (fst ` set bs)"
 proof -
   from assms(5) have "set ns \<noteq> {}" by simp
   then obtain h' where "h' \<in> set ns" by fastforce
@@ -865,54 +873,54 @@ qed
 definition is_nz_const_pdata :: "('a, 'b::zero, 'c) pdata \<Rightarrow> bool"
   where "is_nz_const_pdata p \<longleftrightarrow> (fst p \<noteq> 0 \<and> lp (fst p) = 0)"
 
-(* TODO: "gb_schema_aux" could get another argument "data" that is updated in every recursive call
-  by yet another parameter "update"; all parameter-functions could then depend on "data".
-  "data" could, for instance, store a counter of iterations, or the list of all previously computed
-  matrices in the improved version of F4 (c.f. Faug\'ere's 1999 JPAL paper). *)
-function (domintros) gb_schema_aux :: "('a, 'b, 'c) selT \<Rightarrow> ('a, 'b, 'c) apT \<Rightarrow> ('a, 'b, 'c) abT \<Rightarrow> ('a, 'b, 'c) complT \<Rightarrow>
-                        ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata_pair list \<Rightarrow>
-                        ('a, 'b, 'c) pdata list"
+function (domintros) gb_schema_aux :: "('a, 'b, 'c, 'd) selT \<Rightarrow> ('a, 'b, 'c, 'd) apT \<Rightarrow> ('a, 'b, 'c, 'd) abT \<Rightarrow>
+                        ('a, 'b, 'c, 'd) complT \<Rightarrow> 'd \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+                        ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata list"
   where
-    "gb_schema_aux sel ap ab compl gs bs ps =
+    "gb_schema_aux sel ap ab compl data gs bs ps =
         (if ps = [] then
           gs @ bs
         else
-          (let sps = sel gs bs ps; ps0 = ps -- sps; ns = compl gs bs ps0 sps in
-            gb_schema_aux sel ap ab compl gs (ab gs bs ns) (ap gs bs ps0 ns)
+          (let sps = sel gs bs ps data; ps0 = ps -- sps; (ns, data') = compl gs bs ps0 sps data in
+            gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs ps0 ns data')
           )
         )"
   by pat_completeness auto
 
-lemma gb_schema_aux_domI1: "gb_schema_aux_dom (sel, ap, ab, compl, gs, bs, [])"
-  using gb_schema_aux.domintros by blast
+lemma gb_schema_aux_domI1: "gb_schema_aux_dom (sel, ap, ab, compl, data, gs, bs, [])"
+  by (rule gb_schema_aux.domintros, simp)
 
 lemma gb_schema_aux_domI2:
   assumes "struct_spec sel ap ab compl"
-  shows "gb_schema_aux_dom (sel, ap, ab, compl, args)"
+  shows "gb_schema_aux_dom (sel, ap, ab, compl, data, args)"
 proof -
   from assms have sel: "sel_spec sel" and ap: "ap_spec ap" and ab: "ab_spec ab" by (rule struct_specD)+
   from ex_dgrad obtain d::"'a \<Rightarrow> nat" where dg: "dickson_grading (op +) d" ..
   let ?R = "gb_schema_aux_term d"
   from dg have "wf ?R" by (rule gb_schema_aux_term_wf)
   thus ?thesis
-  proof induct
-    fix x
-    assume IH: "\<And>y. (y, x) \<in> gb_schema_aux_term d \<Longrightarrow> gb_schema_aux_dom (sel, ap, ab, compl, y)"
+  proof (induct args arbitrary: data rule: wf_induct_rule)
+    fix x data
+    assume IH: "\<And>y data'. (y, x) \<in> ?R \<Longrightarrow> gb_schema_aux_dom (sel, ap, ab, compl, data', y)"
     obtain gs bs0 where x: "x = (gs, bs0)" by (meson case_prodE case_prodI2)
     obtain bs ps where bs0: "bs0 = (bs, ps)" by (meson case_prodE case_prodI2)
-    show "gb_schema_aux_dom (sel, ap, ab, compl, x)" unfolding x bs0
+    show "gb_schema_aux_dom (sel, ap, ab, compl, data, x)" unfolding x bs0
     proof (rule gb_schema_aux.domintros)
+      fix ns data'
       assume "ps \<noteq> []"
-      define sps where "sps = sel gs bs ps"
-      define ns where "ns = compl gs bs (ps -- sps) sps"
-      show "gb_schema_aux_dom (sel, ap, ab, compl, gs, ab gs bs ns, ap gs bs (ps -- sps) ns)"
+        and ns_data': "(ns, data') = compl gs bs (ps -- sel gs bs ps data) (sel gs bs ps data) data"
+      define sps where "sps = sel gs bs ps data"
+      from ns_data' have ns: "ns = fst (compl gs bs (ps -- sps) sps data)"
+        unfolding sps_def by (metis fstI)
+      show "gb_schema_aux_dom (sel, ap, ab, compl, data', gs, ab gs bs ns data', ap gs bs (ps -- sps) ns data')"
       proof (rule IH, simp add: x bs0 gb_schema_aux_term_def gb_schema_aux_term1_def gb_schema_aux_term2_def, rule)
-        show "fst ` set (ab gs bs ns) \<sqsupset>p fst ` set bs \<or> ab gs bs ns = bs \<and> card (set (ap gs bs (ps -- sps) ns)) < card (set ps)"
+        show "fst ` set (ab gs bs ns data') \<sqsupset>p fst ` set bs \<or>
+                ab gs bs ns data' = bs \<and> card (set (ap gs bs (ps -- sps) ns data')) < card (set ps)"
         proof (cases "ns = []")
           case True
-          have "ab gs bs ns = bs \<and> card (set (ap gs bs (ps -- sps) ns)) < card (set ps)"
-          proof (simp only: True ap_spec_empty_new[OF ap], rule)
-            from ab show "ab gs bs [] = bs" by (rule ab_specD2)
+          have "ab gs bs ns data' = bs \<and> card (set (ap gs bs (ps -- sps) ns data')) < card (set ps)"
+          proof (simp only: True ap_spec_Nil_new[OF ap], rule)
+            from ab show "ab gs bs [] data' = bs" by (rule ab_specD2)
           next
             from sel \<open>ps \<noteq> []\<close> have "sps \<noteq> []" and "set sps \<subseteq> set ps"
               unfolding sps_def by (rule sel_specD1, rule sel_specD2)
@@ -924,13 +932,13 @@ proof -
           thus ?thesis ..
         next
           case False
-          with assms \<open>ps \<noteq> []\<close> sps_def ns_def have "fst ` set (ab gs bs ns) \<sqsupset>p fst ` set bs"
+          with assms \<open>ps \<noteq> []\<close> sps_def ns have "fst ` set (ab gs bs ns data') \<sqsupset>p fst ` set bs"
             by (rule struct_spec_red_supset)
           thus ?thesis ..
         qed
       next
-        from dg assms \<open>ps \<noteq> []\<close> sps_def ns_def
-        show "dgrad_p_set_le d (args_to_set (gs, ab gs bs ns, ap gs bs (ps -- sps) ns)) (args_to_set (gs, bs, ps))"
+        from dg assms \<open>ps \<noteq> []\<close> sps_def ns
+        show "dgrad_p_set_le d (args_to_set (gs, ab gs bs ns data', ap gs bs (ps -- sps) ns data')) (args_to_set (gs, bs, ps))"
           by (rule dgrad_p_set_le_args_to_set_struct)
       qed
     qed
@@ -939,14 +947,14 @@ qed
 
 lemmas gb_schema_aux_simp = gb_schema_aux.psimps[OF gb_schema_aux_domI2]
 
-lemma gb_schema_aux_empty [simp, code]: "gb_schema_aux sel ap ab compl gs bs [] = gs @ bs"
+lemma gb_schema_aux_Nil [simp, code]: "gb_schema_aux sel ap ab compl data gs bs [] = gs @ bs"
   by (simp add: gb_schema_aux.psimps[OF gb_schema_aux_domI1])
 
-lemma gb_schema_aux_not_empty:
+lemma gb_schema_aux_not_Nil:
   assumes "struct_spec sel ap ab compl" and "ps \<noteq> []"
-  shows "gb_schema_aux sel ap ab compl gs bs ps =
-          (let sps = sel gs bs ps; ps0 = ps -- sps; ns = compl gs bs ps0 sps in
-            gb_schema_aux sel ap ab compl gs (ab gs bs ns) (ap gs bs ps0 ns)
+  shows "gb_schema_aux sel ap ab compl data gs bs ps =
+          (let sps = sel gs bs ps data; ps0 = ps -- sps; (ns, data') = compl gs bs ps0 sps data in
+            gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs ps0 ns data')
           )"
   by (simp add: gb_schema_aux_simp[OF assms(1)] assms(2))
 
@@ -955,10 +963,12 @@ text \<open>In order to prove the following lemma we again have to employ well-f
 lemma gb_schema_aux_induct [consumes 1, case_names base rec]:
   assumes "struct_spec sel ap ab compl"
   assumes base: "\<And>bs. P bs [] (gs @ bs)"
-    and rec: "\<And>bs ps sps ns. ps \<noteq> [] \<Longrightarrow> sps = sel gs bs ps \<Longrightarrow> ns = compl gs bs (ps -- sps) sps \<Longrightarrow>
-                P (ab gs bs ns) (ap gs bs (ps -- sps) ns) (gb_schema_aux sel ap ab compl gs (ab gs bs ns) (ap gs bs (ps -- sps) ns)) \<Longrightarrow>
-                P bs ps (gb_schema_aux sel ap ab compl gs (ab gs bs ns) (ap gs bs (ps -- sps) ns))"
-  shows "P bs ps (gb_schema_aux sel ap ab compl gs bs ps)"
+    and rec: "\<And>bs ps sps ns data data'. ps \<noteq> [] \<Longrightarrow> sps = sel gs bs ps data \<Longrightarrow>
+                (ns, data') = compl gs bs (ps -- sps) sps data \<Longrightarrow>
+                P (ab gs bs ns data') (ap gs bs (ps -- sps) ns data')
+                  (gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs (ps -- sps) ns data')) \<Longrightarrow>
+                P bs ps (gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs (ps -- sps) ns data'))"
+  shows "P bs ps (gb_schema_aux sel ap ab compl data gs bs ps)"
 proof -
   from assms(1) have sel: "sel_spec sel" and ap: "ap_spec ap" and ab: "ab_spec ab"
     by (rule struct_specD)+
@@ -967,39 +977,42 @@ proof -
   define args where "args = (gs, bs, ps)"
   from dg have "wf ?R" by (rule gb_schema_aux_term_wf)
   hence "fst args = gs \<Longrightarrow> P (fst (snd args)) (snd (snd args))
-              (gb_schema_aux sel ap ab compl gs (fst (snd args)) (snd (snd args)))"
-  proof induct
-    fix x
-    assume IH': "\<And>y. (y, x) \<in> gb_schema_aux_term d \<Longrightarrow> fst y = gs \<Longrightarrow>
-                   P (fst (snd y)) (snd (snd y)) (gb_schema_aux sel ap ab compl gs (fst (snd y)) (snd (snd y)))"
+              (gb_schema_aux sel ap ab compl data gs (fst (snd args)) (snd (snd args)))"
+  proof (induct arbitrary: data)
+    fix x data
+    assume IH': "\<And>y data'. (y, x) \<in> gb_schema_aux_term d \<Longrightarrow> fst y = gs \<Longrightarrow>
+                   P (fst (snd y)) (snd (snd y)) (gb_schema_aux sel ap ab compl data' gs (fst (snd y)) (snd (snd y)))"
     assume "fst x = gs"
     then obtain bs0 where x: "x = (gs, bs0)" by (meson eq_fst_iff)
     obtain bs ps where bs0: "bs0 = (bs, ps)" by (meson case_prodE case_prodI2)
-    from IH' have IH: "\<And>bs' ps'. ((gs, bs', ps'), (gs, bs, ps)) \<in> gb_schema_aux_term d \<Longrightarrow>
-                   P bs' ps' (gb_schema_aux sel ap ab compl gs bs' ps')" unfolding x bs0 by auto
+    from IH' have IH: "\<And>bs' ps' data'. ((gs, bs', ps'), (gs, bs, ps)) \<in> gb_schema_aux_term d \<Longrightarrow>
+                   P bs' ps' (gb_schema_aux sel ap ab compl data' gs bs' ps')" unfolding x bs0 by auto
     show "P (fst (snd x)) (snd (snd x))
-              (gb_schema_aux sel ap ab compl gs (fst (snd x)) (snd (snd x)))"
+              (gb_schema_aux sel ap ab compl data gs (fst (snd x)) (snd (snd x)))"
     proof (simp add: x bs0, cases "ps = []")
       case True
-      from base show "P bs ps (gb_schema_aux sel ap ab compl gs bs ps)" by (simp add: True)
+      from base show "P bs ps (gb_schema_aux sel ap ab compl data gs bs ps)" by (simp add: True)
     next
       case False
-      show "P bs ps (gb_schema_aux sel ap ab compl gs bs ps)"
-      proof (simp add: gb_schema_aux_not_empty[OF assms(1) False] Let_def)
-        define sps where "sps = sel gs bs ps"
-        define ns where "ns = compl gs bs (ps -- sps) sps"
-        from False sps_def ns_def show "P bs ps (gb_schema_aux sel ap ab compl gs (ab gs bs ns) (ap gs bs (ps -- sps) ns))"
+      show "P bs ps (gb_schema_aux sel ap ab compl data gs bs ps)"
+      proof (simp add: gb_schema_aux_not_Nil[OF assms(1) False] Let_def case_prod_beta)
+        define sps where "sps = sel gs bs ps data"
+        define ns where "ns = fst (compl gs bs (ps -- sps) sps data)"
+        define data' where "data' = snd (compl gs bs (ps -- sps) sps data)"
+        have "(ns, data') = compl gs bs (ps -- sps) sps data" by (simp add: ns_def data'_def)
+        with False sps_def
+        show "P bs ps (gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs (ps -- sps) ns data'))"
         proof (rule rec)
-          show "P (ab gs bs ns) (ap gs bs (ps -- sps) ns)
-                    (gb_schema_aux sel ap ab compl gs (ab gs bs ns) (ap gs bs (ps -- sps) ns))"
+          show "P (ab gs bs ns data') (ap gs bs (ps -- sps) ns data')
+                    (gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs (ps -- sps) ns data'))"
           proof (rule IH, simp add: x bs0 gb_schema_aux_term_def gb_schema_aux_term1_def gb_schema_aux_term2_def, rule)
-            show "fst ` set (ab gs bs ns) \<sqsupset>p fst ` set bs \<or>
-                      ab gs bs ns = bs \<and> card (set (ap gs bs (ps -- sps) ns)) < card (set ps)"
+            show "fst ` set (ab gs bs ns data') \<sqsupset>p fst ` set bs \<or>
+                      ab gs bs ns data' = bs \<and> card (set (ap gs bs (ps -- sps) ns data')) < card (set ps)"
             proof (cases "ns = []")
               case True
-              have "ab gs bs ns = bs \<and> card (set (ap gs bs (ps -- sps) ns)) < card (set ps)"
-              proof (simp only: True ap_spec_empty_new[OF ap], rule)
-                from ab show "ab gs bs [] = bs" by (rule ab_specD2)
+              have "ab gs bs ns data' = bs \<and> card (set (ap gs bs (ps -- sps) ns data')) < card (set ps)"
+              proof (simp only: True ap_spec_Nil_new[OF ap], rule)
+                from ab show "ab gs bs [] data' = bs" by (rule ab_specD2)
               next
                 from sel False have "sps \<noteq> []" and "set sps \<subseteq> set ps"
                   unfolding sps_def by (rule sel_specD1, rule sel_specD2)
@@ -1011,13 +1024,13 @@ proof -
               thus ?thesis ..
             next
               case False
-              with assms(1) \<open>ps \<noteq> []\<close> sps_def ns_def have "fst ` set (ab gs bs ns) \<sqsupset>p fst ` set bs"
+              with assms(1) \<open>ps \<noteq> []\<close> sps_def ns_def have "fst ` set (ab gs bs ns data') \<sqsupset>p fst ` set bs"
                 by (rule struct_spec_red_supset)
               thus ?thesis ..
             qed
           next
             from dg assms(1) False sps_def ns_def
-            show "dgrad_p_set_le d (args_to_set (gs, ab gs bs ns, ap gs bs (ps -- sps) ns)) (args_to_set (gs, bs, ps))"
+            show "dgrad_p_set_le d (args_to_set (gs, ab gs bs ns data', ap gs bs (ps -- sps) ns data')) (args_to_set (gs, bs, ps))"
               by (rule dgrad_p_set_le_args_to_set_struct)
           qed
         qed
@@ -1029,30 +1042,31 @@ qed
 
 lemma gb_schema_aux_superset:
   assumes "struct_spec sel ap ab compl"
-  shows "set (gs @ bs) \<subseteq> set (gb_schema_aux sel ap ab compl gs bs ps)"
+  shows "set (gs @ bs) \<subseteq> set (gb_schema_aux sel ap ab compl data gs bs ps)"
   using assms
 proof (induct rule: gb_schema_aux_induct)
   case (base bs)
   show ?case ..
 next
-  case (rec bs ps sps ns)
+  case (rec bs ps sps ns data data')
   from assms have "ab_spec ab" by (rule struct_specD3)
-  hence "set (ab gs bs ns) = set bs \<union> set ns" by (rule ab_specD1)
-  hence "set (gs @ bs) \<subseteq> set (gs @ ab gs bs ns)" by auto
+  hence "set (ab gs bs ns data') = set bs \<union> set ns" by (rule ab_specD1)
+  hence "set (gs @ bs) \<subseteq> set (gs @ ab gs bs ns data')" by auto
   from this rec(4) show ?case by (rule subset_trans)
 qed
 
 lemma gb_schema_aux_dgrad_p_set_le:
   assumes "dickson_grading (op +) d" and "struct_spec sel ap ab compl"
-  shows "dgrad_p_set_le d (fst ` set (gb_schema_aux sel ap ab compl gs bs ps)) (args_to_set (gs, bs, ps))"
+  shows "dgrad_p_set_le d (fst ` set (gb_schema_aux sel ap ab compl data gs bs ps)) (args_to_set (gs, bs, ps))"
   using assms(2)
 proof (induct rule: gb_schema_aux_induct)
   case (base bs)
   thus ?case by (simp add: args_to_set_def, rule dgrad_p_set_le_subset, fact subset_refl)
 next
-  case (rec bs ps sps ns)
-  from assms rec(1, 2, 3)
-  have "dgrad_p_set_le d (args_to_set (gs, ab gs bs ns, ap gs bs (ps -- sps) ns)) (args_to_set (gs, bs, ps))"
+  case (rec bs ps sps ns data data')
+  from rec(3) have "ns = fst (compl gs bs (ps -- sps) sps data)" by (metis fstI)
+  with assms rec(1, 2)
+  have "dgrad_p_set_le d (args_to_set (gs, ab gs bs ns data', ap gs bs (ps -- sps) ns data')) (args_to_set (gs, bs, ps))"
     by (rule dgrad_p_set_le_args_to_set_struct)
   with rec(4) show ?case by (rule dgrad_p_set_le_trans)
 qed
@@ -1060,7 +1074,7 @@ qed
 lemma gb_schema_aux_pideal:
   assumes "struct_spec sel ap ab compl" and "compl_pideal compl" and "is_Groebner_basis (fst ` set gs)"
     and "set ps \<subseteq> (set bs) \<times> (set gs \<union> set bs)"
-  shows "pideal (fst ` set (gb_schema_aux sel ap ab compl gs bs ps)) = pideal (fst ` set (gs @ bs))"
+  shows "pideal (fst ` set (gb_schema_aux sel ap ab compl data gs bs ps)) = pideal (fst ` set (gs @ bs))"
     (is "?l = ?r")
 proof
   from assms(1, 4) show "?l \<subseteq> ?r"
@@ -1068,13 +1082,14 @@ proof
     case (base bs)
     show ?case ..
   next
-    case (rec bs ps sps ns)
+    case (rec bs ps sps ns data data')
+    from rec(3) have ns: "ns = fst (compl gs bs (ps -- sps) sps data)" by (metis fstI)
     from assms(1) have sel: "sel_spec sel" and ap: "ap_spec ap" and ab: "ab_spec ab"
       by (rule struct_specD1, rule struct_specD2, rule struct_specD3)
-    have "pideal (fst ` set (gb_schema_aux sel ap ab compl gs (ab gs bs ns) (ap gs bs (ps -- sps) ns))) \<subseteq>
-          pideal (fst ` set (gs @ ab gs bs ns))"
+    have "pideal (fst ` set (gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs (ps -- sps) ns data'))) \<subseteq>
+          pideal (fst ` set (gs @ ab gs bs ns data'))"
     proof (rule rec(4))
-      from ap ab rec(5) show "set (ap gs bs (ps -- sps) ns) \<subseteq> set (ab gs bs ns) \<times> (set gs \<union> set (ab gs bs ns))"
+      from ap ab rec(5) show "set (ap gs bs (ps -- sps) ns data') \<subseteq> set (ab gs bs ns data') \<times> (set gs \<union> set (ab gs bs ns data'))"
         by (rule subset_Times_ap)
     qed
     also have "... \<subseteq> pideal (fst ` set (gs @ bs))"
@@ -1090,7 +1105,7 @@ proof
       from sel rec(1) have "sps \<noteq> []" and "set sps \<subseteq> set ps"
         unfolding rec(2) by (rule sel_specD1, rule sel_specD2)
       with assms(2, 3) have "fst ` set ns \<subseteq> pideal (args_to_set (gs, bs, ps))"
-        unfolding rec(3) by (rule compl_pidealD)
+        unfolding ns by (rule compl_pidealD)
       thus "fst ` set ns \<subseteq> pideal (fst ` set gs \<union> fst ` set bs)"
         by (simp only: args_to_set_subset_Times[OF rec(5)])
     qed
@@ -1107,9 +1122,9 @@ lemma gb_schema_aux_connectible:
     and "set ps \<subseteq> (set bs) \<times> (set gs \<union> set bs)"
     and "\<And>p q. processed' (p, q) (gs @ bs) ps \<Longrightarrow> fst p \<noteq> 0 \<Longrightarrow> fst q \<noteq> 0 \<Longrightarrow>
                 crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs)) (fst p) (fst q)"
-  assumes "f \<in> set (gb_schema_aux sel ap ab compl gs bs ps)" and "g \<in> set (gb_schema_aux sel ap ab compl gs bs ps)"
-    and "fst f \<noteq> 0" and "fst g \<noteq> 0"
-  shows "crit_pair_cbelow_on d m (fst ` set (gb_schema_aux sel ap ab compl gs bs ps)) (fst f) (fst g)"
+  assumes "f \<in> set (gb_schema_aux sel ap ab compl data gs bs ps)"
+    and "g \<in> set (gb_schema_aux sel ap ab compl data gs bs ps)" and "fst f \<noteq> 0" and "fst g \<noteq> 0"
+  shows "crit_pair_cbelow_on d m (fst ` set (gb_schema_aux sel ap ab compl data gs bs ps)) (fst f) (fst g)"
   using assms(1, 6, 7, 8, 9, 10)
 proof (induct rule: gb_schema_aux_induct)
   case (base bs)
@@ -1139,33 +1154,35 @@ proof (induct rule: gb_schema_aux_induct)
     from this \<open>fst f \<noteq> 0\<close> \<open>fst g \<noteq> 0\<close> show ?thesis unfolding set_append by (rule base(3))
   qed
 next
-  case (rec bs ps sps ns)
+  case (rec bs ps sps ns data data')
+  from rec(3) have ns: "ns = fst (compl gs bs (ps -- sps) sps data)" by (metis fstI)
   from assms(1) have sel: "sel_spec sel" and ap: "ap_spec ap" and ab: "ab_spec ab"
     and compl: "compl_struct compl"
     by (rule struct_specD1, rule struct_specD2, rule struct_specD3, rule struct_specD4)
   from sel rec(1) have "sps \<noteq> []" and "set sps \<subseteq> set ps"
     unfolding rec(2) by (rule sel_specD1, rule sel_specD2)
-  from ap ab rec(6) have ap_sub: "set (ap gs bs (ps -- sps) ns) \<subseteq> set (ab gs bs ns) \<times> (set gs \<union> set (ab gs bs ns))"
+  from ap ab rec(6) have ap_sub: "set (ap gs bs (ps -- sps) ns data') \<subseteq>
+                                    set (ab gs bs ns data') \<times> (set gs \<union> set (ab gs bs ns data'))"
     by (rule subset_Times_ap)
   have ns_sub: "fst ` set ns \<subseteq> dgrad_p_set d m"
   proof (rule dgrad_p_set_le_dgrad_p_set)
     from compl assms(3) \<open>sps \<noteq> []\<close> \<open>set sps \<subseteq> set ps\<close>
     show "dgrad_p_set_le d (fst ` set ns) (args_to_set (gs, bs, ps))"
-      unfolding rec(3) by (rule compl_structD1)
+      unfolding ns by (rule compl_structD1)
   next
     from assms(4) rec(5) show "args_to_set (gs, bs, ps) \<subseteq> dgrad_p_set d m"
       by (simp add: args_to_set_subset_Times[OF rec(6)])
   qed
-  with rec(5) have ab_sub: "fst ` set (ab gs bs ns) \<subseteq> dgrad_p_set d m"
+  with rec(5) have ab_sub: "fst ` set (ab gs bs ns data') \<subseteq> dgrad_p_set d m"
     by (auto simp add: ab_specD1[OF ab])
 
   have cpq: "(p, q) \<in> set sps \<Longrightarrow> fst p \<noteq> 0 \<Longrightarrow> fst q \<noteq> 0 \<Longrightarrow>
-              crit_pair_cbelow_on d m (fst ` (set gs \<union> set (ab gs bs ns))) (fst p) (fst q)" for p q
+              crit_pair_cbelow_on d m (fst ` (set gs \<union> set (ab gs bs ns data'))) (fst p) (fst q)" for p q
   proof -
     assume "(p, q) \<in> set sps" and "fst p \<noteq> 0" and "fst q \<noteq> 0"
     with assms(2, 3, 4, 5) rec(5, 6) \<open>sps \<noteq> []\<close> \<open>set sps \<subseteq> set ps\<close> _
-    show "crit_pair_cbelow_on d m (fst ` (set gs \<union> set (ab gs bs ns))) (fst p) (fst q)"
-      unfolding ab_specD1[OF ab] rec(3)
+    show "crit_pair_cbelow_on d m (fst ` (set gs \<union> set (ab gs bs ns data'))) (fst p) (fst q)"
+      unfolding ab_specD1[OF ab] ns
     proof (rule compl_connD)
       fix p' q'
       assume "processed' (p', q') (gs @ bs) ps" and "fst p' \<noteq> 0" and "fst q' \<noteq> 0"
@@ -1178,8 +1195,8 @@ next
   proof (rule rec(4))
     fix p q :: "('a, 'b, 'c) pdata"
     assume "fst p \<noteq> 0" and "fst q \<noteq> 0"
-    assume proc: "processed' (p, q) (gs @ (ab gs bs ns)) (ap gs bs (ps -- sps) ns)"
-    with ap ab show "crit_pair_cbelow_on d m (fst ` (set gs \<union> set (ab gs bs ns))) (fst p) (fst q)"
+    assume proc: "processed' (p, q) (gs @ (ab gs bs ns data')) (ap gs bs (ps -- sps) ns data')"
+    with ap ab show "crit_pair_cbelow_on d m (fst ` (set gs \<union> set (ab gs bs ns data'))) (fst p) (fst q)"
     proof (rule processed'_apE)
       assume "processed' (p, q) (gs @ bs) (ps -- sps)"
       thus ?thesis
@@ -1189,14 +1206,14 @@ next
       next
         assume "(q, p) \<in> set sps"
         from this \<open>fst q \<noteq> 0\<close> \<open>fst p \<noteq> 0\<close>
-        have "crit_pair_cbelow_on d m (fst ` (set gs \<union> set (ab gs bs ns))) (fst q) (fst p)"
+        have "crit_pair_cbelow_on d m (fst ` (set gs \<union> set (ab gs bs ns data'))) (fst q) (fst p)"
           by (rule cpq)
         thus ?thesis by (rule crit_pair_cbelow_sym)
       next
         assume "processed' (p, q) (gs @ bs) ps"
         from this \<open>fst p \<noteq> 0\<close> \<open>fst q \<noteq> 0\<close>
         have "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs)) (fst p) (fst q)" by (rule rec(7))
-        moreover have "fst ` (set gs \<union> set bs) \<subseteq> fst ` (set gs \<union> set (ab gs bs ns))"
+        moreover have "fst ` (set gs \<union> set bs) \<subseteq> fst ` (set gs \<union> set (ab gs bs ns data'))"
           by (auto simp add: ab_specD1[OF ab])
         ultimately show ?thesis by (rule crit_pair_cbelow_mono)
       qed
@@ -1211,12 +1228,12 @@ next
       next
         case False
         with ap \<open>p \<in> set ns\<close> \<open>q \<in> set ns\<close>
-        have "\<not> processed' (p, q) (gs @ (ab gs bs ns)) (ap gs bs (ps -- sps) ns)"
+        have "\<not> processed' (p, q) (gs @ (ab gs bs ns data')) (ap gs bs (ps -- sps) ns data')"
         proof (rule ap_specE)
-          assume "(p, q) \<in> set (ap gs bs (ps -- sps) ns)"
+          assume "(p, q) \<in> set (ap gs bs (ps -- sps) ns data')"
           thus ?thesis by (simp add: processed'_def)
         next
-          assume "(q, p) \<in> set (ap gs bs (ps -- sps) ns)"
+          assume "(q, p) \<in> set (ap gs bs (ps -- sps) ns data')"
           thus ?thesis by (simp add: processed'_def)
         qed
         from this proc show ?thesis ..
@@ -1227,30 +1244,32 @@ qed
 
 subsubsection \<open>Functions @{term gb_schema_direct} and @{term gb_schema_incr}\<close>
 
-definition gb_schema_direct :: "('a, 'b, 'c) selT \<Rightarrow> ('a, 'b, 'c) apT \<Rightarrow> ('a, 'b, 'c) abT \<Rightarrow>
-                                ('a, 'b, 'c) complT \<Rightarrow> ('a, 'b::field, 'c) pdata list \<Rightarrow>
+definition gb_schema_direct :: "('a, 'b, 'c, 'd) selT \<Rightarrow> ('a, 'b, 'c, 'd) apT \<Rightarrow> ('a, 'b, 'c, 'd) abT \<Rightarrow>
+                                ('a, 'b, 'c, 'd) complT \<Rightarrow> ('a, 'b::field, 'c) pdata list \<Rightarrow> 'd \<Rightarrow>
                                 ('a, 'b, 'c) pdata list"
-  where "gb_schema_direct sel ap ab compl bs = gb_schema_aux sel ap ab compl [] bs (ap [] [] [] bs)"
+  where "gb_schema_direct sel ap ab compl bs data =
+                              gb_schema_aux sel ap ab compl data [] bs (ap [] [] [] bs data)"
 
-fun gb_schema_incr :: "('a, 'b, 'c) selT \<Rightarrow> ('a, 'b, 'c) apT \<Rightarrow> ('a, 'b, 'c) abT \<Rightarrow>
-                                ('a, 'b, 'c) complT \<Rightarrow> ('a, 'b::field, 'c) pdata list \<Rightarrow>
-                                ('a, 'b, 'c) pdata list"
+fun gb_schema_incr :: "('a, 'b, 'c, 'd) selT \<Rightarrow> ('a, 'b, 'c, 'd) apT \<Rightarrow> ('a, 'b, 'c, 'd) abT \<Rightarrow>
+                                ('a, 'b, 'c, 'd) complT \<Rightarrow>
+                                (('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata \<Rightarrow> 'd \<Rightarrow> 'd) \<Rightarrow>
+                                ('a, 'b::field, 'c) pdata list \<Rightarrow> 'd \<Rightarrow> ('a, 'b, 'c) pdata list"
   where
-    "gb_schema_incr _ _ _ _ [] = []"|
-    "gb_schema_incr _ _ _ _ [b] = [b]"|
-    "gb_schema_incr sel ap ab compl (b # bs) =
-      (let gs = gb_schema_incr sel ap ab compl bs in
-        gb_schema_aux sel ap ab compl gs [b] (ap gs [] [] [b])
+    "gb_schema_incr _ _ _ _ _ [] _ = []"|
+    "gb_schema_incr _ _ _ _ _ [b] _ = [b]"|
+    "gb_schema_incr sel ap ab compl upd (b # bs) data =
+      (let gs = gb_schema_incr sel ap ab compl upd bs data; data' = upd gs b data in
+        gb_schema_aux sel ap ab compl data' gs [b] (ap gs [] [] [b] data')
       )"
 
 lemma gb_schema_direct_dgrad_p_set_le:
   assumes "dickson_grading (op +) d" and "struct_spec sel ap ab compl"
-  shows "dgrad_p_set_le d (fst ` set (gb_schema_direct sel ap ab compl bs)) (fst ` set bs)"
+  shows "dgrad_p_set_le d (fst ` set (gb_schema_direct sel ap ab compl bs data)) (fst ` set bs)"
 proof -
   from assms(2) have ap: "ap_spec ap" and ab: "ab_spec ab" by (rule struct_specD2, rule struct_specD3)
-  from ap_specD1[OF ap, of "[]" "[]" "[]" bs] have *: "set (ap [] [] [] bs) \<subseteq> set bs \<times> set bs" by simp
-  from assms have "dgrad_p_set_le d (fst ` set (gb_schema_aux sel ap ab compl [] bs (ap [] [] [] bs)))
-                                    (args_to_set ([], bs, (ap [] [] [] bs)))"
+  from ap_specD1[OF ap, of "[]" "[]" "[]" bs] have *: "set (ap [] [] [] bs data) \<subseteq> set bs \<times> set bs" by simp
+  from assms have "dgrad_p_set_le d (fst ` set (gb_schema_aux sel ap ab compl data [] bs (ap [] [] [] bs data)))
+                                    (args_to_set ([], bs, (ap [] [] [] bs data)))"
     by (rule gb_schema_aux_dgrad_p_set_le)
   also from * have "... = fst ` set bs" by (auto simp add: args_to_set_alt)
   finally show ?thesis unfolding gb_schema_direct_def .
@@ -1258,40 +1277,40 @@ qed
 
 corollary gb_schema_direct_dgrad_p_set:
   assumes "dickson_grading (op +) d" and "struct_spec sel ap ab compl" and "fst ` set bs \<subseteq> dgrad_p_set d m"
-  shows "fst ` set (gb_schema_direct sel ap ab compl bs) \<subseteq> dgrad_p_set d m"
+  shows "fst ` set (gb_schema_direct sel ap ab compl bs data) \<subseteq> dgrad_p_set d m"
   by (rule dgrad_p_set_le_dgrad_p_set, rule gb_schema_direct_dgrad_p_set_le, fact+)
 
 theorem gb_schema_direct_isGB:
   assumes "struct_spec sel ap ab compl" and "compl_conn compl"
-  shows "is_Groebner_basis (fst ` set (gb_schema_direct sel ap ab compl bs))"
+  shows "is_Groebner_basis (fst ` set (gb_schema_direct sel ap ab compl bs data))"
 proof -
   from assms(1) have ap: "ap_spec ap" and ab: "ab_spec ab" by (rule struct_specD2, rule struct_specD3)
   from ex_dgrad obtain d::"'a \<Rightarrow> nat" where dg: "dickson_grading (op +) d" ..
   obtain m where "fst ` set bs \<subseteq> dgrad_p_set d m"
     by (rule dgrad_p_set_exhaust, rule finite_imageI, rule finite_set)
-  with dg assms(1) have "fst ` set (gb_schema_direct sel ap ab compl bs) \<subseteq> dgrad_p_set d m"
+  with dg assms(1) have "fst ` set (gb_schema_direct sel ap ab compl bs data) \<subseteq> dgrad_p_set d m"
     by (rule gb_schema_direct_dgrad_p_set)
   with dg show ?thesis
   proof (rule crit_pair_cbelow_imp_GB_dgrad_p_set)
     fix p0 q0
-    assume p0_in: "p0 \<in> fst ` set (gb_schema_direct sel ap ab compl bs)"
-      and q0_in: "q0 \<in> fst ` set (gb_schema_direct sel ap ab compl bs)"
+    assume p0_in: "p0 \<in> fst ` set (gb_schema_direct sel ap ab compl bs data)"
+      and q0_in: "q0 \<in> fst ` set (gb_schema_direct sel ap ab compl bs data)"
     assume "p0 \<noteq> 0" and "q0 \<noteq> 0"
-    from p0_in obtain p where p_in: "p \<in> set (gb_schema_direct sel ap ab compl bs)" and p0: "p0 = fst p" ..
-    from q0_in obtain q where q_in: "q \<in> set (gb_schema_direct sel ap ab compl bs)" and q0: "q0 = fst q" ..
+    from p0_in obtain p where p_in: "p \<in> set (gb_schema_direct sel ap ab compl bs data)" and p0: "p0 = fst p" ..
+    from q0_in obtain q where q_in: "q \<in> set (gb_schema_direct sel ap ab compl bs data)" and q0: "q0 = fst q" ..
     from assms dg _ _ \<open>fst ` set bs \<subseteq> dgrad_p_set d m\<close> _ _ p_in q_in \<open>p0 \<noteq> 0\<close> \<open>q0 \<noteq> 0\<close>
-    show "crit_pair_cbelow_on d m (fst ` set (gb_schema_direct sel ap ab compl bs)) p0 q0"
+    show "crit_pair_cbelow_on d m (fst ` set (gb_schema_direct sel ap ab compl bs data)) p0 q0"
       unfolding gb_schema_direct_def p0 q0
     proof (rule gb_schema_aux_connectible)
       show "fst ` set [] \<subseteq> dgrad_p_set d m" by simp
     next
       from is_Groebner_basis_empty show "is_Groebner_basis (fst ` set [])" by simp
     next
-      from ap_specD1[OF ap, of "[]" "[]" "[]" bs] show "set (ap [] [] [] bs) \<subseteq> set bs \<times> (set [] \<union> set bs)"
+      from ap_specD1[OF ap, of "[]" "[]" "[]" bs] show "set (ap [] [] [] bs data) \<subseteq> set bs \<times> (set [] \<union> set bs)"
         by simp
     next
       fix p' q'
-      assume proc: "processed' (p', q') ([] @ bs) (ap [] [] [] bs)"
+      assume proc: "processed' (p', q') ([] @ bs) (ap [] [] [] bs data)"
       hence "p' \<in> set bs" and "q' \<in> set bs" by (auto dest: processed'D1 processed'D2)
       show "crit_pair_cbelow_on d m (fst ` (set [] \<union> set bs)) (fst p') (fst q')"
       proof (cases "p' = q'")
@@ -1303,12 +1322,12 @@ proof -
         qed
       next
         case False
-        with ap \<open>p' \<in> set bs\<close> \<open>q' \<in> set bs\<close> have "\<not> processed' (p', q') ([] @ bs) (ap [] [] [] bs)"
+        with ap \<open>p' \<in> set bs\<close> \<open>q' \<in> set bs\<close> have "\<not> processed' (p', q') ([] @ bs) (ap [] [] [] bs data)"
         proof (rule ap_specE)
-          assume "(p', q') \<in> set (ap [] [] [] bs)"
+          assume "(p', q') \<in> set (ap [] [] [] bs data)"
           thus ?thesis by (simp add: processed'_alt)
         next
-          assume "(q', p') \<in> set (ap [] [] [] bs)"
+          assume "(q', p') \<in> set (ap [] [] [] bs data)"
           thus ?thesis by (simp add: processed'_alt)
         qed
         from this proc show ?thesis ..
@@ -1319,15 +1338,15 @@ qed
 
 theorem gb_schema_direct_pideal:
   assumes "struct_spec sel ap ab compl" and "compl_pideal compl"
-  shows "pideal (fst ` set (gb_schema_direct sel ap ab compl bs)) = pideal (fst ` set bs)"
+  shows "pideal (fst ` set (gb_schema_direct sel ap ab compl bs data)) = pideal (fst ` set bs)"
 proof -
-  have "pideal (fst ` set (gb_schema_direct sel ap ab compl bs)) = pideal (fst ` set ([] @ bs))"
+  have "pideal (fst ` set (gb_schema_direct sel ap ab compl bs data)) = pideal (fst ` set ([] @ bs))"
     unfolding gb_schema_direct_def using assms
   proof (rule gb_schema_aux_pideal)
     from is_Groebner_basis_empty show "is_Groebner_basis (fst ` set [])" by simp
   next
     from assms(1) have "ap_spec ap" by (rule struct_specD2)
-    from ap_specD1[OF this, of "[]" "[]" "[]" bs] show "set (ap [] [] [] bs) \<subseteq> set bs \<times> (set [] \<union> set bs)"
+    from ap_specD1[OF this, of "[]" "[]" "[]" bs] show "set (ap [] [] [] bs data) \<subseteq> set bs \<times> (set [] \<union> set bs)"
       by simp
   qed
   thus ?thesis by simp
@@ -1337,18 +1356,18 @@ subsection \<open>Suitable Instances of the @{emph \<open>completion\<close>} Pa
 
 subsubsection \<open>Specification of the @{emph \<open>crit\<close>} parameter\<close>
 
-type_synonym (in -) ('a, 'b, 'c) critT' = "('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
-                                          ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata \<Rightarrow>
+type_synonym (in -) ('a, 'b, 'c, 'd) critT' = "('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+                                          ('a, 'b, 'c) pdata_pair list \<Rightarrow> 'd \<Rightarrow> ('a, 'b, 'c) pdata \<Rightarrow>
                                           ('a, 'b, 'c) pdata \<Rightarrow> bool"
 
-definition crit_spec :: "('a, 'b::field, 'c) critT' \<Rightarrow> bool"
+definition crit_spec :: "('a, 'b::field, 'c, 'd) critT' \<Rightarrow> bool"
   where "crit_spec crit \<longleftrightarrow>
-            (\<forall>d m gs bs ps F p q. dickson_grading (op +) d \<longrightarrow> fst ` set gs \<subseteq> dgrad_p_set d m \<longrightarrow>
+            (\<forall>d m gs bs ps F data p q. dickson_grading (op +) d \<longrightarrow> fst ` set gs \<subseteq> dgrad_p_set d m \<longrightarrow>
               is_Groebner_basis (fst ` set gs) \<longrightarrow> fst ` set bs \<subseteq> dgrad_p_set d m \<longrightarrow>
               F \<subseteq> dgrad_p_set d m \<longrightarrow> set ps \<subseteq> set bs \<times> (set gs \<union> set bs) \<longrightarrow>
               (\<forall>p' q'. processed' (p', q') (gs @ bs) ((p, q) # ps) \<longrightarrow> fst p' \<noteq> 0 \<longrightarrow> fst q' \<noteq> 0 \<longrightarrow>
                   crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')) \<longrightarrow>
-              p \<in> set bs \<longrightarrow> q \<in> set gs \<union> set bs \<longrightarrow> fst p \<noteq> 0 \<longrightarrow> fst q \<noteq> 0 \<longrightarrow> crit gs bs ps p q \<longrightarrow>
+              p \<in> set bs \<longrightarrow> q \<in> set gs \<union> set bs \<longrightarrow> fst p \<noteq> 0 \<longrightarrow> fst q \<noteq> 0 \<longrightarrow> crit gs bs ps data p q \<longrightarrow>
               crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p) (fst q))"
 
 text \<open>Informally, @{term "crit_spec crit"} expresses that @{term crit} is a predicate such that
@@ -1359,12 +1378,12 @@ text \<open>Informally, @{term "crit_spec crit"} expresses that @{term crit} is 
   modulo @{term G}.\<close>
 
 lemma crit_specI:
-  assumes "\<And>d m gs bs ps F p q. dickson_grading (op +) d \<Longrightarrow> fst ` set gs \<subseteq> dgrad_p_set d m \<Longrightarrow>
+  assumes "\<And>d m gs bs ps F data p q. dickson_grading (op +) d \<Longrightarrow> fst ` set gs \<subseteq> dgrad_p_set d m \<Longrightarrow>
               is_Groebner_basis (fst ` set gs) \<Longrightarrow> fst ` set bs \<subseteq> dgrad_p_set d m \<Longrightarrow>
               F \<subseteq> dgrad_p_set d m \<Longrightarrow> set ps \<subseteq> set bs \<times> (set gs \<union> set bs) \<Longrightarrow>
               (\<And>p' q'. processed' (p', q') (gs @ bs) ((p, q) # ps) \<Longrightarrow> fst p' \<noteq> 0 \<Longrightarrow> fst q' \<noteq> 0 \<Longrightarrow>
                   crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')) \<Longrightarrow>
-              p \<in> set bs \<Longrightarrow> q \<in> set gs \<union> set bs \<Longrightarrow> fst p \<noteq> 0 \<Longrightarrow> fst q \<noteq> 0 \<Longrightarrow> crit gs bs ps p q \<Longrightarrow>
+              p \<in> set bs \<Longrightarrow> q \<in> set gs \<union> set bs \<Longrightarrow> fst p \<noteq> 0 \<Longrightarrow> fst q \<noteq> 0 \<Longrightarrow> crit gs bs ps data p q \<Longrightarrow>
               crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p) (fst q)"
   shows "crit_spec crit"
   unfolding crit_spec_def using assms by meson
@@ -1375,21 +1394,23 @@ lemma crit_specD:
     and "F \<subseteq> dgrad_p_set d m" and "set ps \<subseteq> set bs \<times> (set gs \<union> set bs)"
     and "\<And>p' q'. processed' (p', q') (gs @ bs) ((p, q) # ps) \<Longrightarrow> fst p' \<noteq> 0 \<Longrightarrow> fst q' \<noteq> 0 \<Longrightarrow>
                  crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')"
-    and "p \<in> set bs" and "q \<in> set gs \<union> set bs" and "fst p \<noteq> 0" and "fst q \<noteq> 0" and "crit gs bs ps p q"
+    and "p \<in> set bs" and "q \<in> set gs \<union> set bs" and "fst p \<noteq> 0" and "fst q \<noteq> 0" and "crit gs bs ps data p q"
   shows "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p) (fst q)"
   using assms unfolding crit_spec_def by blast
 
 subsubsection \<open>Suitable Instances of the @{emph \<open>crit\<close>} parameter: chain criterion and product criterion\<close>
 
-definition chain_crit' :: "('a, 'b::zero, 'c) critT'"
-  where "chain_crit' gs bs ps p q \<longleftrightarrow>
+definition chain_crit' :: "('a, 'b::zero, 'c, 'd) critT'"
+  where "chain_crit' gs bs ps data p q \<longleftrightarrow>
           (let l = lcs (lp (fst p)) (lp (fst q)) in
             (\<exists>r \<in> set (gs @ bs). fst r \<noteq> 0 \<and> r \<noteq> p \<and> r \<noteq> q \<and> lp (fst r) adds l \<and>
                             (p, r) \<notin> set ps \<and> (r, p) \<notin> set ps \<and> (q, r) \<notin> set ps \<and> (r, q) \<notin> set ps)
           )"
 
+text \<open>@{const chain_crit'} ignores the @{term data} parameter.\<close>
+
 lemma chain_crit'E:
-  assumes "chain_crit' gs bs ps p q" and "p \<in> set bs" and "q \<in> set gs \<union> set bs"
+  assumes "chain_crit' gs bs ps data p q" and "p \<in> set bs" and "q \<in> set gs \<union> set bs"
   obtains r where "r \<in> set (gs @ bs)" and "fst r \<noteq> 0" and "r \<noteq> p" and "r \<noteq> q"
     and "lp (fst r) adds lcs (lp (fst p)) (lp (fst q))"
     and "processed' (p, r) (gs @ bs) ps" and "processed' (r, q) (gs @ bs) ps"
@@ -1412,13 +1433,13 @@ qed
 
 lemma crit_spec_chain_crit': "crit_spec chain_crit'"
 proof (rule crit_specI)
-  fix d m gs bs ps F p and q::"('a, 'b, 'c) pdata"
+  fix d m gs bs ps F and data::'d and p q::"('a, 'b, 'c) pdata"
   assume dg: "dickson_grading op + d" and "fst ` set gs \<subseteq> dgrad_p_set d m"
     and "fst ` set bs \<subseteq> dgrad_p_set d m" and "F \<subseteq> dgrad_p_set d m"
     and *: "\<And>p' q'. processed' (p', q') (gs @ bs) ((p, q) # ps) \<Longrightarrow> fst p' \<noteq> 0 \<Longrightarrow> fst q' \<noteq> 0 \<Longrightarrow>
            crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')"
     and "fst p \<noteq> 0" and "fst q \<noteq> 0"
-  assume "chain_crit' gs bs ps p q" and "p \<in> set bs" and "q \<in> set gs \<union> set bs"
+  assume "chain_crit' gs bs ps data p q" and "p \<in> set bs" and "q \<in> set gs \<union> set bs"
   then obtain r where "fst r \<noteq> 0" and "r \<noteq> p" and "r \<noteq> q"
     and adds: "lp (fst r) adds lcs (lp (fst p)) (lp (fst q))"
     and "processed' (p, r) (gs @ bs) ps" and "processed' (r, q) (gs @ bs) ps" by (rule chain_crit'E)
@@ -1456,17 +1477,17 @@ qed
 
 subsubsection \<open>Function @{term discard_crit_pairs}\<close>
 
-primrec discard_crit_pairs_dummy :: "('a, 'b, 'c) critT' \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
-                                      ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata_pair list \<Rightarrow>
+primrec discard_crit_pairs_dummy :: "('a, 'b, 'c, 'd) critT' \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+                                      ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata_pair list \<Rightarrow> 'd \<Rightarrow>
                                       ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata_pair list \<Rightarrow>
                                       ((('a, 'b, 'c) pdata_pair list) \<times> (('a, 'b, 'c) pdata_pair list))"
   where
-    "discard_crit_pairs_dummy _ _ _ _ [] ks ds = (ks, ds)"|
-    "discard_crit_pairs_dummy crit gs bs ps (p # sps) ks ds =
-      (if crit gs bs (sps @ ps) (fst p) (snd p) then
-        discard_crit_pairs_dummy crit gs bs ps sps ks (p # ds)
+    "discard_crit_pairs_dummy _ _ _ _ [] _ ks ds = (ks, ds)"|
+    "discard_crit_pairs_dummy crit gs bs ps (p # sps) data ks ds =
+      (if crit gs bs (sps @ ps) data (fst p) (snd p) then
+        discard_crit_pairs_dummy crit gs bs ps sps data ks (p # ds)
       else
-        discard_crit_pairs_dummy crit gs bs ps sps (p # ks) ds
+        discard_crit_pairs_dummy crit gs bs ps sps data (p # ks) ds
       )"
 
 text \<open>The last argument of @{const discard_crit_pairs_dummy} is a ``dummy'' argument that is only
@@ -1474,13 +1495,13 @@ text \<open>The last argument of @{const discard_crit_pairs_dummy} is a ``dummy'
   we are interested in.\<close>
 
 lemma set_discard_crit_pairs_dummy_partition:
-  "set (fst (discard_crit_pairs_dummy crit gs bs ps sps ks ds)) \<union>
-    set (snd (discard_crit_pairs_dummy crit gs bs ps sps ks ds)) =
+  "set (fst (discard_crit_pairs_dummy crit gs bs ps sps data ks ds)) \<union>
+    set (snd (discard_crit_pairs_dummy crit gs bs ps sps data ks ds)) =
   set sps \<union> set ks \<union> set ds"
   by (induct sps arbitrary: ks ds, simp_all)
 
 lemma fst_discard_crit_pairs_dummy_subset:
-  "set (fst (discard_crit_pairs_dummy crit gs bs ps sps ks ds)) \<subseteq> set sps \<union> set ks"
+  "set (fst (discard_crit_pairs_dummy crit gs bs ps sps data ks ds)) \<subseteq> set sps \<union> set ks"
 proof (induct sps arbitrary: ks ds)
   case Nil
   show ?case by simp
@@ -1488,78 +1509,78 @@ next
   case (Cons p sps)
   show ?case
   proof (simp, intro conjI impI)
-    have "set (fst (discard_crit_pairs_dummy crit gs bs ps sps ks (p # ds))) \<subseteq> set sps \<union> set ks"
+    have "set (fst (discard_crit_pairs_dummy crit gs bs ps sps data ks (p # ds))) \<subseteq> set sps \<union> set ks"
       by (rule Cons)
     also have "... \<subseteq> insert p (set sps \<union> set ks)" by blast
-    finally show "set (fst (discard_crit_pairs_dummy crit gs bs ps sps ks (p # ds))) \<subseteq>
+    finally show "set (fst (discard_crit_pairs_dummy crit gs bs ps sps data ks (p # ds))) \<subseteq>
                     insert p (set sps \<union> set ks)" .
   next
-    have "set (fst (discard_crit_pairs_dummy crit gs bs ps sps (p # ks) ds)) \<subseteq> set sps \<union> set (p # ks)"
+    have "set (fst (discard_crit_pairs_dummy crit gs bs ps sps data (p # ks) ds)) \<subseteq> set sps \<union> set (p # ks)"
       by (rule Cons)
-    thus "set (fst (discard_crit_pairs_dummy crit gs bs ps sps (p # ks) ds)) \<subseteq>
+    thus "set (fst (discard_crit_pairs_dummy crit gs bs ps sps data (p # ks) ds)) \<subseteq>
             insert p (set sps \<union> set ks)" by simp
   qed
 qed
 
 lemma fst_discard_crit_pairs_dummy_sublist:
-  obtains ks' where "fst (discard_crit_pairs_dummy crit gs bs ps sps ks ds) = ks' @ ks"
+  obtains ks' where "fst (discard_crit_pairs_dummy crit gs bs ps sps data ks ds) = ks' @ ks"
 proof (induct sps arbitrary: thesis ks ds)
   case Nil
   show ?case
   proof (rule Nil)
-    show "fst (discard_crit_pairs_dummy crit gs bs ps [] ks ds) = [] @ ks" by simp
+    show "fst (discard_crit_pairs_dummy crit gs bs ps [] data ks ds) = [] @ ks" by simp
   qed
 next
   case (Cons p sps)
   show ?case
-  proof (cases "crit gs bs (sps @ ps) (fst p) (snd p)")
+  proof (cases "crit gs bs (sps @ ps) data (fst p) (snd p)")
     case True
-    obtain ks' where *: "fst (discard_crit_pairs_dummy crit gs bs ps sps ks (p # ds)) = ks' @ ks"
+    obtain ks' where *: "fst (discard_crit_pairs_dummy crit gs bs ps sps data ks (p # ds)) = ks' @ ks"
       by (rule Cons(1))
     show ?thesis
     proof (rule Cons(2))
-      from True * show "fst (discard_crit_pairs_dummy crit gs bs ps (p # sps) ks ds) = ks' @ ks"
+      from True * show "fst (discard_crit_pairs_dummy crit gs bs ps (p # sps) data ks ds) = ks' @ ks"
         by simp
     qed
   next
     case False
-    obtain ks' where *: "fst (discard_crit_pairs_dummy crit gs bs ps sps (p # ks) ds) = ks' @ (p # ks)"
+    obtain ks' where *: "fst (discard_crit_pairs_dummy crit gs bs ps sps data (p # ks) ds) = ks' @ (p # ks)"
       by (rule Cons(1))
     show ?thesis
     proof (rule Cons(2))
-      from False * show "fst (discard_crit_pairs_dummy crit gs bs ps (p # sps) ks ds) = (ks' @ [p]) @ ks"
+      from False * show "fst (discard_crit_pairs_dummy crit gs bs ps (p # sps) data ks ds) = (ks' @ [p]) @ ks"
         by simp
     qed
   qed
 qed
 
 lemma snd_discard_crit_pairs_dummy_sublist:
-  obtains ds' where "snd (discard_crit_pairs_dummy crit gs bs ps sps ks ds) = ds' @ ds"
+  obtains ds' where "snd (discard_crit_pairs_dummy crit gs bs ps sps data ks ds) = ds' @ ds"
 proof (induct sps arbitrary: thesis ks ds)
   case Nil
   show ?case
   proof (rule Nil)
-    show "snd (discard_crit_pairs_dummy crit gs bs ps [] ks ds) = [] @ ds" by simp
+    show "snd (discard_crit_pairs_dummy crit gs bs ps [] data ks ds) = [] @ ds" by simp
   qed
 next
   case (Cons p sps)
   show ?case
-  proof (cases "crit gs bs (sps @ ps) (fst p) (snd p)")
+  proof (cases "crit gs bs (sps @ ps) data (fst p) (snd p)")
     case True
-    obtain ds' where *: "snd (discard_crit_pairs_dummy crit gs bs ps sps ks (p # ds)) = ds' @ (p # ds)"
+    obtain ds' where *: "snd (discard_crit_pairs_dummy crit gs bs ps sps data ks (p # ds)) = ds' @ (p # ds)"
       by (rule Cons(1))
     show ?thesis
     proof (rule Cons(2))
-      from True * show "snd (discard_crit_pairs_dummy crit gs bs ps (p # sps) ks ds) = (ds' @ [p]) @ ds"
+      from True * show "snd (discard_crit_pairs_dummy crit gs bs ps (p # sps) data ks ds) = (ds' @ [p]) @ ds"
         by simp
     qed
   next
     case False
-    obtain ds' where *: "snd (discard_crit_pairs_dummy crit gs bs ps sps (p # ks) ds) = ds' @ ds"
+    obtain ds' where *: "snd (discard_crit_pairs_dummy crit gs bs ps sps data (p # ks) ds) = ds' @ ds"
       by (rule Cons(1))
     show ?thesis
     proof (rule Cons(2))
-      from False * show "snd (discard_crit_pairs_dummy crit gs bs ps (p # sps) ks ds) = ds' @ ds"
+      from False * show "snd (discard_crit_pairs_dummy crit gs bs ps (p # sps) data ks ds) = ds' @ ds"
         by simp
     qed
   qed
@@ -1574,9 +1595,9 @@ lemma discard_crit_pairs_dummy_connectible:
             crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')"
     and "\<And>p' q'. (p', q') \<in> set ds \<Longrightarrow> fst p' \<noteq> 0 \<Longrightarrow> fst q' \<noteq> 0 \<Longrightarrow>
             crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')"
-    and "\<And>p' q'. (p', q') \<in> set (fst (discard_crit_pairs_dummy crit gs bs ps sps ks ds)) \<Longrightarrow>
+    and "\<And>p' q'. (p', q') \<in> set (fst (discard_crit_pairs_dummy crit gs bs ps sps data ks ds)) \<Longrightarrow>
             fst p' \<noteq> 0 \<Longrightarrow> fst q' \<noteq> 0 \<Longrightarrow> crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')"
-  assumes "(p, q) \<in> set (snd (discard_crit_pairs_dummy crit gs bs ps sps ks ds))"
+  assumes "(p, q) \<in> set (snd (discard_crit_pairs_dummy crit gs bs ps sps data ks ds))"
     and "fst p \<noteq> 0" and "fst q \<noteq> 0"
   shows "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p) (fst q)"
   using assms(8, 9, 10, 11, 12)
@@ -1589,14 +1610,14 @@ next
   from Cons(2) have "s \<in> set bs \<times> (set gs \<union> set bs)" and sps_sub: "set sps \<subseteq> set bs \<times> (set gs \<union> set bs)"
     by simp_all
   from this(1) have "fst s \<in> set bs" and "snd s \<in> set gs \<union> set bs" by auto
-  let ?res = "discard_crit_pairs_dummy crit gs bs ps (s # sps) ks ds"
+  let ?res = "discard_crit_pairs_dummy crit gs bs ps (s # sps) data ks ds"
 
   have *: "fst (fst s) \<noteq> 0 \<Longrightarrow> fst (snd s) \<noteq> 0 \<Longrightarrow>
             crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst (fst s)) (fst (snd s))"
   proof -
     assume "fst (fst s) \<noteq> 0" and "fst (snd s) \<noteq> 0"
     show "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst (fst s)) (fst (snd s))"
-    proof (cases "crit gs bs (sps @ ps) (fst s) (snd s)")
+    proof (cases "crit gs bs (sps @ ps) data (fst s) (snd s)")
       case True
       with assms(1, 2, 3, 4, 5, 6) _ _ \<open>fst s \<in> set bs\<close> \<open>snd s \<in> set gs \<union> set bs\<close>
           \<open>fst (fst s) \<noteq> 0\<close> \<open>fst (snd s) \<noteq> 0\<close>
@@ -1616,9 +1637,9 @@ next
       case False
       show ?thesis
       proof (rule Cons(5), simp add: False)
-        obtain ks' where "fst (discard_crit_pairs_dummy crit gs bs ps sps (s # ks) ds) = ks' @ (s # ks)"
+        obtain ks' where "fst (discard_crit_pairs_dummy crit gs bs ps sps data (s # ks) ds) = ks' @ (s # ks)"
           by (rule fst_discard_crit_pairs_dummy_sublist)
-        thus "s \<in> set (fst (discard_crit_pairs_dummy crit gs bs ps sps (s # ks) ds))" by simp
+        thus "s \<in> set (fst (discard_crit_pairs_dummy crit gs bs ps sps data (s # ks) ds))" by simp
       qed fact+
     qed
   qed
@@ -1665,8 +1686,8 @@ next
 
   from Cons(6) show ?case
   proof (simp split: if_splits)
-    let ?a = "discard_crit_pairs_dummy crit gs bs ps sps ks (s # ds)"
-    assume crit: "crit gs bs (sps @ ps) (fst s) (snd s)"
+    let ?a = "discard_crit_pairs_dummy crit gs bs ps sps data ks (s # ds)"
+    assume crit: "crit gs bs (sps @ ps) data (fst s) (snd s)"
     hence "?res = ?a" by simp
     assume "(p, q) \<in> set (snd ?a)"
     with sps_sub _ _ _ show ?thesis
@@ -1690,14 +1711,14 @@ next
       qed
     next
       fix p' q'
-      assume "(p', q') \<in> set (fst (discard_crit_pairs_dummy crit gs bs ps sps ks (s # ds)))"
+      assume "(p', q') \<in> set (fst (discard_crit_pairs_dummy crit gs bs ps sps data ks (s # ds)))"
         and "fst p' \<noteq> 0" and "fst q' \<noteq> 0"
       show "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')"
         by (rule Cons(5), simp only: \<open>?res = ?a\<close>, fact+)
     qed
   next
-    let ?a = "discard_crit_pairs_dummy crit gs bs ps sps (s # ks) ds"
-    assume "\<not> crit gs bs (sps @ ps) (fst s) (snd s)"
+    let ?a = "discard_crit_pairs_dummy crit gs bs ps sps data (s # ks) ds"
+    assume "\<not> crit gs bs (sps @ ps) data (fst s) (snd s)"
     hence "?res = ?a" by simp
     assume "(p, q) \<in> set (snd ?a)"
     with sps_sub _ _ _ show ?thesis
@@ -1711,7 +1732,7 @@ next
       thus "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')" by (rule Cons(4))
     next
       fix p' q'
-      assume "(p', q') \<in> set (fst (discard_crit_pairs_dummy crit gs bs ps sps (s # ks) ds))"
+      assume "(p', q') \<in> set (fst (discard_crit_pairs_dummy crit gs bs ps sps data (s # ks) ds))"
         and "fst p' \<noteq> 0" and "fst q' \<noteq> 0"
       show "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')"
         by (rule Cons(5), simp only: \<open>?res = ?a\<close>, fact+)
@@ -1719,44 +1740,45 @@ next
   qed
 qed
 
-primrec discard_crit_pairs_aux :: "('a, 'b, 'c) critT' \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
-                                      ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata_pair list \<Rightarrow>
+primrec discard_crit_pairs_aux :: "('a, 'b, 'c, 'd) critT' \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+                                      ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata_pair list \<Rightarrow> 'd \<Rightarrow>
                                       ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata_pair list"
   where
-    "discard_crit_pairs_aux _ _ _ _ [] ks = ks"|
-    "discard_crit_pairs_aux crit gs bs ps (p # sps) ks =
-      (if crit gs bs (sps @ ps) (fst p) (snd p) then
-        discard_crit_pairs_aux crit gs bs ps sps ks
+    "discard_crit_pairs_aux _ _ _ _ [] _ ks = ks"|
+    "discard_crit_pairs_aux crit gs bs ps (p # sps) data ks =
+      (if crit gs bs (sps @ ps) data (fst p) (snd p) then
+        discard_crit_pairs_aux crit gs bs ps sps data ks
       else
-        discard_crit_pairs_aux crit gs bs ps sps (p # ks)
+        discard_crit_pairs_aux crit gs bs ps sps data (p # ks)
       )"
 
 text \<open>Function @{const discard_crit_pairs_aux} is like @{const discard_crit_pairs_dummy}, but lacks
   the dummy argument. Therefore, it is the method of choice for doing actual computations.\<close>
 
 lemma discard_crit_pairs_aux_eq_fst_discard_crit_pairs_dummy':
-  "discard_crit_pairs_aux crit gs bs ps sps ks = fst (discard_crit_pairs_dummy crit gs bs ps sps ks ds)"
+  "discard_crit_pairs_aux crit gs bs ps sps data ks =
+              fst (discard_crit_pairs_dummy crit gs bs ps sps data ks ds)"
   by (induct sps arbitrary: ks ds, simp_all)
 
 lemmas discard_crit_pairs_aux_eq_fst_discard_crit_pairs_dummy =
           discard_crit_pairs_aux_eq_fst_discard_crit_pairs_dummy'[where ds="[]"]
 
-definition discard_crit_pairs :: "('a, 'b, 'c) critT' \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
-                                      ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata_pair list \<Rightarrow>
+definition discard_crit_pairs :: "('a, 'b, 'c, 'd) critT' \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+                                      ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata_pair list \<Rightarrow> 'd \<Rightarrow>
                                       ('a, 'b, 'c) pdata_pair list"
-  where "discard_crit_pairs crit gs bs ps sps = discard_crit_pairs_aux crit gs bs ps sps []"
+  where "discard_crit_pairs crit gs bs ps sps data = discard_crit_pairs_aux crit gs bs ps sps data []"
 
 lemma discard_crit_pairs_alt:
-  "discard_crit_pairs crit gs bs ps sps = fst (discard_crit_pairs_dummy crit gs bs ps sps [] [])"
+  "discard_crit_pairs crit gs bs ps sps data = fst (discard_crit_pairs_dummy crit gs bs ps sps data [] [])"
   by (simp only: discard_crit_pairs_def discard_crit_pairs_aux_eq_fst_discard_crit_pairs_dummy)
 
 lemma set_discard_crit_pairs_partition:
-  "set sps = set (discard_crit_pairs crit gs bs ps sps) \<union>
-              set (snd (discard_crit_pairs_dummy crit gs bs ps sps [] []))"
+  "set sps = set (discard_crit_pairs crit gs bs ps sps data) \<union>
+              set (snd (discard_crit_pairs_dummy crit gs bs ps sps data [] []))"
   by (simp add: discard_crit_pairs_alt set_discard_crit_pairs_dummy_partition)
 
-corollary discard_crit_pairs_subset: "set (discard_crit_pairs crit gs bs ps sps) \<subseteq> set sps"
-  using set_discard_crit_pairs_partition by blast
+corollary discard_crit_pairs_subset: "set (discard_crit_pairs crit gs bs ps sps data) \<subseteq> set sps"
+  using set_discard_crit_pairs_partition by fastforce
 
 lemma discard_crit_pairs_connectible:
   assumes "crit_spec crit" and "dickson_grading (op +) d" and "fst ` set gs \<subseteq> dgrad_p_set d m"
@@ -1765,11 +1787,11 @@ lemma discard_crit_pairs_connectible:
     and "set ps \<subseteq> set bs \<times> (set gs \<union> set bs)" and "set sps \<subseteq> set ps"
     and "\<And>p' q'. processed' (p', q') (gs @ bs) ps \<Longrightarrow> fst p' \<noteq> 0 \<Longrightarrow> fst q' \<noteq> 0 \<Longrightarrow>
             crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')"
-    and "\<And>p' q'. (p', q') \<in> set (discard_crit_pairs crit gs bs (ps -- sps) sps) \<Longrightarrow>
+    and "\<And>p' q'. (p', q') \<in> set (discard_crit_pairs crit gs bs (ps -- sps) sps data) \<Longrightarrow>
             fst p' \<noteq> 0 \<Longrightarrow> fst q' \<noteq> 0 \<Longrightarrow> crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')"
   assumes "(p, q) \<in> set sps" and "fst p \<noteq> 0" and "fst q \<noteq> 0"
   shows "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p) (fst q)"
-proof (cases "(p, q) \<in> set (discard_crit_pairs crit gs bs (ps -- sps) sps)")
+proof (cases "(p, q) \<in> set (discard_crit_pairs crit gs bs (ps -- sps) sps data)")
   case True
   from this assms(12, 13) show ?thesis by (rule assms(10))
 next
@@ -1778,7 +1800,7 @@ next
   moreover from assms(7) have "set (ps -- sps) \<subseteq> set bs \<times> (set gs \<union> set bs)" by (auto simp add: set_diff_list)
   moreover from assms(8, 7) have "set sps \<subseteq> set bs \<times> (set gs \<union> set bs)" by (rule subset_trans)
   moreover note _ _ _
-  moreover from False assms(11) have "(p, q) \<in> set (snd (discard_crit_pairs_dummy crit gs bs (ps -- sps) sps [] []))"
+  moreover from False assms(11) have "(p, q) \<in> set (snd (discard_crit_pairs_dummy crit gs bs (ps -- sps) sps data [] []))"
     using set_discard_crit_pairs_partition[of sps crit gs bs "ps -- sps"] by blast
   ultimately show ?thesis using assms(12, 13)
   proof (rule discard_crit_pairs_dummy_connectible)
@@ -1795,7 +1817,7 @@ next
     thus "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')" by simp
   next
     fix p' q'
-    assume "(p', q') \<in> set (fst (discard_crit_pairs_dummy crit gs bs (ps -- sps) sps [] []))"
+    assume "(p', q') \<in> set (fst (discard_crit_pairs_dummy crit gs bs (ps -- sps) sps data [] []))"
       and "fst p' \<noteq> 0" and "fst q' \<noteq> 0"
     thus "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')"
       unfolding discard_crit_pairs_alt[symmetric] by (rule assms(10))
@@ -1804,21 +1826,22 @@ qed
 
 subsubsection \<open>Specification of the @{emph \<open>reduce-critical-pairs\<close>} parameter\<close>
 
-type_synonym (in -) ('a, 'b, 'c) rcpT = "('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
-                                          ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata list"
+type_synonym (in -) ('a, 'b, 'c, 'd) rcpT = "('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+                                          ('a, 'b, 'c) pdata_pair list \<Rightarrow> 'd \<Rightarrow>
+                                          (('a, 'b, 'c) pdata list \<times> 'd)"
 
-definition rcp_spec :: "('a, 'b::field, 'c) rcpT \<Rightarrow> bool"
+definition rcp_spec :: "('a, 'b::field, 'c, 'd) rcpT \<Rightarrow> bool"
   where "rcp_spec rcp \<longleftrightarrow>
-            (\<forall>gs bs ps.
-              0 \<notin> fst ` set (rcp gs bs ps) \<and>
-              (\<forall>h b. h \<in> set (rcp gs bs ps) \<longrightarrow> b \<in> set bs \<longrightarrow> fst b \<noteq> 0 \<longrightarrow>
+            (\<forall>gs bs ps data.
+              0 \<notin> fst ` set (fst (rcp gs bs ps data)) \<and>
+              (\<forall>h b. h \<in> set (fst (rcp gs bs ps data)) \<longrightarrow> b \<in> set bs \<longrightarrow> fst b \<noteq> 0 \<longrightarrow>
                      \<not> lp (fst b) adds lp (fst h)) \<and>
               (\<forall>d. dickson_grading (op +) d \<longrightarrow>
-                     dgrad_p_set_le d (fst ` set (rcp gs bs ps)) (args_to_set (gs, bs, ps))) \<and>
+                     dgrad_p_set_le d (fst ` set (fst (rcp gs bs ps data))) (args_to_set (gs, bs, ps))) \<and>
               (is_Groebner_basis (fst ` set gs) \<longrightarrow>
-                (fst ` set (rcp gs bs ps) \<subseteq> pideal (args_to_set (gs, bs, ps)) \<and>
+                (fst ` set (fst (rcp gs bs ps data)) \<subseteq> pideal (args_to_set (gs, bs, ps)) \<and>
                 (\<forall>(p, q)\<in>set ps.  set ps \<subseteq> set bs \<times> (set gs \<union> set bs) \<longrightarrow>
-                  (red (fst ` (set gs \<union> set bs \<union> set (rcp gs bs ps))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0))))"
+                  (red (fst ` (set gs \<union> set bs \<union> set (fst (rcp gs bs ps data)))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0))))"
 
 text \<open>Informally, @{term "rcp_spec rcp"} expresses that, for suitable @{term gs}, @{term bs} and @{term ps},
   the value of @{term "rcp gs bs ps"}
@@ -1831,63 +1854,65 @@ text \<open>Informally, @{term "rcp_spec rcp"} expresses that, for suitable @{te
   \end{itemize}\<close>
 
 lemma rcp_specI:
-  assumes "\<And>gs bs ps. 0 \<notin> fst ` set (rcp gs bs ps)"
-  assumes "\<And>gs bs ps h b. h \<in> set (rcp gs bs ps) \<Longrightarrow> b \<in> set bs \<Longrightarrow> fst b \<noteq> 0 \<Longrightarrow>
+  assumes "\<And>gs bs ps data. 0 \<notin> fst ` set (fst (rcp gs bs ps data))"
+  assumes "\<And>gs bs ps h b data. h \<in> set (fst (rcp gs bs ps data)) \<Longrightarrow> b \<in> set bs \<Longrightarrow> fst b \<noteq> 0 \<Longrightarrow>
                           \<not> lp (fst b) adds lp (fst h)"
-  assumes "\<And>gs bs ps d. dickson_grading (op +) d \<Longrightarrow>
-                         dgrad_p_set_le d (fst ` set (rcp gs bs ps)) (args_to_set (gs, bs, ps))"
-  assumes "\<And>gs bs ps. is_Groebner_basis (fst ` set gs) \<Longrightarrow>
-                (fst ` set (rcp gs bs ps) \<subseteq> pideal (args_to_set (gs, bs, ps)) \<and>
+  assumes "\<And>gs bs ps d data. dickson_grading (op +) d \<Longrightarrow>
+                         dgrad_p_set_le d (fst ` set (fst (rcp gs bs ps data))) (args_to_set (gs, bs, ps))"
+  assumes "\<And>gs bs ps data. is_Groebner_basis (fst ` set gs) \<Longrightarrow>
+                (fst ` set (fst (rcp gs bs ps data)) \<subseteq> pideal (args_to_set (gs, bs, ps)) \<and>
                 (\<forall>(p, q)\<in>set ps.  set ps \<subseteq> set bs \<times> (set gs \<union> set bs) \<longrightarrow>
-                  (red (fst ` (set gs \<union> set bs \<union> set (rcp gs bs ps))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0))"
+                  (red (fst ` (set gs \<union> set bs \<union> set (fst (rcp gs bs ps data)))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0))"
   shows "rcp_spec rcp"
   unfolding rcp_spec_def using assms by auto
 
 lemma rcp_specD1:
   assumes "rcp_spec rcp"
-  shows "0 \<notin> fst ` set (rcp gs bs ps)"
+  shows "0 \<notin> fst ` set (fst (rcp gs bs ps data))"
   using assms unfolding rcp_spec_def by blast
 
 lemma rcp_specD2:
   assumes "rcp_spec rcp"
-    and "h \<in> set (rcp gs bs ps)" and "b \<in> set bs" and "fst b \<noteq> 0"
+    and "h \<in> set (fst (rcp gs bs ps data))" and "b \<in> set bs" and "fst b \<noteq> 0"
   shows "\<not> lp (fst b) adds lp (fst h)"
   using assms unfolding rcp_spec_def by blast
 
 lemma rcp_specD3:
   assumes "rcp_spec rcp" and "dickson_grading (op +) d"
-  shows "dgrad_p_set_le d (fst ` set (rcp gs bs ps)) (args_to_set (gs, bs, ps))"
+  shows "dgrad_p_set_le d (fst ` set (fst (rcp gs bs ps data))) (args_to_set (gs, bs, ps))"
   using assms unfolding rcp_spec_def by blast
 
 lemma rcp_specD4:
   assumes "rcp_spec rcp" and "is_Groebner_basis (fst ` set gs)"
-  shows "fst ` set (rcp gs bs ps) \<subseteq> pideal (args_to_set (gs, bs, ps))"
+  shows "fst ` set (fst (rcp gs bs ps data)) \<subseteq> pideal (args_to_set (gs, bs, ps))"
   using assms unfolding rcp_spec_def by blast
 
 lemma rcp_specD5:
   assumes "rcp_spec rcp" and "is_Groebner_basis (fst ` set gs)"
     and "set ps \<subseteq> set bs \<times> (set gs \<union> set bs)"
     and "(p, q) \<in> set ps"
-  shows "(red (fst ` (set gs \<union> set bs \<union> set (rcp gs bs ps))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0"
+  shows "(red (fst ` (set gs \<union> set bs \<union> set (fst (rcp gs bs ps data)))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0"
   using assms unfolding rcp_spec_def by blast
 
 subsubsection \<open>Function @{term discard_red_cp}\<close>
 
-definition discard_red_cp :: "('a, 'b, 'c) critT' \<Rightarrow> ('a, 'b, 'c) rcpT \<Rightarrow> ('a, 'b::field, 'c) complT"
-  where "discard_red_cp crit rcp gs bs ps sps = rcp gs bs (discard_crit_pairs crit gs bs ps sps)"
+definition discard_red_cp :: "('a, 'b, 'c, 'd) critT' \<Rightarrow> ('a, 'b, 'c, 'd) rcpT \<Rightarrow> ('a, 'b::field, 'c, 'd) complT"
+  where "discard_red_cp crit rcp gs bs ps sps data =
+                rcp gs bs (discard_crit_pairs crit gs bs ps sps data) data"
 
 lemma discard_red_cp_dgrad_p_set_le:
   assumes "rcp_spec rcp" and "dickson_grading (op +) d" and "set sps \<subseteq> set ps"
-  shows "dgrad_p_set_le d (fst ` set (discard_red_cp crit rcp gs bs (ps -- sps) sps)) (args_to_set (gs, bs, ps))"
+  shows "dgrad_p_set_le d (fst ` set (fst (discard_red_cp crit rcp gs bs (ps -- sps) sps data)))
+                          (args_to_set (gs, bs, ps))"
 proof -
   from assms(1, 2)
-  have "dgrad_p_set_le d (fst ` set (discard_red_cp crit rcp gs bs (ps -- sps) sps))
-                          (args_to_set (gs, bs, discard_crit_pairs crit gs bs (ps -- sps) sps))"
+  have "dgrad_p_set_le d (fst ` set (fst (discard_red_cp crit rcp gs bs (ps -- sps) sps data)))
+                          (args_to_set (gs, bs, discard_crit_pairs crit gs bs (ps -- sps) sps data))"
     unfolding discard_red_cp_def by (rule rcp_specD3)
   also have "dgrad_p_set_le d ... (args_to_set (gs, bs, ps))"
   proof (rule dgrad_p_set_le_subset, rule args_to_set_subset3)
     from discard_crit_pairs_subset \<open>set sps \<subseteq> set ps\<close>
-    show "set (discard_crit_pairs crit gs bs (ps -- sps) sps) \<subseteq> set ps" by (rule subset_trans)
+    show "set (discard_crit_pairs crit gs bs (ps -- sps) sps data) \<subseteq> set ps" by (rule subset_trans)
   qed
   finally show ?thesis .
 qed
@@ -1896,17 +1921,19 @@ lemma compl_struct_discard_red_cp:
   assumes "rcp_spec rcp"
   shows "compl_struct (discard_red_cp crit rcp)"
 proof (rule compl_structI)
-  fix d::"'a \<Rightarrow> nat" and gs bs ps and sps::"('a, 'b, 'c) pdata_pair list"
+  fix d::"'a \<Rightarrow> nat" and gs bs ps and sps::"('a, 'b, 'c) pdata_pair list" and data::'d
   assume "dickson_grading (op +) d" and "set sps \<subseteq> set ps"
-  with assms show "dgrad_p_set_le d (fst ` set (discard_red_cp crit rcp gs bs (ps -- sps) sps)) (args_to_set (gs, bs, ps))"
+  with assms show "dgrad_p_set_le d (fst ` set (fst (discard_red_cp crit rcp gs bs (ps -- sps) sps data)))
+                                    (args_to_set (gs, bs, ps))"
     by (rule discard_red_cp_dgrad_p_set_le)
 next
-  fix gs bs ps and sps::"('a, 'b, 'c) pdata_pair list"
-  from assms show "0 \<notin> fst ` set (discard_red_cp crit rcp gs bs (ps -- sps) sps)"
+  fix gs bs ps and sps::"('a, 'b, 'c) pdata_pair list" and data::'d
+  from assms show "0 \<notin> fst ` set (fst (discard_red_cp crit rcp gs bs (ps -- sps) sps data))"
     unfolding discard_red_cp_def by (rule rcp_specD1)
 next
-  fix gs bs ps sps h b
-  assume "h \<in> set (discard_red_cp crit rcp gs bs (ps -- sps) sps)" and "b \<in> set bs" and "fst b \<noteq> 0"
+  fix gs bs ps sps h b data
+  assume "h \<in> set (fst (discard_red_cp crit rcp gs bs (ps -- sps) sps data))"
+    and "b \<in> set bs" and "fst b \<noteq> 0"
   with assms show "\<not> lp (fst b) adds lp (fst h)" unfolding discard_red_cp_def by (rule rcp_specD2)
 qed
 
@@ -1914,10 +1941,10 @@ lemma compl_pideal_discard_red_cp:
   assumes "rcp_spec rcp"
   shows "compl_pideal (discard_red_cp crit rcp)"
 proof (rule compl_pidealI)
-  fix gs bs :: "('a, 'b, 'c) pdata list" and ps sps :: "('a, 'b, 'c) pdata_pair list"
+  fix gs bs :: "('a, 'b, 'c) pdata list" and ps sps :: "('a, 'b, 'c) pdata_pair list" and data::'d
   assume gb: "is_Groebner_basis (fst ` set gs)" and "set sps \<subseteq> set ps"
-  let ?res = "discard_red_cp crit rcp gs bs (ps -- sps) sps"
-  let ?ks = "discard_crit_pairs crit gs bs (ps -- sps) sps"
+  let ?res = "fst (discard_red_cp crit rcp gs bs (ps -- sps) sps data)"
+  let ?ks = "discard_crit_pairs crit gs bs (ps -- sps) sps data"
   from assms gb have "fst ` set ?res \<subseteq> pideal (args_to_set (gs, bs, ?ks))"
     unfolding discard_red_cp_def by (rule rcp_specD4)
   also have "... \<subseteq> pideal (args_to_set (gs, bs, ps))"
@@ -1933,7 +1960,7 @@ lemma compl_conn_discard_red_cp:
   assumes "crit_spec crit" and "rcp_spec rcp"
   shows "compl_conn (discard_red_cp crit rcp)"
 proof (rule compl_connI)
-  fix d::"'a \<Rightarrow> nat" and m gs bs ps sps p and q::"('a, 'b, 'c) pdata"
+  fix d::"'a \<Rightarrow> nat" and m gs bs ps sps p and q::"('a, 'b, 'c) pdata" and data::'d
   assume dg: "dickson_grading (op +) d" and gs_sub: "fst ` set gs \<subseteq> dgrad_p_set d m"
     and gb: "is_Groebner_basis (fst ` set gs)" and bs_sub: "fst ` set bs \<subseteq> dgrad_p_set d m"
     and ps_sub: "set ps \<subseteq> set bs \<times> (set gs \<union> set bs)" and "set sps \<subseteq> set ps"
@@ -1941,7 +1968,7 @@ proof (rule compl_connI)
               crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs)) (fst p') (fst q')"
     and "(p, q) \<in> set sps" and "fst p \<noteq> 0" and "fst q \<noteq> 0"
 
-  let ?res = "discard_red_cp crit rcp gs bs (ps -- sps) sps"
+  let ?res = "fst (discard_red_cp crit rcp gs bs (ps -- sps) sps data)"
   have res_sub: "fst ` set ?res \<subseteq> dgrad_p_set d m"
   proof (rule dgrad_p_set_le_dgrad_p_set, rule discard_red_cp_dgrad_p_set_le, fact+)
     show "args_to_set (gs, bs, ps) \<subseteq> dgrad_p_set d m"
@@ -1961,7 +1988,7 @@ proof (rule compl_connI)
       by (rule crit_pair_cbelow_mono, simp)
   next
     fix p' q'
-    assume p'q'_in: "(p', q') \<in> set (discard_crit_pairs crit gs bs (ps -- sps) sps)" (is "_ \<in> set ?ks")
+    assume p'q'_in: "(p', q') \<in> set (discard_crit_pairs crit gs bs (ps -- sps) sps data)" (is "_ \<in> set ?ks")
       and "fst p' \<noteq> 0" and "fst q' \<noteq> 0"
     
     have "set ?ks \<subseteq> set sps" by (fact discard_crit_pairs_subset)
