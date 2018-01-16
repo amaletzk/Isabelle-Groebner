@@ -158,7 +158,6 @@ lemma sel_specD2:
 
 subsubsection \<open>Specification of the @{emph \<open>add-pairs\<close>} parameter\<close>
 
-(* TODO: Allow "ap" to lack elements whose critical pairs can be connected modulo the current basis.*)
 definition ap_spec :: "('a, 'b, 'c) apT \<Rightarrow> bool"
   where "ap_spec ap \<longleftrightarrow> (\<forall>gs bs ps ns.
       set (ap gs bs ps ns) \<subseteq> set ps \<union> (set ns \<times> (set gs \<union> set bs \<union> set ns)) \<and>
@@ -463,14 +462,14 @@ definition compl_struct :: "('a, 'b::field, 'c) complT \<Rightarrow> bool"
               (\<forall>d. dickson_grading (op +) d \<longrightarrow>
                   dgrad_p_set_le d (fst ` (set (compl gs bs (ps -- sps) sps))) (args_to_set (gs, bs, ps))) \<and>
               0 \<notin> fst ` set (compl gs bs (ps -- sps) sps) \<and>
-              (\<forall>h\<in>set (compl gs bs (ps -- sps) sps). \<not> is_red (fst ` set bs) (fst h)))"
+              (\<forall>h\<in>set (compl gs bs (ps -- sps) sps). \<forall>b\<in>set bs. fst b \<noteq> 0 \<longrightarrow> \<not> lp (fst b) adds lp (fst h)))"
 
 lemma compl_structI:
   assumes "\<And>d gs bs ps sps. dickson_grading (op +) d \<Longrightarrow> sps \<noteq> [] \<Longrightarrow> set sps \<subseteq> set ps \<Longrightarrow>
               dgrad_p_set_le d (fst ` (set (compl gs bs (ps -- sps) sps))) (args_to_set (gs, bs, ps))"
   assumes "\<And>gs bs ps sps. sps \<noteq> [] \<Longrightarrow> set sps \<subseteq> set ps \<Longrightarrow> 0 \<notin> fst ` set (compl gs bs (ps -- sps) sps)"
-  assumes "\<And>gs bs ps sps h. sps \<noteq> [] \<Longrightarrow> set sps \<subseteq> set ps \<Longrightarrow> h \<in> set (compl gs bs (ps -- sps) sps) \<Longrightarrow>
-              \<not> is_red (fst ` set bs) (fst h)"
+  assumes "\<And>gs bs ps sps h b. sps \<noteq> [] \<Longrightarrow> set sps \<subseteq> set ps \<Longrightarrow> h \<in> set (compl gs bs (ps -- sps) sps) \<Longrightarrow>
+              b \<in> set bs \<Longrightarrow> fst b \<noteq> 0 \<Longrightarrow> \<not> lp (fst b) adds lp (fst h)"
   shows "compl_struct compl"
   unfolding compl_struct_def using assms by auto
 
@@ -486,8 +485,8 @@ lemma compl_structD2:
 
 lemma compl_structD3:
   assumes "compl_struct compl" and "sps \<noteq> []" and "set sps \<subseteq> set ps"
-    and "h \<in> set (compl gs bs (ps -- sps) sps)"
-  shows "\<not> is_red (fst ` set bs) (fst h)"
+    and "h \<in> set (compl gs bs (ps -- sps) sps)" and "b \<in> set bs" and "fst b \<noteq> 0"
+  shows "\<not> lp (fst b) adds lp (fst h)"
   using assms unfolding compl_struct_def by blast
 
 definition struct_spec :: "('a, 'b::field, 'c) selT \<Rightarrow> ('a, 'b, 'c) apT \<Rightarrow> ('a, 'b, 'c) abT \<Rightarrow> ('a, 'b, 'c) complT \<Rightarrow> bool"
@@ -550,7 +549,7 @@ definition compl_conn :: "('a, 'b::field, 'c) complT \<Rightarrow> bool"
 text \<open>Informally, @{term "compl_conn compl"} means that, for suitable arguments @{term gs}, @{term bs},
   @{term ps} and @{term sps}, the value of @{term "compl gs bs ps sps"} is a list @{term ns} such that
   the critical pairs of all elements in @{term sps} can be connected modulo @{term "set gs \<union> set bs \<union> set ns"},
-  provided that the critical pairs of all elements that have been processed already can be conntected
+  provided that the critical pairs of all elements that have been processed already can be connected
   modulo the smaller set @{term "set gs \<union> set bs"}.\<close>
 
 lemma compl_connI:
@@ -574,9 +573,27 @@ lemma compl_connD:
   shows "crit_pair_cbelow_on d m (fst ` (set gs \<union> (set bs \<union> set (compl gs bs (ps -- sps) sps)))) (fst p) (fst q)"
   using assms unfolding compl_conn_def Un_assoc by blast
 
-subsubsection \<open>More facts about Gr\"obner bases\<close>
+subsubsection \<open>More facts about Reduction and Gr\"obner bases\<close>
 
 (* TODO: Move to "Groebner_Bases"? *)
+
+lemma is_red_monomial_iff: "is_red F (monomial c t) \<longleftrightarrow> (c \<noteq> 0 \<and> (\<exists>f\<in>F. f \<noteq> 0 \<and> lp f adds t))"
+  by (simp add: is_red_adds_iff)
+
+lemma is_red_monomialI:
+  assumes "c \<noteq> 0" and "f \<in> F" and "f \<noteq> 0" and "lp f adds t"
+  shows "is_red F (monomial c t)"
+  unfolding is_red_monomial_iff using assms by blast
+
+lemma is_red_monomialD:
+  assumes "is_red F (monomial c t)"
+  shows "c \<noteq> 0"
+  using assms unfolding is_red_monomial_iff ..
+
+lemma is_red_monomialE:
+  assumes "is_red F (monomial c t)"
+  obtains f where "f \<in> F" and "f \<noteq> 0" and "lp f adds t"
+  using assms unfolding is_red_monomial_iff by blast
 
 lemma lcs_red_single_fst_crit_pair:
   assumes "p \<noteq> 0"
@@ -809,6 +826,7 @@ proof -
   from assms(5) have "set ns \<noteq> {}" by simp
   then obtain h' where "h' \<in> set ns" by fastforce
   let ?h = "fst h'"
+  let ?m = "monomial (lc ?h) (lp ?h)"
   from \<open>h' \<in> set ns\<close> have h_in: "?h \<in> fst ` set ns" by simp
   from assms(1) have sel: "sel_spec sel" and ap: "ap_spec ap" and ab: "ab_spec ab"
     and compl: "compl_struct compl" by (rule struct_specD)+
@@ -822,12 +840,23 @@ proof -
     moreover have "fst ` set bs \<subseteq> fst ` set bs \<union> fst ` set ns" by simp
     ultimately show "is_red (fst ` set bs \<union> fst ` set ns) q" by (rule is_red_subset)
   next
-    from \<open>?h \<noteq> 0\<close> have "is_red {?h} ?h" using is_red_alt red_self by auto
+    from \<open>?h \<noteq> 0\<close> have "lc ?h \<noteq> 0" by (rule lc_not_0)
+    moreover have "?h \<in> {?h}" ..
+    ultimately have "is_red {?h} ?m" using \<open>?h \<noteq> 0\<close> adds_refl by (rule is_red_monomialI)
     moreover have "{?h} \<subseteq> fst ` set bs \<union> fst ` set ns" using h_in by simp
-    ultimately show "is_red (fst ` set bs \<union> fst ` set ns) ?h" by (rule is_red_subset)
+    ultimately show "is_red (fst ` set bs \<union> fst ` set ns) ?m" by (rule is_red_subset)
   next
-    from \<open>h' \<in> set ns\<close> show "\<not> is_red (fst ` set bs) ?h"
-      unfolding assms(4) by (rule compl_structD3[OF compl \<open>sps \<noteq> []\<close> \<open>set sps \<subseteq> set ps\<close>])
+    show "\<not> is_red (fst ` set bs) ?m"
+    proof
+      assume "is_red (fst ` set bs) ?m"
+      then obtain b' where "b' \<in> fst ` set bs" and "b' \<noteq> 0" and "lp b' adds lp ?h"
+        by (rule is_red_monomialE)
+      from this(1) obtain b where "b \<in> set bs" and b': "b' = fst b" ..
+      from \<open>b' \<noteq> 0\<close> have "fst b \<noteq> 0" by (simp add: b')
+      with compl \<open>sps \<noteq> []\<close> \<open>set sps \<subseteq> set ps\<close> \<open>h' \<in> set ns\<close> \<open>b \<in> set bs\<close> have "\<not> lp (fst b) adds lp ?h"
+        unfolding assms(4) by (rule compl_structD3)
+      from this \<open>lp b' adds lp ?h\<close> show False by (simp add: b')
+    qed
   qed
 qed
 
@@ -998,7 +1027,7 @@ proof -
   thus ?thesis by (simp add: args_def)
 qed
 
-lemma gb_schema_aux_subset:
+lemma gb_schema_aux_superset:
   assumes "struct_spec sel ap ab compl"
   shows "set (gs @ bs) \<subseteq> set (gb_schema_aux sel ap ab compl gs bs ps)"
   using assms
@@ -1068,7 +1097,7 @@ proof
     finally show ?case .
   qed
 next
-  show "?r \<subseteq> ?l" by (rule pideal_mono, rule image_mono, rule gb_schema_aux_subset, fact assms(1))
+  show "?r \<subseteq> ?l" by (rule pideal_mono, rule image_mono, rule gb_schema_aux_superset, fact assms(1))
 qed
 
 lemma gb_schema_aux_connectible:
@@ -1778,62 +1807,69 @@ subsubsection \<open>Specification of the @{emph \<open>reduce-critical-pairs\<c
 type_synonym (in -) ('a, 'b, 'c) rcpT = "('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
                                           ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata list"
 
-(* TODO: Change definition. *)
 definition rcp_spec :: "('a, 'b::field, 'c) rcpT \<Rightarrow> bool"
-  where "rcp_spec rcp \<longleftrightarrow> (\<forall>gs bs ps. is_Groebner_basis (fst ` set gs) \<longrightarrow> set ps \<subseteq> set bs \<times> (set gs \<union> set bs) \<longrightarrow>
-                            ((\<forall>h\<in>set (rcp gs bs ps). fst h \<noteq> 0 \<and> fst h \<in> pideal (fst ` (set gs \<union> set bs)) \<and>
-                                \<not> is_red (fst ` set bs) (fst h)) \<and>
-                            (\<forall>p\<in>set ps. (red (fst ` (set gs \<union> set bs)))\<^sup>*\<^sup>* (spoly (fst (fst p)) (fst (snd p))) 0 \<or>
-                              (\<exists>h\<in>set (rcp gs bs ps). (red (fst ` (set gs \<union> set bs)))\<^sup>*\<^sup>* (spoly (fst (fst p)) (fst (snd p))) (fst h)))))"
+  where "rcp_spec rcp \<longleftrightarrow>
+            (\<forall>gs bs ps.
+              0 \<notin> fst ` set (rcp gs bs ps) \<and>
+              (\<forall>h b. h \<in> set (rcp gs bs ps) \<longrightarrow> b \<in> set bs \<longrightarrow> fst b \<noteq> 0 \<longrightarrow>
+                     \<not> lp (fst b) adds lp (fst h)) \<and>
+              (\<forall>d. dickson_grading (op +) d \<longrightarrow>
+                     dgrad_p_set_le d (fst ` set (rcp gs bs ps)) (args_to_set (gs, bs, ps))) \<and>
+              (is_Groebner_basis (fst ` set gs) \<longrightarrow>
+                (fst ` set (rcp gs bs ps) \<subseteq> pideal (args_to_set (gs, bs, ps)) \<and>
+                (\<forall>(p, q)\<in>set ps.  set ps \<subseteq> set bs \<times> (set gs \<union> set bs) \<longrightarrow>
+                  (red (fst ` (set gs \<union> set bs \<union> set (rcp gs bs ps))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0))))"
 
 text \<open>Informally, @{term "rcp_spec rcp"} expresses that, for suitable @{term gs}, @{term bs} and @{term ps},
   the value of @{term "rcp gs bs ps"}
   \begin{itemize}
-    \item is a list consisting exclusively of non-zero irreducible polynomials contained in the ideal
-      generated by @{term "set bs \<union> set gs"}, and
-    \item contains a normal form of every S-polynomial stemming from the input pairs @{term ps}, except
-      possibly those that are already reducible to @{term 0}.
+    \item is a list consisting exclusively of non-zero polynomials contained in the ideal generated
+      by @{term "set bs \<union> set gs"}, whose leading power-products are not divisible by the leading
+      power-product of any non-zero @{prop "b \<in> set bs"}, and
+    \item contains sufficiently many new polynomials such that all S-polynomials originating from
+      @{term ps} can be reduced to @{term 0} modulo the enlarged list of polynomials.
   \end{itemize}\<close>
 
 lemma rcp_specI:
-  assumes "\<And>gs bs ps. is_Groebner_basis (fst ` set gs) \<Longrightarrow> set ps \<subseteq> set bs \<times> (set gs \<union> set bs) \<Longrightarrow>
-            ((\<forall>h\<in>set (rcp gs bs ps). fst h \<noteq> 0 \<and> fst h \<in> pideal (fst ` (set gs \<union> set bs)) \<and>
-                \<not> is_red (fst ` set bs) (fst h)) \<and>
-            (\<forall>p\<in>set ps. (red (fst ` (set gs \<union> set bs)))\<^sup>*\<^sup>* (spoly (fst (fst p)) (fst (snd p))) 0 \<or>
-              (\<exists>h\<in>set (rcp gs bs ps). (red (fst ` (set gs \<union> set bs)))\<^sup>*\<^sup>* (spoly (fst (fst p)) (fst (snd p))) (fst h))))"
+  assumes "\<And>gs bs ps. 0 \<notin> fst ` set (rcp gs bs ps)"
+  assumes "\<And>gs bs ps h b. h \<in> set (rcp gs bs ps) \<Longrightarrow> b \<in> set bs \<Longrightarrow> fst b \<noteq> 0 \<Longrightarrow>
+                          \<not> lp (fst b) adds lp (fst h)"
+  assumes "\<And>gs bs ps d. dickson_grading (op +) d \<Longrightarrow>
+                         dgrad_p_set_le d (fst ` set (rcp gs bs ps)) (args_to_set (gs, bs, ps))"
+  assumes "\<And>gs bs ps. is_Groebner_basis (fst ` set gs) \<Longrightarrow>
+                (fst ` set (rcp gs bs ps) \<subseteq> pideal (args_to_set (gs, bs, ps)) \<and>
+                (\<forall>(p, q)\<in>set ps.  set ps \<subseteq> set bs \<times> (set gs \<union> set bs) \<longrightarrow>
+                  (red (fst ` (set gs \<union> set bs \<union> set (rcp gs bs ps))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0))"
   shows "rcp_spec rcp"
-  unfolding rcp_spec_def using assms by blast
+  unfolding rcp_spec_def using assms by auto
 
 lemma rcp_specD1:
   assumes "rcp_spec rcp"
   shows "0 \<notin> fst ` set (rcp gs bs ps)"
-  sorry
+  using assms unfolding rcp_spec_def by blast
 
 lemma rcp_specD2:
   assumes "rcp_spec rcp"
-    and "h \<in> set (rcp gs bs ps)"
-  shows "\<not> is_red (fst ` set bs) (fst h)"
-  sorry
+    and "h \<in> set (rcp gs bs ps)" and "b \<in> set bs" and "fst b \<noteq> 0"
+  shows "\<not> lp (fst b) adds lp (fst h)"
+  using assms unfolding rcp_spec_def by blast
 
-(* TODO: Perhaps this is too strong; better require all S-polynomials be reducible to 0 modulo the
-  enlarged set (which is of course still sufficient for proving "compl_conn ..."). *)
-lemma rcp_specE:
-  assumes "rcp_spec rcp" and "is_Groebner_basis (fst ` set gs)" and "set ps \<subseteq> set bs \<times> (set gs \<union> set bs)"
-    and "(p, q) \<in> set ps"
-  assumes 1: "(red (fst ` (set gs \<union> set bs)))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0 \<Longrightarrow> thesis"
-  assumes 2: "\<And>h. h \<in> set (rcp gs bs ps) \<Longrightarrow> (red (fst ` (set gs \<union> set bs)))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) (fst h) \<Longrightarrow> thesis"
-  shows thesis
-  sorry
-
-lemma rcp_spec_dgrad_p_set_le:
+lemma rcp_specD3:
   assumes "rcp_spec rcp" and "dickson_grading (op +) d"
   shows "dgrad_p_set_le d (fst ` set (rcp gs bs ps)) (args_to_set (gs, bs, ps))"
-  sorry
+  using assms unfolding rcp_spec_def by blast
 
-lemma rcp_spec_pideal:
-  assumes "rcp_spec rcp"
+lemma rcp_specD4:
+  assumes "rcp_spec rcp" and "is_Groebner_basis (fst ` set gs)"
   shows "fst ` set (rcp gs bs ps) \<subseteq> pideal (args_to_set (gs, bs, ps))"
-  sorry
+  using assms unfolding rcp_spec_def by blast
+
+lemma rcp_specD5:
+  assumes "rcp_spec rcp" and "is_Groebner_basis (fst ` set gs)"
+    and "set ps \<subseteq> set bs \<times> (set gs \<union> set bs)"
+    and "(p, q) \<in> set ps"
+  shows "(red (fst ` (set gs \<union> set bs \<union> set (rcp gs bs ps))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0"
+  using assms unfolding rcp_spec_def by blast
 
 subsubsection \<open>Function @{term discard_red_cp}\<close>
 
@@ -1847,7 +1883,7 @@ proof -
   from assms(1, 2)
   have "dgrad_p_set_le d (fst ` set (discard_red_cp crit rcp gs bs (ps -- sps) sps))
                           (args_to_set (gs, bs, discard_crit_pairs crit gs bs (ps -- sps) sps))"
-    unfolding discard_red_cp_def by (rule rcp_spec_dgrad_p_set_le)
+    unfolding discard_red_cp_def by (rule rcp_specD3)
   also have "dgrad_p_set_le d ... (args_to_set (gs, bs, ps))"
   proof (rule dgrad_p_set_le_subset, rule args_to_set_subset3)
     from discard_crit_pairs_subset \<open>set sps \<subseteq> set ps\<close>
@@ -1869,9 +1905,9 @@ next
   from assms show "0 \<notin> fst ` set (discard_red_cp crit rcp gs bs (ps -- sps) sps)"
     unfolding discard_red_cp_def by (rule rcp_specD1)
 next
-  fix gs bs ps sps h
-  assume "h \<in> set (discard_red_cp crit rcp gs bs (ps -- sps) sps)"
-  with assms show "\<not> is_red (fst ` set bs) (fst h)" unfolding discard_red_cp_def by (rule rcp_specD2)
+  fix gs bs ps sps h b
+  assume "h \<in> set (discard_red_cp crit rcp gs bs (ps -- sps) sps)" and "b \<in> set bs" and "fst b \<noteq> 0"
+  with assms show "\<not> lp (fst b) adds lp (fst h)" unfolding discard_red_cp_def by (rule rcp_specD2)
 qed
 
 lemma compl_pideal_discard_red_cp:
@@ -1879,8 +1915,18 @@ lemma compl_pideal_discard_red_cp:
   shows "compl_pideal (discard_red_cp crit rcp)"
 proof (rule compl_pidealI)
   fix gs bs :: "('a, 'b, 'c) pdata list" and ps sps :: "('a, 'b, 'c) pdata_pair list"
-  assume "set sps \<subseteq> set ps"
-  show "fst ` set (discard_red_cp crit rcp gs bs (ps -- sps) sps) \<subseteq> pideal (args_to_set (gs, bs, ps))" sorry
+  assume gb: "is_Groebner_basis (fst ` set gs)" and "set sps \<subseteq> set ps"
+  let ?res = "discard_red_cp crit rcp gs bs (ps -- sps) sps"
+  let ?ks = "discard_crit_pairs crit gs bs (ps -- sps) sps"
+  from assms gb have "fst ` set ?res \<subseteq> pideal (args_to_set (gs, bs, ?ks))"
+    unfolding discard_red_cp_def by (rule rcp_specD4)
+  also have "... \<subseteq> pideal (args_to_set (gs, bs, ps))"
+  proof (rule pideal_mono)
+    from discard_crit_pairs_subset \<open>set sps \<subseteq> set ps\<close> have "set ?ks \<subseteq> set ps"
+      by (rule subset_trans)
+    thus "args_to_set (gs, bs, ?ks) \<subseteq> args_to_set (gs, bs, ps)" by (rule args_to_set_subset3)
+  qed
+  finally show "fst ` set ?res \<subseteq> pideal (args_to_set (gs, bs, ps))" .
 qed
 
 lemma compl_conn_discard_red_cp:
@@ -1904,7 +1950,8 @@ proof (rule compl_connI)
 
   have gs_bs_sub: "fst ` (set gs \<union> set bs) \<subseteq> dgrad_p_set d m" by (simp add: image_Un, rule, fact+)
 
-  from assms(1) dg gs_sub gb bs_sub _ ps_sub \<open>set sps \<subseteq> set ps\<close> _ _ \<open>(p, q) \<in> set sps\<close> \<open>fst p \<noteq> 0\<close> \<open>fst q \<noteq> 0\<close>
+  from assms(1) dg gs_sub gb bs_sub res_sub ps_sub \<open>set sps \<subseteq> set ps\<close> _ _ \<open>(p, q) \<in> set sps\<close>
+      \<open>fst p \<noteq> 0\<close> \<open>fst q \<noteq> 0\<close>
   have "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> fst ` set ?res) (fst p) (fst q)"
   proof (rule discard_crit_pairs_connectible)
     fix p' q'
@@ -1930,36 +1977,18 @@ proof (rule compl_connI)
     with p'q'_in have "fst q' \<in> dgrad_p_set d m"
       by (metis (no_types, lifting) contra_subsetD imageI snd_conv)
 
-    from assms(2) gb ks_sub p'q'_in
-    show "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> fst ` set (discard_red_cp crit rcp gs bs (ps -- sps) sps))
-            (fst p') (fst q')"
-    proof (rule rcp_specE)
-      assume "(red (fst ` (set gs \<union> set bs)))\<^sup>*\<^sup>* (spoly (fst p') (fst q')) 0"
-      with dg gs_bs_sub \<open>fst p' \<in> dgrad_p_set d m\<close> \<open>fst q' \<in> dgrad_p_set d m\<close> \<open>fst p' \<noteq> 0\<close> \<open>fst q' \<noteq> 0\<close>
-      have "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs)) (fst p') (fst q')"
-        by (rule spoly_red_zero_imp_crit_pair_cbelow_on)
-      thus ?thesis by (rule crit_pair_cbelow_mono, simp)
-    next
-      fix h::"('a, 'b, 'c) pdata"
-      assume "(red (fst ` (set gs \<union> set bs)))\<^sup>*\<^sup>* (spoly (fst p') (fst q')) (fst h)"
-      hence 1: "(red (fst ` (set gs \<union> set bs) \<union> fst ` set ?res))\<^sup>*\<^sup>* (spoly (fst p') (fst q')) (fst h)"
-        by (rule red_rtrancl_subset, simp)
-      assume "h \<in> set (rcp gs bs ?ks)"
-      hence "fst h \<in> fst ` set (rcp gs bs ?ks)" by simp
-      have "(red {fst h})\<^sup>*\<^sup>* (fst h) 0" sorry
-      hence "(red (fst ` (set gs \<union> set bs) \<union> fst ` set ?res))\<^sup>*\<^sup>* (fst h) 0"
-        by (rule red_rtrancl_subset,
-            auto simp add: discard_red_cp_def intro: \<open>fst h \<in> fst ` set (rcp gs bs ?ks)\<close>)
-      with 1 have "(red (fst ` (set gs \<union> set bs) \<union> fst ` set ?res))\<^sup>*\<^sup>* (spoly (fst p') (fst q')) 0"
-        by (rule rtranclp_trans)
-      with dg _ \<open>fst p' \<in> dgrad_p_set d m\<close> \<open>fst q' \<in> dgrad_p_set d m\<close> \<open>fst p' \<noteq> 0\<close> \<open>fst q' \<noteq> 0\<close>
-      show ?thesis
-      proof (rule spoly_red_zero_imp_crit_pair_cbelow_on)
-        show "fst ` (set gs \<union> set bs) \<union> fst ` set ?res \<subseteq> dgrad_p_set d m"
-          by (simp add: gs_bs_sub res_sub)
-      qed
+    from assms(2) gb ks_sub p'q'_in have "(red (fst ` (set gs \<union> set bs \<union> set ?res)))\<^sup>*\<^sup>*
+                                            (spoly (fst p') (fst q')) 0"
+      unfolding discard_red_cp_def by (rule rcp_specD5)
+    hence "(red (fst ` (set gs \<union> set bs) \<union> fst ` set ?res))\<^sup>*\<^sup>* (spoly (fst p') (fst q')) 0"
+      by (simp only: image_Un)
+    with dg _ \<open>fst p' \<in> dgrad_p_set d m\<close> \<open>fst q' \<in> dgrad_p_set d m\<close> \<open>fst p' \<noteq> 0\<close> \<open>fst q' \<noteq> 0\<close>
+    show "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> fst ` set ?res) (fst p') (fst q')"
+    proof (rule spoly_red_zero_imp_crit_pair_cbelow_on)
+      from gs_bs_sub res_sub show "fst ` (set gs \<union> set bs) \<union> fst ` set ?res \<subseteq> dgrad_p_set d m"
+        by simp
     qed
-  qed (fact res_sub)
+  qed
   thus "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs \<union> set ?res)) (fst p) (fst q)"
     by (simp only: image_Un)
 qed
