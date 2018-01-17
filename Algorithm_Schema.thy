@@ -1,7 +1,7 @@
 section \<open>A General Algorithm Schema for Computing Gr\"obner Bases\<close>
 
 theory Algorithm_Schema
-  imports Groebner_Bases.Groebner_Bases
+  imports Groebner_Bases.Groebner_Bases Poly_Utils
 begin
 
 subsection \<open>Lists\<close>
@@ -19,6 +19,63 @@ lemma subset_append_diff_cancel:
   assumes "set ys \<subseteq> set xs"
   shows "set (ys @ (xs -- ys)) = set xs"
   by (simp only: set_append set_diff_list Un_Diff_cancel, rule Un_absorb1, fact)
+
+definition insert_list :: "'a \<Rightarrow> 'a list \<Rightarrow> 'a list"
+  where "insert_list x xs = (if x \<in> set xs then xs else x # xs)"
+
+lemma set_insert_list: "set (insert_list x xs) = insert x (set xs)"
+  by (auto simp add: insert_list_def)
+
+fun merge_wrt :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> 'a list" where
+  "merge_wrt _ xs [] = xs"|
+  "merge_wrt rel [] ys = ys"|
+  "merge_wrt rel (x # xs) (y # ys) =
+    (if x = y then
+      y # (merge_wrt rel xs ys)
+    else if rel x y then
+      x # (merge_wrt rel xs (y # ys))
+    else
+      y # (merge_wrt rel (x # xs) ys)
+    )"
+
+lemma set_merge_wrt: "set (merge_wrt rel xs ys) = set xs \<union> set ys"
+proof (induct rel xs ys rule: merge_wrt.induct)
+  case (1 rel xs)
+  show ?case by simp
+next
+  case (2 rel y ys)
+  show ?case by simp
+next
+  case (3 rel x xs y ys)
+  show ?case
+  proof (cases "x = y")
+    case True
+    thus ?thesis by (simp add: 3(1))
+  next
+    case False
+    show ?thesis
+    proof (cases "rel x y")
+      case True
+      with \<open>x \<noteq> y\<close> show ?thesis by (simp add: 3(2) insert_commute)
+    next
+      case False
+      with \<open>x \<noteq> y\<close> show ?thesis by (simp add: 3(3))
+    qed
+  qed
+qed
+
+lemma set_fold:
+  assumes "\<And>x ys. set (f (g x) ys) = set (g x) \<union> set ys"
+  shows "set (fold (\<lambda>x. f (g x)) xs ys) = (\<Union>x\<in>set xs. set (g x)) \<union> set ys"
+proof (induct xs arbitrary: ys)
+  case Nil
+  show ?case by simp
+next
+  case (Cons x xs)
+  have eq: "set (fold (\<lambda>x. f (g x)) xs (f (g x) ys)) = (\<Union>x\<in>set xs. set (g x)) \<union> set (f (g x) ys)"
+    by (rule Cons)
+  show ?case by (simp add: o_def assms set_merge_wrt eq ac_simps)
+qed
 
 (* TODO: Replace "processed" in "Groebner_Bases" by this more general definition. *)
 definition processed' :: "('a \<times> 'a) \<Rightarrow> 'a list \<Rightarrow> ('a \<times> 'a) list \<Rightarrow> bool"
@@ -121,6 +178,80 @@ qed
 
 subsection \<open>Algorithm Schema\<close>
 
+subsubsection \<open>@{term is_nonzero_const_monomial}\<close>
+
+context ordered_powerprod
+begin
+
+definition is_nonzero_const_monomial :: "('a \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool"
+  where "is_nonzero_const_monomial p \<longleftrightarrow> (\<exists>c. c \<noteq> 0 \<and> p = monomial c 0)"
+
+lemma is_nonzero_const_monomialI:
+  assumes "c \<noteq> 0"
+  shows "is_nonzero_const_monomial (monomial c 0)"
+  unfolding is_nonzero_const_monomial_def using assms by blast
+
+lemma is_nonzero_const_monomialE:
+  assumes "is_nonzero_const_monomial p"
+  obtains c where "c \<noteq> 0" and "p = monomial c 0"
+  using assms unfolding is_nonzero_const_monomial_def by blast
+
+lemma is_nonzero_const_monomial_not_zero:
+  assumes "is_nonzero_const_monomial p"
+  shows "p \<noteq> 0"
+proof -
+  from assms obtain c where "c \<noteq> 0" and p: "p = monomial c 0" by (rule is_nonzero_const_monomialE)
+  from \<open>c \<noteq> 0\<close> show ?thesis by (simp add: p monomial_0_iff)
+qed
+
+lemma is_nonzero_const_monomial_lp:
+  assumes "is_nonzero_const_monomial p"
+  shows "lp p = 0"
+proof -
+  from assms obtain c where "c \<noteq> 0" and p: "p = monomial c 0" by (rule is_nonzero_const_monomialE)
+  from \<open>c \<noteq> 0\<close> show ?thesis by (simp add: p lp_monomial)
+qed
+
+lemma is_nonzero_const_monomial_alt: "is_nonzero_const_monomial p \<longleftrightarrow> (p \<noteq> 0 \<and> lp p = 0)"
+proof
+  assume "is_nonzero_const_monomial p"
+  hence "p \<noteq> 0" and "lp p = 0"
+    by (rule is_nonzero_const_monomial_not_zero, rule is_nonzero_const_monomial_lp)
+  thus "p \<noteq> 0 \<and> lp p = 0" ..
+next
+  assume "p \<noteq> 0 \<and> lp p = 0"
+  hence "p \<noteq> 0" and "lp p = 0" by simp_all
+  have "is_nonzero_const_monomial (monomial (lc p) 0)"
+    by (rule is_nonzero_const_monomialI, rule lc_not_0, fact)
+  moreover have "monomial (lc p) (lp p) = p"
+  proof (rule monomial_eq_itself)
+    have "keys p = {lp p}"
+    proof (rule set_eqI, rule, simp_all)
+      fix t
+      assume "t \<in> keys p"
+      hence "t \<preceq> lp p" by (rule lp_max_keys)
+      moreover have "lp p \<preceq> t" unfolding \<open>lp p = 0\<close> by (fact zero_min)
+      ultimately show "t = lp p" by simp
+    next
+      from \<open>p \<noteq> 0\<close> show "lp p \<in> keys p" by (rule lp_in_keys)
+    qed
+    thus "is_monomial p" by (simp add: is_monomial_def)
+  qed
+  ultimately show "is_nonzero_const_monomial p" by (simp add: \<open>lp p = 0\<close>)
+qed
+
+lemma pideal_eq_UNIV_if_contains_nonzero_const_monomial:
+  assumes "p \<in> pideal F" and "is_nonzero_const_monomial (p::'a::comm_powerprod \<Rightarrow>\<^sub>0 'b::field)"
+  shows "pideal F = UNIV"
+proof (simp only: pideal_eq_UNIV_iff_contains_one)
+  from assms(2) obtain c where "c \<noteq> 0" and p: "p = monomial c 0" by (rule is_nonzero_const_monomialE)
+  from assms(1) have "monom_mult (1 / c) 0 p \<in> pideal F" by (rule pideal_closed_monom_mult)
+  moreover from \<open>c \<noteq> 0\<close> have "monom_mult (1 / c) 0 p = 1" by (simp add: p monom_mult_monomial)
+  ultimately show "1 \<in> pideal F" by simp
+qed
+
+end (* ordered_powerprod *)
+
 subsubsection \<open>Type synonyms\<close>
 
 type_synonym ('a, 'b, 'c) pdata = "('a \<Rightarrow>\<^sub>0 'b) \<times> 'c"
@@ -168,12 +299,12 @@ definition ap_spec :: "('a, 'b, 'c, 'd) apT \<Rightarrow> bool"
 
 lemma ap_specI:
   assumes "\<And>gs bs ps ns data.
-        set (ap gs bs ps ns data) \<subseteq> set ps \<union> (set ns \<times> (set gs \<union> set bs \<union> set ns)) \<and>
-        set ps \<union> (set ns \<times> (set gs \<union> set bs)) \<subseteq> set (ap gs bs ps ns data) \<and>
-        (\<forall>h1\<in>set ns. \<forall>h2\<in> set ns. h1 \<noteq> h2 \<longrightarrow>
-            ((h1, h2) \<in> set (ap gs bs ps ns data) \<or> (h2, h1) \<in> set (ap gs bs ps ns data)))"
+                set (ap gs bs ps ns data) \<subseteq> set ps \<union> (set ns \<times> (set gs \<union> set bs \<union> set ns))"
+  assumes "\<And>gs bs ps ns data. set ps \<union> (set ns \<times> (set gs \<union> set bs)) \<subseteq> set (ap gs bs ps ns data)"
+  assumes "\<And>gs bs ps ns h1 h2 data. h1 \<in> set ns \<Longrightarrow> h2 \<in> set ns \<Longrightarrow> h1 \<noteq> h2 \<Longrightarrow>
+                   ((h1, h2) \<in> set (ap gs bs ps ns data) \<or> (h2, h1) \<in> set (ap gs bs ps ns data))"
   shows "ap_spec ap"
-  unfolding ap_spec_def using assms by blast
+  unfolding ap_spec_def using assms by auto
 
 lemma ap_specD1:
   assumes "ap_spec ap"
@@ -868,21 +999,22 @@ proof -
   qed
 qed
 
-(* TODO: Abort "gb_schema_aux" as soon as "is_nz_const_pdata" holds for some element of "ns".
-  Actually, this could also be incorporated into the computation of reduced Groebner bases. *)
-definition is_nz_const_pdata :: "('a, 'b::zero, 'c) pdata \<Rightarrow> bool"
-  where "is_nz_const_pdata p \<longleftrightarrow> (fst p \<noteq> 0 \<and> lp (fst p) = 0)"
+(* TODO: Provide code equations for "is_nonzero_const_monomial" *)
 
 function (domintros) gb_schema_aux :: "('a, 'b, 'c, 'd) selT \<Rightarrow> ('a, 'b, 'c, 'd) apT \<Rightarrow> ('a, 'b, 'c, 'd) abT \<Rightarrow>
                         ('a, 'b, 'c, 'd) complT \<Rightarrow> 'd \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
-                        ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata list"
+                        ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b::{zero_neq_one}, 'c) pdata list"
   where
     "gb_schema_aux sel ap ab compl data gs bs ps =
         (if ps = [] then
           gs @ bs
         else
           (let sps = sel gs bs ps data; ps0 = ps -- sps; (ns, data') = compl gs bs ps0 sps data in
-            gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs ps0 ns data')
+            (if (\<exists>h\<in>set ns. is_nonzero_const_monomial (fst h)) then
+              [(1, undefined)]
+            else
+              gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs ps0 ns data')
+            )
           )
         )"
   by pat_completeness auto
@@ -954,17 +1086,25 @@ lemma gb_schema_aux_not_Nil:
   assumes "struct_spec sel ap ab compl" and "ps \<noteq> []"
   shows "gb_schema_aux sel ap ab compl data gs bs ps =
           (let sps = sel gs bs ps data; ps0 = ps -- sps; (ns, data') = compl gs bs ps0 sps data in
-            gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs ps0 ns data')
+            (if (\<exists>h\<in>set ns. is_nonzero_const_monomial (fst h)) then
+              [(1, undefined)]
+            else
+              gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs ps0 ns data')
+            )
           )"
   by (simp add: gb_schema_aux_simp[OF assms(1)] assms(2))
 
 text \<open>In order to prove the following lemma we again have to employ well-founded induction, since
   @{thm gb_schema_aux.pinduct} does not treat the first arguments of @{const gb_schema_aux} in the proper way.\<close>
-lemma gb_schema_aux_induct [consumes 1, case_names base rec]:
+lemma gb_schema_aux_induct [consumes 1, case_names base rec1 rec2]:
   assumes "struct_spec sel ap ab compl"
   assumes base: "\<And>bs. P bs [] (gs @ bs)"
-    and rec: "\<And>bs ps sps ns data data'. ps \<noteq> [] \<Longrightarrow> sps = sel gs bs ps data \<Longrightarrow>
+    and rec1: "\<And>bs ps sps h data. ps \<noteq> [] \<Longrightarrow> sps = sel gs bs ps data \<Longrightarrow>
+                h \<in> set (fst (compl gs bs (ps -- sps) sps data)) \<Longrightarrow> is_nonzero_const_monomial (fst h) \<Longrightarrow>
+                P bs ps [(1, undefined)]"
+    and rec2: "\<And>bs ps sps ns data data'. ps \<noteq> [] \<Longrightarrow> sps = sel gs bs ps data \<Longrightarrow>
                 (ns, data') = compl gs bs (ps -- sps) sps data \<Longrightarrow>
+                (\<And>h. h \<in> set ns \<Longrightarrow> \<not> is_nonzero_const_monomial (fst h)) \<Longrightarrow>
                 P (ab gs bs ns data') (ap gs bs (ps -- sps) ns data')
                   (gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs (ps -- sps) ns data')) \<Longrightarrow>
                 P bs ps (gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs (ps -- sps) ns data'))"
@@ -995,14 +1135,25 @@ proof -
     next
       case False
       show "P bs ps (gb_schema_aux sel ap ab compl data gs bs ps)"
-      proof (simp add: gb_schema_aux_not_Nil[OF assms(1) False] Let_def case_prod_beta)
+      proof (simp add: gb_schema_aux_not_Nil[OF assms(1) False] Let_def case_prod_beta, intro conjI impI)
+        define sps where "sps = sel gs bs ps data"
+        assume "\<exists>h\<in>set (fst (compl gs bs (ps -- sps) sps data)). is_nonzero_const_monomial (fst h)"
+        then obtain h where "h \<in> set (fst (compl gs bs (ps -- sps) sps data))"
+          and "is_nonzero_const_monomial (fst h)" ..
+        with False sps_def show "P bs ps [(1, undefined)]" by (rule rec1)
+      next
         define sps where "sps = sel gs bs ps data"
         define ns where "ns = fst (compl gs bs (ps -- sps) sps data)"
         define data' where "data' = snd (compl gs bs (ps -- sps) sps data)"
+        assume a: "\<forall>h\<in>set ns. \<not> is_nonzero_const_monomial (fst h)"
         have "(ns, data') = compl gs bs (ps -- sps) sps data" by (simp add: ns_def data'_def)
         with False sps_def
         show "P bs ps (gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs (ps -- sps) ns data'))"
-        proof (rule rec)
+        proof (rule rec2)
+          fix h
+          assume "h \<in> set ns"
+          with a show "\<not> is_nonzero_const_monomial (fst h)" ..
+        next
           show "P (ab gs bs ns data') (ap gs bs (ps -- sps) ns data')
                     (gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs (ps -- sps) ns data'))"
           proof (rule IH, simp add: x bs0 gb_schema_aux_term_def gb_schema_aux_term1_def gb_schema_aux_term2_def, rule)
@@ -1040,21 +1191,6 @@ proof -
   thus ?thesis by (simp add: args_def)
 qed
 
-lemma gb_schema_aux_superset:
-  assumes "struct_spec sel ap ab compl"
-  shows "set (gs @ bs) \<subseteq> set (gb_schema_aux sel ap ab compl data gs bs ps)"
-  using assms
-proof (induct rule: gb_schema_aux_induct)
-  case (base bs)
-  show ?case ..
-next
-  case (rec bs ps sps ns data data')
-  from assms have "ab_spec ab" by (rule struct_specD3)
-  hence "set (ab gs bs ns data') = set bs \<union> set ns" by (rule ab_specD1)
-  hence "set (gs @ bs) \<subseteq> set (gs @ ab gs bs ns data')" by auto
-  from this rec(4) show ?case by (rule subset_trans)
-qed
-
 lemma gb_schema_aux_dgrad_p_set_le:
   assumes "dickson_grading (op +) d" and "struct_spec sel ap ab compl"
   shows "dgrad_p_set_le d (fst ` set (gb_schema_aux sel ap ab compl data gs bs ps)) (args_to_set (gs, bs, ps))"
@@ -1063,56 +1199,77 @@ proof (induct rule: gb_schema_aux_induct)
   case (base bs)
   thus ?case by (simp add: args_to_set_def, rule dgrad_p_set_le_subset, fact subset_refl)
 next
-  case (rec bs ps sps ns data data')
-  from rec(3) have "ns = fst (compl gs bs (ps -- sps) sps data)" by (metis fstI)
-  with assms rec(1, 2)
+  case (rec1 bs ps sps h data)
+  show ?case apply (rule dgrad_p_set_leI, simp) sorry
+next
+  case (rec2 bs ps sps ns data data')
+  from rec2(3) have "ns = fst (compl gs bs (ps -- sps) sps data)" by (metis fstI)
+  with assms rec2(1, 2)
   have "dgrad_p_set_le d (args_to_set (gs, ab gs bs ns data', ap gs bs (ps -- sps) ns data')) (args_to_set (gs, bs, ps))"
     by (rule dgrad_p_set_le_args_to_set_struct)
-  with rec(4) show ?case by (rule dgrad_p_set_le_trans)
+  with rec2(5) show ?case by (rule dgrad_p_set_le_trans)
 qed
 
 lemma gb_schema_aux_pideal:
   assumes "struct_spec sel ap ab compl" and "compl_pideal compl" and "is_Groebner_basis (fst ` set gs)"
     and "set ps \<subseteq> (set bs) \<times> (set gs \<union> set bs)"
   shows "pideal (fst ` set (gb_schema_aux sel ap ab compl data gs bs ps)) = pideal (fst ` set (gs @ bs))"
-    (is "?l = ?r")
-proof
-  from assms(1, 4) show "?l \<subseteq> ?r"
-  proof (induction bs ps rule: gb_schema_aux_induct)
-    case (base bs)
-    show ?case ..
-  next
-    case (rec bs ps sps ns data data')
-    from rec(3) have ns: "ns = fst (compl gs bs (ps -- sps) sps data)" by (metis fstI)
-    from assms(1) have sel: "sel_spec sel" and ap: "ap_spec ap" and ab: "ab_spec ab"
-      by (rule struct_specD1, rule struct_specD2, rule struct_specD3)
-    have "pideal (fst ` set (gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs (ps -- sps) ns data'))) \<subseteq>
-          pideal (fst ` set (gs @ ab gs bs ns data'))"
-    proof (rule rec(4))
-      from ap ab rec(5) show "set (ap gs bs (ps -- sps) ns data') \<subseteq> set (ab gs bs ns data') \<times> (set gs \<union> set (ab gs bs ns data'))"
-        by (rule subset_Times_ap)
-    qed
-    also have "... \<subseteq> pideal (fst ` set (gs @ bs))"
-    proof (rule pideal_subset_pidealI, simp add: ab_specD1[OF ab] image_Un, intro conjI)
-      have "fst ` set gs \<subseteq> pideal (fst ` set gs)" by (rule generator_subset_pideal)
-      also have "... \<subseteq> pideal (fst ` set gs \<union> fst ` set bs)" by (rule pideal_mono, simp)
-      finally show "fst ` set gs \<subseteq> pideal (fst ` set gs \<union> fst ` set bs)" .
-    next
-      have "fst ` set bs \<subseteq> pideal (fst ` set bs)" by (rule generator_subset_pideal)
-      also have "... \<subseteq> pideal (fst ` set gs \<union> fst ` set bs)" by (rule pideal_mono, simp)
-      finally show "fst ` set bs \<subseteq> pideal (fst ` set gs \<union> fst ` set bs)" .
-    next
-      from sel rec(1) have "sps \<noteq> []" and "set sps \<subseteq> set ps"
-        unfolding rec(2) by (rule sel_specD1, rule sel_specD2)
-      with assms(2, 3) have "fst ` set ns \<subseteq> pideal (args_to_set (gs, bs, ps))"
-        unfolding ns by (rule compl_pidealD)
-      thus "fst ` set ns \<subseteq> pideal (fst ` set gs \<union> fst ` set bs)"
-        by (simp only: args_to_set_subset_Times[OF rec(5)])
-    qed
-    finally show ?case .
-  qed
+  using assms(1, 4)
+proof (induct bs ps rule: gb_schema_aux_induct)
+  case (base bs)
+  show ?case ..
 next
-  show "?r \<subseteq> ?l" by (rule pideal_mono, rule image_mono, rule gb_schema_aux_superset, fact assms(1))
+  case (rec1 bs ps sps h data)
+  let ?ns = "fst (compl gs bs (ps -- sps) sps data)"
+  from rec1(3) have "fst h \<in> fst ` set ?ns" by simp
+  from assms(1) have sel: "sel_spec sel" and ap: "ap_spec ap" and ab: "ab_spec ab"
+    by (rule struct_specD1, rule struct_specD2, rule struct_specD3)
+  from sel rec1(1) have "sps \<noteq> []" and "set sps \<subseteq> set ps"
+    unfolding rec1(2) by (rule sel_specD1, rule sel_specD2)
+  with assms(2, 3) have "fst ` set ?ns \<subseteq> pideal (args_to_set (gs, bs, ps))" by (rule compl_pidealD)
+  hence "fst ` set ?ns \<subseteq> pideal (fst ` (set (gs @ bs)))"
+    by (simp add: args_to_set_subset_Times[OF rec1(5)] image_Un)
+  with \<open>fst h \<in> fst ` set ?ns\<close> have "fst h \<in> pideal (fst ` (set (gs @ bs)))" ..
+  from this rec1(4) have "pideal (fst ` (set (gs @ bs))) = UNIV"
+    by (rule pideal_eq_UNIV_if_contains_nonzero_const_monomial)
+  moreover have "pideal (fst ` set [(1::'a \<Rightarrow>\<^sub>0 'b, undefined::'c)]) = UNIV"
+    by (simp add: generator_in_pideal pideal_eq_UNIV_iff_contains_one)
+  ultimately show ?case by simp
+next
+  case (rec2 bs ps sps ns data data')
+  from rec2(3) have ns: "ns = fst (compl gs bs (ps -- sps) sps data)" by (metis fstI)
+  from assms(1) have sel: "sel_spec sel" and ap: "ap_spec ap" and ab: "ab_spec ab"
+    by (rule struct_specD1, rule struct_specD2, rule struct_specD3)
+  have "pideal (fst ` set (gb_schema_aux sel ap ab compl data' gs (ab gs bs ns data') (ap gs bs (ps -- sps) ns data'))) =
+        pideal (fst ` set (gs @ ab gs bs ns data'))"
+  proof (rule rec2(5))
+    from ap ab rec2(6) show "set (ap gs bs (ps -- sps) ns data') \<subseteq> set (ab gs bs ns data') \<times> (set gs \<union> set (ab gs bs ns data'))"
+      by (rule subset_Times_ap)
+  qed
+  also have "... = pideal (fst ` set (gs @ bs))"
+  proof -
+    have eq: "fst ` (set gs \<union> set (ab gs bs ns data')) = fst ` (set gs \<union> set bs) \<union> fst ` set ns"
+      by (auto simp add: ab_specD1[OF ab])
+    show ?thesis
+    proof (simp add: eq, rule)
+      show "pideal (fst ` (set gs \<union> set bs) \<union> fst ` set ns) \<subseteq> pideal (fst ` (set gs \<union> set bs))"
+      proof (rule pideal_subset_pidealI, simp only: Un_subset_iff, rule)
+        show "fst ` (set gs \<union> set bs) \<subseteq> pideal (fst ` (set gs \<union> set bs))"
+          by (fact generator_subset_pideal)
+      next
+        from sel rec2(1) have "sps \<noteq> []" and "set sps \<subseteq> set ps"
+          unfolding rec2(2) by (rule sel_specD1, rule sel_specD2)
+        with assms(2, 3) have "fst ` set ns \<subseteq> pideal (args_to_set (gs, bs, ps))"
+          unfolding ns by (rule compl_pidealD)
+        thus "fst ` set ns \<subseteq> pideal (fst ` (set gs \<union> set bs))"
+          by (simp only: args_to_set_subset_Times[OF rec2(6)] image_Un)
+      qed
+    next
+      show "pideal (fst ` (set gs \<union> set bs)) \<subseteq> pideal (fst ` (set gs \<union> set bs) \<union> fst ` set ns)"
+        by (rule pideal_mono, blast)
+    qed
+  qed
+  finally show ?case .
 qed
 
 lemma gb_schema_aux_connectible:
@@ -1154,14 +1311,18 @@ proof (induct rule: gb_schema_aux_induct)
     from this \<open>fst f \<noteq> 0\<close> \<open>fst g \<noteq> 0\<close> show ?thesis unfolding set_append by (rule base(3))
   qed
 next
-  case (rec bs ps sps ns data data')
-  from rec(3) have ns: "ns = fst (compl gs bs (ps -- sps) sps data)" by (metis fstI)
+  case (rec1 bs ps sps h data)
+  from rec1(8, 9) have "fst f = 1" and "fst g = 1" by simp_all
+  from assms(3) show ?case unfolding \<open>fst f = 1\<close> \<open>fst g = 1\<close> apply (rule crit_pair_cbelow_same) sorry
+next
+  case (rec2 bs ps sps ns data data')
+  from rec2(3) have ns: "ns = fst (compl gs bs (ps -- sps) sps data)" by (metis fstI)
   from assms(1) have sel: "sel_spec sel" and ap: "ap_spec ap" and ab: "ab_spec ab"
     and compl: "compl_struct compl"
     by (rule struct_specD1, rule struct_specD2, rule struct_specD3, rule struct_specD4)
-  from sel rec(1) have "sps \<noteq> []" and "set sps \<subseteq> set ps"
-    unfolding rec(2) by (rule sel_specD1, rule sel_specD2)
-  from ap ab rec(6) have ap_sub: "set (ap gs bs (ps -- sps) ns data') \<subseteq>
+  from sel rec2(1) have "sps \<noteq> []" and "set sps \<subseteq> set ps"
+    unfolding rec2(2) by (rule sel_specD1, rule sel_specD2)
+  from ap ab rec2(7) have ap_sub: "set (ap gs bs (ps -- sps) ns data') \<subseteq>
                                     set (ab gs bs ns data') \<times> (set gs \<union> set (ab gs bs ns data'))"
     by (rule subset_Times_ap)
   have ns_sub: "fst ` set ns \<subseteq> dgrad_p_set d m"
@@ -1170,29 +1331,29 @@ next
     show "dgrad_p_set_le d (fst ` set ns) (args_to_set (gs, bs, ps))"
       unfolding ns by (rule compl_structD1)
   next
-    from assms(4) rec(5) show "args_to_set (gs, bs, ps) \<subseteq> dgrad_p_set d m"
-      by (simp add: args_to_set_subset_Times[OF rec(6)])
+    from assms(4) rec2(6) show "args_to_set (gs, bs, ps) \<subseteq> dgrad_p_set d m"
+      by (simp add: args_to_set_subset_Times[OF rec2(7)])
   qed
-  with rec(5) have ab_sub: "fst ` set (ab gs bs ns data') \<subseteq> dgrad_p_set d m"
+  with rec2(6) have ab_sub: "fst ` set (ab gs bs ns data') \<subseteq> dgrad_p_set d m"
     by (auto simp add: ab_specD1[OF ab])
 
   have cpq: "(p, q) \<in> set sps \<Longrightarrow> fst p \<noteq> 0 \<Longrightarrow> fst q \<noteq> 0 \<Longrightarrow>
               crit_pair_cbelow_on d m (fst ` (set gs \<union> set (ab gs bs ns data'))) (fst p) (fst q)" for p q
   proof -
     assume "(p, q) \<in> set sps" and "fst p \<noteq> 0" and "fst q \<noteq> 0"
-    with assms(2, 3, 4, 5) rec(5, 6) \<open>sps \<noteq> []\<close> \<open>set sps \<subseteq> set ps\<close> _
+    with assms(2, 3, 4, 5) rec2(6, 7) \<open>sps \<noteq> []\<close> \<open>set sps \<subseteq> set ps\<close> _
     show "crit_pair_cbelow_on d m (fst ` (set gs \<union> set (ab gs bs ns data'))) (fst p) (fst q)"
       unfolding ab_specD1[OF ab] ns
     proof (rule compl_connD)
       fix p' q'
       assume "processed' (p', q') (gs @ bs) ps" and "fst p' \<noteq> 0" and "fst q' \<noteq> 0"
       thus "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs)) (fst p') (fst q')"
-        by (rule rec(7))
+        by (rule rec2(8))
     qed
   qed
 
-  from ab_sub ap_sub _ rec(8, 9) show ?case
-  proof (rule rec(4))
+  from ab_sub ap_sub _ rec2(9, 10) show ?case
+  proof (rule rec2(5))
     fix p q :: "('a, 'b, 'c) pdata"
     assume "fst p \<noteq> 0" and "fst q \<noteq> 0"
     assume proc: "processed' (p, q) (gs @ (ab gs bs ns data')) (ap gs bs (ps -- sps) ns data')"
@@ -1212,7 +1373,7 @@ next
       next
         assume "processed' (p, q) (gs @ bs) ps"
         from this \<open>fst p \<noteq> 0\<close> \<open>fst q \<noteq> 0\<close>
-        have "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs)) (fst p) (fst q)" by (rule rec(7))
+        have "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs)) (fst p) (fst q)" by (rule rec2(8))
         moreover have "fst ` (set gs \<union> set bs) \<subseteq> fst ` (set gs \<union> set (ab gs bs ns data'))"
           by (auto simp add: ab_specD1[OF ab])
         ultimately show ?thesis by (rule crit_pair_cbelow_mono)
@@ -1400,6 +1561,26 @@ lemma crit_specD:
 
 subsubsection \<open>Suitable Instances of the @{emph \<open>crit\<close>} parameter: chain criterion and product criterion\<close>
 
+definition product_crit' :: "('a, 'b::zero, 'c, 'd) critT'"
+  where "product_crit' gs bs ps data p q \<longleftrightarrow> (gcs (lp (fst p)) (lp (fst q)) = 0)"
+
+lemma crit_spec_product_crit': "crit_spec product_crit'"
+proof (rule crit_specI)
+  fix d m gs bs ps and F::"('a \<Rightarrow>\<^sub>0 'b) set" and data::'d and p q::"('a, 'b, 'c) pdata"
+  assume "product_crit' gs bs ps data p q"
+  hence *: "gcs (lp (fst p)) (lp (fst q)) = 0" by (simp only: product_crit'_def)
+  assume gs: "fst ` set gs \<subseteq> dgrad_p_set d m" and bs: "fst ` set bs \<subseteq> dgrad_p_set d m"
+    and F: "F \<subseteq> dgrad_p_set d m" and "p \<in> set bs" and "q \<in> set gs \<union> set bs"
+  assume "dickson_grading op + d"
+  moreover from gs bs F have "fst ` (set gs \<union> set bs) \<union> F \<subseteq> dgrad_p_set d m" (is "?F \<subseteq> _")
+    by (simp add: image_Un)
+  moreover from \<open>p \<in> set bs\<close> have "fst p \<in> ?F" by simp
+  moreover from \<open>q \<in> set gs \<union> set bs\<close> have "fst q \<in> ?F" by simp
+  moreover assume "fst p \<noteq> 0" and "fst q \<noteq> 0"
+  ultimately show "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p) (fst q)"
+    using * by (rule product_criterion)
+qed
+
 definition chain_crit' :: "('a, 'b::zero, 'c, 'd) critT'"
   where "chain_crit' gs bs ps data p q \<longleftrightarrow>
           (let l = lcs (lp (fst p)) (lp (fst q)) in
@@ -1407,7 +1588,7 @@ definition chain_crit' :: "('a, 'b::zero, 'c, 'd) critT'"
                             (p, r) \<notin> set ps \<and> (r, p) \<notin> set ps \<and> (q, r) \<notin> set ps \<and> (r, q) \<notin> set ps)
           )"
 
-text \<open>@{const chain_crit'} ignores the @{term data} parameter.\<close>
+text \<open>@{const product_crit'} and @{const chain_crit'} ignore the @{term data} parameter.\<close>
 
 lemma chain_crit'E:
   assumes "chain_crit' gs bs ps data p q" and "p \<in> set bs" and "q \<in> set gs \<union> set bs"
@@ -1474,6 +1655,38 @@ proof (rule crit_specI)
       unfolding G_def by (rule *)
   qed
 qed
+
+definition comb_crit' :: "('a, 'b::zero, 'c, 'd) critT' \<Rightarrow> ('a, 'b, 'c, 'd) critT' \<Rightarrow> ('a, 'b, 'c, 'd) critT'"
+  where "comb_crit' c1 c2 gs bs ps data p q \<longleftrightarrow> (c1 gs bs ps data p q \<or> c2 gs bs ps data p q)"
+
+lemma crit_spec_comb_crit':
+  assumes "crit_spec c1" and "crit_spec c2"
+  shows "crit_spec (comb_crit' c1 c2)"
+proof (rule crit_specI)
+  fix d m gs bs ps and F::"('a \<Rightarrow>\<^sub>0 'b) set" and data::'d and p q::"('a, 'b, 'c) pdata"
+  assume 1: "dickson_grading op + d" and 2: "fst ` set gs \<subseteq> dgrad_p_set d m"
+    and 3: "is_Groebner_basis (fst ` set gs)" and 4: "fst ` set bs \<subseteq> dgrad_p_set d m"
+    and 5: "F \<subseteq> dgrad_p_set d m" and 6: "set ps \<subseteq> set bs \<times> (set gs \<union> set bs)"
+    and 7: "\<And>p' q'. processed' (p', q') (gs @ bs) ((p, q) # ps) \<Longrightarrow> fst p' \<noteq> 0 \<Longrightarrow> fst q' \<noteq> 0 \<Longrightarrow>
+                crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p') (fst q')"
+    and 8: "p \<in> set bs" and 9: "q \<in> set gs \<union> set bs" and 10: "fst p \<noteq> 0" and 11: "fst q \<noteq> 0"
+  assume "comb_crit' c1 c2 gs bs ps data p q"
+  hence "c1 gs bs ps data p q \<or> c2 gs bs ps data p q" by (simp only: comb_crit'_def)
+  thus "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs) \<union> F) (fst p) (fst q)"
+  proof
+    assume "c1 gs bs ps data p q"
+    with assms(1) 1 2 3 4 5 6 7 8 9 10 11 show ?thesis by (rule crit_specD)
+  next
+    assume "c2 gs bs ps data p q"
+    with assms(2) 1 2 3 4 5 6 7 8 9 10 11 show ?thesis by (rule crit_specD)
+  qed
+qed
+
+definition pc_crit' :: "('a, 'b::zero, 'c, 'd) critT'"
+  where "pc_crit' = comb_crit' product_crit' chain_crit'"
+
+corollary crit_spec_pc_crit': "crit_spec pc_crit'"
+  by (simp only: pc_crit'_def, rule crit_spec_comb_crit', fact crit_spec_product_crit', fact crit_spec_chain_crit')
 
 subsubsection \<open>Function @{term discard_crit_pairs}\<close>
 
@@ -2021,5 +2234,220 @@ proof (rule compl_connI)
 qed
 
 end (* gd_powerprod *)
+
+subsection \<open>Suitable Instances of the @{emph \<open>add-pairs\<close>} Parameter\<close>
+
+type_synonym ('a, 'b, 'c, 'd) apsT = "('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+                                    ('a, 'b, 'c) pdata \<Rightarrow> ('a, 'b, 'c) pdata_pair list \<Rightarrow>
+                                    ('a, 'b, 'c) pdata_pair list"
+
+definition add_pairs_single_naive :: "'d \<Rightarrow> ('a, 'b, 'c, 'd) apsT"
+  where "add_pairs_single_naive data gs bs h ps \<equiv> ps @ (map (Pair h) gs) @ (map (Pair h) bs)"
+
+lemma set_add_pairs_single_naive:
+  "set (add_pairs_single_naive data gs bs h ps) = set ps \<union> {h} \<times> (set gs \<union> set bs)"
+  by (simp add: add_pairs_single_naive_def, blast)
+
+fun add_pairs_single_sorted :: "(('a, 'b, 'c) pdata_pair \<Rightarrow> ('a, 'b, 'c) pdata_pair \<Rightarrow> bool) \<Rightarrow>
+                                    ('a, 'b, 'c, 'd) apsT"
+    where
+  "add_pairs_single_sorted _ [] [] _ ps = ps"|
+  "add_pairs_single_sorted rel [] (b # bs) h ps =
+    add_pairs_single_sorted rel [] bs h (insort_wrt rel (h, b) ps)"|
+  "add_pairs_single_sorted rel (g # gs) bs h ps =
+    add_pairs_single_sorted rel gs bs h (insort_wrt rel (h, g) ps)"
+
+lemma set_add_pairs_single_sorted:
+  "set (add_pairs_single_sorted rel gs bs h ps) = set ps \<union> {h} \<times> (set gs \<union> set bs)"
+proof (induct gs arbitrary: ps)
+  case Nil
+  show ?case
+  proof (induct bs arbitrary: ps)
+    case Nil
+    show ?case by simp
+  next
+    case (Cons b bs)
+    show ?case by (simp add: Cons)
+  qed
+next
+  case (Cons g gs)
+  show ?case by (simp add: Cons)
+qed
+
+primrec pairs' :: "('a, 'b, 'c, 'd) apsT \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata_pair list"
+  where
+  "pairs' _ [] = []"|
+  "pairs' aps (x # xs) = aps [] xs x (pairs' aps xs)"
+
+lemma pairs'_subset:
+  assumes "\<And>gs bs h ps. set (aps gs bs h ps) = set ps \<union> {h} \<times> (set gs \<union> set bs)"
+  shows "set (pairs' aps xs) \<subseteq> set xs \<times> set xs"
+proof (induct xs)
+  case Nil
+  show ?case by simp
+next
+  case (Cons x xs)
+  from Cons have "set (pairs' aps xs) \<subseteq> set (x # xs) \<times> set (x # xs)" by fastforce
+  moreover have "{x} \<times> set xs \<subseteq> set (x # xs) \<times> set (x # xs)" by fastforce
+  ultimately show ?case by (simp add: assms)
+qed
+
+lemma in_pairs'I:
+  assumes "\<And>gs bs h ps. set (aps gs bs h ps) = set ps \<union> {h} \<times> (set gs \<union> set bs)"
+    and "a \<noteq> b" and "a \<in> set xs" and "b \<in> set xs"
+  shows "(a, b) \<in> set (pairs' aps xs) \<or> (b, a) \<in> set (pairs' aps xs)"
+  using assms(3, 4)
+proof (induct xs)
+  case Nil
+  thus ?case by simp
+next
+  case (Cons x xs)
+  from Cons(3) have d: "b = x \<or> b \<in> set xs" by simp
+  from Cons(2) have "a = x \<or> a \<in> set xs" by simp
+  thus ?case
+  proof
+    assume "a = x"
+    with assms(2) have "b \<noteq> x" by simp
+    with d have "b \<in> set xs" by simp
+    hence "(a, b) \<in> set (pairs' aps (x # xs))" by (simp add: \<open>a = x\<close> assms(1))
+    thus ?thesis ..
+  next
+    assume "a \<in> set xs"
+    from d show ?thesis
+    proof
+      assume "b = x"
+      from \<open>a \<in> set xs\<close> have "(b, a) \<in> set (pairs' aps (x # xs))" by (simp add: \<open>b = x\<close> assms(1))
+      thus ?thesis ..
+    next
+      assume "b \<in> set xs"
+      with \<open>a \<in> set xs\<close> have "(a, b) \<in> set (pairs' aps xs) \<or> (b, a) \<in> set (pairs' aps xs)"
+        by (rule Cons(1))
+      thus ?thesis
+      proof
+        assume "(a, b) \<in> set (pairs' aps xs)"
+        hence "(a, b) \<in> set (pairs' aps (x # xs))" by (simp add: assms(1))
+        thus ?thesis ..
+      next
+        assume "(b, a) \<in> set (pairs' aps xs)"
+        hence "(b, a) \<in> set (pairs' aps (x # xs))" by (simp add: assms(1))
+        thus ?thesis ..
+      qed
+    qed
+  qed
+qed
+
+definition add_pairs_naive' :: "('a, 'b, 'c, 'd) apT"
+  where "add_pairs_naive' gs bs ps ns data =
+          fold (add_pairs_single_naive data gs bs) ns (ps @ (pairs' (add_pairs_single_naive data) ns))"
+
+definition add_pairs_sorted' :: "('d \<Rightarrow> ('a, 'b, 'c) pdata_pair \<Rightarrow> ('a, 'b, 'c) pdata_pair \<Rightarrow> bool) \<Rightarrow>
+                                ('a, 'b, 'c, 'd) apT"
+  where "add_pairs_sorted' rel gs bs ps ns data =
+          fold (add_pairs_single_sorted (rel data) gs bs) ns
+                (merge_wrt (rel data) ps (pairs' (add_pairs_single_sorted (rel data)) ns))"
+
+lemma set_fold_aps:
+  assumes "\<And>gs bs h ps. set (aps gs bs h ps) = set ps \<union> {h} \<times> (set gs \<union> set bs)"
+  shows "set (fold (aps gs bs) ns ps) = set ns \<times> (set gs \<union> set bs) \<union> set ps"
+proof (induct ns arbitrary: ps)
+  case Nil
+  show ?case by simp
+next
+  case (Cons n ns)
+  show ?case by (simp add: Cons assms, blast)
+qed
+
+lemma set_add_pairs_naive':
+  "set (add_pairs_naive' gs bs ps ns data) =
+      set ps \<union> set ns \<times> (set gs \<union> set bs) \<union> set (pairs' (add_pairs_single_naive data) ns)"
+proof -
+  have "set (add_pairs_naive' gs bs ps ns data) =
+          set ns \<times> (set gs \<union> set bs) \<union>
+             set (ps @ (pairs' (add_pairs_single_naive data) ns))"
+    unfolding add_pairs_naive'_def by (rule set_fold_aps, fact set_add_pairs_single_naive)
+  thus ?thesis by (simp add: ac_simps)
+qed
+
+lemma ap_spec_add_pairs_naive': "ap_spec add_pairs_naive'"
+proof (rule ap_specI)
+  fix gs bs :: "('a, 'b, 'c) pdata list" and ps ns and data::'d
+  show "set (add_pairs_naive' gs bs ps ns data) \<subseteq> set ps \<union> set ns \<times> (set gs \<union> set bs \<union> set ns)"
+  proof (simp add: set_add_pairs_naive', rule, blast)
+    have "set (pairs' (add_pairs_single_naive data) ns) \<subseteq> set ns \<times> set ns"
+      by (rule pairs'_subset, fact set_add_pairs_single_naive)
+    thus "set (pairs' (add_pairs_single_naive data) ns) \<subseteq>
+          set ps \<union> set ns \<times> (set gs \<union> set bs \<union> set ns)" by blast
+  qed
+next
+  fix gs bs :: "('a, 'b, 'c) pdata list" and ps ns and h1 h2 :: "('a, 'b, 'c) pdata" and data::'d
+  assume "h1 \<noteq> h2" and "h1 \<in> set ns" and "h2 \<in> set ns"
+  with set_add_pairs_single_naive
+  have "(h1, h2) \<in> set (pairs' (add_pairs_single_naive data) ns) \<or>
+        (h2, h1) \<in> set (pairs' (add_pairs_single_naive data) ns)" by (rule in_pairs'I)
+  thus "(h1, h2) \<in> set (add_pairs_naive' gs bs ps ns data) \<or>
+        (h2, h1) \<in> set (add_pairs_naive' gs bs ps ns data)"
+    by (auto simp add: set_add_pairs_naive')
+qed (simp add: set_add_pairs_naive')
+
+lemma set_add_pairs_sorted':
+  "set (add_pairs_sorted' rel gs bs ps ns data) =
+      set ps \<union> set ns \<times> (set gs \<union> set bs) \<union> set (pairs' (add_pairs_single_sorted (rel data)) ns)"
+proof -
+  have "set (add_pairs_sorted' rel gs bs ps ns data) =
+          set ns \<times> (set gs \<union> set bs) \<union>
+             set (merge_wrt (rel data) ps (pairs' (add_pairs_single_sorted (rel data)) ns))"
+    unfolding add_pairs_sorted'_def by (rule set_fold_aps, fact set_add_pairs_single_sorted)
+  thus ?thesis by (simp add: set_merge_wrt ac_simps)
+qed
+
+lemma ap_spec_add_pairs_sorted': "ap_spec (add_pairs_sorted' rel)"
+proof (rule ap_specI)
+  fix gs bs ps ns data
+  show "set (add_pairs_sorted' rel gs bs ps ns data) \<subseteq> set ps \<union> set ns \<times> (set gs \<union> set bs \<union> set ns)"
+  proof (simp add: set_add_pairs_sorted', rule, blast)
+    have "set (pairs' (add_pairs_single_sorted (rel data)) ns) \<subseteq> set ns \<times> set ns"
+      by (rule pairs'_subset, fact set_add_pairs_single_sorted)
+    thus "set (pairs' (add_pairs_single_sorted (rel data)) ns) \<subseteq>
+          set ps \<union> set ns \<times> (set gs \<union> set bs \<union> set ns)" by blast
+  qed
+next
+  fix gs bs :: "('a, 'b, 'c) pdata list" and ps ns and h1 h2 :: "('a, 'b, 'c) pdata" and data::'d
+  assume "h1 \<noteq> h2" and "h1 \<in> set ns" and "h2 \<in> set ns"
+  with set_add_pairs_single_sorted
+  have "(h1, h2) \<in> set (pairs' (add_pairs_single_sorted (rel data)) ns) \<or>
+        (h2, h1) \<in> set (pairs' (add_pairs_single_sorted (rel data)) ns)" by (rule in_pairs'I)
+  thus "(h1, h2) \<in> set (add_pairs_sorted' rel gs bs ps ns data) \<or>
+        (h2, h1) \<in> set (add_pairs_sorted' rel gs bs ps ns data)"
+    by (auto simp add: set_add_pairs_sorted')
+qed (simp add: set_add_pairs_sorted')
+
+definition (in gd_powerprod) canon_pair_order :: "'d \<Rightarrow> ('a, 'b::zero, 'c) pdata_pair \<Rightarrow>
+                                                        ('a, 'b, 'c) pdata_pair \<Rightarrow> bool"
+  where "canon_pair_order data p q \<longleftrightarrow>
+          (lcs (lp (fst (fst p))) (lp (fst (snd p))) \<preceq> lcs (lp (fst (fst q))) (lp (fst (snd q))))"
+
+subsection \<open>Suitable Instances of the @{emph \<open>add-basis\<close>} Parameter\<close>
+
+definition add_basis_naive :: "('a, 'b, 'c, 'd) abT"
+  where "add_basis_naive gs bs ns data = bs @ ns"
+
+lemma ab_spec_add_basis_naive: "ab_spec add_basis_naive"
+  by (rule ab_specI, simp_all add: add_basis_naive_def)
+
+definition add_basis_sorted :: "('d \<Rightarrow> ('a, 'b, 'c) pdata \<Rightarrow> ('a, 'b, 'c) pdata \<Rightarrow> bool) \<Rightarrow> ('a, 'b, 'c, 'd) abT"
+  where "add_basis_sorted rel gs bs ns data = merge_wrt (rel data) bs ns"
+
+lemma ab_spec_add_basis_sorted: "ab_spec (add_basis_sorted rel)"
+  by (rule ab_specI, simp_all add: add_basis_sorted_def set_merge_wrt)
+
+(* TODO: Provide code equation for "card_keys". *)
+definition card_keys :: "('a \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> nat"
+  where "card_keys = card \<circ> keys"
+
+definition (in ordered_powerprod) canon_basis_order :: "'d \<Rightarrow> ('a, 'b::zero, 'c) pdata \<Rightarrow> ('a, 'b, 'c) pdata \<Rightarrow> bool"
+  where "canon_basis_order data p q \<longleftrightarrow>
+          (let cp = card_keys (fst p); cq = card_keys (fst q) in
+            cp < cq \<or> (cp = cq \<and> lp (fst p) \<prec> lp (fst q))
+          )"
 
 end (* theory *)

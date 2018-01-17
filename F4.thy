@@ -4,52 +4,6 @@ theory F4
   imports Groebner_Macaulay Algorithm_Schema
 begin
 
-subsection \<open>Lists\<close>
-
-definition insert_list :: "'a \<Rightarrow> 'a list \<Rightarrow> 'a list"
-  where "insert_list x xs = (if x \<in> set xs then xs else x # xs)"
-
-lemma set_insert_list: "set (insert_list x xs) = insert x (set xs)"
-  by (auto simp add: insert_list_def)
-
-fun merge_wrt :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> 'a list" where
-  "merge_wrt _ xs [] = xs"|
-  "merge_wrt rel [] ys = ys"|
-  "merge_wrt rel (x # xs) (y # ys) =
-    (if x = y then
-      y # (merge_wrt rel xs ys)
-    else if rel x y then
-      x # (merge_wrt rel xs (y # ys))
-    else
-      y # (merge_wrt rel (x # xs) ys)
-    )"
-
-lemma set_merge_wrt: "set (merge_wrt rel xs ys) = set xs \<union> set ys"
-proof (induct rel xs ys rule: merge_wrt.induct)
-  case (1 rel xs)
-  show ?case by simp
-next
-  case (2 rel y ys)
-  show ?case by simp
-next
-  case (3 rel x xs y ys)
-  show ?case
-  proof (cases "x = y")
-    case True
-    thus ?thesis by (simp add: 3(1))
-  next
-    case False
-    show ?thesis
-    proof (cases "rel x y")
-      case True
-      with \<open>x \<noteq> y\<close> show ?thesis by (simp add: 3(2) insert_commute)
-    next
-      case False
-      with \<open>x \<noteq> y\<close> show ?thesis by (simp add: 3(3))
-    qed
-  qed
-qed
-
 subsection \<open>Symbolic Preprocessing\<close>
 
 context ordered_powerprod
@@ -73,19 +27,13 @@ lemma keys_to_list_zero [simp]: "keys_to_list 0 = []"
 lemma Keys_to_list_Nil [simp]: "Keys_to_list [] = []"
   by (simp add: Keys_to_list_def)
 
-lemma set_fold_merge_wrt_keys_to_list:
-  "set (fold (\<lambda>p ts. merge_wrt (op \<succ>) (keys_to_list p) ts) ps ts) = set ts \<union> Keys (set ps)"
-proof (induct ps arbitrary: ts)
-  case Nil
-  show ?case by simp
-next
-  case (Cons p ps)
-  show ?case
-    by (simp only: fold.simps o_def Cons set_merge_wrt set_simps Keys_insert set_keys_to_list ac_simps)
-qed
-
 lemma set_Keys_to_list: "set (Keys_to_list ps) = Keys (set ps)"
-  by (simp add: Keys_to_list_def set_fold_merge_wrt_keys_to_list)
+proof -
+  have "set (Keys_to_list ps) = (\<Union>p\<in>set ps. set (keys_to_list p)) \<union> set []"
+    unfolding Keys_to_list_def by (rule set_fold, simp only: set_merge_wrt)
+  also have "... = Keys (set ps)" by (simp add: Keys_def set_keys_to_list)
+  finally show ?thesis .
+qed
 
 end (* ordered_powerprod *)
 
@@ -1294,7 +1242,7 @@ next
   qed
 qed
 
-definition f4_red_aux :: "('a, 'b::field, 'c::default) pdata list \<Rightarrow> ('a, 'b, 'c) pdata_pair list \<Rightarrow>
+definition f4_red_aux :: "('a, 'b::field, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata_pair list \<Rightarrow>
                           ('a \<Rightarrow>\<^sub>0 'b) list"
   where "f4_red_aux bs ps = Macaulay_red (sym_preproc (map fst bs) (pdata_pairs_to_list ps))"
 
@@ -1542,8 +1490,8 @@ proof (rule f4_red_aux_phull_reducible)
   thus "spoly (fst p) (fst q) \<in> phull (set (pdata_pairs_to_list ps))" by (simp only: spoly_def)
 qed
 
-definition f4_red :: "('a, 'b::field, 'c::default, 'd) rcpT"
-  where "f4_red gs bs ps data = (map (\<lambda>h. (h, default)) (f4_red_aux (gs @ bs) ps), data)"
+definition f4_red :: "('a, 'b::field, 'c, 'd) rcpT"
+  where "f4_red gs bs ps data = (map (\<lambda>h. (h, undefined)) (f4_red_aux (gs @ bs) ps), data)"
 
 lemma fst_set_fst_f4_red: "fst ` set (fst (f4_red gs bs ps data)) = set (f4_red_aux (gs @ bs) ps)"
   by (simp add: f4_red_def, force)
@@ -1591,6 +1539,71 @@ next
          (red (fst ` (set gs \<union> set bs \<union> set (fst (f4_red gs bs ps data)))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0)"
     by (auto simp add: image_Un fst_set_fst_f4_red)
 qed
+
+subsection \<open>Pair Selection\<close>
+
+primrec f4_sel_aux :: "'a \<Rightarrow> ('a, 'b::zero, 'c) pdata_pair list \<Rightarrow> ('a, 'b, 'c) pdata_pair list" where
+  "f4_sel_aux _ [] = []"|
+  "f4_sel_aux t (p # ps) =
+    (if (lcs (lp (fst (fst p))) (lp (fst (snd p)))) = t then
+      p # (f4_sel_aux t ps)
+    else
+      []
+    )"
+
+lemma f4_sel_aux_subset: "set (f4_sel_aux t ps) \<subseteq> set ps"
+  by (induct ps, auto)
+
+primrec f4_sel :: "('a, 'b::zero, 'c, 'd) selT" where
+  "f4_sel gs bs [] data = []"|
+  "f4_sel gs bs (p # ps) data = p # (f4_sel_aux (lcs (lp (fst (fst p))) (lp (fst (snd p)))) ps)"
+
+lemma sel_spec_f4_sel: "sel_spec f4_sel"
+proof (rule sel_specI)
+  fix gs bs :: "('a, 'b, 'c) pdata list" and ps::"('a, 'b, 'c) pdata_pair list" and data::'d
+  assume "ps \<noteq> []"
+  then obtain p ps' where ps: "ps = p # ps'" by (meson list.exhaust)
+  show "f4_sel gs bs ps data \<noteq> [] \<and> set (f4_sel gs bs ps data) \<subseteq> set ps"
+  proof
+    show "f4_sel gs bs ps data \<noteq> []" by (simp add: ps)
+  next
+    from f4_sel_aux_subset show "set (f4_sel gs bs ps data) \<subseteq> set ps" by (auto simp add: ps)
+  qed
+qed
+
+subsection \<open>The F4 Algorithm\<close>
+
+text \<open>The F4 algorithm is just @{const gb_schema_direct} with parameters instantiated by suitable
+  functions.\<close>
+
+abbreviation "f4_ap \<equiv> add_pairs_sorted' canon_pair_order"
+abbreviation "f4_ab \<equiv> add_basis_sorted canon_basis_order"
+abbreviation "f4_compl \<equiv> discard_red_cp pc_crit' f4_red"
+
+lemma struct_spec_f4: "struct_spec f4_sel f4_ap f4_ab f4_compl"
+  using sel_spec_f4_sel ap_spec_add_pairs_sorted' ab_spec_add_basis_sorted
+proof (rule struct_specI)
+  from rcp_spec_f4_red show "compl_struct f4_compl" by (rule compl_struct_discard_red_cp)
+qed
+
+lemmas compl_conn_f4_compl = compl_conn_discard_red_cp[OF crit_spec_pc_crit' rcp_spec_f4_red]
+
+lemmas compl_pideal_f4_compl = compl_pideal_discard_red_cp[OF rcp_spec_f4_red]
+
+definition f4_aux :: "'d \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+                   ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b::field, 'c) pdata list"
+  where "f4_aux = gb_schema_aux f4_sel f4_ap f4_ab f4_compl"
+
+lemmas f4_aux_simps [code] = gb_schema_aux_simp[OF struct_spec_f4, folded f4_aux_def]
+
+definition f4 :: "('a, 'b::field, 'c) pdata list \<Rightarrow> 'd \<Rightarrow> ('a, 'b, 'c) pdata list"
+  where "f4 = gb_schema_direct f4_sel f4_ap f4_ab f4_compl"
+
+lemmas f4_simps [code] = gb_schema_direct_def[of "f4_sel" "f4_ap" "f4_ab" "f4_compl", folded f4_def f4_aux_def]
+
+lemmas f4_isGB = gb_schema_direct_isGB[OF struct_spec_f4 compl_conn_f4_compl, folded f4_def]
+
+lemmas f4_pideal = gb_schema_direct_pideal[OF struct_spec_f4 compl_pideal_f4_compl, folded f4_def]
 
 end (* gd_powerprod *)
 
