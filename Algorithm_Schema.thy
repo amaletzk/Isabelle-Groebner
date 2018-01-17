@@ -1403,6 +1403,136 @@ next
   qed
 qed
 
+lemma gb_schema_aux_dgrad_p_set_le_init:
+  assumes "dickson_grading (op +) d" and "struct_spec sel ap ab compl"
+  shows "dgrad_p_set_le d (fst ` set (gb_schema_aux sel ap ab compl data gs bs (ap gs [] [] bs data)))
+                          (fst ` (set gs \<union> set bs))"
+proof -
+  from assms(2) have ap: "ap_spec ap" by (rule struct_specD)
+  from ap_specD1[OF ap, of gs "[]" "[]" bs] have *: "set (ap gs [] [] bs data) \<subseteq> set bs \<times> (set gs \<union> set bs)"
+    by simp
+  from assms have "dgrad_p_set_le d (fst ` set (gb_schema_aux sel ap ab compl data gs bs (ap gs [] [] bs data)))
+                                    (args_to_set (gs, bs, (ap gs [] [] bs data)))"
+    by (rule gb_schema_aux_dgrad_p_set_le)
+  also have "... = fst ` (set gs \<union> set bs)" by (simp add: args_to_set_subset_Times[OF *] image_Un)
+  finally show ?thesis .
+qed
+
+lemma gb_schema_aux_dgrad_p_set_init:
+  assumes "dickson_grading (op +) d" and "struct_spec sel ap ab compl"
+    and "fst ` (set gs \<union> set bs) \<subseteq> dgrad_p_set d m"
+  shows "fst ` set (gb_schema_aux sel ap ab compl data gs bs (ap gs [] [] bs data)) \<subseteq> dgrad_p_set d m"
+proof (rule dgrad_p_set_le_dgrad_p_set)
+  from assms(1, 2) show "dgrad_p_set_le d (fst ` set (gb_schema_aux sel ap ab compl data gs bs (ap gs [] [] bs data)))
+                              (fst ` (set gs \<union> set bs))"
+    by (rule gb_schema_aux_dgrad_p_set_le_init)
+qed fact
+
+lemma gb_schema_aux_pideal_init:
+  assumes "struct_spec sel ap ab compl" and "compl_pideal compl" and "is_Groebner_basis (fst ` set gs)"
+  shows "pideal (fst ` set (gb_schema_aux sel ap ab compl data gs bs (ap gs [] [] bs data))) =
+          pideal (fst ` (set (gs @ bs)))"
+  using assms
+proof (rule gb_schema_aux_pideal)
+  from assms(1) have "ap_spec ap" by (rule struct_specD2)
+  from ap_specD1[OF this, of gs "[]" "[]" bs]
+  show "set (ap gs [] [] bs data) \<subseteq> set bs \<times> (set gs \<union> set bs)" by simp
+qed
+
+lemma gb_schema_aux_isGB_init:
+  assumes "struct_spec sel ap ab compl" and "compl_conn compl" and "is_Groebner_basis (fst ` set gs)"
+  shows "is_Groebner_basis (fst ` set (gb_schema_aux sel ap ab compl data gs bs (ap gs [] [] bs data)))"
+proof -
+  let ?res = "gb_schema_aux sel ap ab compl data gs bs (ap gs [] [] bs data)"
+  from assms(1) have ap: "ap_spec ap" and ab: "ab_spec ab" by (rule struct_specD2, rule struct_specD3)
+  from ex_dgrad obtain d::"'a \<Rightarrow> nat" where dg: "dickson_grading (op +) d" ..
+  have "finite (fst ` (set gs \<union> set bs))" by (rule, rule finite_UnI, fact finite_set, fact finite_set)
+  then obtain m where "fst ` (set gs \<union> set bs) \<subseteq> dgrad_p_set d m" by (rule dgrad_p_set_exhaust)
+  with dg assms(1) have "fst ` set ?res \<subseteq> dgrad_p_set d m"
+    by (rule gb_schema_aux_dgrad_p_set_init)
+  with dg show ?thesis
+  proof (rule crit_pair_cbelow_imp_GB_dgrad_p_set)
+    fix p0 q0
+    assume p0_in: "p0 \<in> fst ` set ?res" and q0_in: "q0 \<in> fst ` set ?res"
+    assume "p0 \<noteq> 0" and "q0 \<noteq> 0"
+    from \<open>fst ` (set gs \<union> set bs) \<subseteq> dgrad_p_set d m\<close>
+    have "fst ` set gs \<subseteq> dgrad_p_set d m" and "fst ` set bs \<subseteq> dgrad_p_set d m"
+      by (simp_all add: image_Un)
+    from p0_in obtain p where p_in: "p \<in> set ?res" and p0: "p0 = fst p" ..
+    from q0_in obtain q where q_in: "q \<in> set ?res" and q0: "q0 = fst q" ..
+    from assms(1, 2) dg \<open>fst ` set gs \<subseteq> dgrad_p_set d m\<close> assms(3) \<open>fst ` set bs \<subseteq> dgrad_p_set d m\<close>
+      _ _ p_in q_in \<open>p0 \<noteq> 0\<close> \<open>q0 \<noteq> 0\<close>
+    show "crit_pair_cbelow_on d m (fst ` set ?res) p0 q0" unfolding p0 q0
+    proof (rule gb_schema_aux_connectible)
+      from ap_specD1[OF ap, of gs "[]" "[]" bs]
+      show "set (ap gs [] [] bs data) \<subseteq> set bs \<times> (set gs \<union> set bs)" by simp
+    next
+      fix p' q'
+      assume proc: "processed' (p', q') (gs @ bs) (ap gs [] [] bs data)"
+      hence "p' \<in> set gs \<union> set bs" and "q' \<in> set gs \<union> set bs" by (auto dest: processed'D1 processed'D2)
+      assume "fst p' \<noteq> 0" and "fst q' \<noteq> 0"
+      show "crit_pair_cbelow_on d m (fst ` (set gs \<union> set bs)) (fst p') (fst q')"
+      proof (cases "p' = q'")
+        case True
+        from dg show ?thesis unfolding True
+        proof (rule crit_pair_cbelow_same)
+          from \<open>q' \<in> set gs \<union> set bs\<close> have "fst q' \<in> fst ` (set gs \<union> set bs)" by simp
+          from this \<open>fst ` (set gs \<union> set bs) \<subseteq> dgrad_p_set d m\<close> show "fst q' \<in> dgrad_p_set d m" ..
+        qed
+      next
+        case False
+        from ap_specD2[OF ap, of "[]" bs gs "[]" data]
+        have sub: "set bs \<times> set gs \<subseteq> set (ap gs [] [] bs data)" by simp
+        from \<open>p' \<in> set gs \<union> set bs\<close> show ?thesis
+        proof
+          assume "p' \<in> set gs"
+          from \<open>q' \<in> set gs \<union> set bs\<close> show ?thesis
+          proof
+            assume "q' \<in> set gs"
+            note dg \<open>fst ` set gs \<subseteq> dgrad_p_set d m\<close> assms(3)
+            moreover from \<open>p' \<in> set gs\<close> have "fst p' \<in> fst ` set gs" by simp
+            moreover from \<open>q' \<in> set gs\<close> have "fst q' \<in> fst ` set gs" by simp
+            ultimately have "crit_pair_cbelow_on d m (fst ` set gs) (fst p') (fst q')"
+              using \<open>fst p' \<noteq> 0\<close> \<open>fst q' \<noteq> 0\<close> by (rule GB_imp_crit_pair_cbelow_dgrad_p_set)
+            moreover have "fst ` set gs \<subseteq> fst ` (set gs \<union> set bs)" by blast
+            ultimately show ?thesis by (rule crit_pair_cbelow_mono)
+          next
+            assume "q' \<in> set bs"
+            from this \<open>p' \<in> set gs\<close> have "(q', p') \<in> set bs \<times> set gs" ..
+            with sub have "(q', p') \<in> set (ap gs [] [] bs data)" ..
+            hence "\<not> processed' (p', q') (gs @ bs) (ap gs [] [] bs data)"
+              by (simp add: processed'_alt)
+            from this proc show ?thesis ..
+          qed
+        next
+          assume "p' \<in> set bs"
+          from \<open>q' \<in> set gs \<union> set bs\<close> show ?thesis
+          proof
+            assume "q' \<in> set gs"
+            with \<open>p' \<in> set bs\<close> have "(p', q') \<in> set bs \<times> set gs" ..
+            with sub have "(p', q') \<in> set (ap gs [] [] bs data)" ..
+            hence "\<not> processed' (p', q') (gs @ bs) (ap gs [] [] bs data)"
+              by (simp add: processed'_alt)
+            from this proc show ?thesis ..
+          next
+            assume "q' \<in> set bs"
+            from ap \<open>p' \<in> set bs\<close> this False
+            have "\<not> processed' (p', q') (gs @ bs) (ap gs [] [] bs data)"
+            proof (rule ap_specE)
+              assume "(p', q') \<in> set (ap gs [] [] bs data)"
+              thus ?thesis by (simp add: processed'_alt)
+            next
+              assume "(q', p') \<in> set (ap gs [] [] bs data)"
+              thus ?thesis by (simp add: processed'_alt)
+            qed
+            from this proc show ?thesis ..
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
 subsubsection \<open>Functions @{term gb_schema_direct} and @{term gb_schema_incr}\<close>
 
 definition gb_schema_direct :: "('a, 'b, 'c, 'd) selT \<Rightarrow> ('a, 'b, 'c, 'd) apT \<Rightarrow> ('a, 'b, 'c, 'd) abT \<Rightarrow>
@@ -1411,90 +1541,31 @@ definition gb_schema_direct :: "('a, 'b, 'c, 'd) selT \<Rightarrow> ('a, 'b, 'c,
   where "gb_schema_direct sel ap ab compl bs data =
                               gb_schema_aux sel ap ab compl data [] bs (ap [] [] [] bs data)"
 
-fun gb_schema_incr :: "('a, 'b, 'c, 'd) selT \<Rightarrow> ('a, 'b, 'c, 'd) apT \<Rightarrow> ('a, 'b, 'c, 'd) abT \<Rightarrow>
+primrec gb_schema_incr :: "('a, 'b, 'c, 'd) selT \<Rightarrow> ('a, 'b, 'c, 'd) apT \<Rightarrow> ('a, 'b, 'c, 'd) abT \<Rightarrow>
                                 ('a, 'b, 'c, 'd) complT \<Rightarrow>
                                 (('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata \<Rightarrow> 'd \<Rightarrow> 'd) \<Rightarrow>
                                 ('a, 'b::field, 'c) pdata list \<Rightarrow> 'd \<Rightarrow> ('a, 'b, 'c) pdata list"
   where
     "gb_schema_incr _ _ _ _ _ [] _ = []"|
-    "gb_schema_incr _ _ _ _ _ [b] _ = [b]"|
     "gb_schema_incr sel ap ab compl upd (b # bs) data =
       (let gs = gb_schema_incr sel ap ab compl upd bs data; data' = upd gs b data in
         gb_schema_aux sel ap ab compl data' gs [b] (ap gs [] [] [b] data')
       )"
 
-lemma gb_schema_direct_dgrad_p_set_le:
-  assumes "dickson_grading (op +) d" and "struct_spec sel ap ab compl"
-  shows "dgrad_p_set_le d (fst ` set (gb_schema_direct sel ap ab compl bs data)) (fst ` set bs)"
-proof -
-  from assms(2) have ap: "ap_spec ap" and ab: "ab_spec ab" by (rule struct_specD2, rule struct_specD3)
-  from ap_specD1[OF ap, of "[]" "[]" "[]" bs] have *: "set (ap [] [] [] bs data) \<subseteq> set bs \<times> set bs" by simp
-  from assms have "dgrad_p_set_le d (fst ` set (gb_schema_aux sel ap ab compl data [] bs (ap [] [] [] bs data)))
-                                    (args_to_set ([], bs, (ap [] [] [] bs data)))"
-    by (rule gb_schema_aux_dgrad_p_set_le)
-  also from * have "... = fst ` set bs" by (auto simp add: args_to_set_alt)
-  finally show ?thesis unfolding gb_schema_direct_def .
-qed
-
-corollary gb_schema_direct_dgrad_p_set:
+lemma gb_schema_direct_dgrad_p_set:
   assumes "dickson_grading (op +) d" and "struct_spec sel ap ab compl" and "fst ` set bs \<subseteq> dgrad_p_set d m"
   shows "fst ` set (gb_schema_direct sel ap ab compl bs data) \<subseteq> dgrad_p_set d m"
-  by (rule dgrad_p_set_le_dgrad_p_set, rule gb_schema_direct_dgrad_p_set_le, fact+)
+  unfolding gb_schema_direct_def using assms(1, 2)
+proof (rule gb_schema_aux_dgrad_p_set_init)
+  from assms(3) show "fst ` (set [] \<union> set bs) \<subseteq> dgrad_p_set d m" by simp
+qed
 
 theorem gb_schema_direct_isGB:
   assumes "struct_spec sel ap ab compl" and "compl_conn compl"
   shows "is_Groebner_basis (fst ` set (gb_schema_direct sel ap ab compl bs data))"
-proof -
-  from assms(1) have ap: "ap_spec ap" and ab: "ab_spec ab" by (rule struct_specD2, rule struct_specD3)
-  from ex_dgrad obtain d::"'a \<Rightarrow> nat" where dg: "dickson_grading (op +) d" ..
-  obtain m where "fst ` set bs \<subseteq> dgrad_p_set d m"
-    by (rule dgrad_p_set_exhaust, rule finite_imageI, rule finite_set)
-  with dg assms(1) have "fst ` set (gb_schema_direct sel ap ab compl bs data) \<subseteq> dgrad_p_set d m"
-    by (rule gb_schema_direct_dgrad_p_set)
-  with dg show ?thesis
-  proof (rule crit_pair_cbelow_imp_GB_dgrad_p_set)
-    fix p0 q0
-    assume p0_in: "p0 \<in> fst ` set (gb_schema_direct sel ap ab compl bs data)"
-      and q0_in: "q0 \<in> fst ` set (gb_schema_direct sel ap ab compl bs data)"
-    assume "p0 \<noteq> 0" and "q0 \<noteq> 0"
-    from p0_in obtain p where p_in: "p \<in> set (gb_schema_direct sel ap ab compl bs data)" and p0: "p0 = fst p" ..
-    from q0_in obtain q where q_in: "q \<in> set (gb_schema_direct sel ap ab compl bs data)" and q0: "q0 = fst q" ..
-    from assms dg _ _ \<open>fst ` set bs \<subseteq> dgrad_p_set d m\<close> _ _ p_in q_in \<open>p0 \<noteq> 0\<close> \<open>q0 \<noteq> 0\<close>
-    show "crit_pair_cbelow_on d m (fst ` set (gb_schema_direct sel ap ab compl bs data)) p0 q0"
-      unfolding gb_schema_direct_def p0 q0
-    proof (rule gb_schema_aux_connectible)
-      show "fst ` set [] \<subseteq> dgrad_p_set d m" by simp
-    next
-      from is_Groebner_basis_empty show "is_Groebner_basis (fst ` set [])" by simp
-    next
-      from ap_specD1[OF ap, of "[]" "[]" "[]" bs] show "set (ap [] [] [] bs data) \<subseteq> set bs \<times> (set [] \<union> set bs)"
-        by simp
-    next
-      fix p' q'
-      assume proc: "processed' (p', q') ([] @ bs) (ap [] [] [] bs data)"
-      hence "p' \<in> set bs" and "q' \<in> set bs" by (auto dest: processed'D1 processed'D2)
-      show "crit_pair_cbelow_on d m (fst ` (set [] \<union> set bs)) (fst p') (fst q')"
-      proof (cases "p' = q'")
-        case True
-        from dg show ?thesis unfolding True
-        proof (rule crit_pair_cbelow_same)
-          from \<open>q' \<in> set bs\<close> have "fst q' \<in> fst ` set bs" by simp
-          from this \<open>fst ` set bs \<subseteq> dgrad_p_set d m\<close> show "fst q' \<in> dgrad_p_set d m" ..
-        qed
-      next
-        case False
-        with ap \<open>p' \<in> set bs\<close> \<open>q' \<in> set bs\<close> have "\<not> processed' (p', q') ([] @ bs) (ap [] [] [] bs data)"
-        proof (rule ap_specE)
-          assume "(p', q') \<in> set (ap [] [] [] bs data)"
-          thus ?thesis by (simp add: processed'_alt)
-        next
-          assume "(q', p') \<in> set (ap [] [] [] bs data)"
-          thus ?thesis by (simp add: processed'_alt)
-        qed
-        from this proc show ?thesis ..
-      qed
-    qed
-  qed
+  unfolding gb_schema_direct_def using assms
+proof (rule gb_schema_aux_isGB_init)
+  from is_Groebner_basis_empty show "is_Groebner_basis (fst ` set [])" by simp
 qed
 
 theorem gb_schema_direct_pideal:
@@ -1503,14 +1574,102 @@ theorem gb_schema_direct_pideal:
 proof -
   have "pideal (fst ` set (gb_schema_direct sel ap ab compl bs data)) = pideal (fst ` set ([] @ bs))"
     unfolding gb_schema_direct_def using assms
-  proof (rule gb_schema_aux_pideal)
+  proof (rule gb_schema_aux_pideal_init)
     from is_Groebner_basis_empty show "is_Groebner_basis (fst ` set [])" by simp
-  next
-    from assms(1) have "ap_spec ap" by (rule struct_specD2)
-    from ap_specD1[OF this, of "[]" "[]" "[]" bs] show "set (ap [] [] [] bs data) \<subseteq> set bs \<times> (set [] \<union> set bs)"
-      by simp
   qed
   thus ?thesis by simp
+qed
+
+lemma gb_schema_incr_dgrad_p_set:
+  assumes "dickson_grading (op +) d" and "struct_spec sel ap ab compl"
+    and "fst ` set bs \<subseteq> dgrad_p_set d m"
+  shows "fst ` set (gb_schema_incr sel ap ab compl upd bs data) \<subseteq> dgrad_p_set d m"
+  using assms(3)
+proof (induct bs)
+  case Nil
+  show ?case by simp
+next
+  case (Cons b bs)
+  from Cons(2) have 1: "fst b \<in> dgrad_p_set d m" and 2: "fst ` set bs \<subseteq> dgrad_p_set d m" by simp_all
+  show ?case
+  proof (simp add: Let_def)
+    define gs where "gs = gb_schema_incr sel ap ab compl upd bs data"
+    define data' where "data' = upd gs b data"
+    from assms(1, 2)
+    show "fst ` set (gb_schema_aux sel ap ab compl data' gs [b] (ap gs [] [] [b] data')) \<subseteq> dgrad_p_set d m"
+    proof (rule gb_schema_aux_dgrad_p_set_init)
+      from 1 Cons(1)[OF 2] show "fst ` (set gs \<union> set [b]) \<subseteq> dgrad_p_set d m" by (simp add: gs_def)
+    qed
+  qed
+qed
+
+theorem gb_schema_incr_dgrad_p_set_isGB:
+  assumes "struct_spec sel ap ab compl" and "compl_conn compl"
+  shows "is_Groebner_basis (fst ` set (gb_schema_incr sel ap ab compl upd bs data))"
+proof (induct bs)
+  case Nil
+  from is_Groebner_basis_empty show ?case by simp
+next
+  case (Cons b bs)
+  show ?case
+  proof (simp add: Let_def)
+    define gs where "gs = gb_schema_incr sel ap ab compl upd bs data"
+    define data' where "data' = upd gs b data"
+    from Cons have "is_Groebner_basis (fst ` set gs)" by (simp only: gs_def)
+    with assms
+    show "is_Groebner_basis (fst ` set (gb_schema_aux sel ap ab compl data' gs [b] (ap gs [] [] [b] data')))"
+      by (rule gb_schema_aux_isGB_init)
+  qed
+qed
+
+lemma pideal_insert_cong:
+  assumes "pideal A = pideal B"
+  shows "pideal (insert p A) = pideal (insert (p::('a \<Rightarrow>\<^sub>0 'b::semiring_1)) B)" (is "?l = ?r")
+proof
+  show "?l \<subseteq> ?r"
+  proof (rule pideal_subset_pidealI, rule insert_subsetI)
+    show "p \<in> ?r" by (rule generator_in_pideal, simp)
+  next
+    have "A \<subseteq> pideal A" by (fact generator_subset_pideal)
+    also from assms have "... = pideal B" .
+    also have "... \<subseteq> ?r" by (rule pideal_mono, blast)
+    finally show "A \<subseteq> ?r" .
+  qed
+next
+  show "?r \<subseteq> ?l"
+  proof (rule pideal_subset_pidealI, rule insert_subsetI)
+    show "p \<in> ?l" by (rule generator_in_pideal, simp)
+  next
+    have "B \<subseteq> pideal B" by (fact generator_subset_pideal)
+    also from assms have "... = pideal A" by simp
+    also have "... \<subseteq> ?l" by (rule pideal_mono, blast)
+    finally show "B \<subseteq> ?l" .
+  qed
+qed
+
+theorem gb_schema_incr_pideal:
+  assumes "struct_spec sel ap ab compl" and "compl_conn compl" "compl_pideal compl"
+  shows "pideal (fst ` set (gb_schema_incr sel ap ab compl upd bs data)) = pideal (fst ` set bs)"
+proof (induct bs)
+  case Nil
+  show ?case by simp
+next
+  case (Cons b bs)
+  show ?case
+  proof (simp add: Let_def)
+    define gs where "gs = gb_schema_incr sel ap ab compl upd bs data"
+    define data' where "data' = upd gs b data"
+    from assms(1, 2) have "is_Groebner_basis (fst ` set gs)" unfolding gs_def
+      by (rule gb_schema_incr_dgrad_p_set_isGB)
+    with assms(1, 3)
+    have eq: "pideal (fst ` set (gb_schema_aux sel ap ab compl data' gs [b] (ap gs [] [] [b] data'))) =
+          pideal (fst ` set (gs @ [b]))" by (rule gb_schema_aux_pideal_init)
+    also have "... = pideal (insert (fst b) (fst ` set gs))" by simp
+    also from Cons have "... = pideal (insert (fst b) (fst ` set bs))" unfolding gs_def
+      by (rule pideal_insert_cong)
+    finally show "pideal (fst ` set (gb_schema_aux sel ap ab compl data' gs [b] (ap gs [] [] [b] data'))) =
+                  pideal (insert (fst b) (fst ` set bs))" .
+  qed
 qed
 
 subsection \<open>Suitable Instances of the @{emph \<open>completion\<close>} Parameter\<close>
