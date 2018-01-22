@@ -1,6 +1,9 @@
 theory Reduced_GB_Examples
-  imports Reduced_GB Polynomials.MPoly_Type_Class_FMap
+  imports Groebner_Bases.Buchberger_Algorithm Reduced_GB Polynomials.MPoly_Type_Class_FMap
 begin
+
+definition (in gd_powerprod) rgb :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
+  where "rgb = comp_red_monic_basis \<circ> gb"
 
 definition "dlex_pm_strict s t \<longleftrightarrow> dlex_pm s t \<and> \<not> dlex_pm t s"
 
@@ -20,7 +23,14 @@ global_interpretation opp_dlex: gd_powerprod dlex_pm dlex_pm_strict
   and trd_dlex = opp_dlex.trd
   and spoly_dlex = opp_dlex.spoly
   and trdsp_dlex = opp_dlex.trdsp
-  and gbaux_dlex = opp_dlex.gbaux
+  and add_pairs_naive_dlex = opp_dlex.add_pairs_naive
+  and add_pairs_sorted_dlex = opp_dlex.add_pairs_sorted
+  and pairs_dlex = opp_dlex.pairs
+  and product_crit_dlex = opp_dlex.product_crit
+  and chain_crit_dlex = opp_dlex.chain_crit
+  and comb_crit_dlex = opp_dlex.comb_crit
+  and pc_crit_dlex = opp_dlex.pc_crit
+  and gb_aux_dlex = opp_dlex.gb_aux
   and gb_dlex = opp_dlex.gb
   and comp_min_basis_pre_dlex = opp_dlex.comp_min_basis_pre
   and comp_min_basis_aux_dlex = opp_dlex.comp_min_basis_aux
@@ -46,28 +56,28 @@ lemma
   "rgb_dlex
     [
      (MP [(PP [(X, 3)], 1), (PP [(X, 1), (Y, 1), (Z, 2)], -1)]),
-     (MP [(PP [(Y, 2), (Z, 1)], 1::rat), (PP [], -1)])
+     (MP [(PP [(Y, 2), (Z, 1)], 1::rat), (0, -1)])
     ] =
     [
      (MP [(PP [(X, 5)], 1), (PP [(X, 1), (Z, 3)], -1)]),
      (MP [(PP [(X, 3), (Y, 1)], 1), (PP [(X, 1), (Z, 1)], -1)]),
      (MP [(PP [(X, 3)], -1), (PP [(X, 1), (Y, 1), (Z, 2)], 1)]),
-     (MP [(PP [(Y, 2), (Z, 1)], 1::rat), (PP [], -1)])
+     (MP [(PP [(Y, 2), (Z, 1)], 1::rat), (0, -1)])
     ]"
   by eval
 
 lemma
   "rgb_dlex
     [
-     (MP [(PP [(X, 2)], 1), (PP [(Y, 2)], 1), (PP [(Z, 2)], 1::rat), (PP [], -1)]),
-     (MP [(PP [(X, 1), (Y, 1)], 1), (PP [(Z, 1)], -1), (PP [], -1)]),
+     (MP [(PP [(X, 2)], 1), (PP [(Y, 2)], 1), (PP [(Z, 2)], 1::rat), (0, -1)]),
+     (MP [(PP [(X, 1), (Y, 1)], 1), (PP [(Z, 1)], -1), (0, -1)]),
      (MP [(PP [(Y, 2)], 1), (PP [(X, 1)], 1)]),
      (MP [(PP [(Z, 2)], 1), (PP [(X, 1)], 1)])
     ] =
     [
-     (MP [(PP [], 1)])
+     (MP [(0, 1)])
     ]"
-  by eval (* Takes a bit longer (~ 1 minute). *)
+  by eval
 
 text \<open>Note: The above computations have been cross-checked with Mathematica 11.1.\<close>
 

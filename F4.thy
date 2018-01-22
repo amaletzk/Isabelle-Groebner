@@ -1,159 +1,17 @@
-section \<open>Faug\'ere's F4 Algorithm\<close>
+(* Author: Alexander Maletzky *)
+
+section \<open>Faug\`ere's F4 Algorithm\<close>
 
 theory F4
-  imports Groebner_Macaulay Algorithm_Schema
+  imports Macaulay_Matrix Algorithm_Schema
 begin
+
+text \<open>This theory implements Faug\`ere's F4 algorithm based on @{const gd_powerprod.gb_schema_direct}.\<close>
 
 subsection \<open>Symbolic Preprocessing\<close>
 
-context ordered_powerprod
-begin
-
-abbreviation ord_strict_conv (infixl "\<succ>" 50) where "ord_strict_conv \<equiv> (op \<prec>\<inverse>\<inverse>)"
-
-(* TODO: Provide code equation for "keys_to_list". *)
-definition keys_to_list :: "('a \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> 'a list"
-  where "keys_to_list p = pps_to_list (keys p)"
-
-definition Keys_to_list :: "('a \<Rightarrow>\<^sub>0 'b::zero) list \<Rightarrow> 'a list"
-  where "Keys_to_list ps = fold (\<lambda>p ts. merge_wrt (op \<succ>) (keys_to_list p) ts) ps []"
-
-lemma set_keys_to_list: "set (keys_to_list p) = keys p"
-  by (simp add: keys_to_list_def set_pps_to_list)
-
-lemma keys_to_list_zero [simp]: "keys_to_list 0 = []"
-  by (simp add: keys_to_list_def pps_to_list_def)
-
-lemma Keys_to_list_Nil [simp]: "Keys_to_list [] = []"
-  by (simp add: Keys_to_list_def)
-
-lemma set_Keys_to_list: "set (Keys_to_list ps) = Keys (set ps)"
-proof -
-  have "set (Keys_to_list ps) = (\<Union>p\<in>set ps. set (keys_to_list p)) \<union> set []"
-    unfolding Keys_to_list_def by (rule set_fold, simp only: set_merge_wrt)
-  also have "... = Keys (set ps)" by (simp add: Keys_def set_keys_to_list)
-  finally show ?thesis .
-qed
-
-end (* ordered_powerprod *)
-
 context gd_powerprod
 begin
-
-definition dgrad_set :: "('a \<Rightarrow> nat) \<Rightarrow> nat \<Rightarrow> 'a set"
-  where "dgrad_set d m = {t. d t \<le> m}"
-
-definition dgrad_set_le :: "('a \<Rightarrow> nat) \<Rightarrow> ('a set) \<Rightarrow> ('a set) \<Rightarrow> bool"
-  where "dgrad_set_le d S T \<longleftrightarrow> (\<forall>s\<in>S. \<exists>t\<in>T. d s \<le> d t)"
-
-lemma dgrad_set_leI:
-  assumes "\<And>s. s \<in> S \<Longrightarrow> \<exists>t\<in>T. d s \<le> d t"
-  shows "dgrad_set_le d S T"
-  using assms by (auto simp: dgrad_set_le_def)
-
-lemma dgrad_set_leE:
-  assumes "dgrad_set_le d S T" and "s \<in> S"
-  obtains t where "t \<in> T" and "d s \<le> d t"
-  using assms by (auto simp: dgrad_set_le_def)
-
-lemma dgrad_set_exhaust_expl:
-  assumes "finite F"
-  shows "F \<subseteq> dgrad_set d (Max (d ` F))"
-proof
-  fix f
-  assume "f \<in> F"
-  hence "d f \<in> d ` F" by simp
-  with _ have "d f \<le> Max (d ` F)"
-  proof (rule Max_ge)
-    from assms show "finite (d ` F)" by auto
-  qed
-  hence "dgrad_set d (d f) \<subseteq> dgrad_set d (Max (d ` F))" by (auto simp: dgrad_set_def)
-  moreover have "f \<in> dgrad_set d (d f)" by (simp add: dgrad_set_def)
-  ultimately show "f \<in> dgrad_set d (Max (d ` F))" ..
-qed
-
-lemma dgrad_set_exhaust:
-  assumes "finite F"
-  obtains m where "F \<subseteq> dgrad_set d m"
-proof
-  from assms show "F \<subseteq> dgrad_set d (Max (d ` F))" by (rule dgrad_set_exhaust_expl)
-qed
-
-lemma dgrad_set_le_trans [trans]:
-  assumes "dgrad_set_le d S T" and "dgrad_set_le d T U"
-  shows "dgrad_set_le d S U"
-  unfolding dgrad_set_le_def
-proof
-  fix s
-  assume "s \<in> S"
-  with assms(1) obtain t where "t \<in> T" and 1: "d s \<le> d t" by (auto simp add: dgrad_set_le_def)
-  from assms(2) this(1) obtain u where "u \<in> U" and 2: "d t \<le> d u" by (auto simp add: dgrad_set_le_def)
-  from this(1) show "\<exists>u\<in>U. d s \<le> d u"
-  proof
-    from 1 2 show "d s \<le> d u" by (rule le_trans)
-  qed
-qed
-
-lemma dgrad_set_le_Un: "dgrad_set_le d (S \<union> T) U \<longleftrightarrow> (dgrad_set_le d S U \<and> dgrad_set_le d T U)"
-  by (auto simp add: dgrad_set_le_def)
-
-lemma dgrad_set_le_subset:
-  assumes "S \<subseteq> T"
-  shows "dgrad_set_le d S T"
-  unfolding dgrad_set_le_def using assms by blast
-
-lemma dgrad_set_le_refl: "dgrad_set_le d S S"
-  by (rule dgrad_set_le_subset, fact subset_refl)
-
-lemma dgrad_set_le_dgrad_set:
-  assumes "dgrad_set_le d F G" and "G \<subseteq> dgrad_set d m"
-  shows "F \<subseteq> dgrad_set d m"
-proof
-  fix f
-  assume "f \<in> F"
-  with assms(1) obtain g where "g \<in> G" and *: "d f \<le> d g" by (auto simp add: dgrad_set_le_def)
-  from assms(2) this(1) have "g \<in> dgrad_set d m" ..
-  hence "d g \<le> m" by (simp add: dgrad_set_def)
-  with * have "d f \<le> m" by (rule le_trans)
-  thus "f \<in> dgrad_set d m" by (simp add: dgrad_set_def)
-qed
-
-lemma dgrad_set_le_imp_dgrad_p_set_le:
-  assumes "G \<noteq> {}" and "dgrad_set_le d (Keys F) (Keys G)"
-  shows "dgrad_p_set_le d F G"
-proof (rule dgrad_p_set_leI)
-  fix f
-  assume "f \<in> F"
-  show "\<exists>g\<in>G. dgrad_p d f \<le> dgrad_p d g"
-  proof (cases "f = 0")
-    case True
-    from assms(1) obtain g where "g \<in> G" by blast
-    thus ?thesis
-    proof
-      show "dgrad_p d f \<le> dgrad_p d g" by (simp add: True)
-    qed
-  next
-    case False
-    hence "Max (d ` keys f) \<in> d ` keys f" by simp
-    then obtain s where "s \<in> keys f" and Max: "Max (d ` keys f) = d s" ..
-    have s_max: "u \<in> keys f \<Longrightarrow> d u \<le> d s" for u by (auto simp add: Max[symmetric])
-    from \<open>f \<in> F\<close> have "keys f \<subseteq> Keys F" by (rule keys_subset_Keys)
-    hence "dgrad_set_le d (keys f) (Keys F)" by (rule dgrad_set_le_subset)
-    from this assms(2) have "dgrad_set_le d (keys f) (Keys G)" by (rule dgrad_set_le_trans)
-    from this \<open>s \<in> keys f\<close> have "\<exists>t\<in>Keys G. d s \<le> d t" unfolding dgrad_set_le_def ..
-    then obtain t where "t \<in> Keys G" and "d s \<le> d t" ..
-    from this(1) obtain g where "g \<in> G" and "t \<in> keys g" by (rule in_KeysE)
-    show ?thesis
-    proof (rule, rule dgrad_p_leI)
-      fix u
-      assume "u \<in> keys f"
-      hence "d u \<le> d s" by (rule s_max)
-      also have "... \<le> d t" by fact
-      also from \<open>t \<in> keys g\<close> have "... \<le> dgrad_p d g" by (rule dgrad_p_geI)
-      finally show "d u \<le> dgrad_p d g" .
-    qed fact
-  qed
-qed
 
 definition sym_preproc_aux_term1 :: "('a \<Rightarrow> nat) \<Rightarrow> ((('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) \<times>
                                                 (('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list)) set"
@@ -170,8 +28,8 @@ definition sym_preproc_aux_term
   where "sym_preproc_aux_term d = sym_preproc_aux_term1 d \<inter> sym_preproc_aux_term2 d"
 
 lemma wfP_on_ord_strict:
-  assumes "dickson_grading (op +) d"
-  shows "wfP_on (dgrad_set d m) (op \<prec>)"
+  assumes "dickson_grading (+) d"
+  shows "wfP_on (dgrad_set d m) (\<prec>)"
 proof (rule wfP_onI_min)
   fix x Q
   assume "x \<in> Q" and "Q \<subseteq> dgrad_set d m"
@@ -188,7 +46,7 @@ proof (rule wfP_onI_min)
 qed
 
 lemma sym_preproc_aux_term1_wf_on:
-  assumes "dickson_grading (op +) d"
+  assumes "dickson_grading (+) d"
   shows "wfP_on {x. set (fst (snd x)) \<subseteq> dgrad_set d m} (\<lambda>x y. (x, y) \<in> sym_preproc_aux_term1 d)"
 proof (rule wfP_onI_min)
   let ?B = "dgrad_set d m"
@@ -212,7 +70,7 @@ proof (rule wfP_onI_min)
     case False
     hence *: "q \<in> Q \<Longrightarrow> fst (snd q) \<noteq> []" for q by blast
     with \<open>x \<in> Q\<close> have "fst (snd x) \<noteq> []" by simp
-    from assms have "wfP_on ?B (op \<prec>)" by (rule wfP_on_ord_strict)
+    from assms have "wfP_on ?B (\<prec>)" by (rule wfP_on_ord_strict)
     moreover from \<open>x \<in> Q\<close> \<open>fst (snd x) \<noteq> []\<close> have "ordered_powerprod_lin.Max (set (fst (snd x))) \<in> ?Q"
       by blast
     moreover have "?Q \<subseteq> ?B"
@@ -245,7 +103,7 @@ proof (rule wfP_onI_min)
 qed
 
 lemma sym_preproc_aux_term_wf:
-  assumes "dickson_grading (op +) d"
+  assumes "dickson_grading (+) d"
   shows "wf (sym_preproc_aux_term d)"
 proof (rule wfI_min)
   fix x::"(('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list)" and Q
@@ -284,7 +142,7 @@ primrec sym_preproc_addnew :: "('a \<Rightarrow>\<^sub>0 'b::semiring_1) list \<
   "sym_preproc_addnew (g # gs) ts fs t =
     (if lp g adds t then
       (let f = monom_mult 1 (t - lp g) g in
-        sym_preproc_addnew gs (merge_wrt (op \<succ>) ts (keys_to_list (tail f))) (insert_list f fs) t
+        sym_preproc_addnew gs (merge_wrt (\<succ>) ts (keys_to_list (tail f))) (insert_list f fs) t
       )
     else
       sym_preproc_addnew gs ts fs t
@@ -304,12 +162,12 @@ next
   from Cons(3) show ?case
   proof (simp add: Let_def split: if_splits)
     assume "lp g adds t"
-    assume "s \<in> set (fst (sym_preproc_addnew gs (merge_wrt op \<succ> ts (keys_to_list (tail (monom_mult 1 (t - lp g) g))))
+    assume "s \<in> set (fst (sym_preproc_addnew gs (merge_wrt (\<succ>) ts (keys_to_list (tail (monom_mult 1 (t - lp g) g))))
                     (insert_list (monom_mult 1 (t - lp g) g) fs) t))"
     with _ show ?thesis
     proof (rule Cons(1))
       fix u
-      assume "u \<in> set (merge_wrt op \<succ> ts (keys_to_list (tail (monom_mult 1 (t - lp g) g))))"
+      assume "u \<in> set (merge_wrt (\<succ>) ts (keys_to_list (tail (monom_mult 1 (t - lp g) g))))"
       hence "u \<in> set ts \<or> u \<in> keys (tail (monom_mult 1 (t - lp g) g))"
         by (simp add: set_merge_wrt keys_to_list_def set_pps_to_list)
       thus "u \<prec> t"
@@ -331,7 +189,7 @@ next
 qed
 
 lemma fst_sym_preproc_addnew_dgrad_set_le:
-  assumes "dickson_grading (op +) d"
+  assumes "dickson_grading (+) d"
   shows "dgrad_set_le d (set (fst (sym_preproc_addnew gs ts fs t))) (Keys (set gs) \<union> insert t (set ts))"
 proof (induct gs arbitrary: fs ts)
   case Nil
@@ -341,7 +199,7 @@ next
   show ?case
   proof (simp add: Let_def, intro conjI impI)
     assume "lp g adds t"
-    let ?ts = "merge_wrt op \<succ> ts (keys_to_list (tail (monom_mult 1 (t - lp g) g)))"
+    let ?ts = "merge_wrt (\<succ>) ts (keys_to_list (tail (monom_mult 1 (t - lp g) g)))"
     let ?fs = "insert_list (monom_mult 1 (t - lp g) g) fs"
     from Cons have "dgrad_set_le d (set (fst (sym_preproc_addnew gs ?ts ?fs t))) (Keys (insert g (set gs)) \<union> insert t (set ts))"
     proof (rule dgrad_set_le_trans)
@@ -359,7 +217,7 @@ next
         next
           assume "s \<in> keys (tail (monom_mult 1 (t - lp g) g))"
           hence "s \<in> keys (monom_mult 1 (t - lp g) g)" by (simp add: keys_tail)
-          from this keys_monom_mult_subset have "s \<in> op + (t - lp g) ` keys g" ..
+          from this keys_monom_mult_subset have "s \<in> plus (t - lp g) ` keys g" ..
           then obtain u where "u \<in> keys g" and s: "s = (t - lp g) + u" ..
           have "d s = d (t - lp g) \<or> d s = d u" unfolding s using dickson_gradingD1[OF assms] by auto
           thus ?thesis
@@ -395,9 +253,9 @@ next
   show ?case
   proof (simp add: Let_def, intro conjI impI)
     define f where "f = monom_mult 1 (t - lp g) g"
-    have "set ts \<subseteq> set (merge_wrt op \<succ> ts (keys_to_list (tail f)))" by (auto simp add: set_merge_wrt)
+    have "set ts \<subseteq> set (merge_wrt (\<succ>) ts (keys_to_list (tail f)))" by (auto simp add: set_merge_wrt)
     thus "set ts \<subseteq> set (fst (sym_preproc_addnew gs
-                              (merge_wrt op \<succ> ts (keys_to_list (tail f))) (insert_list f fs) t))"
+                              (merge_wrt (\<succ>) ts (keys_to_list (tail f))) (insert_list f fs) t))"
       using Cons by (rule subset_trans)
   next
     show "set ts \<subseteq> set (fst (sym_preproc_addnew gs ts fs t))" by (fact Cons)
@@ -415,7 +273,7 @@ next
     define f where "f = monom_mult 1 (t - lp g) g"
     have "set fs \<subseteq> set (insert_list f fs)" by (auto simp add: set_insert_list)
     thus "set fs \<subseteq> set (snd (sym_preproc_addnew gs
-                              (merge_wrt op \<succ> ts (keys_to_list (tail f))) (insert_list f fs) t))"
+                              (merge_wrt (\<succ>) ts (keys_to_list (tail f))) (insert_list f fs) t))"
       using Cons by (rule subset_trans)
   next
     show "set fs \<subseteq> set (snd (sym_preproc_addnew gs ts fs t))" by (fact Cons)
@@ -437,7 +295,7 @@ next
   from Cons(2) show ?case
   proof (simp add: Let_def split: if_splits)
     define f where "f = monom_mult 1 (t - lp g) g"
-    define ts' where "ts' = merge_wrt op \<succ> ts (keys_to_list (tail f))"
+    define ts' where "ts' = merge_wrt (\<succ>) ts (keys_to_list (tail f))"
     define fs' where "fs' = insert_list f fs"
     assume "p \<in> set (snd (sym_preproc_addnew gs ts' fs' t))"
     thus ?thesis
@@ -519,7 +377,7 @@ next
   proof (simp add: Let_def eq, rule)
     assume "lp g adds t"
     define f where "f = monom_mult 1 (t - lp g) g"
-    define ts' where "ts' = merge_wrt op \<succ> ts (keys_to_list (tail f))"
+    define ts' where "ts' = merge_wrt (\<succ>) ts (keys_to_list (tail f))"
     define fs' where "fs' = insert_list f fs"
     have "keys (tail f) = keys f - {t}"
     proof (cases "g = 0")
@@ -528,7 +386,7 @@ next
       thus ?thesis by simp
     next
       case False
-      hence "lp f = (t - lp g) + lp g" by (simp add: f_def lp_mult)
+      hence "lp f = (t - lp g) + lp g" by (simp add: f_def lp_monom_mult)
       also from \<open>lp g adds t\<close> have "... = t" by (rule adds_minus)
       finally show ?thesis by (simp add: keys_tail)
     qed
@@ -573,7 +431,7 @@ next
     show ?thesis
     proof (simp add: True assms(2) Let_def)
       define f where "f = monom_mult 1 (t - lp g) g"
-      define ts' where "ts' = merge_wrt op \<succ> ts (keys_to_list (tail (monom_mult 1 (t - lp g) g)))"
+      define ts' where "ts' = merge_wrt (\<succ>) ts (keys_to_list (tail (monom_mult 1 (t - lp g) g)))"
       have "f \<in> set (insert_list f fs)" by (simp add: set_insert_list)
       with snd_sym_preproc_addnew_superset show "f \<in> set (snd (sym_preproc_addnew gs ts' (insert_list f fs) t))" ..
     qed
@@ -596,7 +454,7 @@ function sym_preproc_aux :: "('a \<Rightarrow>\<^sub>0 'b::semiring_1) list \<Ri
     )"
   by pat_completeness auto
 termination proof -
-  from ex_dgrad obtain d::"'a \<Rightarrow> nat" where dg: "dickson_grading (op +) d" ..
+  from ex_dgrad obtain d::"'a \<Rightarrow> nat" where dg: "dickson_grading (+) d" ..
   let ?R = "(sym_preproc_aux_term d)::((('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) \<times>
                                         ('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) set"
   show ?thesis
@@ -635,11 +493,11 @@ lemma sym_preproc_aux_Nil: "sym_preproc_aux gs ([], fs) = fs"
   by simp
 
 lemma sym_preproc_aux_sorted:
-  assumes "sorted_wrt (op \<succ>) (t # ts)"
+  assumes "sorted_wrt (\<succ>) (t # ts)"
   shows "sym_preproc_aux gs (t # ts, fs) = sym_preproc_aux gs (sym_preproc_addnew gs ts fs t)"
 proof -
-  have "transp (op \<succ>)" using transp_def by fastforce
-  from assms have *: "s \<in> set ts \<Longrightarrow> s \<prec> t" for s by (simp add: sorted_wrt_Cons[OF \<open>transp (op \<succ>)\<close>])
+  have "transp (\<succ>)" using transp_def by fastforce
+  from assms have *: "s \<in> set ts \<Longrightarrow> s \<prec> t" for s by (simp add: sorted_wrt_Cons[OF \<open>transp (\<succ>)\<close>])
   have eq1: "ordered_powerprod_lin.Max (set (t # ts)) = t"
   proof (rule ordered_powerprod_lin.Max_eqI)
     fix s
@@ -674,7 +532,7 @@ lemma sym_preproc_aux_induct [consumes 0, case_names base rec]:
                 P ts fs (sym_preproc_aux gs (sym_preproc_addnew gs ts' fs t))"
   shows "P ts fs (sym_preproc_aux gs (ts, fs))"
 proof -
-  from ex_dgrad obtain d::"'a \<Rightarrow> nat" where dg: "dickson_grading (op +) d" ..
+  from ex_dgrad obtain d::"'a \<Rightarrow> nat" where dg: "dickson_grading (+) d" ..
   let ?R = "(sym_preproc_aux_term d)::((('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) \<times>
                                         ('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) set"
   define args where "args = (gs, ts, fs)"
@@ -780,7 +638,7 @@ next
 qed
 
 lemma sym_preproc_aux_dgrad_set_le:
-  assumes "dickson_grading (op +) d" and "set ts \<subseteq> Keys (set (fs::('a \<Rightarrow>\<^sub>0 'b::semiring_1_no_zero_divisors) list))"
+  assumes "dickson_grading (+) d" and "set ts \<subseteq> Keys (set (fs::('a \<Rightarrow>\<^sub>0 'b::semiring_1_no_zero_divisors) list))"
   shows "dgrad_set_le d (Keys (set (sym_preproc_aux gs (ts, fs)))) (Keys (set gs \<union> set fs))"
   using assms(2)
 proof (induct rule: sym_preproc_aux_induct)
@@ -909,7 +767,7 @@ lemma sym_preproc_pideal: "pideal (set gs \<union> set (sym_preproc gs fs)) = pi
   unfolding sym_preproc_def by (fact sym_preproc_aux_pideal)
 
 lemma sym_preproc_dgrad_set_le:
-  assumes "dickson_grading (op +) d"
+  assumes "dickson_grading (+) d"
   shows "dgrad_set_le d (Keys (set (sym_preproc gs fs))) (Keys (set gs \<union> set (fs::('a \<Rightarrow>\<^sub>0 'b::semiring_1_no_zero_divisors) list)))"
   unfolding sym_preproc_def using assms
 proof (rule sym_preproc_aux_dgrad_set_le)
@@ -917,19 +775,12 @@ proof (rule sym_preproc_aux_dgrad_set_le)
 qed
 
 corollary sym_preproc_dgrad_p_set_le:
-  assumes "dickson_grading (op +) d"
+  assumes "dickson_grading (+) d"
   shows "dgrad_p_set_le d (set (sym_preproc gs fs)) (set gs \<union> set (fs::('a \<Rightarrow>\<^sub>0 'b::semiring_1_no_zero_divisors) list))"
-proof (cases "set gs \<union> set fs = {}")
-  case True
-  hence "set gs = {}" and "fs = []" by simp_all
-  show ?thesis by (simp add: \<open>set gs = {}\<close> \<open>fs = []\<close>, rule dgrad_p_set_le_subset, fact subset_refl)
-next
-  case False
-  thus ?thesis
-  proof (rule dgrad_set_le_imp_dgrad_p_set_le)
-    from assms show "dgrad_set_le d (Keys (set (sym_preproc gs fs))) (Keys (set gs \<union> set fs))"
-      by (rule sym_preproc_dgrad_set_le)
-  qed
+  unfolding dgrad_p_set_le_def
+proof -
+  from assms show "dgrad_set_le d (Keys (set (sym_preproc gs fs))) (Keys (set gs \<union> set fs))"
+    by (rule sym_preproc_dgrad_set_le)
 qed
 
 lemma sym_preproc_complete:
@@ -1038,7 +889,7 @@ subsection \<open>Reduction\<close>
 definition Macaulay_red :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
   where "Macaulay_red ps =
      (let lps = map lp (filter (\<lambda>p. p \<noteq> 0) ps) in
-      filter (\<lambda>p. p \<noteq> 0 \<and> lp p \<notin> set lps) (mat_to_polys (pps_to_list (Keys (set ps))) (row_echelon (Macaulay_mat ps)))
+      filter (\<lambda>p. p \<noteq> 0 \<and> lp p \<notin> set lps) (mat_to_polys (Keys_to_list ps) (row_echelon (Macaulay_mat ps)))
      )"
 
 text \<open>@{term "Macaulay_red ps"} auto-reduces (w.\,r.\,t. @{const lin_red}) the given list @{term ps}
@@ -1111,7 +962,7 @@ proof -
   from assms(2) finite_set have "finite F" by (rule finite_subset)
   from this finite_set have fin_A: "finite A" unfolding A_def by (rule finite_UnI)
 
-  from ex_dgrad obtain d::"'a \<Rightarrow> nat" where dg: "dickson_grading (op +) d" ..
+  from ex_dgrad obtain d::"'a \<Rightarrow> nat" where dg: "dickson_grading (+) d" ..
   from fin_A have "finite (insert f A)" ..
   then obtain m where "insert f A \<subseteq> dgrad_p_set d m" by (rule dgrad_p_set_exhaust)
   hence A_sub: "A \<subseteq> dgrad_p_set d m" and "f \<in> dgrad_p_set d m" by simp_all
@@ -1257,10 +1108,9 @@ lemma f4_red_aux_irredudible:
   assumes "h \<in> set (f4_red_aux bs ps)" and "b \<in> set bs" and "fst b \<noteq> 0"
   shows "\<not> lp (fst b) adds lp h"
 proof
-  from assms(1) have h_in: "h \<in> set (f4_red_aux bs ps)" by simp
-  from this f4_red_aux_not_zero have "h \<noteq> 0" by metis
+  from assms(1) f4_red_aux_not_zero have "h \<noteq> 0" by metis
   hence "lp h \<in> keys h" by (rule lp_in_keys)
-  also from h_in have "... \<subseteq> Keys (set (f4_red_aux bs ps))" by (rule keys_subset_Keys)
+  also from assms(1) have "... \<subseteq> Keys (set (f4_red_aux bs ps))" by (rule keys_subset_Keys)
   also have "... \<subseteq> Keys (set (sym_preproc (map fst bs) (pdata_pairs_to_list ps)))"
     (is "_ \<subseteq> Keys (set ?s)") unfolding f4_red_aux_def by (fact Keys_Macaulay_red)
   finally have "lp h \<in> Keys (set ?s)" .
@@ -1270,109 +1120,97 @@ proof
     by (rule sym_preproc_complete)
   from assms(3) have "?m \<noteq> 0" by (simp add: monom_mult_0_iff)
   with \<open>?m \<in> set ?s\<close> have "lp ?m \<in> lp_set (set ?s)" by (rule lp_setI)
-  moreover from assms(3) a have "lp ?m = lp h" by (simp add: lp_mult adds_minus)
+  moreover from assms(3) a have "lp ?m = lp h" by (simp add: lp_monom_mult adds_minus)
   ultimately have "lp h \<in> lp_set (set ?s)" by simp
-  moreover from h_in have "lp h \<notin> lp_set (set ?s)"
+  moreover from assms(1) have "lp h \<notin> lp_set (set ?s)"
     by (simp add: f4_red_aux_def set_Macaulay_red)
   ultimately show False by simp
 qed
 
 lemma f4_red_aux_dgrad_p_set_le:
-  assumes "dickson_grading (op +) d"
+  assumes "dickson_grading (+) d"
   shows "dgrad_p_set_le d (set (f4_red_aux bs ps)) (args_to_set ([], bs, ps))"
-proof (cases "args_to_set ([], bs, ps) = {}")
-  case True
-  hence "bs = []" and "ps = []" by (simp_all add: args_to_set_def)
-  hence eq: "f4_red_aux bs ps = []" by (simp add: f4_red_aux_def Macaulay_red_alt)
-  show ?thesis by (simp add: eq True, rule dgrad_p_set_le_subset, fact subset_refl)
-next
-  case False
-  thus ?thesis
-  proof (rule dgrad_set_le_imp_dgrad_p_set_le)
-    show "dgrad_set_le d (Keys (set (f4_red_aux bs ps))) (Keys (args_to_set ([], bs, ps)))"
-      unfolding dgrad_set_le_def
+  unfolding dgrad_p_set_le_def dgrad_set_le_def
+proof
+  fix s
+  assume "s \<in> Keys (set (f4_red_aux bs ps))"
+  also have "... \<subseteq> Keys (set (sym_preproc (map fst bs) (pdata_pairs_to_list ps)))"
+    (is "_ \<subseteq> Keys (set ?s)") unfolding f4_red_aux_def by (fact Keys_Macaulay_red)
+  finally have "s \<in> Keys (set ?s)" .
+  with sym_preproc_dgrad_set_le[OF assms] obtain t
+    where "t \<in> Keys (set (map fst bs) \<union> set (pdata_pairs_to_list ps))" and "d s \<le> d t"
+    by (rule dgrad_set_leE)
+  from this(1) have "t \<in> Keys (fst ` set bs) \<or> t \<in> Keys (set (pdata_pairs_to_list ps))"
+    by (simp add: Keys_Un image_Un)
+  thus "\<exists>t\<in>Keys (args_to_set ([], bs, ps)). d s \<le> d t"
+  proof
+    assume "t \<in> Keys (fst `  set bs)"
+    also have "... \<subseteq> Keys (args_to_set ([], bs, ps))"
+      by (rule Keys_mono, auto simp add: args_to_set_alt)
+    finally have "t \<in> Keys (args_to_set ([], bs, ps))" .
+    with \<open>d s \<le> d t\<close> show ?thesis ..
+  next
+    assume "t \<in> Keys (set (pdata_pairs_to_list ps))"
+    then obtain p where "p \<in> set (pdata_pairs_to_list ps)" and "t \<in> keys p" by (rule in_KeysE)
+    from this(1) obtain f g where disj: "(f, g) \<in> set ps \<or> (g, f) \<in> set ps"
+      and p: "p = monom_mult (1 / lc (fst f)) ((lcs (lp (fst f)) (lp (fst g))) - (lp (fst f))) (fst f)"
+      by (rule in_pdata_pairs_to_listE)
+    from disj have "fst f \<in> args_to_set ([], bs, ps) \<and> fst g \<in> args_to_set ([], bs, ps)"
     proof
-      fix s
-      assume "s \<in> Keys (set (f4_red_aux bs ps))"
-      also have "... \<subseteq> Keys (set (sym_preproc (map fst bs) (pdata_pairs_to_list ps)))"
-        (is "_ \<subseteq> Keys (set ?s)") unfolding f4_red_aux_def by (fact Keys_Macaulay_red)
-      finally have "s \<in> Keys (set ?s)" .
-      with sym_preproc_dgrad_set_le[OF assms] obtain t
-        where "t \<in> Keys (set (map fst bs) \<union> set (pdata_pairs_to_list ps))" and "d s \<le> d t"
-        by (rule dgrad_set_leE)
-      from this(1) have "t \<in> Keys (fst ` set bs) \<or> t \<in> Keys (set (pdata_pairs_to_list ps))"
-        by (simp add: Keys_Un image_Un)
-      thus "\<exists>t\<in>Keys (args_to_set ([], bs, ps)). d s \<le> d t"
+      assume "(f, g) \<in> set ps"
+      hence "f \<in> fst ` set ps" and "g \<in> snd ` set ps" by force+
+      hence "fst f \<in> fst ` fst ` set ps" and "fst g \<in> fst ` snd ` set ps" by simp_all
+      thus ?thesis by (simp add: args_to_set_def image_Un)
+    next
+      assume "(g, f) \<in> set ps"
+      hence "f \<in> snd ` set ps" and "g \<in> fst ` set ps" by force+
+      hence "fst f \<in> fst ` snd ` set ps" and "fst g \<in> fst ` fst ` set ps" by simp_all
+      thus ?thesis by (simp add: args_to_set_def image_Un)
+    qed
+    hence "fst f \<in> args_to_set ([], bs, ps)" and "fst g \<in> args_to_set ([], bs, ps)" by simp_all
+    hence keys_f: "keys (fst f) \<subseteq> Keys (args_to_set ([], bs, ps))"
+      and keys_g: "keys (fst g) \<subseteq> Keys (args_to_set ([], bs, ps))"
+      by (auto intro!: keys_subset_Keys)
+    define l where "l = lcs (lp (fst f)) (lp (fst g))"
+    from \<open>t \<in> keys p\<close> obtain t' where "t' \<in> keys (fst f)" and t: "t = (l - lp (fst f)) + t'"
+      unfolding p l_def using keys_monom_mult_subset by blast
+    from this(1) have "fst f \<noteq> 0" by auto
+    show ?thesis
+    proof (cases "fst g = 0")
+      case True
+      hence "lp (fst g) = 0" by (simp add: lp_def)
+      hence "l = lp (fst f)" by (simp add: l_def lcs_zero lcs_comm)
+      hence "t = t'" by (simp add: t)
+      with \<open>d s \<le> d t\<close> have "d s \<le> d t'" by simp
+      moreover from \<open>t' \<in> keys (fst f)\<close> keys_f have "t' \<in> Keys (args_to_set ([], bs, ps))" ..
+      ultimately show ?thesis ..
+    next
+      case False
+      have "d t = d (l - lp (fst f)) \<or> d t = d t'"
+        by (auto simp add: t dickson_gradingD1[OF assms])
+      thus ?thesis
       proof
-        assume "t \<in> Keys (fst `  set bs)"
-        also have "... \<subseteq> Keys (args_to_set ([], bs, ps))"
-          by (rule Keys_mono, auto simp add: args_to_set_alt)
-        finally have "t \<in> Keys (args_to_set ([], bs, ps))" .
-        with \<open>d s \<le> d t\<close> show ?thesis ..
-      next
-        assume "t \<in> Keys (set (pdata_pairs_to_list ps))"
-        then obtain p where "p \<in> set (pdata_pairs_to_list ps)" and "t \<in> keys p" by (rule in_KeysE)
-        from this(1) obtain f g where disj: "(f, g) \<in> set ps \<or> (g, f) \<in> set ps"
-          and p: "p = monom_mult (1 / lc (fst f)) ((lcs (lp (fst f)) (lp (fst g))) - (lp (fst f))) (fst f)"
-          by (rule in_pdata_pairs_to_listE)
-        from disj have "fst f \<in> args_to_set ([], bs, ps) \<and> fst g \<in> args_to_set ([], bs, ps)"
+        assume "d t = d (l - lp (fst f))"
+        also from assms have "... \<le> ord_class.max (d (lp (fst f))) (d (lp (fst g)))"
+          unfolding l_def by (rule dickson_grading_lcs_minus)
+        finally have "d s \<le> d (lp (fst f)) \<or> d s \<le> d (lp (fst g))" using \<open>d s \<le> d t\<close> by auto
+        thus ?thesis
         proof
-          assume "(f, g) \<in> set ps"
-          hence "f \<in> fst ` set ps" and "g \<in> snd ` set ps" by force+
-          hence "fst f \<in> fst ` fst ` set ps" and "fst g \<in> fst ` snd ` set ps" by simp_all
-          thus ?thesis by (simp add: args_to_set_def image_Un)
-        next
-          assume "(g, f) \<in> set ps"
-          hence "f \<in> snd ` set ps" and "g \<in> fst ` set ps" by force+
-          hence "fst f \<in> fst ` snd ` set ps" and "fst g \<in> fst ` fst ` set ps" by simp_all
-          thus ?thesis by (simp add: args_to_set_def image_Un)
-        qed
-        hence "fst f \<in> args_to_set ([], bs, ps)" and "fst g \<in> args_to_set ([], bs, ps)" by simp_all
-        hence keys_f: "keys (fst f) \<subseteq> Keys (args_to_set ([], bs, ps))"
-          and keys_g: "keys (fst g) \<subseteq> Keys (args_to_set ([], bs, ps))"
-          by (auto intro!: keys_subset_Keys)
-        define l where "l = lcs (lp (fst f)) (lp (fst g))"
-        from \<open>t \<in> keys p\<close> obtain t' where "t' \<in> keys (fst f)" and t: "t = (l - lp (fst f)) + t'"
-          unfolding p l_def using keys_monom_mult_subset by blast
-        from this(1) have "fst f \<noteq> 0" by auto
-        show ?thesis
-        proof (cases "fst g = 0")
-          case True
-          hence "lp (fst g) = 0" by (simp add: lp_def)
-          hence "l = lp (fst f)" by (simp add: l_def lcs_zero lcs_comm)
-          hence "t = t'" by (simp add: t)
-          with \<open>d s \<le> d t\<close> have "d s \<le> d t'" by simp
-          moreover from \<open>t' \<in> keys (fst f)\<close> keys_f have "t' \<in> Keys (args_to_set ([], bs, ps))" ..
+          assume "d s \<le> d (lp (fst f))"
+          moreover have "lp (fst f) \<in> Keys (args_to_set ([], bs, ps))"
+            by (rule, rule lp_in_keys, fact+)
           ultimately show ?thesis ..
         next
-          case False
-          have "d t = d (l - lp (fst f)) \<or> d t = d t'"
-            by (auto simp add: t dickson_gradingD1[OF assms])
-          thus ?thesis
-          proof
-            assume "d t = d (l - lp (fst f))"
-            also from assms have "... \<le> ord_class.max (d (lp (fst f))) (d (lp (fst g)))"
-              unfolding l_def by (rule dickson_grading_lcs_minus)
-            finally have "d s \<le> d (lp (fst f)) \<or> d s \<le> d (lp (fst g))" using \<open>d s \<le> d t\<close> by auto
-            thus ?thesis
-            proof
-              assume "d s \<le> d (lp (fst f))"
-              moreover have "lp (fst f) \<in> Keys (args_to_set ([], bs, ps))"
-                by (rule, rule lp_in_keys, fact+)
-              ultimately show ?thesis ..
-            next
-              assume "d s \<le> d (lp (fst g))"
-              moreover have "lp (fst g) \<in> Keys (args_to_set ([], bs, ps))"
-                by (rule, rule lp_in_keys, fact+)
-              ultimately show ?thesis ..
-            qed
-          next
-            assume "d t = d t'"
-            with \<open>d s \<le> d t\<close> have "d s \<le> d t'" by simp
-            moreover from \<open>t' \<in> keys (fst f)\<close> keys_f have "t' \<in> Keys (args_to_set ([], bs, ps))" ..
-            ultimately show ?thesis ..
-          qed
+          assume "d s \<le> d (lp (fst g))"
+          moreover have "lp (fst g) \<in> Keys (args_to_set ([], bs, ps))"
+            by (rule, rule lp_in_keys, fact+)
+          ultimately show ?thesis ..
         qed
+      next
+        assume "d t = d t'"
+        with \<open>d s \<le> d t\<close> have "d s \<le> d t'" by simp
+        moreover from \<open>t' \<in> keys (fst f)\<close> keys_f have "t' \<in> Keys (args_to_set ([], bs, ps))" ..
+        ultimately show ?thesis ..
       qed
     qed
   qed
@@ -1461,8 +1299,8 @@ proof -
       qed
       from r have "c \<noteq> 0" and "b \<noteq> 0" by (simp_all add: a red_single_def monom_mult_0_iff)
       from r have "red_single y z b t"
-        by (simp add: a red_single_def monom_mult_0_iff lp_mult[OF \<open>c \<noteq> 0\<close> \<open>b \<noteq> 0\<close>]
-                      lc_mult monom_mult_assoc)
+        by (simp add: a red_single_def monom_mult_0_iff lp_monom_mult[OF \<open>c \<noteq> 0\<close> \<open>b \<noteq> 0\<close>]
+                      lc_monom_mult monom_mult_assoc)
       with \<open>b \<in> fst ` set bs\<close> have "red (fst ` set bs) y z" by (rule red_setI)
       thus ?thesis by (rule red_unionI1)
     next
@@ -1490,8 +1328,8 @@ proof (rule f4_red_aux_phull_reducible)
   thus "spoly (fst p) (fst q) \<in> phull (set (pdata_pairs_to_list ps))" by (simp only: spoly_def)
 qed
 
-definition f4_red :: "('a, 'b::field, 'c, 'd) rcpT"
-  where "f4_red gs bs ps data = (map (\<lambda>h. (h, undefined)) (f4_red_aux (gs @ bs) ps), data)"
+definition f4_red :: "('a, 'b::field, 'c::default, 'd) rcpT"
+  where "f4_red gs bs ps data = (map (\<lambda>h. (h, default)) (f4_red_aux (gs @ bs) ps), data)"
 
 lemma fst_set_fst_f4_red: "fst ` set (fst (f4_red gs bs ps data)) = set (f4_red_aux (gs @ bs) ps)"
   by (simp add: f4_red_def, force)
@@ -1511,7 +1349,7 @@ next
   ultimately show "\<not> lp (fst b) adds lp (fst h)" by (rule f4_red_aux_irredudible)
 next
   fix gs bs::"('a, 'b, 'c) pdata list" and ps and d::"'a \<Rightarrow> nat" and data::'d
-  assume "dickson_grading op + d"
+  assume "dickson_grading (+) d"
   hence "dgrad_p_set_le d (set (f4_red_aux (gs @ bs) ps)) (args_to_set ([], gs @ bs, ps))"
     by (fact f4_red_aux_dgrad_p_set_le)
   also have "... = args_to_set (gs, bs, ps)" by (simp add: args_to_set_alt image_Un)
@@ -1576,27 +1414,27 @@ subsection \<open>The F4 Algorithm\<close>
 text \<open>The F4 algorithm is just @{const gb_schema_direct} with parameters instantiated by suitable
   functions.\<close>
 
-abbreviation "f4_ap \<equiv> add_pairs_sorted' canon_pair_order"
+abbreviation "f4_ap \<equiv> add_pairs_sorted canon_pair_order"
 abbreviation "f4_ab \<equiv> add_basis_sorted canon_basis_order"
-abbreviation "f4_compl \<equiv> discard_red_cp pc_crit' f4_red"
+abbreviation "f4_compl \<equiv> discard_red_cp pc_crit f4_red"
 
 lemma struct_spec_f4: "struct_spec f4_sel f4_ap f4_ab f4_compl"
-  using sel_spec_f4_sel ap_spec_add_pairs_sorted' ab_spec_add_basis_sorted
+  using sel_spec_f4_sel ap_spec_add_pairs_sorted ab_spec_add_basis_sorted
 proof (rule struct_specI)
   from rcp_spec_f4_red show "compl_struct f4_compl" by (rule compl_struct_discard_red_cp)
 qed
 
-lemmas compl_conn_f4_compl = compl_conn_discard_red_cp[OF crit_spec_pc_crit' rcp_spec_f4_red]
+lemmas compl_conn_f4_compl = compl_conn_discard_red_cp[OF crit_spec_pc_crit rcp_spec_f4_red]
 
 lemmas compl_pideal_f4_compl = compl_pideal_discard_red_cp[OF rcp_spec_f4_red]
 
 definition f4_aux :: "'d \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
-                   ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b::field, 'c) pdata list"
+                   ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b::field, 'c::default) pdata list"
   where "f4_aux = gb_schema_aux f4_sel f4_ap f4_ab f4_compl"
 
 lemmas f4_aux_simps [code] = gb_schema_aux_simp[OF struct_spec_f4, folded f4_aux_def]
 
-definition f4 :: "('a, 'b::field, 'c) pdata list \<Rightarrow> 'd \<Rightarrow> ('a, 'b, 'c) pdata list"
+definition f4 :: "('a, 'b, 'c) pdata list \<Rightarrow> 'd \<Rightarrow> ('a, 'b::field, 'c::default) pdata list"
   where "f4 = gb_schema_direct f4_sel f4_ap f4_ab f4_compl"
 
 lemmas f4_simps [code] = gb_schema_direct_def[of "f4_sel" "f4_ap" "f4_ab" "f4_compl", folded f4_def f4_aux_def]

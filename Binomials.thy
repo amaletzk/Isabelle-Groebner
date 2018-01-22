@@ -1,5 +1,5 @@
 theory Binomials
-imports Reduced_GB
+imports Reduced_GB Groebner_Bases.Buchberger_Algorithm
 begin
 
 context ordered_powerprod
@@ -26,7 +26,7 @@ next
     thus ?thesis by (rule step(5))
   next
     assume "t \<in> keys (monom_mult c s f0)"
-    with keys_monom_mult_subset have "t \<in> op + s ` keys f0" ..
+    with keys_monom_mult_subset have "t \<in> plus s ` keys f0" ..
     hence "t = s + lp f0" by (simp add: \<open>keys f0 = {lp f0}\<close>)
     hence "lp f0 adds t" by simp
     with \<open>f0 \<in> F\<close> \<open>f0 \<noteq> 0\<close> show ?thesis by (rule step(5))
@@ -53,7 +53,7 @@ proof -
     unfolding red_single_def by simp_all
   from mon obtain c t where "c \<noteq> 0" and r_def: "r = monomial c t" by (rule is_monomial_monomial)
   have lpr: "lp r = t" unfolding r_def by (rule lp_monomial, fact)
-  have lcr: "lc r = c" unfolding r_def by (rule lc_monomial, fact)
+  have lcr: "lc r = c" unfolding r_def by (rule lc_monomial)
   define u where "u = s + t"
   from q_def0 have "q = p - monom_mult (lookup p u / c) s r" unfolding u_def lpr lcr .
   also have "... = p - monomial ((lookup p u / c) * c) u" unfolding u_def r_def monom_mult_monomial ..
@@ -302,7 +302,28 @@ proof
   qed
 qed
   
-section \<open>Function @{term gb}\<close>
+section \<open>Functions @{const gb} and @{term rgb}\<close>
+
+lemma comp_red_monic_basis_of_gb_is_reduced_GB:
+  shows "is_reduced_GB (set (comp_red_monic_basis (gb xs)))"
+  by (rule comp_red_monic_basis_is_reduced_GB, rule gb_isGB)
+    
+lemma comp_red_monic_basis_of_gb_pideal:
+  shows "pideal (set (comp_red_monic_basis (gb xs))) = pideal (set xs)"
+proof -
+  have "pideal (set (comp_red_monic_basis (gb xs))) = pideal (set (gb xs))"
+    by (rule comp_red_monic_basis_pideal, rule gb_isGB)
+  also have "... = pideal (set xs)" by (rule gb_pideal)
+  finally show ?thesis .
+qed
+
+definition rgb :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
+  where "rgb bs = comp_red_monic_basis (gb bs)"
+
+lemma reduced_GB_comp:
+  shows "reduced_GB (set xs) = set (rgb xs)"
+  by (rule reduced_GB_unique, simp_all add: rgb_def, rule comp_red_monic_basis_of_gb_is_reduced_GB,
+      rule comp_red_monic_basis_of_gb_pideal)
 
 subsection \<open>Monomials\<close>
 
@@ -314,8 +335,10 @@ proof -
   define q where "q = monomial d t"
   define u where "u = lcs_powerprod_class.lcs (lp p) (lp q)"
  
-  from \<open>c \<noteq> 0\<close> have lpp: "lp p = s" and lcp: "lc p = c" unfolding p_def by (rule lp_monomial, rule lc_monomial)
-  from \<open>d \<noteq> 0\<close> have lpq: "lp q = t" and lcq: "lc q = d" unfolding q_def by (rule lp_monomial, rule lc_monomial)
+  from \<open>c \<noteq> 0\<close> have lpp: "lp p = s" and lcp: "lc p = c" unfolding p_def
+    by (rule lp_monomial, intro lc_monomial)
+  from \<open>d \<noteq> 0\<close> have lpq: "lp q = t" and lcq: "lc q = d" unfolding q_def
+    by (rule lp_monomial, intro lc_monomial)
       
   have "s adds u" unfolding u_def lpp by (rule adds_lcs)
   have "t adds u" unfolding u_def lpq by (rule adds_lcs_2)
@@ -407,7 +430,7 @@ lemma spoly_binomial_monom:
   assumes obd: "is_obd cp sp dp tp" and "cq \<noteq> 0"
   shows "spoly (binomial cp sp dp tp) (monomial cq sq) =
          monomial (dp / cp) (((lcs_powerprod_class.lcs sp sq) - sp) + tp)"
-  unfolding spoly_def lc_binomial[OF obd] lp_binomial[OF obd] lc_monomial[OF \<open>cq \<noteq> 0\<close>] lp_monomial[OF \<open>cq \<noteq> 0\<close>]
+  unfolding spoly_def lc_binomial[OF obd] lp_binomial[OF obd] lc_monomial lp_monomial[OF \<open>cq \<noteq> 0\<close>]
 proof -
   define u where "u = lcs_powerprod_class.lcs sp sq"
   have "sp adds u" unfolding u_def by (rule adds_lcs)

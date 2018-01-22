@@ -192,17 +192,14 @@ lemma replace_in_dgrad_p_set:
   assumes "G \<subseteq> dgrad_p_set d m"
   obtains n where "q \<in> dgrad_p_set d n" and "G \<subseteq> dgrad_p_set d n" and "replace p q G \<subseteq> dgrad_p_set d n"
 proof -
-  let ?m = "ord_class.max m (dgrad_p d q)"
-  have "m \<le> ?m" and "dgrad_p d q \<le> ?m" by simp_all
-  from dgrad_p_set_subset[OF this(2)] dgrad_p_set_dgrad_p have 1: "q \<in> dgrad_p_set d ?m" ..
-  moreover from assms dgrad_p_set_subset[OF \<open>m \<le> ?m\<close>] have 2: "G \<subseteq> dgrad_p_set d ?m"
-    by (rule subset_trans)
-  ultimately have 3: "replace p q G \<subseteq> dgrad_p_set d ?m" by (auto simp add: replace_def remove_def)
-  from 1 2 3 show ?thesis ..
+  from assms obtain n where "m \<le> n" and 1: "q \<in> dgrad_p_set d n" and 2: "G \<subseteq> dgrad_p_set d n"
+    by (rule dgrad_p_set_insert)
+  from this(2, 3) have "replace p q G \<subseteq> dgrad_p_set d n" by (auto simp add: replace_def remove_def)
+  with 1 2 show ?thesis ..
 qed
 
 lemma GB_replace_lp_adds_stable_GB_dgrad_p_set:
-  assumes "dickson_grading (op +) d" and "G \<subseteq> dgrad_p_set d m"
+  assumes "dickson_grading (+) d" and "G \<subseteq> dgrad_p_set d m"
   assumes isGB: "is_Groebner_basis G" and "q \<noteq> 0" and q: "q \<in> (pideal G)" and "lp q adds lp p"
   shows "is_Groebner_basis (replace p q G)" (is "is_Groebner_basis ?G'")
 proof -
@@ -240,7 +237,7 @@ proof -
 qed
   
 lemma GB_replace_lp_adds_stable_pideal_dgrad_p_set:
-  assumes "dickson_grading (op +) d" and "G \<subseteq> dgrad_p_set d m"
+  assumes "dickson_grading (+) d" and "G \<subseteq> dgrad_p_set d m"
   assumes isGB: "is_Groebner_basis G" and "q \<noteq> 0" and "q \<in> pideal G" and "lp q adds lp p"
   shows "pideal (replace p q G) = pideal G" (is "pideal ?G' = pideal G")
 proof (rule, rule replace_pideal, fact, rule)
@@ -267,7 +264,7 @@ proof (rule, rule replace_pideal, fact, rule)
 qed
   
 lemma GB_replace_red_stable_GB_dgrad_p_set:
-  assumes "dickson_grading (op +) d" and "G \<subseteq> dgrad_p_set d m"
+  assumes "dickson_grading (+) d" and "G \<subseteq> dgrad_p_set d m"
   assumes isGB: "is_Groebner_basis G" and "p \<in> G" and q: "red (remove p G) p q"
   shows "is_Groebner_basis (replace p q G)" (is "is_Groebner_basis ?G'")
 proof -
@@ -291,7 +288,7 @@ proof -
 qed
 
 lemma GB_replace_red_stable_pideal_dgrad_p_set:
-  assumes "dickson_grading (op +) d" and "G \<subseteq> dgrad_p_set d m"
+  assumes "dickson_grading (+) d" and "G \<subseteq> dgrad_p_set d m"
   assumes isGB: "is_Groebner_basis G" and "p \<in> G" and ptoq: "red (remove p G) p q"
   shows "pideal (replace p q G) = pideal G" (is "pideal ?G' = _")
 proof -
@@ -324,7 +321,7 @@ proof -
 qed
   
 lemma GB_replace_red_rtranclp_stable_GB_dgrad_p_set:
-  assumes "dickson_grading (op +) d" and "G \<subseteq> dgrad_p_set d m"
+  assumes "dickson_grading (+) d" and "G \<subseteq> dgrad_p_set d m"
   assumes isGB: "is_Groebner_basis G" and "p \<in> G" and ptoq: "(red (remove p G))\<^sup>*\<^sup>* p q"
   shows "is_Groebner_basis (replace p q G)"
   using ptoq
@@ -368,7 +365,7 @@ next
 qed
 
 lemma GB_replace_red_rtranclp_stable_pideal_dgrad_p_set:
-  assumes "dickson_grading (op +) d" and "G \<subseteq> dgrad_p_set d m"
+  assumes "dickson_grading (+) d" and "G \<subseteq> dgrad_p_set d m"
   assumes isGB: "is_Groebner_basis G" and "p \<in> G" and ptoq: "(red (remove p G))\<^sup>*\<^sup>* p q"
   shows "pideal (replace p q G) = pideal G"
   using ptoq
@@ -673,7 +670,7 @@ proof -
   from \<open>lookup p (t + lp q) \<noteq> 0\<close> lc_not_0[OF \<open>q \<noteq> 0\<close>] have c0: "lookup p (t + lp q) / lc q \<noteq> 0" by simp
   from \<open>q \<noteq> 0\<close> c0 have "?m \<noteq> 0" unfolding monom_mult_0_iff by simp
   have "lp (-?m) = lp ?m" by (fact lp_uminus)
-  also have lp1: "lp ?m = t + lp q" by (rule lp_mult, fact+)
+  also have lp1: "lp ?m = t + lp q" by (rule lp_monom_mult, fact+)
   finally have lp2: "lp (-?m) = t + lp q" .
   
   show ?thesis
@@ -2038,27 +2035,18 @@ proof (intro conjI, rule comp_red_monic_basis_GB, fact assms,
   thus False by simp
 qed
   
-lemma comp_red_monic_basis_of_gb_is_reduced_GB:
-  shows "is_reduced_GB (set (comp_red_monic_basis (gb xs)))"
-  by (rule comp_red_monic_basis_is_reduced_GB, rule gb_isGB)
-    
-lemma comp_red_monic_basis_of_gb_pideal:
-  shows "pideal (set (comp_red_monic_basis (gb xs))) = pideal (set xs)"
-proof -
-  have "pideal (set (comp_red_monic_basis (gb xs))) = pideal (set (gb xs))"
-    by (rule comp_red_monic_basis_pideal, rule gb_isGB)
-  also have "... = pideal (set xs)" by (rule gb_pideal)
-  finally show ?thesis .
-qed
-  
 theorem exists_unique_reduced_GB:
   assumes "finite B"
   shows "\<exists>!G. is_reduced_GB G \<and> pideal G = pideal B"
 proof -
-  from finite_list[OF assms] obtain xs where set: "set xs = B" ..
-  let ?G = "set (comp_red_monic_basis (gb xs))"
-  have rgb: "is_reduced_GB ?G" by (rule comp_red_monic_basis_of_gb_is_reduced_GB)
-  have eq: "pideal ?G = pideal B" unfolding set[symmetric] by (rule comp_red_monic_basis_of_gb_pideal)
+  from finite_some_GB_finite[OF assms] obtain xs where set: "set xs = some_GB B"
+    using finite_list by blast
+  let ?G = "set (comp_red_monic_basis xs)"
+  from assms have gb: "is_Groebner_basis (set xs)" unfolding set by (rule some_GB_isGB_finite)
+  hence rgb: "is_reduced_GB ?G" by (rule comp_red_monic_basis_is_reduced_GB)
+  from gb have "pideal ?G = pideal (set xs)" by (rule comp_red_monic_basis_pideal)
+  also from assms have "... = pideal B" unfolding set by (rule some_GB_pideal_finite)
+  finally have eq: "pideal ?G = pideal B" .
   show ?thesis
   proof (rule, intro conjI)
     fix G'
@@ -2068,11 +2056,8 @@ proof -
   qed (fact rgb, fact eq)
 qed
   
-definition reduced_GB :: "('a, 'b) poly_mapping set \<Rightarrow> ('a, 'b::field) poly_mapping set"
+definition reduced_GB :: "('a \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) set"
   where "reduced_GB B = (THE G. is_reduced_GB G \<and> pideal G = pideal B)"
-
-definition rgb :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::field) poly_mapping list"
-  where "rgb bs = comp_red_monic_basis (gb bs)"
 
 lemma reduced_GB_is_reduced_GB:
   assumes "finite B"
@@ -2124,12 +2109,7 @@ lemma reduced_GB_unique:
   unfolding reduced_GB_def
   by (rule the1_equality, rule exists_unique_reduced_GB, fact, rule conjI, fact+)
 
-lemma reduced_GB_comp:
-  shows "reduced_GB (set xs) = set (rgb xs)"
-  by (rule reduced_GB_unique, simp_all add: rgb_def, rule comp_red_monic_basis_of_gb_is_reduced_GB,
-      rule comp_red_monic_basis_of_gb_pideal)
-
-section \<open>Properties of the Reduced Gr\"obner Basis of an Ideal\<close>
+subsection \<open>Properties of the Reduced Gr\"obner Basis of an Ideal\<close>
 
 lemma pideal_eq_UNIV_iff_reduced_GB_eq_one:
   assumes "finite F"

@@ -307,11 +307,11 @@ lemma lem_3_1_13:
   shows "overlap_p p1 p2 \<unlhd> p"
   unfolding overlap_p_def lookup_lcs_fun le_pm_def
 proof (rule lcs_leq_fun)
-  have "lookup (gcs (fst p1) (snd p1)) \<le> lookup (snd p1)" unfolding lookup_gcs_fun_stronger by (fact gcs_leq_fun_2)
+  have "lookup (gcs (fst p1) (snd p1)) \<le> lookup (snd p1)" unfolding lookup_gcs_fun by (fact gcs_leq_fun_2)
   also from assms(1) have "... \<le> lookup p" by (simp only: le_pm_def)
   finally show "lookup (gcs (fst p1) (snd p1)) \<le> lookup p" .
 next
-  have "lookup (gcs (fst p2) (snd p2)) \<le> lookup (snd p2)" unfolding lookup_gcs_fun_stronger by (fact gcs_leq_fun_2)
+  have "lookup (gcs (fst p2) (snd p2)) \<le> lookup (snd p2)" unfolding lookup_gcs_fun by (fact gcs_leq_fun_2)
   also from assms(2) have "... \<le> lookup p" by (simp only: le_pm_def)
   finally show "lookup (gcs (fst p2) (snd p2)) \<le> lookup p" .
 qed
@@ -725,7 +725,7 @@ proof -
                       x::'n. 0 < ?vc x \<and> lookup p x < real (?ol x)} \<union> {0::int}))"
     by (rule mono_Max_commute, rule, simp_all add: finite_step_p'_carrier)
   moreover have "... = step_p' f p" by (simp add: step_p'_def image_image_Collect)
-    -- \<open>Another "also" here is, for some strange reason, much slower ...\<close>
+    text \<open>Another "also" here is, for some strange reason, much slower ...\<close>
   ultimately show ?thesis by simp
 qed
 

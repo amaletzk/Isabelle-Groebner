@@ -173,17 +173,10 @@ lemma lcs_of_nat_pm:
   shows "lcs (of_nat_pm a) (of_nat_pm b) = ((of_nat_pm (lcs a b))::'a \<Rightarrow>\<^sub>0 'b)"
   by (transfer, auto simp add: of_nat_fun_def max_of_nat[OF assms])
 
-lemma lookup_gcs_fun_stronger: "lookup (gcs s (t::'a \<Rightarrow>\<^sub>0 ('b::add_linorder))) = gcs (lookup s) (lookup t)"
-proof
-  fix x
-  show "lookup (gcs s t) x = gcs (lookup s) (lookup t) x"
-    by (simp add: gcs_def lookup_minus lookup_add lookup_lcs_fun)
-qed
-
 lemma gcs_of_nat_pm:
   assumes "\<And>m n::nat. of_nat m \<le> ((of_nat n)::'b::{semiring_1, add_linorder}) \<longleftrightarrow> m \<le> n"
   shows "gcs (of_nat_pm a) (of_nat_pm b) = ((of_nat_pm (gcs a b))::'a \<Rightarrow>\<^sub>0 'b)"
-  by (rule poly_mapping_eqI, simp add: lookup_gcs_fun_stronger of_nat_pm.rep_eq gcs_fun of_nat_fun_def,
+  by (rule poly_mapping_eqI, simp add: lookup_gcs_fun of_nat_pm.rep_eq gcs_fun of_nat_fun_def,
       auto simp add: min_of_nat[OF assms])
 
 lemmas lcs_of_nat_pm_linordered_semidom = lcs_of_nat_pm[OF Nat.linordered_semidom_class.of_nat_le_iff]
@@ -210,13 +203,13 @@ lemma lcs_is_int_pm:
 lemma gcs_is_nat_pm:
   assumes "is_nat_pm f" and "is_nat_pm g"
   shows "is_nat_pm (gcs f g)"
-  using assms unfolding is_nat_pm_def lookup_gcs_fun_stronger unfolding gcs_fun is_nat_fun_def
+  using assms unfolding is_nat_pm_def lookup_gcs_fun unfolding gcs_fun is_nat_fun_def
   using min_is_nat by auto
 
 lemma gcs_is_int_pm:
   assumes "is_int_pm f" and "is_int_pm g"
   shows "is_int_pm (gcs f g)"
-  using assms unfolding is_int_pm_def lookup_gcs_fun_stronger unfolding gcs_fun is_int_fun_def
+  using assms unfolding is_int_pm_def lookup_gcs_fun unfolding gcs_fun is_int_fun_def
   using min_is_int by auto
   
 lemma zero_is_nat_pm [simp]: "is_nat_pm 0"

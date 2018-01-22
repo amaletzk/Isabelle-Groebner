@@ -28,7 +28,7 @@ proof -
   proof (simp only: algebra_simps(17) times_monomial_left, rule keys_2_plus,
         simp only: keys_monom_mult[OF \<open>?c \<noteq> 0\<close>], simp add: keys_proper_binomial[OF assms(1)], fact, fact)
     from \<open>tp p \<prec> lp p\<close> show "u + tp p \<prec> u + lp p" by (rule plus_monotone_strict_left)
-  qed (simp only: lookup_monom_mult tc_def[symmetric], simp add: \<open>tc p \<noteq> 0\<close> * lookup_times_lp_lp)
+  qed (simp only: lookup_monom_mult_plus tc_def[symmetric], simp add: \<open>tc p \<noteq> 0\<close> * lookup_times_lp_lp)
 qed
 
 lemma keys_plus_monomial_times:
@@ -52,7 +52,7 @@ proof -
   proof (simp only: algebra_simps(17) times_monomial_left, rule keys_2_plus, fact,
         simp only: keys_monom_mult[OF \<open>?c \<noteq> 0\<close>], simp add: keys_proper_binomial[OF assms(1)])
     from \<open>tp p \<prec> lp p\<close> show "v + tp p \<prec> v + lp p" by (rule plus_monotone_strict_left)
-  qed (fact, simp only: lookup_monom_mult lc_def[symmetric], simp add: \<open>lc p \<noteq> 0\<close> * lookup_times_tp_tp)
+  qed (fact, simp only: lookup_monom_mult_plus lc_def[symmetric], simp add: \<open>lc p \<noteq> 0\<close> * lookup_times_tp_tp)
 qed
 
 end (* ordered_powerprod *)
@@ -1165,7 +1165,7 @@ next
     let ?m = "monom_mult (lc q) (lp q) p"
     let ?r = "tail q * p"
     from \<open>lc q \<noteq> 0\<close> \<open>p \<noteq> 0\<close> have lp_m: "lp ?m = lp q + lp p" and tp_m: "tp ?m = lp q + tp p"
-      by (rule lp_mult, rule tp_monom_mult)
+      by (rule lp_monom_mult, rule tp_monom_mult)
     have "tail ?m = monom_mult (lc q) (lp q) (tail p)" by (rule tail_monom_mult)
     also have "... = monom_mult (lc q) (lp q) (monomial (tc p) (tp p))" by (simp only: tail_p)
     also have "... = monomial (lc q * tc p) (lp q + tp p)" by (rule monom_mult_monomial)
@@ -1174,7 +1174,7 @@ next
       by (rule lp_times, simp add: tp_times tp_tail_q)
     from tc_tail[OF \<open>tail q \<noteq> 0\<close>] have tc_r: "tc ?r = tc q * tc p" by (simp add: tc_times_poly_mapping)
     from step(3) have "keys (?m + ?r) = {lp ?m, tp ?r}"
-      by (simp only: times_tail_rec_left[of q] tp_tail_times lp_mult[OF \<open>lc q \<noteq> 0\<close> \<open>p \<noteq> 0\<close>])
+      by (simp only: times_tail_rec_left[of q] tp_tail_times lp_monom_mult[OF \<open>lc q \<noteq> 0\<close> \<open>p \<noteq> 0\<close>])
     hence "tail ?m + higher ?r (tp ?r) = 0"
     proof (rule keys_plus_eq_lp_tp_D, simp_all only: lp_r lp_m tp_r tp_m)
       from \<open>tail q \<noteq> 0\<close> have "lp (tail q) \<prec> lp q" by (rule lp_tail)
@@ -1274,7 +1274,7 @@ next
     with u show False by (simp add: ac_simps)
   qed
   hence eq2: "lookup (monom_mult_right q d t) (v + lp p) = 0" unfolding lp_p tp_p
-    by (simp add: lookup_monom_mult_right')
+    by (simp add: lookup_monom_mult_right)
   show ?thesis unfolding eq1 lookup_add eq2 by (simp add: lp_p lc_p tp_p tc_p lookup_monom_mult_right)
 qed
 
@@ -1312,7 +1312,7 @@ next
     with v show False by (simp add: ac_simps)
   qed
   hence eq2: "lookup (monom_mult_right q c s) (u + tp p) = 0" unfolding lp_p tp_p
-    by (simp add: lookup_monom_mult_right')
+    by (simp add: lookup_monom_mult_right)
   show ?thesis unfolding eq1 lookup_add eq2 by (simp add: lp_p lc_p tp_p tc_p lookup_monom_mult_right)
 qed
 
@@ -1427,7 +1427,7 @@ proof (induct q arbitrary: thesis v rule: poly_mapping_except_induct')
     from \<open>v' \<prec> v\<close> have "v' \<noteq> v" by simp
     with \<open>v' \<in> keys q\<close> have "v' \<in> keys ?q" by (simp add: keys_except)
     
-    -- \<open>Obtaining some @{term q'} from the induction hypothesis:\<close>
+    text \<open>Obtaining some @{term q'} from the induction hypothesis:\<close>
     from step(3) _ \<open>v' \<in> keys ?q\<close> \<open>?t \<in> keys (?q * p)\<close> obtain q'
       where "q' \<noteq> 0" and "q' \<sqsubseteq> ?q" and "lp q' = v'" and assoc: "associated_poly p q'"
       and "tp q' + tp p \<in> keys (?q * p)"
@@ -1438,7 +1438,7 @@ proof (induct q arbitrary: thesis v rule: poly_mapping_except_induct')
     
     let ?q' = "?m + q'"
     
-    -- \<open>Properties of @{term ?q'}:\<close>
+    text \<open>Properties of @{term ?q'}:\<close>
     have "v \<notin> keys ?q" by (simp add: keys_except)
     hence "v \<notin> keys q'" using subpoly_keys[OF \<open>q' \<sqsubseteq> ?q\<close>] by auto
     hence "keys ?m \<inter> keys q' = {}" and "lookup q' v = 0" by (simp add: keys_m, simp)
