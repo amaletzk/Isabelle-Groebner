@@ -11,8 +11,6 @@ text \<open>Executable implementation of Buchberger's algorithm on the represent
 
 subsection \<open>Degree-Reverse-Lexicographic Order\<close>
 
-definition "drlex_pm_strict s t \<longleftrightarrow> drlex_pm s t \<and> \<not> drlex_pm t s"
-
 global_interpretation opp_drlex: gd_powerprod drlex_pm drlex_pm_strict
   defines lp_drlex = opp_drlex.lp
   and max_drlex = opp_drlex.ordered_powerprod_lin.max
