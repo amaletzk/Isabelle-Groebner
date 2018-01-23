@@ -2,7 +2,7 @@
 
 section \<open>Implementation of the Algorithms\<close>
 
-theory Algorithm_Impl
+theory Buchberger_Examples
   imports Buchberger Polynomials.MPoly_Type_Class_FMap
 begin
 
