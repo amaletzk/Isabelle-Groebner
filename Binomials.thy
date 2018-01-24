@@ -322,7 +322,7 @@ definition rgb :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Righta
 
 lemma reduced_GB_comp:
   shows "reduced_GB (set xs) = set (rgb xs)"
-  by (rule reduced_GB_unique, simp_all add: rgb_def, rule comp_red_monic_basis_of_gb_is_reduced_GB,
+  by (rule reduced_GB_unique_finite, simp_all add: rgb_def, rule comp_red_monic_basis_of_gb_is_reduced_GB,
       rule comp_red_monic_basis_of_gb_pideal)
 
 subsection \<open>Monomials\<close>
@@ -678,7 +678,7 @@ subsection \<open>Monicity\<close>
 lemma comp_red_monic_basis_has_bounded_keys_set:
   assumes "has_bounded_keys_set n (set xs)" and "n \<le> 2"
   shows "has_bounded_keys_set n (set (comp_red_monic_basis xs))"
-  unfolding comp_red_monic_basis_set
+  unfolding set_comp_red_monic_basis
   by (rule monic_set_has_bounded_keys, rule comp_red_basis_has_bounded_keys_set, fact+)
 
 subsection \<open>Monomials\<close>

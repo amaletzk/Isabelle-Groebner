@@ -1610,12 +1610,11 @@ proof -
   ultimately show ?thesis by simp
 qed
 
-primrec comp_red_basis_aux :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::field) poly_mapping list" where
+primrec comp_red_basis_aux :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list" where
   comp_red_basis_aux_base: "comp_red_basis_aux Nil ys = ys"|
   comp_red_basis_aux_rec: "comp_red_basis_aux (x # xs) ys = comp_red_basis_aux xs ((trd (xs @ ys) x) # ys)"
   
-lemma subset_comp_red_basis_aux:
-  shows "set ys \<subseteq> set (comp_red_basis_aux xs ys)"
+lemma subset_comp_red_basis_aux: "set ys \<subseteq> set (comp_red_basis_aux xs ys)"
 proof (induct xs arbitrary: ys)
   case Nil
   show ?case unfolding comp_red_basis_aux_base ..
@@ -1821,8 +1820,33 @@ next
   qed
 qed
 
-definition comp_red_basis :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::field) poly_mapping list" where
-  "comp_red_basis xs = comp_red_basis_aux (comp_min_basis xs) []"
+lemma comp_red_basis_aux_dgrad_p_set_le:
+  assumes "dickson_grading (+) d"
+  shows "dgrad_p_set_le d (set (comp_red_basis_aux xs ys)) (set xs \<union> set ys)"
+proof (induct xs arbitrary: ys)
+  case Nil
+  show ?case by (simp, rule dgrad_p_set_le_subset, fact subset_refl)
+next
+  case (Cons x xs)
+  let ?h = "trd (xs @ ys) x"
+  have "dgrad_p_set_le d (set (comp_red_basis_aux xs (?h # ys))) (set xs \<union> set (?h # ys))"
+    by (fact Cons)
+  also have "... = insert ?h (set xs \<union> set ys)" by simp
+  also have "dgrad_p_set_le d ... (insert x (set xs \<union> set ys))"
+  proof (rule dgrad_p_set_leI_insert)
+    show "dgrad_p_set_le d (set xs \<union> set ys) (insert x (set xs \<union> set ys))"
+      by (rule dgrad_p_set_le_subset, blast)
+  next
+    have "(red (set (xs @ ys)))\<^sup>*\<^sup>* x ?h" by (rule trd_red_rtrancl)
+    with assms have "dgrad_p_set_le d {?h} (insert x (set (xs @ ys)))"
+      by (rule dgrad_p_set_le_red_rtrancl)
+    thus "dgrad_p_set_le d {?h} (insert x (set xs \<union> set ys))" by simp
+  qed
+  finally show ?case by (simp del: trd.simps)
+qed
+
+definition comp_red_basis :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::field) poly_mapping list"
+  where "comp_red_basis xs = comp_red_basis_aux (comp_min_basis xs) []"
   
 lemma comp_red_basis_nonzero:
   assumes "p \<in> set (comp_red_basis xs)"
@@ -1872,8 +1896,7 @@ proof -
   qed fact
 qed
 
-lemma comp_red_basis_is_red:
-  shows "is_red (set (comp_red_basis xs)) f \<longleftrightarrow> is_red (set xs) f"
+lemma comp_red_basis_is_red: "is_red (set (comp_red_basis xs)) f \<longleftrightarrow> is_red (set xs) f"
 proof
   assume "is_red (set (comp_red_basis xs)) f"
   then obtain x t where "x \<in> set (comp_red_basis xs)" and "t \<in> keys f" and "x \<noteq> 0" and "lp x adds t"
@@ -1954,8 +1977,7 @@ proof (intro ballI impI)
     by (simp add: comp_red_basis_is_red GB_alt_2_finite)
 qed
     
-lemma comp_red_basis_is_auto_reduced:
-  shows "is_auto_reduced (set (comp_red_basis xs))"
+lemma comp_red_basis_is_auto_reduced: "is_auto_reduced (set (comp_red_basis xs))"
   unfolding is_auto_reduced_def remove_def
 proof (intro ballI)
   fix x
@@ -1964,6 +1986,18 @@ proof (intro ballI)
   proof (rule comp_red_basis_aux_irred, simp_all, rule comp_min_basis_is_minimal_basis, rule comp_min_basis_distinct)
     from xin show "x \<in> set (comp_red_basis_aux (comp_min_basis xs) [])" unfolding comp_red_basis_def .
   qed
+qed
+
+lemma comp_red_basis_dgrad_p_set_le:
+  assumes "dickson_grading (+) d"
+  shows "dgrad_p_set_le d (set (comp_red_basis xs)) (set xs)"
+proof -
+  have "dgrad_p_set_le d (set (comp_red_basis xs)) (set (comp_min_basis xs) \<union> set [])"
+    unfolding comp_red_basis_def using assms by (rule comp_red_basis_aux_dgrad_p_set_le)
+  also have "... = set (comp_min_basis xs)" by simp
+  also from comp_min_basis_subset have "dgrad_p_set_le d ... (set xs)"
+    by (rule dgrad_p_set_le_subset)
+  finally show ?thesis .
 qed
   
 subsection \<open>Computing Reduced Gr\"obner Bases\<close>
@@ -1992,8 +2026,7 @@ qed
 definition comp_red_monic_basis :: "('a, 'b) poly_mapping list \<Rightarrow> ('a, 'b::field) poly_mapping list" where
   "comp_red_monic_basis xs = map monic (comp_red_basis xs)"
   
-lemma comp_red_monic_basis_set:
-  shows "set (comp_red_monic_basis xs) = monic_set (set (comp_red_basis xs))"
+lemma set_comp_red_monic_basis: "set (comp_red_monic_basis xs) = monic_set (set (comp_red_basis xs))"
   unfolding comp_red_monic_basis_def monic_set_def by simp
 
 lemma comp_red_monic_basis_nonzero:
@@ -2001,28 +2034,26 @@ lemma comp_red_monic_basis_nonzero:
   shows "p \<noteq> 0"
 proof -
   from assms obtain p' where p_def: "p = monic p'" and p': "p' \<in> set (comp_red_basis xs)"
-    unfolding comp_red_monic_basis_set monic_set_def ..
+    unfolding set_comp_red_monic_basis monic_set_def ..
   from p' have "p' \<noteq> 0" by (rule comp_red_basis_nonzero)
   thus ?thesis unfolding p_def monic_0_iff .
 qed
   
-lemma comp_red_monic_basis_is_monic_set:
-  shows "is_monic_set (set (comp_red_monic_basis xs))"
-  unfolding comp_red_monic_basis_set by (rule monic_set_is_monic_set)
+lemma comp_red_monic_basis_is_monic_set: "is_monic_set (set (comp_red_monic_basis xs))"
+  unfolding set_comp_red_monic_basis by (rule monic_set_is_monic_set)
     
 lemma comp_red_monic_basis_pideal:
   assumes "is_Groebner_basis (set xs)"
   shows "pideal (set (comp_red_monic_basis xs)) = pideal (set xs)"
-  unfolding comp_red_monic_basis_set monic_set_pideal comp_red_basis_pideal[OF assms] ..
+  unfolding set_comp_red_monic_basis monic_set_pideal comp_red_basis_pideal[OF assms] ..
     
 lemma comp_red_monic_basis_GB:
   assumes "is_Groebner_basis (set xs)"
   shows "is_Groebner_basis (set (comp_red_monic_basis xs))"
-  unfolding comp_red_monic_basis_set monic_set_GB using assms by (rule comp_red_basis_GB)
+  unfolding set_comp_red_monic_basis monic_set_GB using assms by (rule comp_red_basis_GB)
     
-lemma comp_red_monic_basis_is_auto_reduced:
-  shows "is_auto_reduced (set (comp_red_monic_basis xs))"
-  unfolding comp_red_monic_basis_set by (rule monic_set_is_auto_reduced, rule comp_red_basis_is_auto_reduced)
+lemma comp_red_monic_basis_is_auto_reduced: "is_auto_reduced (set (comp_red_monic_basis xs))"
+  unfolding set_comp_red_monic_basis by (rule monic_set_is_auto_reduced, rule comp_red_basis_is_auto_reduced)
     
 lemma comp_red_monic_basis_is_reduced_GB:
   assumes "is_Groebner_basis (set xs)"
@@ -2034,90 +2065,293 @@ proof (intro conjI, rule comp_red_monic_basis_GB, fact assms,
   hence "0 \<noteq> (0::('a, 'b) poly_mapping)" by (rule comp_red_monic_basis_nonzero)
   thus False by simp
 qed
-  
-theorem exists_unique_reduced_GB:
-  assumes "finite B"
-  shows "\<exists>!G. is_reduced_GB G \<and> pideal G = pideal B"
+
+lemma comp_red_monic_basis_dgrad_p_set_le:
+  assumes "dickson_grading (+) d"
+  shows "dgrad_p_set_le d (set (comp_red_monic_basis xs)) (set xs)"
 proof -
-  from finite_some_GB_finite[OF assms] obtain xs where set: "set xs = some_GB B"
-    using finite_list by blast
-  let ?G = "set (comp_red_monic_basis xs)"
-  from assms have gb: "is_Groebner_basis (set xs)" unfolding set by (rule some_GB_isGB_finite)
-  hence rgb: "is_reduced_GB ?G" by (rule comp_red_monic_basis_is_reduced_GB)
-  from gb have "pideal ?G = pideal (set xs)" by (rule comp_red_monic_basis_pideal)
-  also from assms have "... = pideal B" unfolding set by (rule some_GB_pideal_finite)
-  finally have eq: "pideal ?G = pideal B" .
+  have "dgrad_p_set_le d (monic_set (set (comp_red_basis xs))) (set (comp_red_basis xs))"
+    by (simp add: dgrad_p_set_le_def, fact dgrad_set_le_refl)
+  also from assms have "dgrad_p_set_le d ... (set xs)" by (rule comp_red_basis_dgrad_p_set_le)
+  finally show ?thesis by (simp add: set_comp_red_monic_basis)
+qed
+
+(* TODO: Replace "ex_finite_GB_dgrad_p_set" in "Groebner_Bases" by the following result. *)
+lemma ex_finite_GB_dgrad_p_set_stronger:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_p_set d m"
+  obtains G where "G \<subseteq> dgrad_p_set d m" and "finite G" and "is_Groebner_basis G" and "pideal G = pideal F"
+proof -
+  define S where "S = {lp f | f. f \<in> pideal F \<and> f \<in> dgrad_p_set d m \<and> f \<noteq> 0}"
+  have "S \<subseteq> dgrad_set d m"
+  proof
+    fix s
+    assume "s \<in> S"
+    then obtain f where "f \<in> pideal F \<and> f \<in> dgrad_p_set d m \<and> f \<noteq> 0" and "s = lp f"
+      unfolding S_def by blast
+    from this(1) have "f \<in> dgrad_p_set d m" and "f \<noteq> 0" by simp_all
+    from this(2) have "s \<in> keys f" unfolding \<open>s = lp f\<close> by (rule lp_in_keys)
+    with \<open>f \<in> dgrad_p_set d m\<close> have "d s \<le> m" by (rule dgrad_p_setD)
+    thus "s \<in> dgrad_set d m" by (simp add: dgrad_set_def)
+  qed
+  with assms(1) obtain T where "finite T" and "T \<subseteq> S" and *: "\<And>s. s \<in> S \<Longrightarrow> (\<exists>t\<in>T. t adds s)"
+    by (rule ex_finite_adds, blast)
+  define crit where "crit = (\<lambda>t f. f \<in> pideal F \<and> f \<in> dgrad_p_set d m \<and> f \<noteq> 0 \<and> t = lp f)"
+  have ex_crit: "t \<in> T \<Longrightarrow> (\<exists>f. crit t f)" for t
+  proof -
+    assume "t \<in> T"
+    from this \<open>T \<subseteq> S\<close> have "t \<in> S" ..
+    then obtain f where "f \<in> pideal F \<and> f \<in> dgrad_p_set d m \<and> f \<noteq> 0" and "t = lp f"
+      unfolding S_def by blast
+    thus "\<exists>f. crit t f" unfolding crit_def by blast
+  qed
+  define G where "G = (\<lambda>t. SOME g. crit t g) ` T"
+  have G: "g \<in> G \<Longrightarrow> g \<in> pideal F \<and> g \<in> dgrad_p_set d m \<and> g \<noteq> 0" for g
+  proof -
+    assume "g \<in> G"
+    then obtain t where "t \<in> T" and g: "g = (SOME h. crit t h)" unfolding G_def ..
+    have "crit t g" unfolding g by (rule someI_ex, rule ex_crit, fact)
+    thus "g \<in> pideal F \<and> g \<in> dgrad_p_set d m \<and> g \<noteq> 0" by (simp add: crit_def)
+  qed
+  have **: "t \<in> T \<Longrightarrow> (\<exists>g\<in>G. lp g = t)" for t
+  proof -
+    assume "t \<in> T"
+    define g where "g = (SOME h. crit t h)"
+    from \<open>t \<in> T\<close> have "g \<in> G" unfolding g_def G_def by blast
+    thus "\<exists>g\<in>G. lp g = t"
+    proof
+      have "crit t g" unfolding g_def by (rule someI_ex, rule ex_crit, fact)
+      thus "lp g = t" by (simp add: crit_def)
+    qed
+  qed
+  have adds: "f \<in> pideal F \<Longrightarrow> f \<in> dgrad_p_set d m \<Longrightarrow> f \<noteq> 0 \<Longrightarrow> (\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f)" for f
+  proof -
+    assume "f \<in> pideal F" and "f \<in> dgrad_p_set d m" and "f \<noteq> 0"
+    hence "lp f \<in> S" unfolding S_def by blast
+    hence "\<exists>t\<in>T. t adds (lp f)" by (rule *)
+    then obtain t where "t \<in> T" and "t adds (lp f)" ..
+    from this(1) have "\<exists>g\<in>G. lp g = t" by (rule **)
+    then obtain g where "g \<in> G" and "lp g = t" ..
+    show "\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f"
+    proof (intro bexI conjI)
+      from G[OF \<open>g \<in> G\<close>] show "g \<noteq> 0" by (elim conjE)
+    next
+      from \<open>t adds lp f\<close> show "lp g adds lp f" by (simp only: \<open>lp g = t\<close>)
+    qed fact
+  qed
+  have sub1: "pideal G \<subseteq> pideal F"
+  proof (rule pideal_subset_pidealI, rule)
+    fix g
+    assume "g \<in> G"
+    from G[OF this] show "g \<in> pideal F" ..
+  qed
+  have sub2: "G \<subseteq> dgrad_p_set d m"
+  proof
+    fix g
+    assume "g \<in> G"
+    from G[OF this] show "g \<in> dgrad_p_set d m" by (elim conjE)
+  qed
   show ?thesis
-  proof (rule, intro conjI)
+  proof
+    from \<open>finite T\<close> show "finite G" unfolding G_def ..
+  next
+    from assms(1) sub2 adds show "is_Groebner_basis G"
+    proof (rule isGB_I_adds_lp)
+      fix f
+      assume "f \<in> pideal G"
+      from this sub1 show "f \<in> pideal F" ..
+    qed
+  next
+    show "pideal G = pideal F"
+    proof
+      show "pideal F \<subseteq> pideal G"
+      proof (rule pideal_subset_pidealI, rule)
+        fix f
+        assume "f \<in> F"
+        hence "f \<in> pideal F" by (rule generator_in_pideal)
+        from \<open>f \<in> F\<close> assms(2) have "f \<in> dgrad_p_set d m" ..
+        with assms(1) sub2 sub1 _ \<open>f \<in> pideal F\<close> have "(red G)\<^sup>*\<^sup>* f 0"
+        proof (rule is_red_implies_0_red_dgrad_p_set)
+          fix q
+          assume "q \<in> pideal F" and "q \<in> dgrad_p_set d m" and "q \<noteq> 0"
+          hence "(\<exists>g \<in> G. g \<noteq> 0 \<and> lp g adds lp q)" by (rule adds)
+          then obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds lp q" by blast
+          thus "is_red G q" using \<open>q \<noteq> 0\<close> is_red_indI1 by blast
+        qed
+        thus "f \<in> pideal G" by (rule red_rtranclp_0_in_pideal)
+      qed
+    qed fact
+  next
+    show "G \<subseteq> dgrad_p_set d m"
+    proof
+      fix g
+      assume "g \<in> G"
+      hence "g \<in> pideal F \<and> g \<in> dgrad_p_set d m \<and> g \<noteq> 0" by (rule G)
+      thus "g \<in> dgrad_p_set d m" by (elim conjE)
+    qed
+  qed
+qed
+
+lemma ex_finite_reduced_GB_dgrad_p_set:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_p_set d m"
+  obtains G where "G \<subseteq> dgrad_p_set d m" and "finite G" and "is_reduced_GB G" and "pideal G = pideal F"
+proof -
+  from assms obtain G0 where G0_sub: "G0 \<subseteq> dgrad_p_set d m" and fin: "finite G0"
+    and gb: "is_Groebner_basis G0" and pid: "pideal G0 = pideal F"
+    by (rule ex_finite_GB_dgrad_p_set_stronger)
+  from fin obtain xs where set: "G0 = set xs" using finite_list by blast
+  let ?G = "set (comp_red_monic_basis xs)"
+  show ?thesis
+  proof
+    from assms(1) have "dgrad_p_set_le d (set (comp_red_monic_basis xs)) G0" unfolding set
+      by (rule comp_red_monic_basis_dgrad_p_set_le)
+    from this G0_sub show "set (comp_red_monic_basis xs) \<subseteq> dgrad_p_set d m"
+      by (rule dgrad_p_set_le_dgrad_p_set)
+  next
+    from gb show rgb: "is_reduced_GB ?G" unfolding set
+      by (rule comp_red_monic_basis_is_reduced_GB)
+  next
+    from gb show "pideal ?G = pideal F" unfolding set pid[symmetric]
+      by (rule comp_red_monic_basis_pideal)
+  qed (fact finite_set)
+qed
+
+theorem ex_unique_reduced_GB_dgrad_p_set:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_p_set d m"
+  shows "\<exists>!G. G \<subseteq> dgrad_p_set d m \<and> finite G \<and> is_reduced_GB G \<and> pideal G = pideal F"
+proof -
+  from assms obtain G where "G \<subseteq> dgrad_p_set d m" and "finite G"
+    and "is_reduced_GB G" and G: "pideal G = pideal F" by (rule ex_finite_reduced_GB_dgrad_p_set)
+  hence "G \<subseteq> dgrad_p_set d m \<and> finite G \<and> is_reduced_GB G \<and> pideal G = pideal F" by simp
+  thus ?thesis
+  proof (rule ex1I)
     fix G'
-    assume "is_reduced_GB G' \<and> pideal G' = pideal B"
-    hence "is_reduced_GB G'" and "pideal G' = pideal B" by simp_all
-    show "G' = ?G" by (rule is_reduced_GB_unique, fact, fact, unfold eq, fact)
-  qed (fact rgb, fact eq)
+    assume "G' \<subseteq> dgrad_p_set d m \<and> finite G' \<and> is_reduced_GB G' \<and> pideal G' = pideal F"
+    hence "is_reduced_GB G'" and G': "pideal G' = pideal F" by simp_all
+    note this(1) \<open>is_reduced_GB G\<close>
+    moreover have "pideal G' = pideal G" by (simp only: G G')
+    ultimately show "G' = G" by (rule is_reduced_GB_unique)
+  qed
+qed
+
+corollary ex_unique_reduced_GB_dgrad_p_set':
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_p_set d m"
+  shows "\<exists>!G. finite G \<and> is_reduced_GB G \<and> pideal G = pideal F"
+proof -
+  from assms obtain G where "G \<subseteq> dgrad_p_set d m" and "finite G"
+    and "is_reduced_GB G" and G: "pideal G = pideal F" by (rule ex_finite_reduced_GB_dgrad_p_set)
+  hence "finite G \<and> is_reduced_GB G \<and> pideal G = pideal F" by simp
+  thus ?thesis
+  proof (rule ex1I)
+    fix G'
+    assume "finite G' \<and> is_reduced_GB G' \<and> pideal G' = pideal F"
+    hence "is_reduced_GB G'" and G': "pideal G' = pideal F" by simp_all
+    note this(1) \<open>is_reduced_GB G\<close>
+    moreover have "pideal G' = pideal G" by (simp only: G G')
+    ultimately show "G' = G" by (rule is_reduced_GB_unique)
+  qed
 qed
   
 definition reduced_GB :: "('a \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) set"
-  where "reduced_GB B = (THE G. is_reduced_GB G \<and> pideal G = pideal B)"
+  where "reduced_GB B = (THE G. finite G \<and> is_reduced_GB G \<and> pideal G = pideal B)"
 
-lemma reduced_GB_is_reduced_GB:
-  assumes "finite B"
-  shows "is_reduced_GB (reduced_GB B)"
+text \<open>@{const reduced_GB} returns the unique reduced Gr\"obner basis of the given set, provided its
+  Dickson grading is bounded. Combining @{const comp_red_monic_basis} with any function for computing
+  Gr\"obner bases, e.\,g. @{term gb} from theory "Buchberger", makes @{const reduced_GB} computable.\<close>
+
+lemma finite_reduced_GB_dgrad_p_set:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_p_set d m"
+  shows "finite (reduced_GB F)"
   unfolding reduced_GB_def
-  by (rule the1I2, rule exists_unique_reduced_GB, fact, auto)
-    
-lemma reduced_GB_is_GB:
-  assumes "finite B"
-  shows "is_Groebner_basis (reduced_GB B)"
+  by (rule the1I2, rule ex_unique_reduced_GB_dgrad_p_set', fact, fact, elim conjE)
+
+lemma reduced_GB_is_reduced_GB_dgrad_p_set:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_p_set d m"
+  shows "is_reduced_GB (reduced_GB F)"
+  unfolding reduced_GB_def
+  by (rule the1I2, rule ex_unique_reduced_GB_dgrad_p_set', fact, fact, elim conjE)
+
+lemma reduced_GB_is_GB_dgrad_p_set:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_p_set d m"
+  shows "is_Groebner_basis (reduced_GB F)"
 proof -
-  from assms have "is_reduced_GB (reduced_GB B)" by (rule reduced_GB_is_reduced_GB)
+  from assms have "is_reduced_GB (reduced_GB F)" by (rule reduced_GB_is_reduced_GB_dgrad_p_set)
   thus ?thesis unfolding is_reduced_GB_def ..
 qed
-    
-lemma reduced_GB_is_auto_reduced:
-  assumes "finite B"
-  shows "is_auto_reduced (reduced_GB B)"
+
+lemma reduced_GB_is_auto_reduced_dgrad_p_set:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_p_set d m"
+  shows "is_auto_reduced (reduced_GB F)"
 proof -
-  from assms have "is_reduced_GB (reduced_GB B)" by (rule reduced_GB_is_reduced_GB)
+  from assms have "is_reduced_GB (reduced_GB F)" by (rule reduced_GB_is_reduced_GB_dgrad_p_set)
   thus ?thesis unfolding is_reduced_GB_def by simp
 qed
     
-lemma reduced_GB_is_monic_set:
-  assumes "finite B"
-  shows "is_monic_set (reduced_GB B)"
+lemma reduced_GB_is_monic_set_dgrad_p_set:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_p_set d m"
+  shows "is_monic_set (reduced_GB F)"
 proof -
-  from assms have "is_reduced_GB (reduced_GB B)" by (rule reduced_GB_is_reduced_GB)
+  from assms have "is_reduced_GB (reduced_GB F)" by (rule reduced_GB_is_reduced_GB_dgrad_p_set)
   thus ?thesis unfolding is_reduced_GB_def by simp
 qed
   
-lemma reduced_GB_nonzero:
-  assumes "finite B"
-  shows "0 \<notin> reduced_GB B"
+lemma reduced_GB_nonzero_dgrad_p_set:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_p_set d m"
+  shows "0 \<notin> reduced_GB F"
 proof -
-  from assms have "is_reduced_GB (reduced_GB B)" by (rule reduced_GB_is_reduced_GB)
+  from assms have "is_reduced_GB (reduced_GB F)" by (rule reduced_GB_is_reduced_GB_dgrad_p_set)
   thus ?thesis unfolding is_reduced_GB_def by simp
 qed
 
-lemma reduced_GB_pideal:
-  assumes "finite B"
-  shows "pideal (reduced_GB B) = pideal B"
+lemma reduced_GB_pideal_dgrad_p_set:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_p_set d m"
+  shows "pideal (reduced_GB F) = pideal F"
   unfolding reduced_GB_def
-  by (rule the1I2, rule exists_unique_reduced_GB, fact, auto)
+  by (rule the1I2, rule ex_unique_reduced_GB_dgrad_p_set', fact, fact, elim conjE)
 
-lemma reduced_GB_unique:
-  assumes "finite B" and "is_reduced_GB G" and "pideal G = pideal B"
-  shows "reduced_GB B = G"
-  unfolding reduced_GB_def
-  by (rule the1_equality, rule exists_unique_reduced_GB, fact, rule conjI, fact+)
+lemma reduced_GB_unique_dgrad_p_set:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_p_set d m" and "is_reduced_GB G" and "pideal G = pideal F"
+  shows "reduced_GB F = G"
+  by (rule is_reduced_GB_unique, rule reduced_GB_is_reduced_GB_dgrad_p_set, fact+,
+      simp only: reduced_GB_pideal_dgrad_p_set[OF assms(1, 2)] assms(4))
+
+lemma reduced_GB_dgrad_p_set:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_p_set d m"
+  shows "reduced_GB F \<subseteq> dgrad_p_set d m"
+proof -
+  from assms obtain G where G: "G \<subseteq> dgrad_p_set d m" and "is_reduced_GB G" and "pideal G = pideal F"
+    by (rule ex_finite_reduced_GB_dgrad_p_set)
+  from assms this(2, 3) have "reduced_GB F = G" by (rule reduced_GB_unique_dgrad_p_set)
+  with G show ?thesis by simp
+qed
+
+lemmas ex_unique_reduced_GB_finite =
+  ex_unique_reduced_GB_dgrad_p_set'[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
+lemmas finite_reduced_GB_finite =
+  finite_reduced_GB_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
+lemmas reduced_GB_is_reduced_GB_finite =
+  reduced_GB_is_reduced_GB_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
+lemmas reduced_GB_is_GB_finite =
+  reduced_GB_is_GB_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
+lemmas reduced_GB_is_auto_reduced_finite =
+  reduced_GB_is_auto_reduced_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
+lemmas reduced_GB_is_monic_set_finite =
+  reduced_GB_is_monic_set_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
+lemmas reduced_GB_nonzero_finite =
+  reduced_GB_nonzero_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
+lemmas reduced_GB_pideal_finite =
+  reduced_GB_pideal_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
+lemmas reduced_GB_unique_finite =
+  reduced_GB_unique_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
 
 subsection \<open>Properties of the Reduced Gr\"obner Basis of an Ideal\<close>
 
-lemma pideal_eq_UNIV_iff_reduced_GB_eq_one:
-  assumes "finite F"
+lemma pideal_eq_UNIV_iff_reduced_GB_eq_one_dgrad_p_set:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_p_set d m"
   shows "pideal F = UNIV \<longleftrightarrow> reduced_GB F = {1}"
 proof
   assume "pideal F = UNIV"
   from assms show "reduced_GB F = {1}"
-  proof (rule reduced_GB_unique)
+  proof (rule reduced_GB_unique_dgrad_p_set)
     show "is_reduced_GB {1}" unfolding is_reduced_GB_def
     proof (intro conjI, fact is_Groebner_basis_singleton)
       show "is_auto_reduced {1}" unfolding is_auto_reduced_def
@@ -2134,10 +2368,39 @@ next
   assume "reduced_GB F = {1}"
   hence "1 \<in> reduced_GB F" by simp
   hence "1 \<in> pideal (reduced_GB F)" by (rule generator_in_pideal)
-  also from assms have "... = pideal F" by (rule reduced_GB_pideal)
+  also from assms have "... = pideal F" by (rule reduced_GB_pideal_dgrad_p_set)
   finally show "pideal F = UNIV" by (simp only: pideal_eq_UNIV_iff_contains_one)
 qed
+
+lemmas pideal_eq_UNIV_iff_reduced_GB_eq_one_finite =
+  pideal_eq_UNIV_iff_reduced_GB_eq_one_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]
                                                                           
 end (* gd_powerprod *)
+
+subsection \<open>Context @{locale od_powerprod}\<close>
+
+context od_powerprod
+begin
+
+lemmas ex_unique_reduced_GB =
+  ex_unique_reduced_GB_dgrad_p_set'[OF dickson_grading_zero subset_dgrad_p_set_zero]
+lemmas finite_reduced_GB =
+  finite_reduced_GB_dgrad_p_set[OF dickson_grading_zero subset_dgrad_p_set_zero]
+lemmas reduced_GB_is_reduced_GB =
+  reduced_GB_is_reduced_GB_dgrad_p_set[OF dickson_grading_zero subset_dgrad_p_set_zero]
+lemmas reduced_GB_is_GB =
+  reduced_GB_is_GB_dgrad_p_set[OF dickson_grading_zero subset_dgrad_p_set_zero]
+lemmas reduced_GB_is_auto_reduced =
+  reduced_GB_is_auto_reduced_dgrad_p_set[OF dickson_grading_zero subset_dgrad_p_set_zero]
+lemmas reduced_GB_is_monic_set =
+  reduced_GB_is_monic_set_dgrad_p_set[OF dickson_grading_zero subset_dgrad_p_set_zero]
+lemmas reduced_GB_nonzero =
+  reduced_GB_nonzero_dgrad_p_set[OF dickson_grading_zero subset_dgrad_p_set_zero]
+lemmas reduced_GB_pideal =
+  reduced_GB_pideal_dgrad_p_set[OF dickson_grading_zero subset_dgrad_p_set_zero]
+lemmas reduced_GB_unique =
+  reduced_GB_unique_dgrad_p_set[OF dickson_grading_zero subset_dgrad_p_set_zero]
+
+end (* od_powerprod *)
   
 end (* theory *)

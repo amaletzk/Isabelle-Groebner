@@ -17,10 +17,10 @@ proof (rule ccontr)
   let ?G = "reduced_GB F"
   assume "g' \<noteq> g"
   with \<open>g' \<in> ?G\<close> have "g' \<in> (remove g ?G)" by (rule in_removeI)
-  have "\<not> is_red (remove g ?G) g" by (rule is_auto_reducedD, rule reduced_GB_is_auto_reduced, fact+)
+  have "\<not> is_red (remove g ?G) g" by (rule is_auto_reducedD, rule reduced_GB_is_auto_reduced_finite, fact+)
   moreover have "is_red (remove g ?G) g"
   proof (rule is_red_singletonD, rule is_red_addsI, rule)
-    from reduced_GB_nonzero[OF fin] \<open>g' \<in> ?G\<close> show "g' \<noteq> 0" by auto
+    from reduced_GB_nonzero_finite[OF fin] \<open>g' \<in> ?G\<close> show "g' \<noteq> 0" by auto
   qed fact+
   ultimately show False ..
 qed
@@ -44,9 +44,9 @@ proof
   let ?G = "reduced_GB F"
   assume "is_red F g"
   then obtain f t where "f \<in> F" and "t \<in> keys g" and "f \<noteq> 0" and lpf: "lp f adds t" by (rule is_red_addsE)
-  have "f \<in> pideal ?G" unfolding reduced_GB_pideal[OF fin]
+  have "f \<in> pideal ?G" unfolding reduced_GB_pideal_finite[OF fin]
     by (rule, fact \<open>f \<in> F\<close>, rule generator_subset_pideal)
-  from reduced_GB_is_GB[OF fin] this \<open>f \<noteq> 0\<close> obtain g'
+  from reduced_GB_is_GB_finite[OF fin] this \<open>f \<noteq> 0\<close> obtain g'
     where "g' \<in> ?G" and "g' \<noteq> 0" and lpg': "lp g' adds lp f" by (rule GB_adds_lp)
   from lpg' lpf have lpg'': "lp g' adds t" by (rule adds_trans)
   from _ \<open>g' \<noteq> 0\<close> \<open>t \<in> keys g\<close> this have red: "is_red {g'} g" by (rule is_red_addsI, simp)
@@ -73,9 +73,9 @@ proof (rule, rule)
   have a: "monomial 1 t \<notin> pideal F"
   proof
     assume "monomial 1 t \<in> pideal F" (is "?p \<in> pideal F")
-    hence "?p \<in> pideal ?G" unfolding reduced_GB_pideal[OF fin] .
+    hence "?p \<in> pideal ?G" unfolding reduced_GB_pideal_finite[OF fin] .
     have "?p \<noteq> 0" by (simp add: monomial_0_iff)
-    from reduced_GB_is_GB[OF fin] \<open>?p \<in> pideal ?G\<close> this obtain g'
+    from reduced_GB_is_GB_finite[OF fin] \<open>?p \<in> pideal ?G\<close> this obtain g'
       where "g' \<in> ?G" and "g' \<noteq> 0" and lpg': "lp g' adds lp ?p" by (rule GB_adds_lp)
     from lpg' have lpg'': "lp g' adds t" by (simp add: lp_monomial)
     have "t \<in> keys g" unfolding keysg by simp
@@ -89,7 +89,7 @@ proof (rule, rule)
   proof
     assume x: "x = monomial 1 s"
     from pbd have "d \<noteq> 0" by (rule is_pbdE2)
-    have "g \<in> pideal F" unfolding reduced_GB_pideal[OF fin, symmetric]
+    have "g \<in> pideal F" unfolding reduced_GB_pideal_finite[OF fin, symmetric]
       by (rule, fact \<open>g \<in> ?G\<close>, rule generator_subset_pideal)
     from xin2 have "monomial 1 s \<in> pideal F" unfolding x .
     hence "monom_mult c 0 (monomial 1 s) \<in> pideal F" by (rule pideal_closed_monom_mult)

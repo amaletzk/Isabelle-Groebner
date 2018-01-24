@@ -415,6 +415,21 @@ definition maxdeg :: "(('n \<Rightarrow>\<^sub>0 'a::add_linorder) \<Rightarrow>
 definition mindeg :: "(('n \<Rightarrow>\<^sub>0 'a::add_linorder) \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> 'a" where
   "mindeg A = Min (poly_deg ` A)"
 
+lemma poly_deg_max_keys:
+  assumes "t \<in> keys p"
+  shows "deg_pm t \<le> poly_deg p"
+  unfolding poly_deg_def using finite_keys assms by auto
+
+lemma maxdeg_max:
+  assumes "finite A" and "p \<in> A"
+  shows "poly_deg p \<le> maxdeg A"
+  unfolding maxdeg_def using assms by auto
+
+lemma mindeg_min:
+  assumes "finite A" and "p \<in> A"
+  shows "mindeg A \<le> poly_deg p"
+  unfolding mindeg_def using assms by auto
+
 locale pm_powerprod =
   ordered_powerprod ord ord_strict
   for ord::"('n::countable \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)

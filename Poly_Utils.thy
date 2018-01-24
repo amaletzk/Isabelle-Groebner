@@ -1443,6 +1443,9 @@ lemma is_monic_setD:
   assumes "is_monic_set B" and "b \<in> B" and "b \<noteq> 0"
   shows "lc b = 1"
   using assms unfolding is_monic_set_def by auto
+
+lemma Keys_monic_set [simp]: "Keys (monic_set A) = Keys A"
+  by (simp add: Keys_def monic_set_def)
     
 lemma monic_set_is_monic_set: "is_monic_set (monic_set A)"
 proof (rule is_monic_setI)
