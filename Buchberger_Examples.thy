@@ -1,13 +1,10 @@
 (* Author: Alexander Maletzky *)
 
-section \<open>Implementation of the Algorithms\<close>
+section \<open>Sample Computations with Buchberger's Algorithm\<close>
 
 theory Buchberger_Examples
   imports Buchberger Polynomials.MPoly_Type_Class_FMap
 begin
-
-text \<open>Executable implementation of Buchberger's algorithm on the representation of multivariate
-  polynomials as association lists.\<close>
 
 subsection \<open>Degree-Reverse-Lexicographic Order\<close>
 
