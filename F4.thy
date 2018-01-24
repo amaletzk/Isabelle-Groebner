@@ -449,7 +449,7 @@ function sym_preproc_aux :: "('a \<Rightarrow>\<^sub>0 'b::semiring_1) list \<Ri
     (if ts = [] then
       fs
     else
-      let t = ordered_powerprod_lin.Max (set ts); ts' = removeAll t ts in
+      let t = ordered_powerprod_lin.max_list ts; ts' = removeAll t ts in
         sym_preproc_aux gs (sym_preproc_addnew gs ts' fs t)
     )"
   by pat_completeness auto
@@ -462,7 +462,9 @@ termination proof -
     from dg show "wf ?R" by (rule sym_preproc_aux_term_wf)
   next
     fix gs::"('a \<Rightarrow>\<^sub>0 'b) list" and ts fs t ts'
-    assume "ts \<noteq> []" and t: "t = ordered_powerprod_lin.Max (set ts)" and ts': "ts' = removeAll t ts"
+    assume "ts \<noteq> []" and "t = ordered_powerprod_lin.max_list ts" and ts': "ts' = removeAll t ts"
+    from this(1, 2) have t: "t = ordered_powerprod_lin.Max (set ts)"
+      by (simp add: ordered_powerprod_lin.max_list_Max)
     obtain ts0 fs0 where eq: "sym_preproc_addnew gs ts' fs t = (ts0, fs0)" by fastforce
     show "((gs, sym_preproc_addnew gs ts' fs t), (gs, ts, fs)) \<in> ?R"
     proof (simp add: eq sym_preproc_aux_term_def sym_preproc_aux_term1_def sym_preproc_aux_term2_def,
@@ -498,7 +500,9 @@ lemma sym_preproc_aux_sorted:
 proof -
   have "transp (\<succ>)" using transp_def by fastforce
   from assms have *: "s \<in> set ts \<Longrightarrow> s \<prec> t" for s by (simp add: sorted_wrt_Cons[OF \<open>transp (\<succ>)\<close>])
-  have eq1: "ordered_powerprod_lin.Max (set (t # ts)) = t"
+  have "ordered_powerprod_lin.max_list (t # ts) = ordered_powerprod_lin.Max (set (t # ts))"
+    by (simp add: ordered_powerprod_lin.max_list_Max del: ordered_powerprod_lin.max_list.simps)
+  also have "... = t"
   proof (rule ordered_powerprod_lin.Max_eqI)
     fix s
     assume "s \<in> set (t # ts)"
@@ -515,6 +519,7 @@ proof -
   next
     show "t \<in> set (t # ts)" by simp
   qed rule
+  finally have eq1: "ordered_powerprod_lin.max_list (t # ts) = t" .
   have eq2: "removeAll t (t # ts) = ts"
   proof (simp, rule removeAll_id, rule)
     assume "t \<in> set ts"
@@ -552,10 +557,12 @@ proof -
       show "P [] fs fs" by (fact base)
     next
       assume "ts \<noteq> []"
-      define t where "t = ordered_powerprod_lin.Max (set ts)"
+      define t where "t = ordered_powerprod_lin.max_list ts"
+      from \<open>ts \<noteq> []\<close> have t_alt: "t = ordered_powerprod_lin.Max (set ts)" unfolding t_def
+        by (rule ordered_powerprod_lin.max_list_Max)
       define ts' where "ts' = removeAll t ts"
       show "P ts fs (sym_preproc_aux gs (sym_preproc_addnew gs ts' fs t))"
-      proof (rule rec, fact \<open>ts \<noteq> []\<close>, fact t_def, fact ts'_def)
+      proof (rule rec, fact \<open>ts \<noteq> []\<close>, fact t_alt, fact ts'_def)
         let ?n = "sym_preproc_addnew gs ts' fs t"
         obtain ts0 fs0 where eq: "?n = (ts0, fs0)" by fastforce
         show "P (fst ?n) (snd ?n) (sym_preproc_aux gs ?n)"
@@ -568,17 +575,17 @@ proof -
           proof (rule fst_sym_preproc_addnew_less)
             fix u
             assume "u \<in> set ts'"
-            thus "u \<prec> t" unfolding ts'_def t_def set_removeAll using ordered_powerprod_lin.antisym_conv1
+            thus "u \<prec> t" unfolding ts'_def t_alt set_removeAll using ordered_powerprod_lin.antisym_conv1
               by fastforce
           next
             from \<open>s \<in> set ts0\<close> show "s \<in> set (fst (sym_preproc_addnew gs ts' fs t))" by (simp add: eq)
           qed
         next
-          from \<open>ts \<noteq> []\<close> show "t \<in> set ts" by (simp add: t_def)
+          from \<open>ts \<noteq> []\<close> show "t \<in> set ts" by (simp add: t_alt)
         next
           from dg have "dgrad_set_le d (set (fst (sym_preproc_addnew gs ts' fs t))) (Keys (set gs) \<union> insert t (set ts'))"
             by (rule fst_sym_preproc_addnew_dgrad_set_le)
-          moreover have "insert t (set ts') = set ts" by (auto simp add: ts'_def t_def \<open>ts \<noteq> []\<close>)
+          moreover have "insert t (set ts') = set ts" by (auto simp add: ts'_def t_alt \<open>ts \<noteq> []\<close>)
           ultimately show "dgrad_set_le d (set ts0) (Keys (set gs) \<union> set ts)" by (simp add: eq)
         qed
       qed
@@ -888,8 +895,8 @@ subsection \<open>Reduction\<close>
 
 definition Macaulay_red :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
   where "Macaulay_red ps =
-     (let lps = map lp (filter (\<lambda>p. p \<noteq> 0) ps) in
-      filter (\<lambda>p. p \<noteq> 0 \<and> lp p \<notin> set lps) (mat_to_polys (Keys_to_list ps) (row_echelon (Macaulay_mat ps)))
+     (let lps = map lp (filter (\<lambda>p. p \<noteq> 0) ps); ts = Keys_to_list ps in
+      filter (\<lambda>p. p \<noteq> 0 \<and> lp p \<notin> set lps) (mat_to_polys ts (row_echelon (polys_to_mat ts ps)))
      )"
 
 text \<open>@{term "Macaulay_red ps"} auto-reduces (w.\,r.\,t. @{const lin_red}) the given list @{term ps}
@@ -898,7 +905,7 @@ text \<open>@{term "Macaulay_red ps"} auto-reduces (w.\,r.\,t. @{const lin_red})
 lemma Macaulay_red_alt: "Macaulay_red ps = filter (\<lambda>p. lp p \<notin> lp_set (set ps)) (Macaulay_list ps)"
 proof -
   have "{x \<in> set ps. x \<noteq> 0} = set ps - {0}" by blast
-  thus ?thesis by (simp add: Macaulay_red_def Macaulay_list_def lp_set_def)
+  thus ?thesis by (simp add: Macaulay_red_def Macaulay_list_def Macaulay_mat_def lp_set_def Let_def)
 qed
 
 lemma set_Macaulay_red: "set (Macaulay_red ps) = set (Macaulay_list ps) - {p. lp p \<in> lp_set (set ps)}"

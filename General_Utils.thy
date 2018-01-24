@@ -525,6 +525,12 @@ proof -
   qed
 qed
 
+fun (in ord) max_list :: "'a list \<Rightarrow> 'a" where
+  "max_list (x # xs) = (case xs of [] \<Rightarrow> x | _ \<Rightarrow> max x (max_list xs))"
+
+lemma (in linorder) max_list_Max: "xs \<noteq> [] \<Longrightarrow> max_list xs = Max (set xs)"
+  by (induct xs rule: induct_list012, auto)
+
 subsection \<open>@{const map_of}\<close>
 
 lemma map_of_filter: "map_of (filter (\<lambda>x. fst x = y) xs) y = map_of xs y"
