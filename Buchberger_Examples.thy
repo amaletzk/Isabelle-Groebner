@@ -3,7 +3,7 @@
 section \<open>Sample Computations with Buchberger's Algorithm\<close>
 
 theory Buchberger_Examples
-  imports Buchberger Polynomials.MPoly_Type_Class_FMap
+  imports Buchberger Algorithm_Schema_Impl
 begin
 
 subsection \<open>Degree-Reverse-Lexicographic Order\<close>
@@ -164,5 +164,7 @@ lemma
      (MP [(0, 1)], ())
     ]"
   by eval
+
+value [code] "gb_drlex (map (\<lambda>p. (p, ())) (cyclic 4)) ()"
 
 end (* theory *)
