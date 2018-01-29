@@ -58,15 +58,23 @@ proof -
   finally show ?thesis by (simp only: card_keys_def o_def compute_keys_alt)
 qed
 
+lemma compute_plus_alt [code]:
+  "Pm_fmap xs + Pm_fmap ys = Pm_fmap (clearjunk0 (fmmap_keys (\<lambda>k v. lookup0 xs k + lookup0 ys k) (xs ++\<^sub>f ys)))"
+  by (simp only: compute_plus_pp PM_clearjunk0_cong)
+
+lemma compute_minus_alt [code]:
+  "Pm_fmap xs - Pm_fmap ys = Pm_fmap (clearjunk0 (fmmap_keys (\<lambda>k v. lookup0 xs k - lookup0 ys k) (xs ++\<^sub>f ys)))"
+  by (simp only: compute_minus_pp PM_clearjunk0_cong)
+
 subsection \<open>Generating Cyclic Polynomials\<close>
 
 definition cycl_pp :: "nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> (nat \<Rightarrow>\<^sub>0 nat)"
-  where "cycl_pp n d i = PM (map (\<lambda>k. (modulo (k + i) n, 1)) [0..<d])"
+  where "cycl_pp n d i = sparse\<^sub>0 (map (\<lambda>k. (modulo (k + i) n, 1)) [0..<d])"
 
 definition cyclic :: "nat \<Rightarrow> ((nat \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 rat) list"
   where "cyclic n =
             (let xs = [0..<n] in
-              (map (\<lambda>d. PM (map (\<lambda>i. (cycl_pp n d i, 1)) xs)) [1..<n]) @ [PM [(cycl_pp n n 0, 1), (0, -1)]]
+              (map (\<lambda>d. sparse\<^sub>0 (map (\<lambda>i. (cycl_pp n d i, 1)) xs)) [1..<n]) @ [sparse\<^sub>0 [(cycl_pp n n 0, 1), (0, -1)]]
             )"
 
 end (* theory *)

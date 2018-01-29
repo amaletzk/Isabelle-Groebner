@@ -50,120 +50,108 @@ global_interpretation opp_drlex: gd_powerprod drlex_pm drlex_pm_strict
 
 subsubsection \<open>Computations\<close>
 
-abbreviation PP :: "('a \<times> nat) list \<Rightarrow> 'a \<Rightarrow>\<^sub>0 nat" where "PP \<equiv> PM"
+experiment begin interpretation trivariate\<^sub>0_rat .
 
 lemma
-  "lp_drlex (MP [(PP [(X, 2::nat), (Z, 3)], 1::rat), (PP [(X, 2), (Y, 1)], 3)]) = PP [(X, 2), (Z, 3)]"
+  "lp_drlex (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y) = sparse\<^sub>0 [(0, 2), (2, 3)]"
   by eval
 
 lemma
-  "lc_drlex (MP [(PP [(X, 2::nat), (Z, 3)], 1::rat), (PP [(X, 2), (Y, 1)], 3)]) = 1"
+  "lc_drlex (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y) = 1"
   by eval
 
 lemma
-  "tail_drlex (MP [(PP [(X, 2), (Z, 3)], 1::rat), (PP [(X, 2), (Y, 1)], 3)]) =
-    MP [(PP [(X, 2), (Y, 1)], 3::rat)]"
+  "tail_drlex (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y) = 3 * X\<^sup>2 * Y"
   by eval
 
 lemma
-  "higher_drlex (MP [(PP [(X, 2), (Z, 3)], 1::rat), (PP [(X, 2), (Y, 1)], 3)]) (PP [(X, 2)]) =
-    MP [(PP [(X, 2), (Z, 3)], 1), (PP [(X, 2), (Y, 1)], 3)]"
+  "higher_drlex (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y) (sparse\<^sub>0 [(0, 2)]) = X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y"
   by eval
 
 lemma
-  "ord_strict_drlex
-    (MP [(PP [(X, 2), (Z, 4)], 1), (PP [(Y, 3), (Z, 2)], -2)])
-    (MP [(PP [(X, 2), (Z, 7)], 1::rat), (PP [(Y, 3), (Z, 2)], 2)])"
+  "ord_strict_drlex (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) (X\<^sup>2 * Z ^ 7 + 2 * Y ^ 3 * Z\<^sup>2)"
   by eval
 
 lemma
-  "rd_mult_drlex
-      (MP [(PP [(X, 2), (Z, 4)], 1), (PP [(Y, 3), (Z, 2)], -2)])
-      (MP [(PP [(Y, 2), (Z, 1)], 1::rat), (PP [(Z, 3)], 2)]) =
-    (1 / 2, PP [(X, 2), (Z, 1)])"
+  "rd_mult_drlex (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) (Y\<^sup>2 * Z + 2 * Z ^ 3) =
+    (1 / 2, sparse\<^sub>0 [(0, 2), (2, 1)])"
   by eval
 
 lemma
-  "rd_drlex
-      (MP [(PP [(X, 2), (Z, 4)], 1), (PP [(Y, 3), (Z, 2)], -2)])
-      (MP [(PP [(Y, 2), (Z, 1)], 1::rat), (PP [(Z, 3)], 2)]) =
-    MP [(PP [(Y, 3), (Z, 2)], -2), (PP [(X, 2), (Y, 2), (Z, 2)], - 1 / 2)]"
+  "rd_drlex (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) (Y\<^sup>2 * Z + 2 * Z ^ 3) =
+    -2 * Y ^ 3 * Z\<^sup>2 - Const\<^sub>0 (1 / 2) * X\<^sup>2 * Y\<^sup>2 * Z\<^sup>2"
   by eval
 
 lemma
-  "rd_list_drlex
-      [MP [(PP [(Y, 2), (Z, 1)], 1::rat), (PP [(Z, 3)], 2)]]
-      (MP [(PP [(X, 2), (Z, 4)], 1), (PP [(Y, 3), (Z, 2)], -2)]) =
-    MP [(PP [(Y, 3), (Z, 2)], - 2), (PP [(X, 2), (Z, 2), (Y, 2)], - 1 / 2)]"
+  "rd_list_drlex [Y\<^sup>2 * Z + 2 * Z ^ 3] (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) =
+    -2 * Y ^ 3 * Z\<^sup>2 - Const\<^sub>0 (1 / 2) * X\<^sup>2 * Y\<^sup>2 * Z\<^sup>2"
   by eval
 
 lemma
-  "trd_drlex
-      [MP [(PP [(Y, 2), (Z, 1)], 1::rat), (PP [(Y, 1), (Z, 3)], 2)]]
-      (MP [(PP [(X, 2), (Z, 4)], 1), (PP [(Y, 3), (Z, 2)], -2)]) =
-    MP [(PP [(X, 2), (Z, 4)], 1), (PP [(Y, 3), (Z, 2)], - 2)]"
+  "trd_drlex [Y\<^sup>2 * Z + 2 * Y * Z ^ 3] (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) =
+    (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2)"
   by eval
 
 lemma
-  "spoly_drlex
-      (MP [(PP [(X, 2), (Z, 4)], 1), (PP [(Y, 3), (Z, 2)], -2)])
-      (MP [(PP [(Y, 2), (Z, 1)], 1::rat), (PP [(Z, 3)], 2)]) =
-    MP [(PP [(Z, 2), (Y, 3)], - 2), (PP [(X, 2), (Z, 2), (Y, 2)], - 1 / 2)]"
+  "spoly_drlex (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) (Y\<^sup>2 * Z + 2 * Z ^ 3) =
+    -2 * Y ^ 3 * Z\<^sup>2 - (Const\<^sub>0 (1 / 2)) * X\<^sup>2 * Y\<^sup>2 * Z\<^sup>2"
   by eval
 
 lemma
   "gb_drlex
     [
-     (MP [(PP [(X, 2), (Z, 4)], 1), (PP [(Y, 3), (Z, 2)], -2)], ()),
-     (MP [(PP [(Y, 2), (Z, 1)], 1::rat), (PP [(Z, 3)], 2)], ())
+     (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2, ()),
+     (Y\<^sup>2 * Z + 2 * Z ^ 3, ())
     ] () =
     [
-     (MP [(PP [(Z, 2), (Y, 3)], - 2), (PP [(X, 2), (Z, 2), (Y, 2)], - 1 / 2)], ()),
-     (MP [(PP [(X, 2), (Z, 4)], 1), (PP [(Y, 3), (Z, 2)], - 2)], ()),
-     (MP [(PP [(Y, 2), (Z, 1)], 1), (PP [(Z, 3)], 2)], ()),
-     (MP [(PP [(X, 2), (Z, 1), (Y, 4)], - 1 / 2), (PP [(Z, 1), (Y, 5)], - 2)], ())
+     (-2 * Y ^ 3 * Z\<^sup>2 - (Const\<^sub>0 (1 / 2)) * X\<^sup>2 * Y\<^sup>2 * Z\<^sup>2, ()),
+     (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2, ()),
+     (Y\<^sup>2 * Z + 2 * Z ^ 3, ()),
+     (- (Const\<^sub>0 (1 / 2)) * X\<^sup>2 * Y ^ 4 * Z - 2 * Y ^ 5 * Z, ())
     ]"
   by eval
 
 lemma
   "gb_drlex
     [
-     (MP [(PP [(X, 2), (Z, 2)], 1), (PP [(Y, 1)], -1)], ()),
-     (MP [(PP [(Y, 2), (Z, 1)], 1::rat), (0, -1)], ())
+     (X\<^sup>2 * Z\<^sup>2 - Y, ()),
+     (Y\<^sup>2 * Z - 1, ())
     ] () =
     [
-     (MP [(PP [(Y, 3)], - 1), (PP [(X, 2), (Z, 1)], 1)], ()),
-     (MP [(PP [(X, 2), (Z, 2)], 1), (PP [(Y, 1)], - 1)], ()),
-     (MP [(PP [(Y, 2), (Z, 1)], 1), (0, - 1)], ())
+     (- (Y ^ 3) + X\<^sup>2 * Z, ()),
+     (X\<^sup>2 * Z\<^sup>2 - Y, ()),
+     (Y\<^sup>2 * Z - 1, ())
     ]"
   by eval
 
 lemma
   "gb_drlex
     [
-     (MP [(PP [(X, 3)], 1), (PP [(X, 1), (Y, 1), (Z, 2)], -1)], ()),
-     (MP [(PP [(Y, 2), (Z, 1)], 1::rat), (0, -1)], ())
+     (X ^ 3 - X * Y * Z\<^sup>2, ()),
+     (Y\<^sup>2 * Z - 1, ())
     ] () =
     [
-     (MP [(PP [(X, 3), (Y, 1)], - 1), (PP [(X, 1), (Z, 1)], 1)], ()),
-     (MP [(PP [(X, 3)], 1), (PP [(X, 1), (Y, 1), (Z, 2)], - 1)], ()),
-     (MP [(PP [(Y, 2), (Z, 1)], 1), (0, - 1)], ()),
-     (MP [(PP [(X, 1), (Z, 3)], - 1), (PP [(X, 5)], 1)], ())
+     (- (X ^ 3 * Y) + X * Z, ()),
+     (X ^ 3 - X * Y * Z\<^sup>2, ()),
+     (Y\<^sup>2 * Z - 1, ()),
+     (- (X * Z ^ 3) + X ^ 5, ())
     ]"
   by eval
 
 lemma
   "gb_drlex
     [
-     (MP [(PP [(X, 2)], 1), (PP [(Y, 2)], 1), (PP [(Z, 2)], 1::rat), (0, -1)], ()),
-     (MP [(PP [(X, 1), (Y, 1)], 1), (PP [(Z, 1)], -1), (0, -1)], ()),
-     (MP [(PP [(Y, 2)], 1), (PP [(X, 1)], 1)], ()),
-     (MP [(PP [(Z, 2)], 1), (PP [(X, 1)], 1)], ())
+     (X\<^sup>2 + Y\<^sup>2 + Z\<^sup>2 - 1, ()),
+     (X * Y - Z - 1, ()),
+     (Y\<^sup>2 + X, ()),
+     (Z\<^sup>2 + X, ())
     ] () =
     [
-     (MP [(0, 1)], ())
+     (1, ())
     ]"
   by eval
+
+end
 
 value [code] "gb_drlex (map (\<lambda>p. (p, ())) (cyclic 4)) ()"
 
