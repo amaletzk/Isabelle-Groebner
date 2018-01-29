@@ -48,37 +48,37 @@ global_interpretation opp_dlex: gd_powerprod dlex_pm dlex_pm_strict
   subgoal by (erule dlex_pm_plus_monotone)
   done
 
-abbreviation PP :: "('a \<times> nat) list \<Rightarrow> 'a \<Rightarrow>\<^sub>0 nat" where "PP \<equiv> PM"
+experiment begin interpretation trivariate\<^sub>0_rat .
 
 lemma
   "rgb_dlex
     [
-     (MP [(PP [(X, 3)], 1), (PP [(X, 1), (Y, 1), (Z, 2)], -1)]),
-     (MP [(PP [(Y, 2), (Z, 1)], 1::rat), (0, -1)])
+     X ^ 3 - X * Y * Z\<^sup>2,
+     Y\<^sup>2 * Z - 1
     ] =
     [
-     (MP [(PP [(X, 5)], 1), (PP [(X, 1), (Z, 3)], -1)]),
-     (MP [(PP [(X, 3), (Y, 1)], 1), (PP [(X, 1), (Z, 1)], -1)]),
-     (MP [(PP [(X, 3)], -1), (PP [(X, 1), (Y, 1), (Z, 2)], 1)]),
-     (MP [(PP [(Y, 2), (Z, 1)], 1::rat), (0, -1)])
+     X ^ 5 - X * Z ^ 3,
+     X ^ 3 * Y - X * Z,
+     - (X ^ 3) + X * Y * Z\<^sup>2,
+     Y\<^sup>2 * Z - 1
     ]"
   by eval
 
 lemma
   "rgb_dlex
     [
-     (MP [(PP [(X, 2)], 1), (PP [(Y, 2)], 1), (PP [(Z, 2)], 1::rat), (0, -1)]),
-     (MP [(PP [(X, 1), (Y, 1)], 1), (PP [(Z, 1)], -1), (0, -1)]),
-     (MP [(PP [(Y, 2)], 1), (PP [(X, 1)], 1)]),
-     (MP [(PP [(Z, 2)], 1), (PP [(X, 1)], 1)])
+     X\<^sup>2 + Y\<^sup>2 + Z\<^sup>2 - 1,
+     X * Y - Z - 1,
+     Y\<^sup>2 + X,
+     Z\<^sup>2 + X
     ] =
     [
-     (MP [(0, 1)])
+     1
     ]"
   by eval
 
 text \<open>Note: The above computations have been cross-checked with Mathematica 11.1.\<close>
 
-hide_const (open) MPoly_Type_Class_FMap.X MPoly_Type_Class_FMap.Y MPoly_Type_Class_FMap.Z
+end
 
 end (* theory *)
