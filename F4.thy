@@ -13,15 +13,15 @@ subsection \<open>Symbolic Preprocessing\<close>
 context gd_powerprod
 begin
 
-definition sym_preproc_aux_term1 :: "('a \<Rightarrow> nat) \<Rightarrow> ((('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) \<times>
-                                                (('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list)) set"
+definition sym_preproc_aux_term1 :: "('a \<Rightarrow> nat) \<Rightarrow> ((('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) \<times>
+                                                (('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list)) set"
   where "sym_preproc_aux_term1 d =
-            {((gs1, ts1, fs1), (gs2::('a \<Rightarrow>\<^sub>0 'b) list, ts2, fs2)). \<exists>t2\<in>set ts2. \<forall>t1\<in>set ts1. t1 \<prec> t2}"
+            {((gs1, ks1, ts1, fs1), (gs2::('a \<Rightarrow>\<^sub>0 'b) list, ks2, ts2, fs2)). \<exists>t2\<in>set ts2. \<forall>t1\<in>set ts1. t1 \<prec> t2}"
 
-definition sym_preproc_aux_term2 :: "('a \<Rightarrow> nat) \<Rightarrow> ((('a \<Rightarrow>\<^sub>0 'b::zero) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) \<times>
-                                                (('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list)) set"
+definition sym_preproc_aux_term2 :: "('a \<Rightarrow> nat) \<Rightarrow> ((('a \<Rightarrow>\<^sub>0 'b::zero) list \<times> 'a list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) \<times>
+                                                (('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list)) set"
   where "sym_preproc_aux_term2 d =
-            {((gs1, ts1, fs1), (gs2::('a \<Rightarrow>\<^sub>0 'b) list, ts2, fs2)). gs1 = gs2 \<and>
+            {((gs1, ks1, ts1, fs1), (gs2::('a \<Rightarrow>\<^sub>0 'b) list, ks2, ts2, fs2)). gs1 = gs2 \<and>
                                               dgrad_set_le d (set ts1) (Keys (set gs2) \<union> set ts2)}"
 
 definition sym_preproc_aux_term
@@ -47,55 +47,58 @@ qed
 
 lemma sym_preproc_aux_term1_wf_on:
   assumes "dickson_grading (+) d"
-  shows "wfP_on {x. set (fst (snd x)) \<subseteq> dgrad_set d m} (\<lambda>x y. (x, y) \<in> sym_preproc_aux_term1 d)"
+  shows "wfP_on {x. set (fst (snd (snd x))) \<subseteq> dgrad_set d m} (\<lambda>x y. (x, y) \<in> sym_preproc_aux_term1 d)"
 proof (rule wfP_onI_min)
   let ?B = "dgrad_set d m"
-  let ?A = "{x::(('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list). set (fst (snd x)) \<subseteq> ?B}"
-  have A_sub_Pow: "set ` fst ` snd ` ?A \<subseteq> Pow ?B" by auto
+  let ?A = "{x::(('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list). set (fst (snd (snd x))) \<subseteq> ?B}"
+  have A_sub_Pow: "set ` fst ` snd ` snd ` ?A \<subseteq> Pow ?B" by auto
   fix x Q
   assume "x \<in> Q" and "Q \<subseteq> ?A"
-  let ?Q = "{ordered_powerprod_lin.Max (set (fst (snd q))) | q. q \<in> Q \<and> fst (snd q) \<noteq> []}"
-  show "\<exists>z\<in>Q. \<forall>y\<in>{x. set (fst (snd x)) \<subseteq> dgrad_set d m}. (y, z) \<in> sym_preproc_aux_term1 d \<longrightarrow> y \<notin> Q"
-  proof (cases "\<exists>z\<in>Q. fst (snd z) = []")
+  let ?Q = "{ordered_powerprod_lin.Max (set (fst (snd (snd q)))) | q. q \<in> Q \<and> fst (snd (snd q)) \<noteq> []}"
+  show "\<exists>z\<in>Q. \<forall>y\<in>{x. set (fst (snd (snd x))) \<subseteq> dgrad_set d m}. (y, z) \<in> sym_preproc_aux_term1 d \<longrightarrow> y \<notin> Q"
+  proof (cases "\<exists>z\<in>Q. fst (snd (snd z)) = []")
     case True
-    then obtain z where "z \<in> Q" and "fst (snd z) = []" ..
+    then obtain z where "z \<in> Q" and "fst (snd (snd z)) = []" ..
     show ?thesis
     proof (intro bexI ballI impI)
       fix y
       assume "(y, z) \<in> sym_preproc_aux_term1 d"
-      then obtain t where "t \<in> set (fst (snd z))" unfolding sym_preproc_aux_term1_def by auto
-      with \<open>fst (snd z) = []\<close> show "y \<notin> Q" by simp
+      then obtain t where "t \<in> set (fst (snd (snd z)))" unfolding sym_preproc_aux_term1_def by auto
+      with \<open>fst (snd (snd z)) = []\<close> show "y \<notin> Q" by simp
     qed fact
   next
     case False
-    hence *: "q \<in> Q \<Longrightarrow> fst (snd q) \<noteq> []" for q by blast
-    with \<open>x \<in> Q\<close> have "fst (snd x) \<noteq> []" by simp
+    hence *: "q \<in> Q \<Longrightarrow> fst (snd (snd q)) \<noteq> []" for q by blast
+    with \<open>x \<in> Q\<close> have "fst (snd (snd x)) \<noteq> []" by simp
     from assms have "wfP_on ?B (\<prec>)" by (rule wfP_on_ord_strict)
-    moreover from \<open>x \<in> Q\<close> \<open>fst (snd x) \<noteq> []\<close> have "ordered_powerprod_lin.Max (set (fst (snd x))) \<in> ?Q"
-      by blast
+    moreover from \<open>x \<in> Q\<close> \<open>fst (snd (snd x)) \<noteq> []\<close>
+    have "ordered_powerprod_lin.Max (set (fst (snd (snd x)))) \<in> ?Q" by blast
     moreover have "?Q \<subseteq> ?B"
     proof (rule, simp, elim exE conjE, simp)
-      fix a b c
-      assume "(a, b, c) \<in> Q" and "b \<noteq> []"
-      from this(1) \<open>Q \<subseteq> ?A\<close> have "(a, b, c) \<in> ?A" ..
-      hence "set b \<subseteq> ?B" by simp
-      moreover from \<open>b \<noteq> []\<close> have "ordered_powerprod_lin.Max (set b) \<in> set b" by simp
-      ultimately show "ordered_powerprod_lin.Max (set b) \<in> ?B" ..
+      fix a b c d
+      assume "(a, b, c, d) \<in> Q" and "c \<noteq> []"
+      from this(1) \<open>Q \<subseteq> ?A\<close> have "(a, b, c, d) \<in> ?A" ..
+      hence "set c \<subseteq> ?B" by simp
+      moreover from \<open>c \<noteq> []\<close> have "ordered_powerprod_lin.Max (set c) \<in> set c" by simp
+      ultimately show "ordered_powerprod_lin.Max (set c) \<in> ?B" ..
     qed
     ultimately obtain t where "t \<in> ?Q" and min: "\<And>s. s \<prec> t \<Longrightarrow> s \<notin> ?Q" by (rule wfP_onE_min, blast)
-    from this(1) obtain z where "z \<in> Q" and "fst (snd z) \<noteq> []"
-      and t: "t = ordered_powerprod_lin.Max (set (fst (snd z)))" by blast
+    from this(1) obtain z where "z \<in> Q" and "fst (snd (snd z)) \<noteq> []"
+      and t: "t = ordered_powerprod_lin.Max (set (fst (snd (snd z))))" by blast
     show ?thesis
     proof (intro bexI ballI impI, rule)
       fix y
       assume "y \<in> ?A" and "(y, z) \<in> sym_preproc_aux_term1 d" and "y \<in> Q"
-      from this(2) obtain t' where "t' \<in> set (fst (snd z))" and **: "\<And>s. s \<in> set (fst (snd y)) \<Longrightarrow> s \<prec> t'"
+      from this(2) obtain t' where "t' \<in> set (fst (snd (snd z)))"
+        and **: "\<And>s. s \<in> set (fst (snd (snd y))) \<Longrightarrow> s \<prec> t'"
         unfolding sym_preproc_aux_term1_def by auto
-      from \<open>y \<in> Q\<close> have "fst (snd y) \<noteq> []" by (rule *)
-      with \<open>y \<in> Q\<close> have "ordered_powerprod_lin.Max (set (fst (snd y))) \<in> ?Q" (is "?s \<in> _") by blast
-      from \<open>fst (snd y) \<noteq> []\<close> have "?s \<in> set (fst (snd y))" by simp
+      from \<open>y \<in> Q\<close> have "fst (snd (snd y)) \<noteq> []" by (rule *)
+      with \<open>y \<in> Q\<close> have "ordered_powerprod_lin.Max (set (fst (snd (snd y)))) \<in> ?Q" (is "?s \<in> _")
+        by blast
+      from \<open>fst (snd (snd y)) \<noteq> []\<close> have "?s \<in> set (fst (snd (snd y)))" by simp
       hence "?s \<prec> t'" by (rule **)
-      also from \<open>t' \<in> set (fst (snd z))\<close> have "t' \<preceq> t" unfolding t using \<open>fst (snd z) \<noteq> []\<close> by simp
+      also from \<open>t' \<in> set (fst (snd (snd z)))\<close> have "t' \<preceq> t" unfolding t
+        using \<open>fst (snd (snd z)) \<noteq> []\<close> by simp
       finally have "?s \<notin> ?Q" by (rule min)
       from this \<open>?s \<in> ?Q\<close> show False ..
     qed fact
@@ -106,20 +109,20 @@ lemma sym_preproc_aux_term_wf:
   assumes "dickson_grading (+) d"
   shows "wf (sym_preproc_aux_term d)"
 proof (rule wfI_min)
-  fix x::"(('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list)" and Q
+  fix x::"(('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list)" and Q
   assume "x \<in> Q"
-  let ?A = "Keys (set (fst x)) \<union> set (fst (snd x))"
+  let ?A = "Keys (set (fst x)) \<union> set (fst (snd (snd x)))"
   have "finite ?A" by (simp add: finite_Keys)
   then obtain m where A: "?A \<subseteq> dgrad_set d m" by (rule dgrad_set_exhaust)
   let ?B = "dgrad_set d m"
-  let ?Q = "{q \<in> Q. Keys (set (fst q)) \<union> set (fst (snd q)) \<subseteq> ?B}"
-  from assms have "wfP_on {x. set (fst (snd x)) \<subseteq> ?B} (\<lambda>x y. (x, y) \<in> sym_preproc_aux_term1 d)"
+  let ?Q = "{q \<in> Q. Keys (set (fst q)) \<union> set (fst (snd (snd q))) \<subseteq> ?B}"
+  from assms have "wfP_on {x. set (fst (snd (snd x))) \<subseteq> ?B} (\<lambda>x y. (x, y) \<in> sym_preproc_aux_term1 d)"
     by (rule sym_preproc_aux_term1_wf_on)
   moreover from \<open>x \<in> Q\<close> A have "x \<in> ?Q" by simp
-  moreover have "?Q \<subseteq> {x. set (fst (snd x)) \<subseteq> ?B}" by auto
+  moreover have "?Q \<subseteq> {x. set (fst (snd (snd x))) \<subseteq> ?B}" by auto
   ultimately obtain z where "z \<in> ?Q"
     and *: "\<And>y. (y, z) \<in> sym_preproc_aux_term1 d \<Longrightarrow> y \<notin> ?Q" by (rule wfP_onE_min, blast)
-  from this(1) have "z \<in> Q" and a: "Keys (set (fst z)) \<union> set (fst (snd z)) \<subseteq> ?B" by simp_all
+  from this(1) have "z \<in> Q" and a: "Keys (set (fst z)) \<union> set (fst (snd (snd z))) \<subseteq> ?B" by simp_all
   show "\<exists>z\<in>Q. \<forall>y. (y, z) \<in> sym_preproc_aux_term d \<longrightarrow> y \<notin> Q"
   proof (intro bexI allI impI)
     fix y
@@ -127,10 +130,11 @@ proof (rule wfI_min)
     hence "(y, z) \<in> sym_preproc_aux_term1 d" and "(y, z) \<in> sym_preproc_aux_term2 d"
       by (simp_all add: sym_preproc_aux_term_def)
     from this(2) have "fst y = fst z"
-      and "dgrad_set_le d (set (fst (snd y))) (Keys (set (fst z)) \<union> set (fst (snd z)))"
+      and "dgrad_set_le d (set (fst (snd (snd y)))) (Keys (set (fst z)) \<union> set (fst (snd (snd z))))"
       by (auto simp add: sym_preproc_aux_term2_def)
-    from this(2) a have "set (fst (snd y)) \<subseteq> ?B" by (rule dgrad_set_le_dgrad_set)
-    hence "Keys (set (fst y)) \<union> set (fst (snd y)) \<subseteq> ?B" using a by (auto simp add: \<open>fst y = fst z\<close>)
+    from this(2) a have "set (fst (snd (snd y))) \<subseteq> ?B" by (rule dgrad_set_le_dgrad_set)
+    hence "Keys (set (fst y)) \<union> set (fst (snd (snd y))) \<subseteq> ?B"
+      using a by (auto simp add: \<open>fst y = fst z\<close>)
     moreover from \<open>(y, z) \<in> sym_preproc_aux_term1 d\<close> have "y \<notin> ?Q" by (rule *)
     ultimately show "y \<notin> Q" by simp
   qed fact
@@ -444,29 +448,30 @@ next
   qed
 qed
 
-function sym_preproc_aux :: "('a \<Rightarrow>\<^sub>0 'b::semiring_1) list \<Rightarrow> ('a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) list" where
-  "sym_preproc_aux gs (ts, fs) =
+function sym_preproc_aux :: "('a \<Rightarrow>\<^sub>0 'b::semiring_1) list \<Rightarrow> 'a list \<Rightarrow> ('a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) \<Rightarrow>
+                              ('a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list)" where
+  "sym_preproc_aux gs ks (ts, fs) =
     (if ts = [] then
-      fs
+      (ks, fs)
     else
       let t = ordered_powerprod_lin.max_list ts; ts' = removeAll t ts in
-        sym_preproc_aux gs (sym_preproc_addnew gs ts' fs t)
+        sym_preproc_aux gs (ks @ [t]) (sym_preproc_addnew gs ts' fs t)
     )"
   by pat_completeness auto
 termination proof -
   from ex_dgrad obtain d::"'a \<Rightarrow> nat" where dg: "dickson_grading (+) d" ..
-  let ?R = "(sym_preproc_aux_term d)::((('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) \<times>
-                                        ('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) set"
+  let ?R = "(sym_preproc_aux_term d)::((('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) \<times>
+                                        ('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) set"
   show ?thesis
   proof
     from dg show "wf ?R" by (rule sym_preproc_aux_term_wf)
   next
-    fix gs::"('a \<Rightarrow>\<^sub>0 'b) list" and ts fs t ts'
+    fix gs::"('a \<Rightarrow>\<^sub>0 'b) list" and ks ts fs t ts'
     assume "ts \<noteq> []" and "t = ordered_powerprod_lin.max_list ts" and ts': "ts' = removeAll t ts"
     from this(1, 2) have t: "t = ordered_powerprod_lin.Max (set ts)"
       by (simp add: ordered_powerprod_lin.max_list_Max)
     obtain ts0 fs0 where eq: "sym_preproc_addnew gs ts' fs t = (ts0, fs0)" by fastforce
-    show "((gs, sym_preproc_addnew gs ts' fs t), (gs, ts, fs)) \<in> ?R"
+    show "((gs, ks @ [t], sym_preproc_addnew gs ts' fs t), (gs, ks, ts, fs)) \<in> ?R"
     proof (simp add: eq sym_preproc_aux_term_def sym_preproc_aux_term1_def sym_preproc_aux_term2_def,
            intro conjI bexI ballI)
       fix s
@@ -491,12 +496,12 @@ termination proof -
   qed
 qed
 
-lemma sym_preproc_aux_Nil: "sym_preproc_aux gs ([], fs) = fs"
+lemma sym_preproc_aux_Nil: "sym_preproc_aux gs ks ([], fs) = (ks, fs)"
   by simp
 
 lemma sym_preproc_aux_sorted:
   assumes "sorted_wrt (\<succ>) (t # ts)"
-  shows "sym_preproc_aux gs (t # ts, fs) = sym_preproc_aux gs (sym_preproc_addnew gs ts fs t)"
+  shows "sym_preproc_aux gs ks (t # ts, fs) = sym_preproc_aux gs (ks @ [t]) (sym_preproc_addnew gs ts fs t)"
 proof -
   have "transp (\<succ>)" using transp_def by fastforce
   from assms have *: "s \<in> set ts \<Longrightarrow> s \<prec> t" for s by (simp add: sorted_wrt_Cons[OF \<open>transp (\<succ>)\<close>])
@@ -530,42 +535,47 @@ proof -
 qed
 
 lemma sym_preproc_aux_induct [consumes 0, case_names base rec]:
-  assumes base: "\<And>fs. P [] fs fs"
-    and rec: "\<And>ts fs t ts'. ts \<noteq> [] \<Longrightarrow> t = ordered_powerprod_lin.Max (set ts) \<Longrightarrow> ts' = removeAll t ts \<Longrightarrow>
-                P (fst (sym_preproc_addnew gs ts' fs t)) (snd (sym_preproc_addnew gs ts' fs t))
-                    (sym_preproc_aux gs (sym_preproc_addnew gs ts' fs t)) \<Longrightarrow>
-                P ts fs (sym_preproc_aux gs (sym_preproc_addnew gs ts' fs t))"
-  shows "P ts fs (sym_preproc_aux gs (ts, fs))"
+  assumes base: "\<And>ks fs. P ks [] fs (ks, fs)"
+    and rec: "\<And>ks ts fs t ts'. ts \<noteq> [] \<Longrightarrow> t = ordered_powerprod_lin.Max (set ts) \<Longrightarrow> ts' = removeAll t ts \<Longrightarrow>
+                P (ks @ [t]) (fst (sym_preproc_addnew gs ts' fs t)) (snd (sym_preproc_addnew gs ts' fs t))
+                    (sym_preproc_aux gs (ks @ [t]) (sym_preproc_addnew gs ts' fs t)) \<Longrightarrow>
+                P ks ts fs (sym_preproc_aux gs (ks @ [t]) (sym_preproc_addnew gs ts' fs t))"
+  shows "P ks ts fs (sym_preproc_aux gs ks (ts, fs))"
 proof -
   from ex_dgrad obtain d::"'a \<Rightarrow> nat" where dg: "dickson_grading (+) d" ..
-  let ?R = "(sym_preproc_aux_term d)::((('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) \<times>
-                                        ('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) set"
-  define args where "args = (gs, ts, fs)"
+  let ?R = "(sym_preproc_aux_term d)::((('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) \<times>
+                                        ('a \<Rightarrow>\<^sub>0 'b) list \<times> 'a list \<times> 'a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list) set"
+  define args where "args = (gs, ks, ts, fs)"
   from dg have "wf ?R" by (rule sym_preproc_aux_term_wf)
-  hence "fst args = gs \<Longrightarrow> P (fst (snd args)) (snd (snd args)) (sym_preproc_aux gs (snd args))"
+  hence "fst args = gs \<Longrightarrow> P (fst (snd args)) (fst (snd (snd args))) (snd (snd (snd args)))
+                              (sym_preproc_aux gs (fst (snd args)) (snd (snd args)))"
   proof induct
     fix x
     assume IH': "\<And>y. (y, x) \<in> sym_preproc_aux_term d \<Longrightarrow> fst y = gs \<Longrightarrow>
-                    P (fst (snd y)) (snd (snd y)) (sym_preproc_aux gs (snd y))"
+                    P (fst (snd y)) (fst (snd (snd y))) (snd (snd (snd y)))
+                      (sym_preproc_aux gs (fst (snd y)) (snd (snd y)))"
     assume "fst x = gs"
     then obtain x0 where x: "x = (gs, x0)" by (meson eq_fst_iff)
-    obtain ts fs where x0: "x0 = (ts, fs)" by (meson case_prodE case_prodI2)
-    from IH' have IH: "\<And>n. ((gs, n), (gs, ts, fs)) \<in> sym_preproc_aux_term d \<Longrightarrow>
-                            P (fst n) (snd n) (sym_preproc_aux gs n)" unfolding x x0 by fastforce
-    show "P (fst (snd x)) (snd (snd x)) (sym_preproc_aux gs (snd x))"
-    proof (simp add: x x0 Let_def, intro conjI impI)
-      show "P [] fs fs" by (fact base)
+    obtain ks x1 where x0: "x0 = (ks, x1)" by (meson case_prodE case_prodI2)
+    obtain ts fs where x1: "x1 = (ts, fs)" by (meson case_prodE case_prodI2)
+    from IH' have IH: "\<And>ks' n. ((gs, ks', n), (gs, ks, ts, fs)) \<in> sym_preproc_aux_term d \<Longrightarrow>
+                            P ks' (fst n) (snd n) (sym_preproc_aux gs ks' n)"
+      unfolding x x0 x1 by fastforce
+    show "P (fst (snd x)) (fst (snd (snd x))) (snd (snd (snd x)))
+            (sym_preproc_aux gs (fst (snd x)) (snd (snd x)))"
+    proof (simp add: x x0 x1 Let_def, intro conjI impI)
+      show "P ks [] fs (ks, fs)" by (fact base)
     next
       assume "ts \<noteq> []"
       define t where "t = ordered_powerprod_lin.max_list ts"
       from \<open>ts \<noteq> []\<close> have t_alt: "t = ordered_powerprod_lin.Max (set ts)" unfolding t_def
         by (rule ordered_powerprod_lin.max_list_Max)
       define ts' where "ts' = removeAll t ts"
-      show "P ts fs (sym_preproc_aux gs (sym_preproc_addnew gs ts' fs t))"
+      show "P ks ts fs (sym_preproc_aux gs (ks @ [t]) (sym_preproc_addnew gs ts' fs t))"
       proof (rule rec, fact \<open>ts \<noteq> []\<close>, fact t_alt, fact ts'_def)
         let ?n = "sym_preproc_addnew gs ts' fs t"
         obtain ts0 fs0 where eq: "?n = (ts0, fs0)" by fastforce
-        show "P (fst ?n) (snd ?n) (sym_preproc_aux gs ?n)"
+        show "P (ks @ [t]) (fst ?n) (snd ?n) (sym_preproc_aux gs (ks @ [t]) ?n)"
         proof (rule IH,
               simp add: eq sym_preproc_aux_term_def sym_preproc_aux_term1_def sym_preproc_aux_term2_def,
               intro conjI bexI ballI)
@@ -594,27 +604,90 @@ proof -
   thus ?thesis by (simp add: args_def)
 qed
 
-lemma sym_preproc_aux_superset: "set fs \<subseteq> set (sym_preproc_aux gs (ts, fs))"
-proof (induct rule: sym_preproc_aux_induct)
-  case (base fs)
-  show ?case ..
+lemma fst_sym_preproc_aux_sorted_wrt:
+  assumes "sorted_wrt (\<succ>) ks" and "\<And>k t. k \<in> set ks \<Longrightarrow> t \<in> set ts \<Longrightarrow> t \<prec> k"
+  shows "sorted_wrt (\<succ>) (fst (sym_preproc_aux gs ks (ts, fs)))"
+  using assms
+proof (induct gs ks ts fs rule: sym_preproc_aux_induct)
+  case (base ks fs)
+  from base(1) show ?case by simp
 next
-  case (rec ts fs t ts')
+  case (rec ks ts fs t ts')
+  from rec(1) have "t \<in> set ts" by (simp add: rec(2))
+  from rec(1) have *: "\<And>u. u \<in> set ts' \<Longrightarrow> u \<prec> t" unfolding rec(2, 3) set_removeAll
+    using ordered_powerprod_lin.antisym_conv3 by force
+  show ?case
+  proof (rule rec(4))
+    have tr: "transp (\<succ>)" unfolding transp_def by fastforce
+    show "sorted_wrt (\<succ>) (ks @ [t])"
+    proof (simp add: sorted_wrt_append[OF tr] rec(5), rule)
+      fix k
+      assume "k \<in> set ks"
+      from this \<open>t \<in> set ts\<close> show "t \<prec> k" by (rule rec(6))
+    qed
+  next
+    fix k s
+    assume "k \<in> set (ks @ [t])" and "s \<in> set (fst (sym_preproc_addnew gs ts' fs t))"
+    from * this(2) have "s \<prec> t" by (rule fst_sym_preproc_addnew_less)
+    from \<open>k \<in> set (ks @ [t])\<close> have "k \<in> set ks \<or> k = t" by auto
+    thus "s \<prec> k"
+    proof
+      assume "k \<in> set ks"
+      from this \<open>t \<in> set ts\<close> have "t \<prec> k" by (rule rec(6))
+      with \<open>s \<prec> t\<close> show ?thesis by simp
+    next
+      assume "k = t"
+      with \<open>s \<prec> t\<close> show ?thesis by simp
+    qed
+  qed
+qed
+
+lemma fst_sym_preproc_aux_complete:
+  assumes "Keys (set (fs::('a \<Rightarrow>\<^sub>0 'b::semiring_1_no_zero_divisors) list)) = set ks \<union> set ts"
+  shows "set (fst (sym_preproc_aux gs ks (ts, fs))) = Keys (set (snd (sym_preproc_aux gs ks (ts, fs))))"
+  using assms
+proof (induct gs ks ts fs rule: sym_preproc_aux_induct)
+  case (base ks fs)
+  thus ?case by simp
+next
+  case (rec ks ts fs t ts')
+  from rec(1) have "t \<in> set ts" by (simp add: rec(2))
+  hence eq: "insert t (set ts') = set ts" by (auto simp add: rec(3))
+  also from rec(5) have "... \<subseteq> Keys (set fs)" by simp
+  also from snd_sym_preproc_addnew_superset have "... \<subseteq> Keys (set (snd (sym_preproc_addnew gs ts' fs t)))"
+    by (rule Keys_mono)
+  finally have "... = ... \<union> (insert t (set ts'))" by blast
+  also have "... = Keys (set fs) \<union> insert t (set (fst (sym_preproc_addnew gs ts' fs t)))"
+    by (fact Keys_snd_sym_preproc_addnew)
+  also have "... = (set ks \<union> (insert t (set ts'))) \<union> (insert t (set (fst (sym_preproc_addnew gs ts' fs t))))"
+    by (simp only: rec(5) eq)
+  also have "... = set (ks @ [t]) \<union> (set ts' \<union> set (fst (sym_preproc_addnew gs ts' fs t)))" by auto
+  also from fst_sym_preproc_addnew_superset have "... = set (ks @ [t]) \<union> set (fst (sym_preproc_addnew gs ts' fs t))"
+    by blast
+  finally show ?case by (rule rec(4))
+qed
+
+lemma snd_sym_preproc_aux_superset: "set fs \<subseteq> set (snd (sym_preproc_aux gs ks (ts, fs)))"
+proof (induct fs rule: sym_preproc_aux_induct)
+  case (base ks fs)
+  show ?case by simp
+next
+  case (rec ks ts fs t ts')
   from snd_sym_preproc_addnew_superset rec(4) show ?case by (rule subset_trans)
 qed
 
-
-lemma in_sym_preproc_auxE:
-  assumes "p \<in> set (sym_preproc_aux gs (ts, fs))"
+lemma in_snd_sym_preproc_auxE:
+  assumes "p \<in> set (snd (sym_preproc_aux gs ks (ts, fs)))"
   assumes 1: "p \<in> set fs \<Longrightarrow> thesis"
   assumes 2: "\<And>g t. g \<in> set gs \<Longrightarrow> p = monom_mult 1 t g \<Longrightarrow> thesis"
   shows thesis
   using assms
-proof (induct gs ts fs arbitrary: thesis rule: sym_preproc_aux_induct)
-case (base fs)
-  from base(1) show ?case by (rule base(2))
+proof (induct gs ks ts fs arbitrary: thesis rule: sym_preproc_aux_induct)
+  case (base ks fs)
+  from base(1) have "p \<in> set fs" by simp
+  thus ?case by (rule base(2))
 next
-  case (rec ts fs t ts')
+  case (rec ks ts fs t ts')
   from rec(5) show ?case
   proof (rule rec(4))
     assume "p \<in> set (snd (sym_preproc_addnew gs ts' fs t))"
@@ -634,31 +707,31 @@ next
   qed
 qed
 
-lemma sym_preproc_aux_pideal:
-  "pideal (set gs \<union> set (sym_preproc_aux gs (ts, fs))) = pideal (set gs \<union> set fs)"
-proof (induct rule: sym_preproc_aux_induct)
-case (base fs)
-  show ?case ..
+lemma snd_sym_preproc_aux_pideal:
+  "pideal (set gs \<union> set (snd (sym_preproc_aux gs ks (ts, fs)))) = pideal (set gs \<union> set fs)"
+proof (induct fs rule: sym_preproc_aux_induct)
+  case (base ks fs)
+  show ?case by simp
 next
-  case (rec ts fs t ts')
+  case (rec ks ts fs t ts')
   from rec(4) sym_preproc_addnew_pideal show ?case by (rule trans)
 qed
 
-lemma sym_preproc_aux_dgrad_set_le:
+lemma snd_sym_preproc_aux_dgrad_set_le:
   assumes "dickson_grading (+) d" and "set ts \<subseteq> Keys (set (fs::('a \<Rightarrow>\<^sub>0 'b::semiring_1_no_zero_divisors) list))"
-  shows "dgrad_set_le d (Keys (set (sym_preproc_aux gs (ts, fs)))) (Keys (set gs \<union> set fs))"
+  shows "dgrad_set_le d (Keys (set (snd (sym_preproc_aux gs ks (ts, fs))))) (Keys (set gs \<union> set fs))"
   using assms(2)
-proof (induct rule: sym_preproc_aux_induct)
-  case (base fs)
+proof (induct fs rule: sym_preproc_aux_induct)
+  case (base ks fs)
   show ?case by (rule dgrad_set_le_subset, simp add: Keys_Un)
 next
-  case (rec ts fs t ts')
+  case (rec ks ts fs t ts')
   let ?n = "sym_preproc_addnew gs ts' fs t"
   from rec(1) have "t \<in> set ts" by (simp add: rec(2))
   hence set_ts: "insert t (set ts') = set ts" by (auto simp add: rec(3))
   from rec(5) have eq: "Keys (set fs) \<union> (Keys (set gs) \<union> set ts) = Keys (set gs) \<union> Keys (set fs)"
     by blast
-  have "dgrad_set_le d (Keys (set (sym_preproc_aux gs ?n))) (Keys (set gs \<union> set (snd ?n)))"
+  have "dgrad_set_le d (Keys (set (snd (sym_preproc_aux gs (ks @ [t]) ?n)))) (Keys (set gs \<union> set (snd ?n)))"
   proof (rule rec(4))
     have "set (fst ?n) \<subseteq> Keys (set (snd ?n)) \<union> insert t (set ts')"
       by (simp only: Keys_snd_sym_preproc_addnew, blast)
@@ -707,20 +780,22 @@ next
   finally show ?case .
 qed
 
-lemma sym_preproc_aux_complete:
+lemma snd_sym_preproc_aux_complete:
   assumes "\<And>s' g'. s' \<in> Keys (set fs) \<Longrightarrow> s' \<notin> set ts \<Longrightarrow> g' \<in> set gs \<Longrightarrow> lp g' adds s' \<Longrightarrow>
             monom_mult 1 (s' - lp g') g' \<in> set fs"
-  assumes "s \<in> Keys (set (sym_preproc_aux gs (ts, fs)))" and "g \<in> set gs" and "lp g adds s"
-  shows "monom_mult (1::'b::semiring_1_no_zero_divisors) (s - lp g) g \<in> set (sym_preproc_aux gs (ts, fs))"
+  assumes "s \<in> Keys (set (snd (sym_preproc_aux gs ks (ts, fs))))" and "g \<in> set gs" and "lp g adds s"
+  shows "monom_mult (1::'b::semiring_1_no_zero_divisors) (s - lp g) g \<in> set (snd (sym_preproc_aux gs ks (ts, fs)))"
   using assms
-proof (induct rule: sym_preproc_aux_induct)
-  case (base fs)
-  from base(2) _ base(3, 4) show ?case
+proof (induct fs rule: sym_preproc_aux_induct)
+  case (base ks fs)
+  from base(2) have "s \<in> Keys (set fs)" by simp
+  from this _ base(3, 4) have "monom_mult 1 (s - lp g) g \<in> set fs"
   proof (rule base(1))
     show "s \<notin> set []" by simp
   qed
+  thus ?case by simp
 next
-  case (rec ts fs t ts')
+  case (rec ks ts fs t ts')
   from rec(1) have "t \<in> set ts" by (simp add: rec(2))
   hence set_ts: "set ts = insert t (set ts')" by (auto simp add: rec(3))
 
@@ -754,47 +829,68 @@ next
   qed
 qed
 
-definition sym_preproc :: "('a \<Rightarrow>\<^sub>0 'b::semiring_1) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) list"
-  where "sym_preproc gs fs = sym_preproc_aux gs (Keys_to_list fs, fs)"
+definition sym_preproc :: "('a \<Rightarrow>\<^sub>0 'b::semiring_1) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a list \<times> ('a \<Rightarrow>\<^sub>0 'b) list)"
+  where "sym_preproc gs fs = sym_preproc_aux gs [] (Keys_to_list fs, fs)"
 
-lemma sym_preproc_Nil [simp]: "sym_preproc gs [] = []"
+lemma sym_preproc_Nil [simp]: "sym_preproc gs [] = ([], [])"
   by (simp add: sym_preproc_def)
 
-lemma sym_preproc_superset: "set fs \<subseteq> set (sym_preproc gs fs)"
-  unfolding sym_preproc_def by (fact sym_preproc_aux_superset)
+lemma fst_sym_preproc:
+  "fst (sym_preproc gs fs) = Keys_to_list (snd (sym_preproc gs (fs::('a \<Rightarrow>\<^sub>0 'b::semiring_1_no_zero_divisors) list)))"
+proof -
+  let ?a = "fst (sym_preproc gs fs)"
+  let ?b = "Keys_to_list (snd (sym_preproc gs fs))"
+  have "antisymp (\<succ>)" unfolding antisymp_def by fastforce
+  have "irreflp (\<succ>)" by (simp add: irreflp_def)
+  moreover have "transp (\<succ>)" unfolding transp_def by fastforce
+  moreover have s1: "sorted_wrt (\<succ>) ?a" unfolding sym_preproc_def
+    by (rule fst_sym_preproc_aux_sorted_wrt, simp_all)
+  ultimately have d1: "distinct ?a" by (rule distinct_sorted_wrt_irrefl)
+  have s2: "sorted_wrt (\<succ>) ?b" by (fact Keys_to_list_sorted_wrt)
+  with \<open>irreflp (\<succ>)\<close> \<open>transp (\<succ>)\<close> have d2: "distinct ?b" by (rule distinct_sorted_wrt_irrefl)
+  from \<open>transp (\<succ>)\<close> \<open>antisymp (\<succ>)\<close> s1 d1 s2 d2 show ?thesis
+  proof (rule sorted_wrt_distinct_set_unique)
+    show "set ?a = set ?b" unfolding set_Keys_to_list sym_preproc_def
+      by (rule fst_sym_preproc_aux_complete, simp add: set_Keys_to_list)
+  qed
+qed
 
-lemma in_sym_preprocE:
-  assumes "p \<in> set (sym_preproc gs fs)"
+lemma snd_sym_preproc_superset: "set fs \<subseteq> set (snd (sym_preproc gs fs))"
+  by (simp only: sym_preproc_def snd_conv, fact snd_sym_preproc_aux_superset)
+
+lemma in_snd_sym_preprocE:
+  assumes "p \<in> set (snd (sym_preproc gs fs))"
   assumes 1: "p \<in> set fs \<Longrightarrow> thesis"
   assumes 2: "\<And>g t. g \<in> set gs \<Longrightarrow> p = monom_mult 1 t g \<Longrightarrow> thesis"
   shows thesis
-  using assms unfolding sym_preproc_def by (rule in_sym_preproc_auxE)
+  using assms unfolding sym_preproc_def snd_conv by (rule in_snd_sym_preproc_auxE)
 
-lemma sym_preproc_pideal: "pideal (set gs \<union> set (sym_preproc gs fs)) = pideal (set gs \<union> set fs)"
-  unfolding sym_preproc_def by (fact sym_preproc_aux_pideal)
+lemma snd_sym_preproc_pideal: "pideal (set gs \<union> set (snd (sym_preproc gs fs))) = pideal (set gs \<union> set fs)"
+  unfolding sym_preproc_def snd_conv by (fact snd_sym_preproc_aux_pideal)
 
-lemma sym_preproc_dgrad_set_le:
+lemma snd_sym_preproc_dgrad_set_le:
   assumes "dickson_grading (+) d"
-  shows "dgrad_set_le d (Keys (set (sym_preproc gs fs))) (Keys (set gs \<union> set (fs::('a \<Rightarrow>\<^sub>0 'b::semiring_1_no_zero_divisors) list)))"
-  unfolding sym_preproc_def using assms
-proof (rule sym_preproc_aux_dgrad_set_le)
+  shows "dgrad_set_le d (Keys (set (snd (sym_preproc gs fs))))
+                        (Keys (set gs \<union> set (fs::('a \<Rightarrow>\<^sub>0 'b::semiring_1_no_zero_divisors) list)))"
+  unfolding sym_preproc_def snd_conv using assms
+proof (rule snd_sym_preproc_aux_dgrad_set_le)
   show "set (Keys_to_list fs) \<subseteq> Keys (set fs)" by (simp add: set_Keys_to_list)
 qed
 
-corollary sym_preproc_dgrad_p_set_le:
+corollary snd_sym_preproc_dgrad_p_set_le:
   assumes "dickson_grading (+) d"
-  shows "dgrad_p_set_le d (set (sym_preproc gs fs)) (set gs \<union> set (fs::('a \<Rightarrow>\<^sub>0 'b::semiring_1_no_zero_divisors) list))"
+  shows "dgrad_p_set_le d (set (snd (sym_preproc gs fs))) (set gs \<union> set (fs::('a \<Rightarrow>\<^sub>0 'b::semiring_1_no_zero_divisors) list))"
   unfolding dgrad_p_set_le_def
 proof -
-  from assms show "dgrad_set_le d (Keys (set (sym_preproc gs fs))) (Keys (set gs \<union> set fs))"
-    by (rule sym_preproc_dgrad_set_le)
+  from assms show "dgrad_set_le d (Keys (set (snd (sym_preproc gs fs)))) (Keys (set gs \<union> set fs))"
+    by (rule snd_sym_preproc_dgrad_set_le)
 qed
 
-lemma sym_preproc_complete:
-  assumes "t \<in> Keys (set (sym_preproc gs fs))" and "g \<in> set gs" and "lp g adds t"
-  shows "monom_mult (1::'b::semiring_1_no_zero_divisors) (t - lp g) g \<in> set (sym_preproc gs fs)"
-  using _ assms unfolding sym_preproc_def
-proof (rule sym_preproc_aux_complete)
+lemma snd_sym_preproc_complete:
+  assumes "t \<in> Keys (set (snd (sym_preproc gs fs)))" and "g \<in> set gs" and "lp g adds t"
+  shows "monom_mult (1::'b::semiring_1_no_zero_divisors) (t - lp g) g \<in> set (snd (sym_preproc gs fs))"
+  using _ assms unfolding sym_preproc_def snd_conv
+proof (rule snd_sym_preproc_aux_complete)
   fix s' and g'::"'a \<Rightarrow>\<^sub>0 'b"
   assume "s' \<in> Keys (set fs)" and "s' \<notin> set (Keys_to_list fs)"
   thus "monom_mult 1 (s' - lp g') g' \<in> set fs" by (simp add: set_Keys_to_list)
@@ -893,29 +989,33 @@ qed
 
 subsection \<open>Reduction\<close>
 
-definition Macaulay_red :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
-  where "Macaulay_red ps =
-     (let lps = map lp (filter (\<lambda>p. p \<noteq> 0) ps); ts = Keys_to_list ps in
-      filter (\<lambda>p. p \<noteq> 0 \<and> lp p \<notin> set lps) (mat_to_polys ts (row_echelon (polys_to_mat ts ps)))
+definition Macaulay_red :: "'a list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
+  where "Macaulay_red ts fs =
+     (let lps = map lp (filter (\<lambda>p. p \<noteq> 0) fs) in
+       filter (\<lambda>p. p \<noteq> 0 \<and> lp p \<notin> set lps) (mat_to_polys ts (row_echelon (polys_to_mat ts fs)))
      )"
 
-text \<open>@{term "Macaulay_red ps"} auto-reduces (w.\,r.\,t. @{const lin_red}) the given list @{term ps}
-  and returns those non-zero polynomials whose leading power-products are not in @{term "lp_set (set ps)"}.\<close>
+text \<open>@{term "Macaulay_red ts fs"} auto-reduces (w.\,r.\,t. @{const lin_red}) the given list @{term fs}
+  and returns those non-zero polynomials whose leading power-products are not in @{term "lp_set (set fs)"}.
+  Argument @{term ts} is expected to be @{term "Keys_to_list fs"}; this list is passed as an argument
+  to @{const Macaulay_red}, because it can be efficiently computed by symbolic preprocessing.\<close>
 
-lemma Macaulay_red_alt: "Macaulay_red ps = filter (\<lambda>p. lp p \<notin> lp_set (set ps)) (Macaulay_list ps)"
+lemma Macaulay_red_alt:
+  "Macaulay_red (Keys_to_list fs) fs = filter (\<lambda>p. lp p \<notin> lp_set (set fs)) (Macaulay_list fs)"
 proof -
-  have "{x \<in> set ps. x \<noteq> 0} = set ps - {0}" by blast
+  have "{x \<in> set fs. x \<noteq> 0} = set fs - {0}" by blast
   thus ?thesis by (simp add: Macaulay_red_def Macaulay_list_def Macaulay_mat_def lp_set_def Let_def)
 qed
 
-lemma set_Macaulay_red: "set (Macaulay_red ps) = set (Macaulay_list ps) - {p. lp p \<in> lp_set (set ps)}"
+lemma set_Macaulay_red:
+  "set (Macaulay_red (Keys_to_list fs) fs) = set (Macaulay_list fs) - {p. lp p \<in> lp_set (set fs)}"
   by (auto simp add: Macaulay_red_alt)
 
-lemma Keys_Macaulay_red: "Keys (set (Macaulay_red ps)) \<subseteq> Keys (set ps)"
+lemma Keys_Macaulay_red: "Keys (set (Macaulay_red (Keys_to_list fs) fs)) \<subseteq> Keys (set fs)"
 proof -
-  have "Keys (set (Macaulay_red ps)) \<subseteq> Keys (set (Macaulay_list ps))" unfolding set_Macaulay_red
-    by (fact Keys_minus)
-  also have "... \<subseteq> Keys (set ps)" by (fact Keys_Macaulay_list)
+  have "Keys (set (Macaulay_red (Keys_to_list fs) fs)) \<subseteq> Keys (set (Macaulay_list fs))"
+    unfolding set_Macaulay_red by (fact Keys_minus)
+  also have "... \<subseteq> Keys (set fs)" by (fact Keys_Macaulay_list)
   finally show ?thesis .
 qed
 
@@ -925,38 +1025,39 @@ context gd_powerprod
 begin
 
 lemma Macaulay_red_reducible:
-  assumes "f \<in> phull (set ps)" and "F \<subseteq> set ps" and "lp_set F = lp_set (set ps)"
-  shows "(lin_red (F \<union> set (Macaulay_red ps)))\<^sup>*\<^sup>* f 0"
+  assumes "f \<in> phull (set fs)" and "F \<subseteq> set fs" and "lp_set F = lp_set (set fs)"
+  shows "(lin_red (F \<union> set (Macaulay_red (Keys_to_list fs) fs)))\<^sup>*\<^sup>* f 0"
 proof -
-  define A where "A = F \<union> set (Macaulay_red ps)"
+  define A where "A = F \<union> set (Macaulay_red (Keys_to_list fs) fs)"
 
-  have phull_A: "phull A \<subseteq> phull (set ps)"
+  have phull_A: "phull A \<subseteq> phull (set fs)"
   proof (rule phull_subset_phullI, simp add: A_def, rule)
     have "F \<subseteq> phull F" by (rule generator_subset_phull)
-    also from assms(2) have "... \<subseteq> phull (set ps)" by (rule phull_mono)
-    finally show "F \<subseteq> phull (set ps)" .
+    also from assms(2) have "... \<subseteq> phull (set fs)" by (rule phull_mono)
+    finally show "F \<subseteq> phull (set fs)" .
   next
-    have "set (Macaulay_red ps) \<subseteq> set (Macaulay_list ps)" by (auto simp add: set_Macaulay_red)
-    also have "... \<subseteq> phull (set (Macaulay_list ps))" by (rule generator_subset_phull)
-    also have "... = phull (set ps)" by (rule phull_Macaulay_list)
-    finally show "set (Macaulay_red ps) \<subseteq> phull (set ps)" .
+    have "set (Macaulay_red (Keys_to_list fs) fs) \<subseteq> set (Macaulay_list fs)"
+      by (auto simp add: set_Macaulay_red)
+    also have "... \<subseteq> phull (set (Macaulay_list fs))" by (rule generator_subset_phull)
+    also have "... = phull (set fs)" by (rule phull_Macaulay_list)
+    finally show "set (Macaulay_red (Keys_to_list fs) fs) \<subseteq> phull (set fs)" .
   qed
 
-  have lp_A: "p \<in> phull (set ps) \<Longrightarrow> p \<noteq> 0 \<Longrightarrow> (\<And>g. g \<in> A \<Longrightarrow> g \<noteq> 0 \<Longrightarrow> lp g = lp p \<Longrightarrow> thesis) \<Longrightarrow> thesis"
+  have lp_A: "p \<in> phull (set fs) \<Longrightarrow> p \<noteq> 0 \<Longrightarrow> (\<And>g. g \<in> A \<Longrightarrow> g \<noteq> 0 \<Longrightarrow> lp g = lp p \<Longrightarrow> thesis) \<Longrightarrow> thesis"
     for p thesis
   proof -
-    assume "p \<in> phull (set ps)" and "p \<noteq> 0"
-    then obtain g where g_in: "g \<in> set (Macaulay_list ps)" and "g \<noteq> 0" and "lp p = lp g"
+    assume "p \<in> phull (set fs)" and "p \<noteq> 0"
+    then obtain g where g_in: "g \<in> set (Macaulay_list fs)" and "g \<noteq> 0" and "lp p = lp g"
       by (rule Macaulay_list_lp)
     assume *: "\<And>g. g \<in> A \<Longrightarrow> g \<noteq> 0 \<Longrightarrow> lp g = lp p \<Longrightarrow> thesis"
     show ?thesis
-    proof (cases "g \<in> set (Macaulay_red ps)")
+    proof (cases "g \<in> set (Macaulay_red (Keys_to_list fs) fs)")
       case True
       hence "g \<in> A" by (simp add: A_def)
       from this \<open>g \<noteq> 0\<close> \<open>lp p = lp g\<close>[symmetric] show ?thesis by (rule *)
     next
       case False
-      with g_in have "lp g \<in> lp_set (set ps)" by (simp add: set_Macaulay_red)
+      with g_in have "lp g \<in> lp_set (set fs)" by (simp add: set_Macaulay_red)
       also have "... = lp_set F" by (simp only: assms(3))
       finally obtain g' where "g' \<in> F" and "g' \<noteq> 0" and "lp g' = lp g" by (rule lp_setE)
       from this(1) have "g' \<in> A" by (simp add: A_def)
@@ -977,16 +1078,16 @@ proof -
   from this assms(1) \<open>f \<in> dgrad_p_set d m\<close> show "(lin_red A)\<^sup>*\<^sup>* f 0"
   proof (induct f)
     fix p
-    assume IH: "\<And>q. dickson_less_p d m q p \<Longrightarrow> q \<in> phull (set ps) \<Longrightarrow> q \<in> dgrad_p_set d m \<Longrightarrow>
+    assume IH: "\<And>q. dickson_less_p d m q p \<Longrightarrow> q \<in> phull (set fs) \<Longrightarrow> q \<in> dgrad_p_set d m \<Longrightarrow>
                     (lin_red A)\<^sup>*\<^sup>* q 0"
-      and "p \<in> phull (set ps)" and "p \<in> dgrad_p_set d m"
+      and "p \<in> phull (set fs)" and "p \<in> dgrad_p_set d m"
     show "(lin_red A)\<^sup>*\<^sup>* p 0"
     proof (cases "p = 0")
       case True
       thus ?thesis by simp
     next
       case False
-      with \<open>p \<in> phull (set ps)\<close> obtain g where "g \<in> A" and "g \<noteq> 0" and "lp g = lp p" by (rule lp_A)
+      with \<open>p \<in> phull (set fs)\<close> obtain g where "g \<in> A" and "g \<noteq> 0" and "lp g = lp p" by (rule lp_A)
       define q where "q = p - monom_mult (lc p / lc g) 0 g"
       from \<open>g \<in> A\<close> have lr: "lin_red A p q"
       proof (rule lin_redI)
@@ -1000,7 +1101,7 @@ proof -
         moreover from red have "q \<prec>p p" by (rule red_ord)
         ultimately have "dickson_less_p d m q p" using \<open>p \<in> dgrad_p_set d m\<close>
           by (simp add: dickson_less_p_def)
-        moreover from phull_A \<open>p \<in> phull (set ps)\<close> lr have "q \<in> phull (set ps)"
+        moreover from phull_A \<open>p \<in> phull (set fs)\<close> lr have "q \<in> phull (set fs)"
           by (rule phull_closed_lin_red)
         ultimately show ?thesis using \<open>q \<in> dgrad_p_set d m\<close> by (rule IH)
       qed
@@ -1102,14 +1203,15 @@ qed
 
 definition f4_red_aux :: "('a, 'b::field, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata_pair list \<Rightarrow>
                           ('a \<Rightarrow>\<^sub>0 'b) list"
-  where "f4_red_aux bs ps = Macaulay_red (sym_preproc (map fst bs) (pdata_pairs_to_list ps))"
+  where "f4_red_aux bs ps =
+            (let aux = sym_preproc (map fst bs) (pdata_pairs_to_list ps) in Macaulay_red (fst aux) (snd aux))"
 
 text \<open>@{const f4_red_aux} only takes two arguments, since it does not distinguish between those
-  elements of the current basis that is known to be a Gr\"obner basis (called ``gs'' in
+  elements of the current basis that are known to be a Gr\"obner basis (called ``gs'' in
   @{theory Algorithm_Schema}) and the remaining ones.\<close>
 
 lemma f4_red_aux_not_zero: "0 \<notin> set (f4_red_aux bs ps)"
-  by (simp add: f4_red_aux_def set_Macaulay_red set_Macaulay_list)
+  by (simp add: f4_red_aux_def Let_def fst_sym_preproc set_Macaulay_red set_Macaulay_list)
 
 lemma f4_red_aux_irredudible:
   assumes "h \<in> set (f4_red_aux bs ps)" and "b \<in> set bs" and "fst b \<noteq> 0"
@@ -1118,19 +1220,19 @@ proof
   from assms(1) f4_red_aux_not_zero have "h \<noteq> 0" by metis
   hence "lp h \<in> keys h" by (rule lp_in_keys)
   also from assms(1) have "... \<subseteq> Keys (set (f4_red_aux bs ps))" by (rule keys_subset_Keys)
-  also have "... \<subseteq> Keys (set (sym_preproc (map fst bs) (pdata_pairs_to_list ps)))"
-    (is "_ \<subseteq> Keys (set ?s)") unfolding f4_red_aux_def by (fact Keys_Macaulay_red)
+  also have "... \<subseteq> Keys (set (snd (sym_preproc (map fst bs) (pdata_pairs_to_list ps))))"
+    (is "_ \<subseteq> Keys (set ?s)") by (simp only: f4_red_aux_def Let_def fst_sym_preproc Keys_Macaulay_red)
   finally have "lp h \<in> Keys (set ?s)" .
   moreover from assms(2) have "fst b \<in> set (map fst bs)" by auto
   moreover assume a: "lp (fst b) adds lp h"
   ultimately have "monom_mult 1 (lp h - lp (fst b)) (fst b) \<in> set ?s" (is "?m \<in> _")
-    by (rule sym_preproc_complete)
+    by (rule snd_sym_preproc_complete)
   from assms(3) have "?m \<noteq> 0" by (simp add: monom_mult_0_iff)
   with \<open>?m \<in> set ?s\<close> have "lp ?m \<in> lp_set (set ?s)" by (rule lp_setI)
   moreover from assms(3) a have "lp ?m = lp h" by (simp add: lp_monom_mult adds_minus)
   ultimately have "lp h \<in> lp_set (set ?s)" by simp
   moreover from assms(1) have "lp h \<notin> lp_set (set ?s)"
-    by (simp add: f4_red_aux_def set_Macaulay_red)
+    by (simp add: f4_red_aux_def Let_def fst_sym_preproc set_Macaulay_red)
   ultimately show False by simp
 qed
 
@@ -1141,10 +1243,10 @@ lemma f4_red_aux_dgrad_p_set_le:
 proof
   fix s
   assume "s \<in> Keys (set (f4_red_aux bs ps))"
-  also have "... \<subseteq> Keys (set (sym_preproc (map fst bs) (pdata_pairs_to_list ps)))"
-    (is "_ \<subseteq> Keys (set ?s)") unfolding f4_red_aux_def by (fact Keys_Macaulay_red)
+  also have "... \<subseteq> Keys (set (snd (sym_preproc (map fst bs) (pdata_pairs_to_list ps))))"
+    (is "_ \<subseteq> Keys (set ?s)") by (simp only: f4_red_aux_def Let_def fst_sym_preproc Keys_Macaulay_red)
   finally have "s \<in> Keys (set ?s)" .
-  with sym_preproc_dgrad_set_le[OF assms] obtain t
+  with snd_sym_preproc_dgrad_set_le[OF assms] obtain t
     where "t \<in> Keys (set (map fst bs) \<union> set (pdata_pairs_to_list ps))" and "d s \<le> d t"
     by (rule dgrad_set_leE)
   from this(1) have "t \<in> Keys (fst ` set bs) \<or> t \<in> Keys (set (pdata_pairs_to_list ps))"
@@ -1226,17 +1328,17 @@ qed
 lemma pideal_f4_red_aux: "set (f4_red_aux bs ps) \<subseteq> pideal (args_to_set ([], bs, ps))"
 proof -
   have "set (f4_red_aux bs ps) \<subseteq>
-          set (Macaulay_list (sym_preproc (map fst bs) (pdata_pairs_to_list ps)))"
-    by (auto simp add: f4_red_aux_def set_Macaulay_red)
-  also have "... \<subseteq> pideal (set (Macaulay_list (sym_preproc (map fst bs) (pdata_pairs_to_list ps))))"
+          set (Macaulay_list (snd (sym_preproc (map fst bs) (pdata_pairs_to_list ps))))"
+    by (auto simp add: f4_red_aux_def Let_def fst_sym_preproc set_Macaulay_red)
+  also have "... \<subseteq> pideal (set (Macaulay_list (snd (sym_preproc (map fst bs) (pdata_pairs_to_list ps)))))"
     by (fact generator_subset_pideal)
-  also have "... = pideal (set (sym_preproc (map fst bs) (pdata_pairs_to_list ps)))"
+  also have "... = pideal (set (snd (sym_preproc (map fst bs) (pdata_pairs_to_list ps))))"
     by (fact pideal_Macaulay_list)
   also have "... \<subseteq> pideal (set (map fst bs) \<union>
-                        set (sym_preproc (map fst bs) (pdata_pairs_to_list ps)))"
+                        set (snd (sym_preproc (map fst bs) (pdata_pairs_to_list ps))))"
     by (rule pideal_mono, blast)
   also have "... = pideal (set (map fst bs) \<union> set (pdata_pairs_to_list ps))"
-    by (fact sym_preproc_pideal)
+    by (fact snd_sym_preproc_pideal)
   also have "... \<subseteq> pideal (args_to_set ([], bs, ps))"
   proof (rule pideal_subset_pidealI, simp only: Un_subset_iff, rule conjI)
     have "set (map fst bs) \<subseteq> args_to_set ([], bs, ps)" by (auto simp add: args_to_set_def)
@@ -1264,16 +1366,16 @@ lemma f4_red_aux_phull_reducible:
     and "f \<in> phull (set (pdata_pairs_to_list ps))"
   shows "(red (fst ` set bs \<union> set (f4_red_aux bs ps)))\<^sup>*\<^sup>* f 0"
 proof -
-  define s where "s = sym_preproc (map fst bs) (pdata_pairs_to_list ps)"
-  from assms(2) have f_in: "f \<in> phull (set s)"
+  define fs where "fs = snd (sym_preproc (map fst bs) (pdata_pairs_to_list ps))"
+  from assms(2) have f_in: "f \<in> phull (set fs)"
   proof
-    have "set (pdata_pairs_to_list ps) \<subseteq> set s" unfolding s_def by (fact sym_preproc_superset)
-    thus "phull (set (pdata_pairs_to_list ps)) \<subseteq> phull (set s)" by (rule phull_mono)
+    have "set (pdata_pairs_to_list ps) \<subseteq> set fs" unfolding fs_def by (fact snd_sym_preproc_superset)
+    thus "phull (set (pdata_pairs_to_list ps)) \<subseteq> phull (set fs)" by (rule phull_mono)
   qed
-  have eq: "(set s) \<union> set (f4_red_aux bs ps) = (set s) \<union> set (Macaulay_red s)"
-    by (simp add: f4_red_aux_def s_def)
+  have eq: "(set fs) \<union> set (f4_red_aux bs ps) = (set fs) \<union> set (Macaulay_red (Keys_to_list fs) fs)"
+    by (simp add: f4_red_aux_def fs_def Let_def fst_sym_preproc)
 
-  have "(lin_red ((set s) \<union> set (f4_red_aux bs ps)))\<^sup>*\<^sup>* f 0"
+  have "(lin_red ((set fs) \<union> set (f4_red_aux bs ps)))\<^sup>*\<^sup>* f 0"
     by (simp only: eq, rule Macaulay_red_reducible, fact f_in, fact subset_refl, fact refl)
   thus ?thesis
   proof induct
@@ -1283,10 +1385,10 @@ proof -
     case (step y z)
     from step(2) have "red (fst ` set bs \<union> set (f4_red_aux bs ps)) y z" unfolding lin_red_Un
     proof
-      assume "lin_red (set s) y z"
-      then obtain a where "a \<in> set s" and r: "red_single y z a 0" by (rule lin_redE)
-      from this(1) obtain b c t where "b \<in> fst ` set bs" and a: "a = monom_mult c t b" unfolding s_def
-      proof (rule in_sym_preprocE)
+      assume "lin_red (set fs) y z"
+      then obtain a where "a \<in> set fs" and r: "red_single y z a 0" by (rule lin_redE)
+      from this(1) obtain b c t where "b \<in> fst ` set bs" and a: "a = monom_mult c t b" unfolding fs_def
+      proof (rule in_snd_sym_preprocE)
         assume *: "\<And>b c t. b \<in> fst ` set bs \<Longrightarrow> a = monom_mult c t b \<Longrightarrow> thesis"
         assume "a \<in> set (pdata_pairs_to_list ps)"
         then obtain f g where "(f, g) \<in> set ps \<or> (g, f) \<in> set ps"
