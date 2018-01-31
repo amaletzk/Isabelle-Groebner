@@ -151,4 +151,6 @@ end
 
 value [code] "f4_drlex (map (\<lambda>p. (p, ())) (cyclic 4)) ()"
 
+value [code] "f4_drlex (map (\<lambda>p. (p, ())) (Katsura 2)) ()"
+
 end (* theory *)
