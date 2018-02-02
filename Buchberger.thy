@@ -171,18 +171,18 @@ proof -
 qed
 
 definition gb_red :: "('a, 'b::field, 'c::default, 'd) rcpT"
-  where "gb_red gs bs ps data = (map (\<lambda>h. (h, default)) (gb_red_aux (gs @ bs) ps), data)"
+  where "gb_red gs bs ps data = (map (\<lambda>h. (h, default)) (gb_red_aux (gs @ bs) ps), snd data)"
 
 lemma fst_set_fst_gb_red: "fst ` set (fst (gb_red gs bs ps data)) = set (gb_red_aux (gs @ bs) ps)"
   by (simp add: gb_red_def, force)
 
 lemma rcp_spec_gb_red: "rcp_spec gb_red"
 proof (rule rcp_specI)
-  fix gs bs::"('a, 'b, 'c) pdata list" and ps and data::'d
+  fix gs bs::"('a, 'b, 'c) pdata list" and ps and data::"nat \<times> 'd"
   from gb_red_aux_not_zero show "0 \<notin> fst ` set (fst (gb_red gs bs ps data))"
     unfolding fst_set_fst_gb_red .
 next
-  fix gs bs::"('a, 'b, 'c) pdata list" and ps h b and data::'d
+  fix gs bs::"('a, 'b, 'c) pdata list" and ps h b and data::"nat \<times> 'd"
   assume "h \<in> set (fst (gb_red gs bs ps data))" and "b \<in> set bs"
   from this(1) have "fst h \<in> fst ` set (fst (gb_red gs bs ps data))" by simp
   hence "fst h \<in> set (gb_red_aux (gs @ bs) ps)" by (simp only: fst_set_fst_gb_red)
@@ -190,7 +190,7 @@ next
   moreover assume "fst b \<noteq> 0"
   ultimately show "\<not> lp (fst b) adds lp (fst h)" by (rule gb_red_aux_irredudible)
 next
-  fix gs bs::"('a, 'b, 'c) pdata list" and ps and d::"'a \<Rightarrow> nat" and data::'d
+  fix gs bs::"('a, 'b, 'c) pdata list" and ps and d::"'a \<Rightarrow> nat" and data::"nat \<times> 'd"
   assume "dickson_grading (+) d"
   hence "dgrad_p_set_le d (set (gb_red_aux (gs @ bs) ps)) (args_to_set ([], gs @ bs, ps))"
     by (rule gb_red_aux_dgrad_p_set_le)
@@ -198,7 +198,7 @@ next
   finally show "dgrad_p_set_le d (fst ` set (fst (gb_red gs bs ps data))) (args_to_set (gs, bs, ps))"
     by (simp only: fst_set_fst_gb_red)
 next
-  fix gs bs::"('a, 'b, 'c) pdata list" and ps and data::'d
+  fix gs bs::"('a, 'b, 'c) pdata list" and ps and data::"nat \<times> 'd"
   have "set (gb_red_aux (gs @ bs) ps) \<subseteq> pideal (args_to_set ([], gs @ bs, ps))"
     by (fact pideal_gb_red_aux)
   also have "... = pideal (args_to_set (gs, bs, ps))" by (simp add: args_to_set_alt image_Un)
@@ -214,7 +214,7 @@ next
     "fst ` set (fst (gb_red gs bs ps data)) \<subseteq> pideal (args_to_set (gs, bs, ps)) \<and>
      (\<forall>(p, q)\<in>set ps.
          set ps \<subseteq> set bs \<times> (set gs \<union> set bs) \<longrightarrow>
-         (red (fst ` (set gs \<union> set bs \<union> set (fst (gb_red gs bs ps data)))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0)"
+         (red (fst ` (set gs \<union> set bs) \<union> fst ` set (fst (gb_red gs bs ps data))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0)"
     by (auto simp add: image_Un fst_set_fst_gb_red)
 qed
 
@@ -226,7 +226,7 @@ primrec gb_sel :: "('a, 'b::zero, 'c, 'd) selT" where
 
 lemma sel_spec_gb_sel: "sel_spec gb_sel"
 proof (rule sel_specI)
-  fix gs bs :: "('a, 'b, 'c) pdata list" and ps::"('a, 'b, 'c) pdata_pair list" and data::'d
+  fix gs bs :: "('a, 'b, 'c) pdata list" and ps::"('a, 'b, 'c) pdata_pair list" and data::"nat \<times> 'd"
   assume "ps \<noteq> []"
   then obtain p ps' where ps: "ps = p # ps'" by (meson list.exhaust)
   show "gb_sel gs bs ps data \<noteq> [] \<and> set (gb_sel gs bs ps data) \<subseteq> set ps" by (simp add: ps)
@@ -248,13 +248,13 @@ lemmas compl_conn_gb_compl = compl_conn_discard_red_cp[OF crit_spec_pc_crit rcp_
 
 lemmas compl_pideal_gb_compl = compl_pideal_discard_red_cp[OF rcp_spec_gb_red]
 
-definition gb_aux :: "'d \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+definition gb_aux :: "nat \<times> 'd \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
                    ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b::field, 'c::default) pdata list"
   where "gb_aux = gb_schema_aux gb_sel gb_ap gb_ab gb_compl"
 
 lemmas gb_aux_simps [code] = gb_schema_aux_simp[OF struct_spec_gb, folded gb_aux_def]
 
-definition gb :: "('a, 'b, 'c) pdata list \<Rightarrow> 'd \<Rightarrow> ('a, 'b::field, 'c::default) pdata list"
+definition gb :: "('a, 'b, 'c) pdata' list \<Rightarrow> 'd \<Rightarrow> ('a, 'b::field, 'c::default) pdata' list"
   where "gb = gb_schema_direct gb_sel gb_ap gb_ab gb_compl"
 
 lemmas gb_simps [code] = gb_schema_direct_def[of "gb_sel" "gb_ap" "gb_ab" "gb_compl", folded gb_def gb_aux_def]
