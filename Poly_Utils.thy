@@ -331,7 +331,37 @@ next
     show "monom_mult c 0 a + ?x \<in> ?A" by (rule phull_closed_plus, rule monom_mult_in_phull, simp, fact)
   qed
 qed
-    
+
+lemma phull_closed_sum:
+  assumes "\<And>a. a \<in> A \<Longrightarrow> f a \<in> phull B"
+  shows "(\<Sum>a\<in>A. f a) \<in> phull B"
+proof (cases "finite A")
+  case True
+  from this assms show ?thesis
+  proof induct
+    case empty
+    thus ?case by (simp add: zero_in_phull)
+  next
+    case (insert a A)
+    show ?case
+    proof (simp only: sum.insert[OF insert(1, 2)], rule phull_closed_plus)
+      have "a \<in> insert a A" by simp
+      thus "f a \<in> phull B" by (rule insert.prems)
+    next
+      show "sum f A \<in> phull B"
+      proof (rule insert(3))
+        fix b
+        assume "b \<in> A"
+        hence "b \<in> insert a A" by simp
+        thus "f b \<in> phull B" by (rule insert.prems)
+      qed
+    qed
+  qed
+next
+  case False
+  thus ?thesis by (simp add: zero_in_phull)
+qed
+
 subsection \<open>Bounded Support\<close>
   
 definition has_bounded_keys :: "nat \<Rightarrow> ('a, 'b::zero) poly_mapping \<Rightarrow> bool" where

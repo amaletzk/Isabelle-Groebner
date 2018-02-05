@@ -415,6 +415,9 @@ definition maxdeg :: "(('n \<Rightarrow>\<^sub>0 'a::add_linorder) \<Rightarrow>
 definition mindeg :: "(('n \<Rightarrow>\<^sub>0 'a::add_linorder) \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> 'a" where
   "mindeg A = Min (poly_deg ` A)"
 
+lemma poly_deg_zero [simp]: "poly_deg 0 = 0"
+  by (simp add: poly_deg_def)
+
 lemma poly_deg_max_keys:
   assumes "t \<in> keys p"
   shows "deg_pm t \<le> poly_deg p"
