@@ -635,7 +635,7 @@ next
   show ?case unfolding eq by (simp add: Cons del: upt_Suc)
 qed
 
-section \<open>Sums\<close>
+section \<open>Sums and Products\<close>
 
 lemma additive_implies_homogenous:
   assumes "\<And>x y. f (x + y) = f x + ((f (y::'a::monoid_add))::'b::cancel_comm_monoid_add)"
@@ -648,9 +648,9 @@ qed
 
 lemma fun_sum_commute:
   assumes "f 0 = 0" and "\<And>x y. f (x + y) = f x + f y"
-  shows "f (sum g A) = sum (f \<circ> g) A"
+  shows "f (sum g A) = (\<Sum>a\<in>A. f (g a))"
 proof (cases "finite A")
-case True
+  case True
   thus ?thesis
   proof (induct A)
     case empty
@@ -666,7 +666,7 @@ qed
 
 lemma fun_sum_commute_canc:
   assumes "\<And>x y. f (x + y) = f x + ((f y)::'a::cancel_comm_monoid_add)"
-  shows "f (sum g A) = sum (f \<circ> g) A"
+  shows "f (sum g A) = (\<Sum>a\<in>A. f (g a))"
   by (rule fun_sum_commute, rule additive_implies_homogenous, fact+)
 
 lemma fun_sum_list_commute:
@@ -700,5 +700,23 @@ lemma sum_list_zeroI:
   assumes "set xs \<subseteq> {0}"
   shows "sum_list xs = 0"
   using assms by (induct xs, auto)
+
+lemma fun_prod_commute:
+  assumes "f 1 = 1" and "\<And>x y. f (x * y) = f x * f y"
+  shows "f (prod g A) = (\<Prod>a\<in>A. f (g a))"
+proof (cases "finite A")
+  case True
+  thus ?thesis
+  proof (induct A)
+    case empty
+    thus ?case by (simp add: assms(1))
+  next
+    case step: (insert a A)
+    show ?case by (simp add: prod.insert[OF step(1) step(2)] assms(2) step(3))
+  qed
+next
+  case False
+  thus ?thesis by (simp add: assms(1))
+qed
 
 end (* theory *)
