@@ -1,5 +1,7 @@
+(* Author: Alexander Maletzky *)
+
 theory Binomials
-imports Reduced_GB Groebner_Bases.Buchberger_Algorithm
+  imports Reduced_GB Buchberger
 begin
 
 context ordered_powerprod
@@ -305,25 +307,28 @@ qed
 section \<open>Functions @{const gb} and @{term rgb}\<close>
 
 lemma comp_red_monic_basis_of_gb_is_reduced_GB:
-  shows "is_reduced_GB (set (comp_red_monic_basis (gb xs)))"
-  by (rule comp_red_monic_basis_is_reduced_GB, rule gb_isGB)
+  "is_reduced_GB (set (comp_red_monic_basis (map fst (gb xs ()))))"
+  by (rule comp_red_monic_basis_is_reduced_GB, simp, rule gb_isGB)
     
 lemma comp_red_monic_basis_of_gb_pideal:
-  shows "pideal (set (comp_red_monic_basis (gb xs))) = pideal (set xs)"
+  "pideal (set (comp_red_monic_basis (map fst (gb xs ())))) = pideal (fst ` set xs)" (is "?l = ?r")
 proof -
-  have "pideal (set (comp_red_monic_basis (gb xs))) = pideal (set (gb xs))"
-    by (rule comp_red_monic_basis_pideal, rule gb_isGB)
-  also have "... = pideal (set xs)" by (rule gb_pideal)
+  have "?l = pideal (set (map fst (gb xs ())))"
+    by (rule comp_red_monic_basis_pideal, simp, rule gb_isGB)
+  also have "... = pideal (fst ` set (gb xs ()))" by simp
+  also have "... = ?r" by (rule gb_pideal)
   finally show ?thesis .
 qed
 
 definition rgb :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
-  where "rgb bs = comp_red_monic_basis (gb bs)"
+  where "rgb bs = comp_red_monic_basis (map fst (gb (map (\<lambda>b. (b, ())) bs) ()))"
 
-lemma reduced_GB_comp:
-  shows "reduced_GB (set xs) = set (rgb xs)"
-  by (rule reduced_GB_unique_finite, simp_all add: rgb_def, rule comp_red_monic_basis_of_gb_is_reduced_GB,
-      rule comp_red_monic_basis_of_gb_pideal)
+lemma reduced_GB_comp: "reduced_GB (set xs) = set (rgb xs)"
+  apply (rule reduced_GB_unique_finite)
+  subgoal by (fact finite_set)
+  subgoal by (simp add: rgb_def, rule comp_red_monic_basis_of_gb_is_reduced_GB)
+  subgoal by (simp add: rgb_def comp_red_monic_basis_of_gb_pideal image_image)
+  done
 
 subsection \<open>Monomials\<close>
 
@@ -368,61 +373,101 @@ proof -
   show ?thesis unfolding p_def q_def by (rule spoly_monom, fact+)
 qed
 
-lemma gbaux_monomial_set:
-  assumes "add_pairs_set apf" and "\<And>p q. (p, q) \<in> (set ps) \<Longrightarrow> is_monomial p"
-    and "\<And>p q. (p, q) \<in> (set ps) \<Longrightarrow> is_monomial q"
-  shows "gbaux apf cf bs ps = bs"
-  using assms
-proof (induction rule: gbaux_induct)
-  case (base bs)
-  show ?case ..
-next
-  case (ind1 bs ps p q)
-  from ind1(2) show ?case
-  proof this
-    fix p0 q0
-    assume "(p0, q0) \<in> (set ps)"
-    hence "(p0, q0) \<in> (set ((p, q) # ps))" by simp
-    thus "is_monomial p0" by (rule \<open>(p0, q0) \<in> set ((p, q) # ps) \<Longrightarrow> is_monomial p0\<close>)
-  next
-    fix p0 q0
-    assume "(p0, q0) \<in> (set ps)"
-    hence "(p0, q0) \<in> (set ((p, q) # ps))" by simp
-    thus "is_monomial q0" by (rule \<open>(p0, q0) \<in> set ((p, q) # ps) \<Longrightarrow> is_monomial q0\<close>)
+lemma gb_compl_monomial_set:
+  assumes "\<And>p q. (p, q) \<in> set sps \<Longrightarrow> is_monomial (fst p) \<and> is_monomial (fst q)"
+  shows "fst (gb_compl gs bs ps sps data) = []"
+proof -
+  have "fst ` set (fst (gb_compl gs bs ps sps data)) = {}"
+  proof (simp only: discard_red_cp_def fst_set_fst_gb_red set_gb_red_aux Diff_eq_empty_iff)
+    have "set (discard_crit_pairs pc_crit gs bs ps sps data) \<subseteq> set sps"
+      by (simp add: set_discard_crit_pairs_partition[of sps pc_crit gs bs ps data])
+    hence "trdsp (map fst (gs @ bs)) ` set (discard_crit_pairs pc_crit gs bs ps sps data) \<subseteq>
+            trdsp (map fst (gs @ bs)) ` set sps" by (rule image_mono)
+    also have "... \<subseteq> {0}"
+    proof
+      fix h
+      assume "h \<in> trdsp (map fst (gs @ bs)) ` set sps"
+      then obtain p q where "(p, q) \<in> set sps" and h: "h = trdsp (map fst (gs @ bs)) (p, q)"
+        by fastforce
+      from this(1) have "is_monomial (fst p)" and "is_monomial (fst q)" by (simp_all add: assms)
+      hence spoly: "spoly (fst p) (fst q) = 0" by (rule spoly_monomial)
+      have "h = 0" unfolding h trdsp_alt spoly using rtrancl_0 trd_red_rtrancl by blast
+      thus "h \<in> {0}" by simp
+    qed
+    finally show "trdsp (map fst (gs @ bs)) ` set (discard_crit_pairs pc_crit gs bs ps sps data) \<subseteq> {0}" .
   qed
-next
-  case (ind2 bs ps p q h)
-  have "(p, q) \<in> (set ((p, q) # ps))" by simp
-  hence "is_monomial p" and "is_monomial q"
-    by (rule \<open>(p, q) \<in> set ((p, q) # ps) \<Longrightarrow> is_monomial p\<close>,
-        rule \<open>(p, q) \<in> set ((p, q) # ps) \<Longrightarrow> is_monomial q\<close>)
-  from \<open>h = trdsp bs p q\<close> have "h = 0"
-    unfolding trdsp_def spoly_monomial[OF \<open>is_monomial p\<close> \<open>is_monomial q\<close>]
-    using rtrancl_0 trd_red_rtrancl by blast
-  with \<open>h \<noteq> 0\<close> show ?case ..
+  thus ?thesis by simp
 qed
 
-lemma gb_param_monomial_set:
-  assumes "add_pairs_set apf" and "is_monomial_set (set bs)"
-  shows "gb_param apf cf bs = bs"
-  unfolding gb_param_def using assms(1)
-proof (rule gbaux_monomial_set)
-  fix p q
-  assume "(p, q) \<in> set (pairs apf bs)"
-  with assms(1) have "p \<in> set bs" by (rule pairsD1)
-  with assms(2) show "is_monomial p" by (rule is_monomial_setD)
+lemma gb_aux_monomial_set:
+  assumes "\<And>p q. (p, q) \<in> (set ps) \<Longrightarrow> is_monomial (fst p) \<and> is_monomial (fst q)"
+  assumes "gb_aux data gs bs ps = gs @ bs \<Longrightarrow> thesis"
+    and "gb_aux data gs bs ps = [(1, 0, default)] \<Longrightarrow> thesis"
+  shows thesis
+  using struct_spec_gb assms unfolding gb_aux_def
+proof (induct data gs bs ps arbitrary: thesis rule: gb_schema_aux_induct)
+  case (base bs data)
+  from refl show ?case by (rule base.prems(2))
 next
-  fix p q
-  assume "(p, q) \<in> set (pairs apf bs)"
-  with assms(1) have "q \<in> set bs" by (rule pairsD2)
-  with assms(2) show "is_monomial q" by (rule is_monomial_setD)
+  case (rec1 bs ps sps h data)
+  from refl show ?case by (rule rec1.prems(3))
+next
+  case (rec2 bs ps sps hs data data')
+  have *: "fst (gb_compl gs bs (ps -- sps) sps data) = []"
+  proof (rule gb_compl_monomial_set, rule rec2.prems)
+    fix p q
+    assume "(p, q) \<in> set sps"
+    also from sel_spec_gb_sel rec2(1) have "... \<subseteq> set ps" unfolding rec2(2) by (rule sel_specD2)
+    finally show "(p, q) \<in> set ps" .
+  qed
+  have "hs = fst (add_indices (gb_compl gs bs (ps -- sps) sps data) data)"
+    by (simp add: rec2(3)[symmetric])
+  also have "... = []" by (simp add: add_indices_def *)
+  finally have "hs = []" .
+  hence eq: "gb_ab gs bs hs data' = bs" by (simp add: add_basis_sorted_def)
+  show ?case
+  proof (rule rec2.hyps)
+    fix p q
+    assume "(p, q) \<in> set (gb_ap gs bs (ps -- sps) hs data')"
+    hence "(p, q) \<in> set ps" by (simp add: \<open>hs = []\<close> set_add_pairs_sorted set_diff_list)
+    thus "is_monomial (fst p) \<and> is_monomial (fst q)" by (rule rec2.prems(1))
+  qed (simp_all add: eq rec2.prems(2, 3))
 qed
 
-lemma gb_monomial_set:
-  assumes "is_monomial_set (set bs)"
-  shows "gb bs = bs"
-  unfolding gb_def by (rule gb_param_monomial_set, fact add_pairs_set_add_pairs_sorted, fact)
-  
+lemma gb_is_monomial_set:
+  assumes "is_monomial_set (fst ` set bs0)"
+  shows "is_monomial_set (fst ` set (gb bs0 ()))"
+proof (simp add: gb_simps Let_def fst_set_drop_indices)
+  define data where "data = (length bs0, ())"
+  define bs where "bs = fst (add_indices (bs0, ()) (0, ()))"
+  define bs' where "bs' = gb_ab [] [] bs data"
+  define ps where "ps = gb_ap [] [] [] bs data"
+  have bs: "fst ` set bs = fst ` set bs0" by (simp add: bs_def fst_set_add_indices)
+  show "is_monomial_set (fst ` set (gb_aux data [] bs' ps))"
+  proof (rule gb_aux_monomial_set)
+    fix p q
+    assume "(p, q) \<in> set ps"
+    also from ap_spec_add_pairs_sorted have "... \<subseteq> set [] \<union> set bs \<times> (set [] \<union> set [] \<union> set bs)"
+      unfolding ps_def by (rule ap_specD1)
+    also have "... = set bs \<times> set bs" by simp
+    finally have "(p, q) \<in> set bs \<times> set bs" .
+    hence "fst p \<in> fst ` set bs" and "fst q \<in> fst ` set bs" by simp_all
+    hence "fst p \<in> fst ` set bs0" and "fst q \<in> fst ` set bs0" by (simp_all only: bs)
+    thus "is_monomial (fst p) \<and> is_monomial (fst q)"
+      using assms unfolding is_monomial_set_def by auto
+  next
+    assume "gb_aux data [] bs' ps = [] @ bs'"
+    moreover have "fst ` set bs' = fst ` set bs0"
+      by (simp add: bs'_def ab_specD1[OF ab_spec_add_basis_sorted] bs)
+    ultimately show ?thesis by (simp add: assms)
+  next
+    assume eq: "gb_aux data [] bs' ps = [(1, 0, default)]"
+    show ?thesis
+      by (simp add: eq is_monomial_set_def single_one[symmetric] del: single_one,
+          rule monomial_is_monomial, simp)
+  qed
+qed
+
 subsection \<open>Binomials\<close>
 
 lemma spoly_binomial_monom:
@@ -539,105 +584,117 @@ proof -
   qed
 qed
 
-lemma gbaux_binomial_set:
-  assumes "add_pairs_set apf" and "\<And>p q. (p, q) \<in> (set ps) \<Longrightarrow> is_binomial p"
-    and "\<And>p q. (p, q) \<in> (set ps) \<Longrightarrow> is_binomial q" and "is_binomial_set (set bs)"
-  shows "is_binomial_set (set (gbaux apf cf bs ps))"
-  using assms
-proof (induction rule: gbaux_induct)
-  case (base bs)
-  from base(3) show ?case .
-next
-  case (ind1 bs ps p q)
-  from ind1(2) show ?case
-  proof this
-    fix p0 q0
-    assume "(p0, q0) \<in> (set ps)"
-    hence "(p0, q0) \<in> (set ((p, q)#ps))" by simp
-    thus "is_binomial p0" by (rule \<open>(p0, q0) \<in> set ((p, q) # ps) \<Longrightarrow> is_binomial p0\<close>)
-  next
-    fix p0 q0
-    assume "(p0, q0) \<in> (set ps)"
-    hence "(p0, q0) \<in> (set ((p, q)#ps))" by simp
-    thus "is_binomial q0" by (rule \<open>(p0, q0) \<in> set ((p, q) # ps) \<Longrightarrow> is_binomial q0\<close>)
-  qed fact
-next
-  case (ind2 bs ps p q h)
-  from \<open>h \<noteq> 0\<close> have "keys h \<noteq> {}" by simp
-  hence "card (keys h) \<noteq> 0" by simp
-  have "(p, q) \<in> (set ((p, q)#ps))" by simp
-  hence "is_binomial p" and "is_binomial q" by (rule ind2(5), rule ind2(6))
-  have "(red (set bs))\<^sup>*\<^sup>* (spoly p q) h" unfolding ind2(2) trdsp_def by (rule trd_red_rtrancl)
-  with ind2(7) have "card (keys h) \<le> card (keys (spoly p q))"
+lemma gb_compl_binomial_set:
+  assumes "\<And>p q. (p, q) \<in> set sps \<Longrightarrow> is_binomial (fst p) \<and> is_binomial (fst q)"
+    and "is_binomial_set (fst ` set gs)" and "is_binomial_set (fst ` set bs)"
+  shows "is_binomial_set (fst ` set (fst (gb_compl gs bs ps sps data)))"
+proof (simp only: discard_red_cp_def fst_set_fst_gb_red set_gb_red_aux is_binomial_set_def, rule)
+  fix h
+  assume "h \<in> trdsp (map fst (gs @ bs)) ` set (discard_crit_pairs pc_crit gs bs ps sps data) - {0}"
+  hence "h \<in> trdsp (map fst (gs @ bs)) ` set sps" and "h \<noteq> 0"
+    by (auto simp add: set_discard_crit_pairs_partition[of sps pc_crit gs bs ps data])
+  from this(1) obtain p q where "(p, q) \<in> set sps" and h: "h = trdsp (map fst (gs @ bs)) (p, q)"
+    by fastforce
+  from this(1) have "is_binomial (fst p)" and "is_binomial (fst q)" by (simp_all add: assms(1))
+  from assms(2, 3) have "is_binomial_set (set (map fst (gs @ bs)))"
+    by (auto simp add: is_binomial_set_def)
+  moreover have "(red (set (map fst (gs @ bs))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) h"
+    unfolding h trdsp_alt by (rule trd_red_rtrancl)
+  ultimately have "card (keys h) \<le> card (keys (spoly (fst p) (fst q)))"
     by (rule red_rtrancl_binomial_keys)
-  also from \<open>is_binomial p\<close> \<open>is_binomial q\<close> have "... \<le> 2" by (rule spoly_binomial_keys)
+  also from \<open>is_binomial (fst p)\<close> \<open>is_binomial (fst q)\<close> have "... \<le> 2" by (rule spoly_binomial_keys)
   finally have "card (keys h) \<le> 2" .
-  with \<open>card (keys h) \<noteq> 0\<close> have "is_binomial h" unfolding is_binomial_def by linarith
+  moreover from \<open>h \<noteq> 0\<close> have "card (keys h) \<noteq> 0" by simp
+  ultimately show "is_binomial h" unfolding is_binomial_def by linarith
+qed
+
+lemma gb_aux_binomial_set:
+  assumes "\<And>p q. (p, q) \<in> (set ps) \<Longrightarrow> is_binomial (fst p) \<and> is_binomial (fst q)"
+    and "is_binomial_set (fst ` set gs)" and "is_binomial_set (fst ` set bs)"
+  shows "is_binomial_set (fst ` set (gb_aux data gs bs ps))"
+   unfolding gb_aux_def using struct_spec_gb assms(1, 3)
+proof (induct data gs bs ps rule: gb_schema_aux_induct)
+  case (base bs data)
+  from assms(2) base(2) show ?case by (auto simp add: is_binomial_set_def)
+next
+  case (rec1 bs ps sps h data)
+  show ?case by (simp add: is_binomial_set_def is_binomial_def)
+next
+  case (rec2 bs ps sps hs data data')
+  have "is_binomial_set (fst ` set (fst (gb_compl gs bs (ps -- sps) sps data)))"
+  proof (rule gb_compl_binomial_set, rule rec2.prems)
+    fix p q
+    assume "(p, q) \<in> set sps"
+    also from sel_spec_gb_sel rec2(1) have "... \<subseteq> set ps" unfolding rec2(2) by (rule sel_specD2)
+    finally show "(p, q) \<in> set ps" .
+  qed fact+
+  moreover have "hs = fst (add_indices (gb_compl gs bs (ps -- sps) sps data) data)"
+    by (simp add: rec2(3)[symmetric])
+  ultimately have hs: "is_binomial_set (fst ` set hs)" by (simp add: fst_set_add_indices)
   show ?case
-  proof (rule ind2(4))
-    fix p0 q0
-    assume "(p0, q0) \<in> (set (apf ps bs h))"
-    from add_pairs_setD2[OF assms(1) this] show "is_binomial p0"
+  proof (rule rec2.hyps)
+    fix p q
+    assume "(p, q) \<in> set (gb_ap gs bs (ps -- sps) hs data')"
+    also from ap_spec_add_pairs_sorted have "... \<subseteq> set (ps -- sps) \<union> set hs \<times> (set gs \<union> set bs \<union> set hs)"
+      by (rule ap_specD1)
+    also have "... \<subseteq> set ps \<union> set hs \<times> (set gs \<union> set bs \<union> set hs)" by (auto simp add: set_diff_list)
+    finally show "is_binomial (fst p) \<and> is_binomial (fst q)"
     proof
-      assume "(p0, q0) \<in> set ps"
-      hence "(p0, q0) \<in> (set ((p, q) # ps))" by simp
-      thus ?thesis by (rule \<open>(p0, q0) \<in> set ((p, q) # ps) \<Longrightarrow> is_binomial p0\<close>)
+      assume "(p, q) \<in> set ps"
+      thus ?thesis by (rule rec2.prems(1))
     next
-      assume "p0 = h \<and> q0 \<in> set bs"
-      hence "p0 = h" ..
-      with \<open>is_binomial h\<close> show ?thesis by simp
-    qed
-  next
-    fix p0 q0
-    assume "(p0, q0) \<in> (set (apf ps bs h))"
-    from add_pairs_setD2[OF assms(1) this] show "is_binomial q0"
-    proof
-      assume "(p0, q0) \<in> set ps"
-      hence "(p0, q0) \<in> (set ((p, q)#ps))" by simp
-      thus ?thesis by (rule \<open>(p0, q0) \<in> set ((p, q) # ps) \<Longrightarrow> is_binomial q0\<close>)
-    next
-      assume "p0 = h \<and> q0 \<in> set bs"
-      hence "q0 \<in> set bs" ..
-      with ind2(7) show ?thesis by (rule is_binomial_setD)
-    qed
-  next
-    show "is_binomial_set (set (h # bs))"
-    proof (intro is_binomial_setI)
-      fix f
-      assume "f \<in> set (h # bs)"
-      hence "f \<in> insert h (set bs)" by simp
-      thus "is_binomial f"
-      proof (rule insertE)
-        assume "f = h"
-        with \<open>is_binomial h\<close> show ?thesis by simp
+      assume "(p, q) \<in> set hs \<times> (set gs \<union> set bs \<union> set hs)"
+      hence "p \<in> set hs" and "q \<in> set gs \<union> set bs \<union> set hs" by simp_all
+      hence "fst p \<in> fst ` set hs" and disj: "fst q \<in> fst ` set gs \<union> fst ` set bs \<union> fst ` set hs"
+        by auto
+      from hs this(1) have "is_binomial (fst p)" unfolding is_binomial_set_def ..
+      moreover from disj have "is_binomial (fst q)"
+      proof (elim UnE)
+        assume "fst q \<in> fst ` set gs"
+        with assms(2) show ?thesis unfolding is_binomial_set_def ..
       next
-        assume "f \<in> set bs"
-        with \<open>is_binomial_set (set bs)\<close> show ?thesis by (rule is_binomial_setD)
+        assume "fst q \<in> fst ` set bs"
+        with rec2.prems(2) show ?thesis unfolding is_binomial_set_def ..
+      next
+        assume "fst q \<in> fst ` set hs"
+        with hs show ?thesis unfolding is_binomial_set_def ..
       qed
+      ultimately show ?thesis ..
     qed
+  next
+    from rec2.prems(2) hs show "is_binomial_set (fst ` set (gb_ab gs bs hs data'))"
+      by (auto simp add: ab_specD1[OF ab_spec_add_basis_sorted] is_binomial_set_def)
   qed
 qed
 
-lemma gb_param_is_binomial_set:
-  assumes "add_pairs_set apf" and "is_binomial_set (set bs)"
-  shows "is_binomial_set (set (gb_param apf cf bs))"
-  unfolding gb_param_def using assms(1)
-proof (rule gbaux_binomial_set)
-  fix p q
-  assume "(p, q) \<in> set (pairs apf bs)"
-  with assms(1) have "p \<in> set bs" by (rule pairsD1)
-  with assms(2) show "is_binomial p" by (rule is_binomial_setD)
-next
-  fix p q
-  assume "(p, q) \<in> set (pairs apf bs)"
-  with assms(1) have "q \<in> set bs" by (rule pairsD2)
-  with assms(2) show "is_binomial q" by (rule is_binomial_setD)
-qed fact
-
 lemma gb_is_binomial_set:
-  assumes "is_binomial_set (set bs)"
-  shows "is_binomial_set (set (gb bs))"
-  unfolding gb_def by (rule gb_param_is_binomial_set, fact add_pairs_set_add_pairs_sorted, fact)
+  assumes "is_binomial_set (fst ` set bs0)"
+  shows "is_binomial_set (fst ` set (gb bs0 ()))"
+proof (simp add: gb_simps Let_def fst_set_drop_indices)
+  define data where "data = (length bs0, ())"
+  define bs where "bs = fst (add_indices (bs0, ()) (0, ()))"
+  define bs' where "bs' = gb_ab [] [] bs data"
+  define ps where "ps = gb_ap [] [] [] bs data"
+  have bs: "fst ` set bs = fst ` set bs0" by (simp add: bs_def fst_set_add_indices)
+  show "is_binomial_set (fst ` set (gb_aux data [] bs' ps))"
+  proof (rule gb_aux_binomial_set)
+    fix p q
+    assume "(p, q) \<in> set ps"
+    also from ap_spec_add_pairs_sorted have "... \<subseteq> set [] \<union> set bs \<times> (set [] \<union> set [] \<union> set bs)"
+      unfolding ps_def by (rule ap_specD1)
+    also have "... = set bs \<times> set bs" by simp
+    finally have "(p, q) \<in> set bs \<times> set bs" .
+    hence "fst p \<in> fst ` set bs" and "fst q \<in> fst ` set bs" by simp_all
+    hence "fst p \<in> fst ` set bs0" and "fst q \<in> fst ` set bs0" by (simp_all only: bs)
+    thus "is_binomial (fst p) \<and> is_binomial (fst q)"
+      using assms unfolding is_binomial_set_def by auto
+  next
+    show "is_binomial_set (fst ` set [])" by (simp add: is_binomial_set_def)
+  next
+    from assms show "is_binomial_set (fst ` set bs')"
+      by (simp add: bs'_def ab_specD1[OF ab_spec_add_basis_sorted] bs)
+  qed
+qed
 
 section \<open>Reduced Gr\"obner Bases\<close>
   
@@ -699,8 +756,9 @@ theorem reduced_GB_is_monomial_set:
 proof -
   from finite_list[OF \<open>finite B\<close>] obtain xs where set: "set xs = B" ..
   from assms(1) have a: "is_monomial_set (set xs)" unfolding set[symmetric] .
-  show ?thesis unfolding set[symmetric] reduced_GB_comp gb_monomial_set[OF a] rgb_def
-    by (rule comp_red_monic_basis_is_monomial_set, fact a)
+  show ?thesis unfolding set[symmetric] reduced_GB_comp rgb_def
+    by (rule comp_red_monic_basis_is_monomial_set, simp, rule gb_is_monomial_set,
+        simp add: image_image, fact a)
 qed
 
 subsection \<open>Binomials\<close>
@@ -722,7 +780,8 @@ proof -
   from finite_list[OF \<open>finite B\<close>] obtain xs where set: "set xs = B" ..
   from assms(1) have a: "is_binomial_set (set xs)" unfolding set[symmetric] .
   show ?thesis unfolding set[symmetric] reduced_GB_comp rgb_def
-    by (rule comp_red_monic_basis_is_binomial_set, rule gb_is_binomial_set, fact a)
+    by (rule comp_red_monic_basis_is_binomial_set, simp, rule gb_is_binomial_set,
+        simp add: image_image, fact a)
 qed
 
 end (* gd_powerprod *)
