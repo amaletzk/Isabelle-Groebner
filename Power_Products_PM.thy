@@ -1,5 +1,5 @@
 theory Power_Products_PM
-  imports "HOL-Library.Function_Algebras" Number_Classes
+  imports "HOL-Library.Function_Algebras" MPoly_PM Number_Classes
 begin
 
 section \<open>Power-Products Represented by Polynomial Mappings\<close>
@@ -315,28 +315,6 @@ lemma of_int_pm_comp_of_nat_pm [simp]: "of_int_pm (of_nat_pm t) = of_nat_pm t"
 
 subsection \<open>Order relation on polynomial mappings\<close>
 
-definition le_pm :: "('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::{ord,zero}) \<Rightarrow> bool" (infixl "\<unlhd>" 50)
-  where "le_pm s t \<longleftrightarrow> (lookup s \<le> lookup t)"
-
-lemma le_pmI:
-  assumes "\<And>x. lookup s x \<le> lookup t x"
-  shows "s \<unlhd> t"
-  unfolding le_pm_def le_fun_def using assms ..
-
-lemma le_pmD:
-  assumes "s \<unlhd> t"
-  shows "lookup s x \<le> lookup t x"
-  using assms unfolding le_pm_def le_fun_def ..
-
-lemma adds_pmI:
-  assumes "s \<unlhd> t"
-  shows "s adds (t::'a \<Rightarrow>\<^sub>0 'b::add_linorder)"
-  using assms by (simp add: le_pm_def, intro adds_poly_mappingI)
-
-lemma adds_pm: "s adds t \<longleftrightarrow> s \<unlhd> t"
-  for s t::"'a \<Rightarrow>\<^sub>0 'b::add_linorder_min"
-  by (simp add: adds_poly_mapping le_pm_def)
-
 lemma le_of_nat_pm: "of_nat_pm s \<unlhd> ((of_nat_pm t)::'a \<Rightarrow>\<^sub>0 ('b::linordered_semidom)) \<longleftrightarrow> s \<unlhd> t"
   by (simp add: le_pm_def of_nat_pm.rep_eq leq_of_nat_fun)
 
@@ -403,44 +381,5 @@ lemma scalar_is_int_fun:
   assumes "is_int c" and "is_int_pm t"
   shows "is_int_pm (c \<cdot> t)"
   using assms unfolding is_int_pm_def is_int_fun_def using times_is_int by auto
-
-subsection \<open>Locale @{term pm_powerprod}\<close>
-
-definition poly_deg :: "(('n \<Rightarrow>\<^sub>0 'a::add_linorder) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> 'a" where
-  "poly_deg p = (if keys p = {} then 0 else Max (deg_pm ` keys p))"
-
-definition maxdeg :: "(('n \<Rightarrow>\<^sub>0 'a::add_linorder) \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> 'a" where
-  "maxdeg A = Max (poly_deg ` A)"
-  
-definition mindeg :: "(('n \<Rightarrow>\<^sub>0 'a::add_linorder) \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> 'a" where
-  "mindeg A = Min (poly_deg ` A)"
-
-lemma poly_deg_zero [simp]: "poly_deg 0 = 0"
-  by (simp add: poly_deg_def)
-
-lemma poly_deg_max_keys:
-  assumes "t \<in> keys p"
-  shows "deg_pm t \<le> poly_deg p"
-  unfolding poly_deg_def using finite_keys assms by auto
-
-lemma maxdeg_max:
-  assumes "finite A" and "p \<in> A"
-  shows "poly_deg p \<le> maxdeg A"
-  unfolding maxdeg_def using assms by auto
-
-lemma mindeg_min:
-  assumes "finite A" and "p \<in> A"
-  shows "mindeg A \<le> poly_deg p"
-  unfolding mindeg_def using assms by auto
-
-locale pm_powerprod =
-  ordered_powerprod ord ord_strict
-  for ord::"('n::countable \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)
-  and ord_strict (infixl "\<prec>" 50)
-begin
-
-sublocale gd_powerprod ..
-
-end
 
 end (* theory *)
