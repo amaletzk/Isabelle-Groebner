@@ -1,7 +1,7 @@
 (* Author: Alexander Maletzky *)
 
 theory Groebner_Macaulay
-  imports Power_Products_PM Reduced_GB Macaulay_Matrix
+  imports MPoly_PM Reduced_GB Macaulay_Matrix
 begin
 
 text \<open>Relationship between Gr\"obner bases and Macaulay matrices, following
@@ -316,10 +316,10 @@ next
 qed
 
 definition is_cofactor_bound :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_0) set \<Rightarrow> nat \<Rightarrow> bool"
-  where "is_cofactor_bound F b \<longleftrightarrow> 
+  where "is_cofactor_bound F b \<longleftrightarrow>
     (\<forall>p\<in>pideal F. \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg p + b))"
 
-text \<open>@{const is_cofactor_bound} is only true for @{emph \<open>finite\<close>} sets \<open>F\<close>.\<close>
+text \<open>Note that @{const is_cofactor_bound} is only true for @{emph \<open>finite\<close>} sets \<open>F\<close>.\<close>
 
 definition is_GB_bound :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::field) set \<Rightarrow> nat \<Rightarrow> bool"
   where "is_GB_bound F b \<longleftrightarrow> (\<forall>g\<in>reduced_GB F. poly_deg g \<le> b)"
@@ -333,13 +333,111 @@ lemma is_cofactor_boundI:
   unfolding is_cofactor_bound_def using assms by blast
 
 lemma is_cofactor_boundE:
-  assumes "is_cofactor_bound F b" and "p \<in> pideal F"
+  assumes "is_cofactor_bound F b" and "(p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_semiring_1) \<in> pideal F"
   obtains q where "p = (\<Sum>f\<in>F. q f * f)"
     and "\<And>f. f \<in> F \<Longrightarrow> q f \<noteq> 0 \<Longrightarrow>
              dgrad_p_set_le varnum {q f} (insert p F) \<and> poly_deg (q f) \<le> poly_deg p + b"
-  using assms unfolding is_cofactor_bound_def sorry (*by blast*)
-
-(* For proving the above lemma we need to formalize the evaluation homomorphism. *)
+proof (cases "p = 0")
+  case True
+  define q where "q = (\<lambda>f::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b. 0::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b)"
+  show ?thesis
+  proof
+    show "p = (\<Sum>f\<in>F. q f * f)" by (simp add: True q_def)
+  next
+    fix f
+    assume "q f \<noteq> 0"
+    thus "dgrad_p_set_le varnum {q f} (insert p F) \<and> poly_deg (q f) \<le> poly_deg p + b"
+      by (simp only: q_def)
+  qed
+next
+  case False
+  from assms obtain q0
+    where p: "p = (\<Sum>f\<in>F. q0 f * f)"
+    and q0: "\<And>f. f \<in> F \<Longrightarrow> q0 f \<noteq> 0 \<Longrightarrow> poly_deg (q0 f) \<le> poly_deg p + b"
+    using assms unfolding is_cofactor_bound_def by blast
+  define sub where "sub = (\<lambda>x::'n. if x \<in> (\<Union>t\<in>Keys (insert p F). keys t) then
+                                     monomial (1::'b) (Poly_Mapping.single x (1::nat))
+                                   else 1)"
+  have 1: "x \<in> indets p \<Longrightarrow> sub x = monomial 1 (monomial 1 x)" for x
+  proof (simp add: sub_def, rule)
+    assume "x \<in> indets p"
+    then obtain t where "t \<in> keys p" and "x \<in> keys t" by (rule in_indetsE)
+    from this(1) have "t \<in> Keys (insert p F)" by (simp add: Keys_insert)
+    moreover assume "\<forall>t\<in>Keys (insert p F). lookup t x = 0"
+    ultimately have "lookup t x = 0" by blast
+    with \<open>x \<in> keys t\<close> show "monomial 1 (monomial (Suc 0) x) = 1" unfolding in_keys_iff ..
+  qed
+  have 2: "f \<in> F \<Longrightarrow> x \<in> indets f \<Longrightarrow> sub x = monomial 1 (monomial 1 x)" for f x
+  proof (simp add: sub_def, rule)
+    assume "f \<in> F"
+    assume "x \<in> indets f"
+    then obtain t where "t \<in> keys f" and "x \<in> keys t" by (rule in_indetsE)
+    from this(1) \<open>f \<in> F\<close> have "t \<in> Keys F" by (rule in_KeysI)
+    hence "t \<in> Keys (insert p F)" by (simp add: Keys_insert)
+    moreover assume "\<forall>t\<in>Keys (insert p F). lookup t x = 0"
+    ultimately have "lookup t x = 0" by blast
+    with \<open>x \<in> keys t\<close> show "monomial 1 (monomial (Suc 0) x) = 1" unfolding in_keys_iff ..
+  qed
+  define q where "q = (\<lambda>f. poly_subst sub (q0 f))"
+  show ?thesis
+  proof
+    from 1 have "p = poly_subst sub p" by (rule poly_subst_id[symmetric])
+    also have "... = (\<Sum>f\<in>F. q f * (poly_subst sub f))"
+      by (simp only: p poly_subst_sum poly_subst_times q_def)
+    also from refl have "... = (\<Sum>f\<in>F. q f * f)"
+    proof (rule sum.cong)
+      fix f
+      assume "f \<in> F"
+      have "poly_subst sub f = f" by (rule poly_subst_id, rule 2, rule \<open>f \<in> F\<close>)
+      thus "q f * poly_subst sub f = q f * f" by simp
+    qed
+    finally show "p = (\<Sum>f\<in>F. q f * f)" .
+  next
+    fix f
+    assume "f \<in> F" and "q f \<noteq> 0"
+    show "dgrad_p_set_le varnum {q f} (insert p F) \<and> poly_deg (q f) \<le> poly_deg p + b"
+    proof
+      show "dgrad_p_set_le varnum {q f} (insert p F)"
+      proof (simp add: dgrad_p_set_le_def Keys_insert[of "q f"], rule dgrad_set_leI, rule ccontr)
+        fix s
+        assume "s \<in> keys (q f)"
+        assume "\<not> (\<exists>t\<in>Keys (insert p F). varnum s \<le> varnum t)"
+        hence *: "t \<in> Keys (insert p F) \<Longrightarrow> varnum t < varnum s" for t by auto
+        have "keys s \<noteq> {}"
+        proof
+          assume "keys s = {}"
+          hence "varnum s = 0" by (simp add: varnum_def)
+          hence "Keys (insert p F) = {}" using * by auto
+          hence "keys p = {}" by (simp add: Keys_insert)
+          with False show False by simp
+        qed
+        then obtain x where "x \<in> keys s" and "varnum s = Suc (elem_index x)" unfolding varnum_def
+          by (metis (mono_tags, lifting) Max_in finite_imageI image_iff image_is_empty finite_keys)
+        from \<open>x \<in> keys s\<close> \<open>s \<in> keys (q f)\<close> have "x \<in> indets (q f)" by (rule in_indetsI)
+        then obtain y where "x \<in> indets (sub y)" unfolding q_def by (rule in_indets_poly_substE)
+        hence "x \<in> (\<Union>t\<in>Keys (insert p F). keys t)"
+          by (simp add: sub_def indets_monomial split: if_split_asm)
+        then obtain t where "t \<in> Keys (insert p F)" and "x \<in> keys t" by blast
+        from this(2) have "Suc (elem_index x) \<le> varnum t" unfolding varnum_def
+          using finite_keys by auto
+        also from \<open>t \<in> Keys (insert p F)\<close> have "... < varnum s" by (rule *)
+        also have "... = Suc (elem_index x)" by fact
+        finally show False ..
+      qed
+    next
+      have "poly_deg (q f) \<le> poly_deg (q0 f)" unfolding q_def
+      proof (rule poly_deg_poly_subst_le)
+        fix x
+        show "poly_deg (sub x) \<le> 1" by (simp add: sub_def poly_deg_monomial deg_pm_single)
+      qed
+      also from \<open>f \<in> F\<close> have "... \<le> poly_deg p + b"
+      proof (rule q0)
+        from \<open>q f \<noteq> 0\<close> show "q0 f \<noteq> 0" by (auto simp add: q_def)
+      qed
+      finally show "poly_deg (q f) \<le> poly_deg p + b" .
+    qed
+  qed
+qed
 
 lemma is_GB_boundI:
   assumes "\<And>g. g \<in> reduced_GB F \<Longrightarrow> poly_deg g \<le> b"
