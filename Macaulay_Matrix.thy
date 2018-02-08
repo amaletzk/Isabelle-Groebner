@@ -447,7 +447,7 @@ proof -
     by (rule vec_cong, rule, simp only: poly_to_row_index)
   have *: "list_to_fun ts (list_of_vec (c \<cdot>\<^sub>v (poly_to_row ts p))) = (\<lambda>t. c * lookup p t)"
   proof (rule, simp add: list_to_fun_def smult_vec_def dim_poly_to_row eq,
-        simp add: list_of_vec_vec map_upt[of "\<lambda>x. c * lookup p x"] map_of_zip_map, rule)
+        simp add: map_upt[of "\<lambda>x. c * lookup p x"] map_of_zip_map, rule)
     fix t
     assume "t \<notin> set ts"
     with assms(1) have "t \<notin> keys p" by auto
@@ -537,7 +537,7 @@ lemma row_to_poly_zero[simp]: "row_to_poly ts (0\<^sub>v (length ts)) = 0"
 proof -
   have eq: "map (\<lambda>_. 0::'b) [0..<length ts] = map (\<lambda>_. 0) ts" by (simp add: map_replicate_const)
   show ?thesis
-    by (simp add: row_to_poly_def zero_vec_def list_of_vec_vec, rule poly_mapping_eqI,
+    by (simp add: row_to_poly_def zero_vec_def, rule poly_mapping_eqI,
       simp add: lookup_list_to_poly list_to_fun_def eq map_of_zip_map)
 qed
 
@@ -950,11 +950,12 @@ proof -
     assume "i < length ts"
     hence "col (polys_to_mat ts ps) i = vec_of_list (map (\<lambda>p. lookup p (ts ! i)) ps)"
       by (rule col_polys_to_mat)
-    thus "v \<bullet> col (polys_to_mat ts ps) i = v \<bullet> vec_of_list (map (\<lambda>p. lookup p (ts ! i)) ps)" by simp
+    thus "v \<bullet> col (polys_to_mat ts ps) i = v \<bullet> map_vec (\<lambda>p. lookup p (ts ! i)) (vec_of_list ps)"
+      by simp
   qed
   show ?thesis
   proof (rule poly_mapping_eqI, simp add: mult_vec_mat_def row_to_poly_def lookup_list_to_poly
-      list_of_vec_vec eq list_to_fun_def map_of_zip_map lookup_sum_list o_def, intro conjI impI)
+      eq list_to_fun_def map_of_zip_map lookup_sum_list o_def, intro conjI impI)
     fix t
     assume "t \<in> set ts"
     have "v \<bullet> vec_of_list (map (\<lambda>p. lookup p t) ps) =
@@ -962,15 +963,15 @@ proof -
     proof (simp add: scalar_prod_def dim_vec_of_list vec_of_list_index lookup_monom_mult_zero)
       have "(\<Sum>i = 0..<length ps. v $ i * lookup (ps ! i) t) =
             (\<Sum>i = 0..<length ps. (list_of_vec v) ! i * lookup (ps ! i) t)"
-        by (rule sum.cong, rule refl, simp add: list_of_vec_nth *)
+        by (rule sum.cong, rule refl, simp add: *)
       also have "... = (\<Sum>(c, p)\<leftarrow>zip (list_of_vec v) ps. c * lookup p t)"
         by (simp only: sum_set_upt_eq_sum_list, rule sum_list_upt_zip, simp only: length_list_of_vec *)
       finally show "(\<Sum>i = 0..<length ps. v $ i * lookup (ps ! i) t) =
                     (\<Sum>(c, p)\<leftarrow>zip (list_of_vec v) ps. c * lookup p t)" .
     qed
-    thus "v \<bullet> vec_of_list (map (\<lambda>p. lookup p t) ps) =
+    thus "v \<bullet> map_vec (\<lambda>p. lookup p t) (vec_of_list ps) =
           (\<Sum>x\<leftarrow>zip (list_of_vec v) ps. lookup (case x of (c, x) \<Rightarrow> monom_mult c 0 x) t)"
-      by (metis (mono_tags, lifting) case_prod_conv cond_case_prod_eta)
+      by (metis (mono_tags, lifting) case_prod_conv cond_case_prod_eta vec_of_list_map)
   next
     fix t
     assume "t \<notin> set ts"
