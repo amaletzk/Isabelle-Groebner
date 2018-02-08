@@ -58,14 +58,6 @@ proof -
   finally show ?thesis by (simp only: card_keys_def o_def compute_keys_alt)
 qed
 
-lemma compute_plus_alt [code]:
-  "Pm_fmap xs + Pm_fmap ys = Pm_fmap (clearjunk0 (fmmap_keys (\<lambda>k v. lookup0 xs k + lookup0 ys k) (xs ++\<^sub>f ys)))"
-  by (simp only: compute_plus_pp PM_clearjunk0_cong)
-
-lemma compute_minus_alt [code]:
-  "Pm_fmap xs - Pm_fmap ys = Pm_fmap (clearjunk0 (fmmap_keys (\<lambda>k v. lookup0 xs k - lookup0 ys k) (xs ++\<^sub>f ys)))"
-  by (simp only: compute_minus_pp PM_clearjunk0_cong)
-
 subsection \<open>Generating Cyclic Polynomials\<close>
 
 definition cycl_pp :: "nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> (nat \<Rightarrow>\<^sub>0 nat)"

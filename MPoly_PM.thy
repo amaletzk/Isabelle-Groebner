@@ -15,16 +15,6 @@ proof -
   show ?thesis by (simp add: monomial_power eq)
 qed
 
-lemma deg_pm_single: "deg_pm (Poly_Mapping.single x k) = k"
-proof -
-  have "keys (Poly_Mapping.single x k) \<subseteq> {x}" by simp
-  moreover have "finite {x}" by simp
-  ultimately have "deg_pm (Poly_Mapping.single x k) = (\<Sum>y\<in>{x}. lookup (Poly_Mapping.single x k) y)"
-    by (rule deg_pm_superset)
-  also have "... = k" by simp
-  finally show ?thesis .
-qed
-
 subsection \<open>Order relation on polynomial mappings\<close>
 
 definition le_pm :: "('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::{ord,zero}) \<Rightarrow> bool" (infixl "\<unlhd>" 50)
@@ -508,7 +498,7 @@ proof -
     thus "f x ^ lookup t x = monomial 1 (Poly_Mapping.single x (lookup t x))"
       by (simp add: assms monomial_single_power)
   qed
-  also have "... = monomial 1 t" by (simp add: monomial_prod[symmetric] poly_mapping_sum_monomials)
+  also have "... = monomial 1 t" by (simp add: monomial_prod_sum[symmetric] poly_mapping_sum_monomials)
   finally show ?thesis .
 qed
 
@@ -638,9 +628,9 @@ proof -
   qed (fact finite_keys)
   have "(\<Sum>t. monom_mult (lookup (p * q) t) 0 (subst_pp f t)) =
         (\<Sum>t. \<Sum>u. monom_mult (lookup p u * (\<Sum>v. lookup q v when t = u + v)) 0 (subst_pp f t))"
-    by (simp add: times_poly_mapping.rep_eq prod_fun_def monom_mult_Sum_any[OF fin_1])
+    by (simp add: times_poly_mapping.rep_eq prod_fun_def monom_mult_Sum_any_left[OF fin_1])
   also have "\<dots> = (\<Sum>t. \<Sum>u. \<Sum>v. (monom_mult (lookup p u * lookup q v) 0 (subst_pp f t)) when t = u + v)"
-    by (simp add: Sum_any_right_distrib[OF fin_2] monom_mult_Sum_any[OF fin_3] mult_when when_monom_mult)
+    by (simp add: Sum_any_right_distrib[OF fin_2] monom_mult_Sum_any_left[OF fin_3] mult_when when_monom_mult)
   also have "\<dots> = (\<Sum>t. (\<Sum>(u, v). (monom_mult (lookup p u * lookup q v) 0 (subst_pp f t)) when t = u + v))"
     apply (subst (2) Sum_any.cartesian_product [of "?P \<times> ?Q"])
     apply (auto simp add: in_keys_iff monom_mult_left0 simp del: lookup_not_eq_zero_eq_in_keys)

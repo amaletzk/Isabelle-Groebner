@@ -9,167 +9,8 @@ text \<open>Some further general properties of (ordered) multivariate polynomial
   
 section \<open>Further Properties of Multivariate Polynomials\<close>
 
-lemma monom_mult_when: "monom_mult c t (p when P) = ((monom_mult c t p) when P)"
-  by (cases P, simp_all add: monom_mult_right0)
-
-lemma when_monom_mult: "monom_mult (c when P) t p = ((monom_mult c t p) when P)"
-  by (cases P, simp_all add: monom_mult_left0)
-
-lemma monomial_power: "(monomial c (t::'a::comm_powerprod)) ^ n = monomial (c ^ n) (\<Sum>i=0..<n. t)"
-  by (induct n, simp_all add: times_monomial_left monom_mult_monomial add.commute)
-
-lemma keys_subset_singleton_imp_monomial:
-  assumes "keys p \<subseteq> {t}"
-  shows "monomial (lookup p t) t = p"
-proof (rule poly_mapping_eqI, simp add: lookup_single when_def, intro impI)
-  fix s::'a
-  assume "t \<noteq> s"
-  hence "s \<notin> keys p" using assms by blast
-  thus "lookup p s = 0" by simp
-qed
-
-subsection \<open>Sums and Products\<close>
-
 context comm_powerprod
 begin
-
-lemma sum_poly_mapping_eq_zeroI:
-  assumes "p ` A \<subseteq> {0}"
-  shows "sum p A = (0::('a \<Rightarrow>\<^sub>0 'b::comm_monoid_add))"
-proof (rule ccontr)
-  assume "sum p A \<noteq> 0"
-  then obtain a where "a \<in> A" and "p a \<noteq> 0"
-    by (rule comm_monoid_add_class.sum.not_neutral_contains_not_neutral)
-  with assms show False by auto
-qed
-
-lemma lookup_sum_list: "lookup (sum_list ps) t = sum_list (map (\<lambda>p. lookup p t) ps)"
-proof (induct ps)
-  case Nil
-  show ?case by simp
-next
-  case (Cons p ps)
-  thus ?case by (simp add: lookup_add)
-qed
-
-lemma keys_sum_subset: "keys (sum f A) \<subseteq> (\<Union>a\<in>A. keys (f a))"
-proof (cases "finite A")
-  case True
-  thus ?thesis
-  proof (induct A)
-    case empty
-    show ?case by simp
-  next
-    case (insert a A)
-    have "keys (sum f (insert a A)) \<subseteq> keys (f a) \<union> keys (sum f A)"
-      by (simp only: comm_monoid_add_class.sum.insert[OF insert(1) insert(2)] keys_add_subset)
-    also have "... \<subseteq> keys (f a) \<union> (\<Union>a\<in>A. keys (f a))" using insert(3) by blast
-    also have "... = (\<Union>a\<in>insert a A. keys (f a))" by simp
-    finally show ?case .
-  qed
-next
-  case False
-  thus ?thesis by simp
-qed
-
-lemma keys_sum:
-  assumes "finite A" and "\<And>a1 a2. a1 \<in> A \<Longrightarrow> a2 \<in> A \<Longrightarrow> a1 \<noteq> a2 \<Longrightarrow> keys (f a1) \<inter> keys (f a2) = {}"
-  shows "keys (sum f A) = (\<Union>a\<in>A. keys (f a))"
-  using assms
-proof (induct A)
-  case empty
-  show ?case by simp
-next
-  case (insert a A)
-  have IH: "keys (sum f A) = (\<Union>i\<in>A. keys (f i))" by (rule insert(3), rule insert.prems, simp_all)
-  have "keys (sum f (insert a A)) = keys (f a) \<union> keys (sum f A)"
-  proof (simp only: comm_monoid_add_class.sum.insert[OF insert(1) insert(2)], rule keys_add[symmetric])
-    have "keys (f a) \<inter> keys (sum f A) = (\<Union>i\<in>A. keys (f a) \<inter> keys (f i))"
-      by (simp only: IH Int_UN_distrib)
-    also have "... = {}"
-    proof -
-      have "i \<in> A \<Longrightarrow> keys (f a) \<inter> keys (f i) = {}" for i
-      proof (rule insert.prems)
-        assume "i \<in> A"
-        with insert(2) show "a \<noteq> i" by blast
-      qed simp_all
-      thus ?thesis by simp
-    qed
-    finally show "keys (f a) \<inter> keys (sum f A) = {}" .
-  qed
-  also have "... = (\<Union>a\<in>insert a A. keys (f a))" by (simp add: IH)
-  finally show ?case .
-qed
-
-lemma poly_mapping_sum_monomials: "(\<Sum>t\<in>keys p. monomial (lookup p t) t) = p"
-proof (induct p rule: poly_mapping_plus_induct)
-  case 1
-  show ?case by simp
-next
-  case step: (2 p c t)
-  from step(2) have "lookup p t = 0" by simp
-  have *: "keys (monomial c t + p) = insert t (keys p)"
-  proof -
-    from step(1) have a: "keys (monomial c t) = {t}" by simp
-    with step(2) have "keys (monomial c t) \<inter> keys p = {}" by simp
-    hence "keys (monomial c t + p) = {t} \<union> keys p" by (simp only: a keys_plus_eqI)
-    thus ?thesis by simp
-  qed
-  have **: "(\<Sum>ta\<in>keys p. monomial ((c when t = ta) + lookup p ta) ta) = (\<Sum>ta\<in>keys p. monomial (lookup p ta) ta)"
-  proof (rule comm_monoid_add_class.sum.cong, rule refl)
-    fix s
-    assume "s \<in> keys p"
-    with step(2) have "t \<noteq> s" by auto
-    thus "monomial ((c when t = s) + lookup p s) s = monomial (lookup p s) s" by simp
-  qed
-    show ?case by (simp only: * comm_monoid_add_class.sum.insert[OF finite_keys step(2)],
-                   simp add: lookup_add lookup_single \<open>lookup p t = 0\<close> ** step(3))
-qed
-
-lemma (in -) times_sum_monomials: "q * p = (\<Sum>t\<in>keys q. monom_mult (lookup q t) t p)"
-  by (simp only: times_monomial_left[symmetric] sum_distrib_right[symmetric] poly_mapping_sum_monomials)
-
-lemma monomial_sum: "monomial (sum f C) t = (\<Sum>c\<in>C. monomial (f c) t)"
-  by (rule fun_sum_commute, simp_all add: single_add)
-
-lemma monomial_Sum_any:
-  assumes "finite {c. f c \<noteq> 0}"
-  shows "monomial (Sum_any f) t = (\<Sum>c. monomial (f c) t)"
-proof -
-  have "{c. monomial (f c) t \<noteq> 0} \<subseteq> {c. f c \<noteq> 0}" by (rule, auto)
-  with assms show ?thesis
-    by (simp add: Groups_Big_Fun.comm_monoid_add_class.Sum_any.expand_superset monomial_sum)
-qed
-
-lemma monom_mult_sum: "monom_mult (sum f C) t p = (\<Sum>c\<in>C. monom_mult (f c) t p)"
-  by (rule fun_sum_commute, simp_all add: monom_mult_left0 monom_mult_dist_left)
-
-lemma monom_mult_Sum_any:
-  assumes "finite {c. f c \<noteq> 0}"
-  shows "monom_mult (Sum_any f) t p = (\<Sum>c. monom_mult (f c) t p)"
-proof -
-  have "{c. monom_mult (f c) t p \<noteq> 0} \<subseteq> {c. f c \<noteq> 0}" by (rule, auto simp add: monom_mult_left0)
-  with assms show ?thesis
-    by (simp add: Groups_Big_Fun.comm_monoid_add_class.Sum_any.expand_superset monom_mult_sum)
-qed
-
-lemma monomial_prod: "monomial (prod c I) (sum t I) = (\<Prod>i\<in>I. monomial (c i) (t i))"
-proof (cases "finite I")
-  case True
-  thus ?thesis
-  proof (induct I)
-    case empty
-    show ?case by simp
-  next
-    case (insert i I)
-    show ?case
-      by (simp only: comm_monoid_add_class.sum.insert[OF insert(1) insert(2)]
-         comm_monoid_mult_class.prod.insert[OF insert(1) insert(2)] insert(3) mult_single[symmetric])
-  qed
-next
-  case False
-  thus ?thesis by simp
-qed
 
 subsection \<open>Sub-Polynomials\<close>
 
@@ -292,7 +133,7 @@ end (* comm_powerprod *)
 subsection \<open>Ideals and Linear Hulls\<close>
 
 lemma monomial_1_in_pidealI:
-  assumes "(f::('a::comm_powerprod, 'b::field) poly_mapping) \<in> pideal F" and "keys f = {t}"
+  assumes "(f::_ \<Rightarrow>\<^sub>0 'b::field) \<in> pideal F" and "keys f = {t}"
   shows "monomial 1 t \<in> pideal F"
 proof -
   define c where "c \<equiv> lookup f t"
@@ -304,11 +145,6 @@ proof -
   also from assms(1) have "... \<in> pideal F" by (rule pideal_closed_monom_mult)
   finally show ?thesis .
 qed
-
-lemma replace_pideal:
-  assumes "q \<in> (pideal B)"
-  shows "pideal (insert q (B - {p})) \<subseteq> pideal (B::('a::comm_powerprod \<Rightarrow>\<^sub>0 'b::semiring_1) set)"
-  by (rule pideal_insert_subset, rule pideal_mono, fact Diff_subset, fact)
 
 lemma in_pideal_listE:
   assumes "p \<in> (pideal (set bs))"
@@ -351,11 +187,6 @@ next
   qed
 qed
 
-lemma replace_phull:
-  assumes "q \<in> (phull B)"
-  shows "phull (insert q (B - {p})) \<subseteq> phull (B::('a::comm_powerprod \<Rightarrow>\<^sub>0 'b::semiring_1) set)"
-  by (rule phull_insert_subset, rule phull_mono, fact Diff_subset, fact)
-
 lemma in_phull_listE:
   assumes "p \<in> (phull (set bs))"
   obtains cs where "length cs = length bs" and "p = (\<Sum>(c, b)\<leftarrow>zip cs bs. monom_mult c 0 b)"
@@ -395,36 +226,6 @@ next
       by (rule, fact step, rule phull_mono, auto)
     show "monom_mult c 0 a + ?x \<in> ?A" by (rule phull_closed_plus, rule monom_mult_in_phull, simp, fact)
   qed
-qed
-
-lemma phull_closed_sum:
-  assumes "\<And>a. a \<in> A \<Longrightarrow> f a \<in> phull B"
-  shows "(\<Sum>a\<in>A. f a) \<in> phull B"
-proof (cases "finite A")
-  case True
-  from this assms show ?thesis
-  proof induct
-    case empty
-    thus ?case by (simp add: zero_in_phull)
-  next
-    case (insert a A)
-    show ?case
-    proof (simp only: sum.insert[OF insert(1, 2)], rule phull_closed_plus)
-      have "a \<in> insert a A" by simp
-      thus "f a \<in> phull B" by (rule insert.prems)
-    next
-      show "sum f A \<in> phull B"
-      proof (rule insert(3))
-        fix b
-        assume "b \<in> A"
-        hence "b \<in> insert a A" by simp
-        thus "f b \<in> phull B" by (rule insert.prems)
-      qed
-    qed
-  qed
-next
-  case False
-  thus ?thesis by (simp add: zero_in_phull)
 qed
 
 subsection \<open>Bounded Support\<close>
@@ -815,7 +616,7 @@ proof (cases "finite B")
     thus ?thesis by simp
   qed
   also have "... = (\<Sum>a\<in>?A. monom_mult (?c a) 0 a)"
-  proof (simp only: monom_mult_sum sum.swap[of _ _ ?A], rule sum.cong, rule)
+  proof (simp only: monom_mult_sum_left sum.swap[of _ _ ?A], rule sum.cong, rule)
     fix b
     assume "b \<in> ?B"
     hence "b \<in> B" and "b \<noteq> 0" by auto
@@ -1048,15 +849,6 @@ proof -
 qed
   
 subsection \<open>Trailing Power-Products and -Coefficients\<close>
-
-lemma lp_eq_tp_monomial:
-  assumes "is_monomial p"
-  shows "lp p = tp p"
-proof -
-  from assms obtain c t where "c \<noteq> 0" and p: "p = monomial c t" by (rule is_monomial_monomial)
-  from \<open>c \<noteq> 0\<close> have "lp p = t" and "tp p = t" unfolding p by (rule lp_monomial, rule tp_monomial)
-  thus ?thesis by simp
-qed
 
 lemma lp_gr_tp_iff: "(tp p \<prec> lp p) \<longleftrightarrow> (\<not> has_bounded_keys 1 p)"
   unfolding not_has_bounded_keys
