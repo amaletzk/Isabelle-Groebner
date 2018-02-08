@@ -307,12 +307,8 @@ qed
 
 lemma replace_pideal:
   assumes "q \<in> (pideal B)"
-  shows "pideal (replace p q B) \<subseteq> pideal (B::('a::comm_powerprod, 'b::semiring_1) poly_mapping set)"
-  unfolding replace_def
-  by (rule pideal_insert_subset, rule pideal_mono, rule remove_subset, fact)
-    
-lemma remove_0_stable_pideal: "pideal (remove 0 B) = pideal B"
-  unfolding remove_def by (fact pideal_minus_singleton_zero)
+  shows "pideal (insert q (B - {p})) \<subseteq> pideal (B::('a::comm_powerprod \<Rightarrow>\<^sub>0 'b::semiring_1) set)"
+  by (rule pideal_insert_subset, rule pideal_mono, fact Diff_subset, fact)
 
 lemma in_pideal_listE:
   assumes "p \<in> (pideal (set bs))"
@@ -356,14 +352,9 @@ next
 qed
 
 lemma replace_phull:
-  fixes B::"('a::comm_powerprod, 'b::semiring_1) poly_mapping set" and p q
   assumes "q \<in> (phull B)"
-  shows "phull (replace p q B) \<subseteq> phull B"
-  unfolding replace_def
-  by (rule phull_insert_subset, rule phull_mono, rule remove_subset, fact)
-    
-lemma remove_0_stable_phull: "phull (remove 0 B) = phull B"
-  unfolding remove_def by (fact phull_minus_singleton_zero)
+  shows "phull (insert q (B - {p})) \<subseteq> phull (B::('a::comm_powerprod \<Rightarrow>\<^sub>0 'b::semiring_1) set)"
+  by (rule phull_insert_subset, rule phull_mono, fact Diff_subset, fact)
 
 lemma in_phull_listE:
   assumes "p \<in> (phull (set bs))"

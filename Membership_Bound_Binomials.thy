@@ -16,9 +16,9 @@ lemma rem_3_1_4_aux_1:
 proof (rule ccontr)
   let ?G = "reduced_GB F"
   assume "g' \<noteq> g"
-  with \<open>g' \<in> ?G\<close> have "g' \<in> (remove g ?G)" by (rule in_removeI)
-  have "\<not> is_red (remove g ?G) g" by (rule is_auto_reducedD, rule reduced_GB_is_auto_reduced_finite, fact+)
-  moreover have "is_red (remove g ?G) g"
+  with \<open>g' \<in> ?G\<close> have "g' \<in> ?G - {g}" by simp
+  have "\<not> is_red (?G - {g}) g" by (rule is_auto_reducedD, rule reduced_GB_is_auto_reduced_finite, fact+)
+  moreover have "is_red (?G - {g}) g"
   proof (rule is_red_singletonD, rule is_red_addsI, rule)
     from reduced_GB_nonzero_finite[OF fin] \<open>g' \<in> ?G\<close> show "g' \<noteq> 0" by auto
   qed fact+

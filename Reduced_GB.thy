@@ -21,7 +21,7 @@ begin
 
 lemma replace_lp_adds_stable_is_red:
   assumes red: "is_red F f" and "q \<noteq> 0" and "lp q adds lp p"
-  shows "is_red (replace p q F) f"
+  shows "is_red (insert q (F - {p})) f"
 proof -
   from red obtain g t where "g \<in> F" and "g \<noteq> 0" and "t \<in> keys f" and "lp g adds t" by (rule is_red_addsE)
   show ?thesis
@@ -29,7 +29,7 @@ proof -
     case True
     show ?thesis
     proof (rule is_red_addsI)
-      show "q \<in> replace p q F" by (rule in_replaceI1)
+      show "q \<in> insert q (F - {p})" by simp
     next
       have "lp q adds lp p" by fact
       also have "... adds t" using \<open>lp g adds t\<close> unfolding True .
@@ -37,7 +37,8 @@ proof -
     qed (fact+)
   next
     case False
-    show ?thesis by (rule is_red_addsI, rule in_replaceI2, fact+)
+    with \<open>g \<in> F\<close> have "g \<in> insert q (F - {p})" by blast
+    from this \<open>g \<noteq> 0\<close> \<open>t \<in> keys f\<close> \<open>lp g adds t\<close> show ?thesis by (rule is_red_addsI)
   qed
 qed
   
@@ -100,14 +101,14 @@ proof -
 qed
   
 lemma replace_red_stable_is_red:
-  assumes a1: "is_red F f" and a2: "red (remove p F) p q"
-  shows "is_red (replace p q F) f" (is "is_red ?F' f")
+  assumes a1: "is_red F f" and a2: "red (F - {p}) p q"
+  shows "is_red (insert q (F - {p})) f" (is "is_red ?F' f")
 proof -
   from a1 obtain g where "g \<in> F" and "is_red {g} f" by (rule is_red_singletonI)
   show ?thesis
   proof (cases "g = p")
     case True
-    from a2 obtain h where "h \<in> (remove p F)" and "red {h} p q" unfolding red_def by auto
+    from a2 obtain h where "h \<in> F - {p}" and "red {h} p q" unfolding red_def by auto
     from \<open>is_red {g} f\<close> have "is_red {p} f" unfolding True .
     have "is_red {q} f \<or> is_red {h} f" by (rule conversion_property, fact+)
     thus ?thesis
@@ -115,28 +116,28 @@ proof -
       assume "is_red {q} f"
       show ?thesis
       proof (rule is_red_singletonD)
-        show "q \<in> ?F'" by (rule in_replaceI1)
+        show "q \<in> ?F'" by auto
       qed fact
     next
       assume "is_red {h} f"
       show ?thesis
       proof (rule is_red_singletonD)
-        from \<open>h \<in> (remove p F)\<close> show "h \<in> ?F'" unfolding in_remove in_replace by simp
+        from \<open>h \<in> F - {p}\<close> show "h \<in> ?F'" by simp
       qed fact
     qed
   next
     case False
     show ?thesis
     proof (rule is_red_singletonD)
-      show "g \<in> ?F'" by (rule in_replaceI2, fact+)
+      from \<open>g \<in> F\<close> False show "g \<in> ?F'" by blast
     qed fact
   qed
 qed
 
 lemma GB_remove_0_stable_GB:
   assumes "is_Groebner_basis G"
-  shows "is_Groebner_basis (remove 0 G)"
-  using assms by (simp only: remove_def is_Groebner_basis_def red_minus_singleton_zero)
+  shows "is_Groebner_basis (G - {0})"
+  using assms by (simp only: is_Groebner_basis_def red_minus_singleton_zero)
 
 end (* ordered_powerprod *)
 
@@ -145,20 +146,21 @@ begin
 
 lemma replace_in_dgrad_p_set:
   assumes "G \<subseteq> dgrad_p_set d m"
-  obtains n where "q \<in> dgrad_p_set d n" and "G \<subseteq> dgrad_p_set d n" and "replace p q G \<subseteq> dgrad_p_set d n"
+  obtains n where "q \<in> dgrad_p_set d n" and "G \<subseteq> dgrad_p_set d n"
+    and "insert q (G - {p}) \<subseteq> dgrad_p_set d n"
 proof -
   from assms obtain n where "m \<le> n" and 1: "q \<in> dgrad_p_set d n" and 2: "G \<subseteq> dgrad_p_set d n"
     by (rule dgrad_p_set_insert)
-  from this(2, 3) have "replace p q G \<subseteq> dgrad_p_set d n" by (auto simp add: replace_def remove_def)
+  from this(2, 3) have "insert q (G - {p}) \<subseteq> dgrad_p_set d n" by auto
   with 1 2 show ?thesis ..
 qed
 
 lemma GB_replace_lp_adds_stable_GB_dgrad_p_set:
   assumes "dickson_grading (+) d" and "G \<subseteq> dgrad_p_set d m"
   assumes isGB: "is_Groebner_basis G" and "q \<noteq> 0" and q: "q \<in> (pideal G)" and "lp q adds lp p"
-  shows "is_Groebner_basis (replace p q G)" (is "is_Groebner_basis ?G'")
+  shows "is_Groebner_basis (insert q (G - {p}))" (is "is_Groebner_basis ?G'")
 proof -
-  from assms(2) obtain n where 1: "G \<subseteq> dgrad_p_set d n" and 2: "replace p q G \<subseteq> dgrad_p_set d n"
+  from assms(2) obtain n where 1: "G \<subseteq> dgrad_p_set d n" and 2: "?G' \<subseteq> dgrad_p_set d n"
     by (rule replace_in_dgrad_p_set)
   from isGB show ?thesis unfolding GB_alt_3_dgrad_p_set[OF assms(1) 1] GB_alt_3_dgrad_p_set[OF assms(1) 2]
   proof (intro ballI impI)
@@ -177,7 +179,7 @@ proof -
         finally have "lp q adds lp f" .
         with \<open>q \<noteq> 0\<close> show "q \<noteq> 0 \<and> lp q adds lp f" ..
       next
-        show "q \<in> ?G'" by (rule in_replaceI1)
+        show "q \<in> ?G'" by simp
       qed
     next
       case False
@@ -185,7 +187,7 @@ proof -
       proof
         show "g \<noteq> 0 \<and> lp g adds lp f" by (rule, fact+)
       next
-        show "g \<in> ?G'" by (rule in_replaceI2, fact+)
+        from \<open>g \<in> G\<close> False show "g \<in> ?G'" by blast
       qed
     qed
   qed
@@ -194,7 +196,7 @@ qed
 lemma GB_replace_lp_adds_stable_pideal_dgrad_p_set:
   assumes "dickson_grading (+) d" and "G \<subseteq> dgrad_p_set d m"
   assumes isGB: "is_Groebner_basis G" and "q \<noteq> 0" and "q \<in> pideal G" and "lp q adds lp p"
-  shows "pideal (replace p q G) = pideal G" (is "pideal ?G' = pideal G")
+  shows "pideal (insert q (G - {p})) = pideal G" (is "pideal ?G' = pideal G")
 proof (rule, rule replace_pideal, fact, rule)
   fix f
   assume "f \<in> pideal G"
@@ -220,10 +222,10 @@ qed
   
 lemma GB_replace_red_stable_GB_dgrad_p_set:
   assumes "dickson_grading (+) d" and "G \<subseteq> dgrad_p_set d m"
-  assumes isGB: "is_Groebner_basis G" and "p \<in> G" and q: "red (remove p G) p q"
-  shows "is_Groebner_basis (replace p q G)" (is "is_Groebner_basis ?G'")
+  assumes isGB: "is_Groebner_basis G" and "p \<in> G" and q: "red (G - {p}) p q"
+  shows "is_Groebner_basis (insert q (G - {p}))" (is "is_Groebner_basis ?G'")
 proof -
-  from assms(2) obtain n where 1: "G \<subseteq> dgrad_p_set d n" and 2: "replace p q G \<subseteq> dgrad_p_set d n"
+  from assms(2) obtain n where 1: "G \<subseteq> dgrad_p_set d n" and 2: "?G' \<subseteq> dgrad_p_set d n"
     by (rule replace_in_dgrad_p_set)
   from isGB show ?thesis unfolding GB_alt_2_dgrad_p_set[OF assms(1) 1] GB_alt_2_dgrad_p_set[OF assms(1) 2]
   proof (intro ballI impI)
@@ -234,7 +236,7 @@ proof -
     proof (rule pideal_closed_red, rule pideal_mono)
       from generator_subset_pideal \<open>p \<in> G\<close> show "p \<in> pideal G" ..
     next
-      show "(remove p G) \<subseteq> G" by (rule remove_subset)
+      show "G - {p} \<subseteq> G" by (rule Diff_subset)
     qed (rule q)
     from f1 replace_pideal[OF this, of p] have "f \<in> pideal G" ..
     have "is_red G f" by (rule a1[rule_format], fact+)
@@ -244,12 +246,12 @@ qed
 
 lemma GB_replace_red_stable_pideal_dgrad_p_set:
   assumes "dickson_grading (+) d" and "G \<subseteq> dgrad_p_set d m"
-  assumes isGB: "is_Groebner_basis G" and "p \<in> G" and ptoq: "red (remove p G) p q"
-  shows "pideal (replace p q G) = pideal G" (is "pideal ?G' = _")
+  assumes isGB: "is_Groebner_basis G" and "p \<in> G" and ptoq: "red (G - {p}) p q"
+  shows "pideal (insert q (G - {p})) = pideal G" (is "pideal ?G' = _")
 proof -
   from \<open>p \<in> G\<close> generator_subset_pideal have "p \<in> pideal G" ..
   have "q \<in> pideal G"
-    by (rule pideal_closed_red, rule pideal_mono, rule remove_subset, rule \<open>p \<in> pideal G\<close>, rule ptoq)
+    by (rule pideal_closed_red, rule pideal_mono, rule Diff_subset, rule \<open>p \<in> pideal G\<close>, rule ptoq)
   show ?thesis
   proof (rule, rule replace_pideal, fact, rule)
     fix f
@@ -277,12 +279,12 @@ qed
   
 lemma GB_replace_red_rtranclp_stable_GB_dgrad_p_set:
   assumes "dickson_grading (+) d" and "G \<subseteq> dgrad_p_set d m"
-  assumes isGB: "is_Groebner_basis G" and "p \<in> G" and ptoq: "(red (remove p G))\<^sup>*\<^sup>* p q"
-  shows "is_Groebner_basis (replace p q G)"
+  assumes isGB: "is_Groebner_basis G" and "p \<in> G" and ptoq: "(red (G - {p}))\<^sup>*\<^sup>* p q"
+  shows "is_Groebner_basis (insert q (G - {p}))"
   using ptoq
 proof (induct q rule: rtranclp_induct)
   case base
-  from isGB replace_same[OF \<open>p \<in> G\<close>] show ?case by simp
+  from isGB \<open>p \<in> G\<close> show ?case by (simp add: insert_absorb)
 next
   case (step y z)
   show ?case
@@ -290,30 +292,28 @@ next
     case True
     from assms(1) assms(2) isGB \<open>p \<in> G\<close> show ?thesis
     proof (rule GB_replace_red_stable_GB_dgrad_p_set)
-      from \<open>red (remove p G) y z\<close> show "red (remove p G) p z" unfolding True .
+      from \<open>red (G - {p}) y z\<close> show "red (G - {p}) p z" unfolding True .
     qed
   next
     case False
     show ?thesis
       proof (cases "y \<in> G")
         case True
-        have "y \<in> (remove p G)" (is "_ \<in> ?G'") by (intro in_removeI, fact+)
-        hence "replace p y G = ?G'" unfolding replace_def by auto
-        with \<open>is_Groebner_basis (replace p y G)\<close> have "is_Groebner_basis ?G'" by simp
+        with \<open>y \<noteq> p\<close> have "y \<in> G - {p}" (is "_ \<in> ?G'") by blast
+        hence "insert y (G - {p}) = ?G'" by auto
+        with step(3) have "is_Groebner_basis ?G'" by simp
         from \<open>y \<in> ?G'\<close> generator_subset_pideal have "y \<in> pideal ?G'" ..
         have "z \<in> pideal ?G'" by (rule pideal_closed_red, rule subset_refl, fact+)
-        have "is_Groebner_basis (insert z ?G')" by (rule GB_insert, fact+)
-        thus ?thesis unfolding replace_def .
+        show "is_Groebner_basis (insert z ?G')" by (rule GB_insert, fact+)
       next
         case False
-        from assms(2) obtain n where "replace p y G \<subseteq> dgrad_p_set d n"
+        from assms(2) obtain n where "insert y (G - {p}) \<subseteq> dgrad_p_set d n"
             by (rule replace_in_dgrad_p_set)
-        have "is_Groebner_basis (replace y z (replace p y G))"
-        proof (rule GB_replace_red_stable_GB_dgrad_p_set, fact, fact, fact, rule in_replaceI1)
-          from \<open>red (remove p G) y z\<close> show "red (remove y (replace p y G)) y z"
-            unfolding replace_remove[OF False, of p] .
-        qed
-        moreover have "... = (replace p z G)" by (rule replace_replace, rule False)
+        from assms(1) this step(3) have "is_Groebner_basis (insert z (insert y (G - {p}) - {y}))"
+        proof (rule GB_replace_red_stable_GB_dgrad_p_set)
+          from \<open>red (G - {p}) y z\<close> False show "red ((insert y (G - {p})) - {y}) y z" by simp
+        qed simp
+        moreover from False have "... = (insert z (G - {p}))" by simp
         ultimately show ?thesis by simp
       qed
   qed
@@ -321,46 +321,45 @@ qed
 
 lemma GB_replace_red_rtranclp_stable_pideal_dgrad_p_set:
   assumes "dickson_grading (+) d" and "G \<subseteq> dgrad_p_set d m"
-  assumes isGB: "is_Groebner_basis G" and "p \<in> G" and ptoq: "(red (remove p G))\<^sup>*\<^sup>* p q"
-  shows "pideal (replace p q G) = pideal G"
+  assumes isGB: "is_Groebner_basis G" and "p \<in> G" and ptoq: "(red (G - {p}))\<^sup>*\<^sup>* p q"
+  shows "pideal (insert q (G - {p})) = pideal G"
   using ptoq
 proof (induct q rule: rtranclp_induct)
   case base
-  from replace_same[OF \<open>p \<in> G\<close>] show ?case by simp
+  from \<open>p \<in> G\<close> show ?case by (simp add: insert_absorb)
 next
   case (step y z)
   show ?case
   proof (cases "y = p")
     case True
-    from assms(1) assms(2) isGB \<open>p \<in> G\<close> show ?thesis
-    proof (rule GB_replace_red_stable_pideal_dgrad_p_set)
-      from \<open>red (remove p G) y z\<close> show "red (remove p G) p z" unfolding True .
-    qed
+    from assms(1) assms(2) isGB \<open>p \<in> G\<close> step(2) show ?thesis unfolding True
+      by (rule GB_replace_red_stable_pideal_dgrad_p_set)
   next
     case False
-    have "is_Groebner_basis (replace p y G)" by (rule GB_replace_red_rtranclp_stable_GB_dgrad_p_set, fact+)
+    have gb: "is_Groebner_basis (insert y (G - {p}))"
+      by (rule GB_replace_red_rtranclp_stable_GB_dgrad_p_set, fact+)
     show ?thesis
     proof (cases "y \<in> G")
       case True
-      have "y \<in> (remove p G)" (is "_ \<in> ?G'") by (intro in_removeI, fact+)
-      hence eq: "?G' = replace p y G" unfolding replace_def by auto
+      with \<open>y \<noteq> p\<close> have "y \<in> G - {p}" (is "_ \<in> ?G'") by blast
+      hence eq: "insert y ?G' = ?G'" by auto
       from \<open>y \<in> ?G'\<close> generator_subset_pideal have "y \<in> pideal ?G'" ..
       have "z \<in> pideal ?G'" by (rule pideal_closed_red, rule subset_refl, fact+)
       hence "pideal (insert z ?G') = pideal ?G'" by (rule pideal_insert)
-      moreover have "... = pideal G" unfolding eq by fact
-      ultimately show ?thesis unfolding replace_def by simp
+      also from step(3) have "... = pideal G" by (simp only: eq)
+      finally show ?thesis .
     next
       case False
-      from assms(2) obtain n where "replace p y G \<subseteq> dgrad_p_set d n" by (rule replace_in_dgrad_p_set)
-      have "pideal (replace p z G) = pideal (replace y z (replace p y G))"
-        using replace_replace[OF False] by simp
-      moreover have "... = pideal (replace p y G)"
-      proof (rule GB_replace_red_stable_pideal_dgrad_p_set, fact, fact, fact, rule in_replaceI1)
-        from \<open>red (remove p G) y z\<close> show "red (remove y (replace p y G)) y z"
-          unfolding replace_remove[OF False, of p] .
-      qed
-      moreover have "... = pideal G" by fact
-      ultimately show ?thesis by simp
+      from assms(2) obtain n where 1: "insert y (G - {p}) \<subseteq> dgrad_p_set d n"
+        by (rule replace_in_dgrad_p_set)
+      from False have "pideal (insert z (G - {p})) = pideal (insert z (insert y (G - {p}) - {y}))"
+        by auto
+      also from assms(1) 1 gb have "... = pideal (insert y (G - {p}))"
+      proof (rule GB_replace_red_stable_pideal_dgrad_p_set)
+        from step(2) False show "red ((insert y (G - {p})) - {y}) y z" by simp
+      qed simp
+      also have "... = pideal G" by fact
+      finally show ?thesis .
     qed
   qed
 qed
@@ -452,10 +451,10 @@ proof
       with \<open>lp b \<noteq> lp a\<close> show False by simp
     qed
     hence "a' \<noteq> a" by auto
-    with \<open>a' \<in> A\<close> have "a' \<in> (remove a A)" by (intro in_removeI, auto)
-    have is_red: "is_red (remove a A) a" by (intro is_red_addsI, fact, fact, rule lp_in_keys, fact+)
-    have "\<not> is_red (remove a A) a" by (rule is_auto_reducedD, rule reduced_GB_D2, fact Ared, fact+)
-    with is_red show False by simp
+    with \<open>a' \<in> A\<close> have "a' \<in> A - {a}" by blast
+    have is_red: "is_red (A - {a}) a" by (intro is_red_addsI, fact, fact, rule lp_in_keys, fact+)
+    have "\<not> is_red (A - {a}) a" by (rule is_auto_reducedD, rule reduced_GB_D2, fact Ared, fact+)
+    from this is_red show False ..
   qed
   
   have "a - b = 0"
@@ -487,11 +486,11 @@ proof
       finally have "lp a' \<prec> lp a" .
       hence "lp a' \<noteq> lp a" by simp
       hence "a' \<noteq> a" by auto
-      with \<open>a' \<in> A\<close> have "a' \<in> (remove a A)" by (intro in_removeI, auto)
+      with \<open>a' \<in> A\<close> have "a' \<in> A - {a}" by blast
           
-      have is_red: "is_red (remove a A) a" by (intro is_red_addsI, fact, fact, fact+)
-      have "\<not> is_red (remove a A) a" by (rule is_auto_reducedD, rule reduced_GB_D2, fact Ared, fact+)
-      with is_red show False by simp
+      have is_red: "is_red (A - {a}) a" by (intro is_red_addsI, fact, fact, fact+)
+      have "\<not> is_red (A - {a}) a" by (rule is_auto_reducedD, rule reduced_GB_D2, fact Ared, fact+)
+      from this is_red show False ..
     next
       assume "lp ?c \<in> keys b"
 
@@ -539,11 +538,11 @@ proof -
     finally have "lp b' \<prec> lp b" unfolding lp_uminus .
     hence "lp b' \<noteq> lp b" by simp
     hence "b' \<noteq> b" by auto
-    with \<open>b' \<in> B\<close> have "b' \<in> (remove b B)" by (intro in_removeI, auto)
+    with \<open>b' \<in> B\<close> have "b' \<in> B - {b}" by blast
         
-    have is_red: "is_red (remove b B) b" by (intro is_red_addsI, fact, fact, fact+)
-    have "\<not> is_red (remove b B) b" by (rule is_auto_reducedD, rule reduced_GB_D2, fact Bred, fact+)
-    with is_red show False by simp
+    have is_red: "is_red (B - {b}) b" by (intro is_red_addsI, fact, fact, fact+)
+    have "\<not> is_red (B - {b}) b" by (rule is_auto_reducedD, rule reduced_GB_D2, fact Bred, fact+)
+    from this is_red show False ..
   qed fact
 qed
   
@@ -583,9 +582,9 @@ proof (rule is_reduced_GB_unique)
       fix b
       assume "b \<in> B"
       with assms(1) have "b \<noteq> 0" by (rule is_minimal_basisD1)
-      assume "is_red (remove b B) b"
-      then obtain f where "f \<in> remove b B" and "is_red {f} b" by (rule is_red_singletonI)
-      from this(1) have "f \<in> B" and "f \<noteq> b" by (simp_all add: in_remove)
+      assume "is_red (B - {b}) b"
+      then obtain f where "f \<in> B - {b}" and "is_red {f} b" by (rule is_red_singletonI)
+      from this(1) have "f \<in> B" and "f \<noteq> b" by simp_all
 
       from assms(1) \<open>f \<in> B\<close> have "f \<noteq> 0" by (rule is_minimal_basisD1)
       from \<open>f \<in> B\<close> have "f \<in> pideal B" by (rule generator_in_pideal)
@@ -600,8 +599,8 @@ proof (rule is_reduced_GB_unique)
         from this \<open>lp g adds lp f\<close> show False ..
       qed
       with \<open>g \<in> G\<close> have "f \<in> G" by simp
-      with \<open>f \<noteq> b\<close> \<open>is_red {f} b\<close> have red: "is_red (remove b G) b"
-        by (meson in_remove is_red_singletonD)
+      with \<open>f \<in> B - {b}\<close> \<open>is_red {f} b\<close> have red: "is_red (G - {b}) b"
+        by (meson Diff_iff is_red_singletonD)
 
       from \<open>b \<in> B\<close> have "b \<in> pideal B" by (rule generator_in_pideal)
       hence "b \<in> pideal G" by (simp only: assms(5))
@@ -617,7 +616,7 @@ proof (rule is_reduced_GB_unique)
       with \<open>g' \<in> G\<close> have "b \<in> G" by simp
 
       from assms(3) have "is_auto_reduced G" by (rule reduced_GB_D2)
-      from this \<open>b \<in> G\<close> have "\<not> is_red (remove b G) b" by (rule is_auto_reducedD)
+      from this \<open>b \<in> G\<close> have "\<not> is_red (G - {b}) b" by (rule is_auto_reducedD)
       from this red show False ..
     qed
   qed fact

@@ -52,14 +52,14 @@ lemma is_red_monic_set [simp]: "is_red (monic_set B) p \<longleftrightarrow> is_
 subsection \<open>Minimal Bases and Auto-reduced Bases\<close>
 
 definition is_auto_reduced :: "('a \<Rightarrow>\<^sub>0 'b::field) set \<Rightarrow> bool" where
-  "is_auto_reduced B \<equiv> (\<forall>b\<in>B. \<not> is_red (remove b B) b)"
+  "is_auto_reduced B \<equiv> (\<forall>b\<in>B. \<not> is_red (B - {b}) b)"
 
 definition is_minimal_basis :: "('a \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> bool" where
   "is_minimal_basis B \<longleftrightarrow> (0 \<notin> B \<and> (\<forall>p q. p \<in> B \<longrightarrow> q \<in> B \<longrightarrow> p \<noteq> q \<longrightarrow> \<not> lp p adds lp q))"
 
 lemma is_auto_reducedD:
   assumes "is_auto_reduced B" and "b \<in> B"
-  shows "\<not> is_red (remove b B) b"
+  shows "\<not> is_red (B - {b}) b"
   using assms unfolding is_auto_reduced_def by auto
 
 text \<open>The converse of the following lemma is only true if @{term B} is minimal!\<close>
@@ -71,14 +71,14 @@ proof
   fix b
   assume "b \<in> monic_set B"
   then obtain b' where b_def: "b = monic b'" and "b' \<in> B" unfolding monic_set_def ..
-  from assms \<open>b' \<in> B\<close> have nred: "\<not> is_red (remove b' B) b'" by (rule is_auto_reducedD)
-  show "\<not> is_red (remove b (monic_set B)) b"
+  from assms \<open>b' \<in> B\<close> have nred: "\<not> is_red (B - {b'}) b'" by (rule is_auto_reducedD)
+  show "\<not> is_red ((monic_set B) - {b}) b"
   proof
-    assume red: "is_red (remove b (monic_set B)) b"
-    have "remove b (monic_set B) \<subseteq> monic_set (remove b' B)"
+    assume red: "is_red ((monic_set B) - {b}) b"
+    have "(monic_set B) - {b} \<subseteq> monic_set (B - {b'})"
       unfolding monic_set_def remove_def b_def by auto
-    with red have "is_red (monic_set (remove b' B)) b" by (rule is_red_subset)
-    hence "is_red (remove b' B) b'" unfolding b_def is_red_monic_set is_red_monic .
+    with red have "is_red (monic_set (B - {b'})) b" by (rule is_red_subset)
+    hence "is_red (B - {b'}) b'" unfolding b_def is_red_monic_set is_red_monic .
     with nred show False ..
   qed
 qed
@@ -227,11 +227,11 @@ qed fact
   
 lemma is_minimal_basis_replace:
   assumes major: "is_minimal_basis B" and "p \<in> B" and red: "(red (B - {p}))\<^sup>*\<^sup>* p r"
-  shows "is_minimal_basis (replace p r B)"
+  shows "is_minimal_basis (insert r (B - {p}))"
 proof (rule is_minimal_basisI)
   fix q
-  assume "q \<in> replace p r B"
-  hence "q = r \<or> q \<in> B \<and> q \<noteq> p" by (rule in_replaceD)
+  assume "q \<in> insert r (B - {p})"
+  hence "q = r \<or> q \<in> B \<and> q \<noteq> p" by simp
   thus "q \<noteq> 0"
   proof
     assume "q = r"
@@ -243,10 +243,10 @@ proof (rule is_minimal_basisI)
   qed
 next
   fix a b
-  assume "a \<in> replace p r B" and "b \<in> replace p r B" and "a \<noteq> b"
+  assume "a \<in> insert r (B - {p})" and "b \<in> insert r (B - {p})" and "a \<noteq> b"
   from assms have lpr: "lp r = lp p" by (rule minimal_basis_red_rtrancl_lp)
-  from \<open>b \<in> replace p r B\<close> have b: "b = r \<or> b \<in> B \<and> b \<noteq> p" by (rule in_replaceD)
-  from \<open>a \<in> replace p r B\<close> have "a = r \<or> a \<in> B \<and> a \<noteq> p" by (rule in_replaceD)
+  from \<open>b \<in> insert r (B - {p})\<close> have b: "b = r \<or> b \<in> B \<and> b \<noteq> p" by simp
+  from \<open>a \<in> insert r (B - {p})\<close> have "a = r \<or> a \<in> B \<and> a \<noteq> p" by simp
   thus "\<not> lp a adds lp b"
   proof
     assume "a = r"
@@ -858,12 +858,16 @@ lemma comp_min_basis_distinct: "distinct (comp_min_basis xs)"
 subsection \<open>Auto-Reduction\<close>
 
 lemma is_minimal_basis_trd_is_minimal_basis:
-  assumes min: "is_minimal_basis (set (x # xs))" and notin: "x \<notin> set xs"
+  assumes "is_minimal_basis (set (x # xs))" and "x \<notin> set xs"
   shows "is_minimal_basis (set ((trd xs x) # xs))"
-  unfolding replace_Cons[OF notin, of "trd xs x"] using min
-proof (rule is_minimal_basis_replace, simp)
-  from notin have eq: "set (x # xs) - {x} = set xs" by simp
-  show "(red (set (x # xs) - {x}))\<^sup>*\<^sup>* x (trd xs x)" unfolding eq by (rule trd_red_rtrancl)
+proof -
+  from assms(1) have "is_minimal_basis (insert (trd xs x) (set (x # xs) - {x}))"
+  proof (rule is_minimal_basis_replace, simp)
+    from assms(2) have eq: "set (x # xs) - {x} = set xs" by simp
+    show "(red (set (x # xs) - {x}))\<^sup>*\<^sup>* x (trd xs x)" unfolding eq by (rule trd_red_rtrancl)
+  qed
+  also from assms(2) have "... = set ((trd xs x) # xs)" by auto
+  finally show ?thesis .
 qed
 
 lemma is_minimal_basis_trd_distinct:
@@ -997,7 +1001,7 @@ next
       by (rule is_minimal_basis_trd_distinct)
   qed
   also have "... = pideal (set (?b # xs @ ys))" by simp
-  also have "... = pideal (replace a ?b (set (a # xs @ ys)))" unfolding replace_Cons[OF a, of ?b] ..
+  also from a have "... = pideal (insert ?b (set (a # xs @ ys) - {a}))" by auto
   also have "... \<subseteq> pideal (set (a # xs @ ys))"
   proof (rule replace_pideal)
     have "a - (trd (xs @ ys) a) \<in> pideal (set (xs @ ys))" by (rule trd_in_pideal)
