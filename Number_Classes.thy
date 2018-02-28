@@ -551,8 +551,8 @@ lemma min_of_nat:
   shows "min (of_nat a) (of_nat b) = ((of_nat (min a b::nat))::'b::{semiring_1,ord})"
   unfolding min_def assms by simp
 
-lemmas max_of_nat_linordered_semidom = max_of_nat[OF Nat.linordered_semidom_class.of_nat_le_iff]
-lemmas min_of_nat_linordered_semidom = min_of_nat[OF Nat.linordered_semidom_class.of_nat_le_iff]
+lemmas max_of_nat_linordered_semidom = max_of_nat[OF Nat.linordered_nonzero_semiring_class.of_nat_le_iff]
+lemmas min_of_nat_linordered_semidom = min_of_nat[OF Nat.linordered_nonzero_semiring_class.of_nat_le_iff]
     
 lemma floor_real_of_rat: "\<lfloor>x\<rfloor> = \<lfloor>real_of_rat x\<rfloor>"
   using real_floor_code by auto

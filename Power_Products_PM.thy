@@ -1,5 +1,5 @@
 theory Power_Products_PM
-  imports "HOL-Library.Function_Algebras" MPoly_PM Number_Classes
+  imports MPoly_PM Number_Classes
 begin
 
 section \<open>Power-Products Represented by Polynomial Mappings\<close>
@@ -179,8 +179,8 @@ lemma gcs_of_nat_pm:
   by (rule poly_mapping_eqI, simp add: lookup_gcs_fun of_nat_pm.rep_eq gcs_fun of_nat_fun_def,
       auto simp add: min_of_nat[OF assms])
 
-lemmas lcs_of_nat_pm_linordered_semidom = lcs_of_nat_pm[OF Nat.linordered_semidom_class.of_nat_le_iff]
-lemmas gcs_of_nat_pm_linordered_semidom = gcs_of_nat_pm[OF Nat.linordered_semidom_class.of_nat_le_iff]
+lemmas lcs_of_nat_pm_linordered_semidom = lcs_of_nat_pm[OF Nat.linordered_nonzero_semiring_class.of_nat_le_iff]
+lemmas gcs_of_nat_pm_linordered_semidom = gcs_of_nat_pm[OF Nat.linordered_nonzero_semiring_class.of_nat_le_iff]
   
 lemma lcs_is_nat_pm:
   assumes "is_nat_pm f" and "is_nat_pm g"
