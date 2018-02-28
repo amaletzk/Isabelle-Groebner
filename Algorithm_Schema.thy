@@ -202,7 +202,7 @@ qed
 lemma pideal_eq_UNIV_if_contains_nonzero_const_monomial:
   assumes "p \<in> pideal F" and "is_nonzero_const_monomial (p::'a::comm_powerprod \<Rightarrow>\<^sub>0 'b::field)"
   shows "pideal F = UNIV"
-proof (simp only: pideal_eq_UNIV_iff_contains_one)
+proof (simp only: ideal_eq_UNIV_iff_contains_one)
   from assms(2) obtain c where "c \<noteq> 0" and p: "p = monomial c 0" by (rule is_nonzero_const_monomialE)
   from assms(1) have "monom_mult (1 / c) 0 p \<in> pideal F" by (rule pideal_closed_monom_mult)
   moreover from \<open>c \<noteq> 0\<close> have "monom_mult (1 / c) 0 p = 1" by (simp add: p monom_mult_monomial)
@@ -1296,7 +1296,7 @@ next
   from this rec1(4) have "pideal (fst ` (set (gs @ bs))) = UNIV"
     by (rule pideal_eq_UNIV_if_contains_nonzero_const_monomial)
   moreover have "pideal (fst ` set [(1::'a \<Rightarrow>\<^sub>0 'b, default::'c)]) = UNIV"
-    by (simp add: generator_in_pideal pideal_eq_UNIV_iff_contains_one)
+    by (simp add: ideal.generator_in_module ideal_eq_UNIV_iff_contains_one)
   ultimately show ?case by simp
 next
   case (rec2 bs ps sps hs data data')
@@ -1319,9 +1319,9 @@ next
     show ?thesis
     proof (simp add: eq, rule)
       show "pideal (fst ` (set gs \<union> set bs) \<union> fst ` set hs) \<subseteq> pideal (fst ` (set gs \<union> set bs))"
-      proof (rule pideal_subset_pidealI, simp only: Un_subset_iff, rule)
+      proof (rule ideal.module_subset_moduleI, simp only: Un_subset_iff, rule)
         show "fst ` (set gs \<union> set bs) \<subseteq> pideal (fst ` (set gs \<union> set bs))"
-          by (fact generator_subset_pideal)
+          by (fact ideal.generator_subset_module)
       next
         from sel rec2(1) have "sps \<noteq> []" and "set sps \<subseteq> set ps"
           unfolding rec2(2) by (rule sel_specD1, rule sel_specD2)
@@ -1332,7 +1332,7 @@ next
       qed
     next
       show "pideal (fst ` (set gs \<union> set bs)) \<subseteq> pideal (fst ` (set gs \<union> set bs) \<union> fst ` set hs)"
-        by (rule pideal_mono, blast)
+        by (rule ideal.module_mono, blast)
     qed
   qed
   finally show ?case .
@@ -1835,7 +1835,7 @@ next
     qed
     also have "... = pideal (insert (fst b) (fst ` set gs))" by simp
     also from Cons have "... = pideal (insert (fst b) (fst ` set bs))"
-      unfolding gs fst_conv fst_set_add_indices by (rule pideal_insert_cong)
+      unfolding gs fst_conv fst_set_add_indices by (rule ideal.module_insert_cong)
     finally show "pideal (fst ` set (gb_schema_aux sel ap ab compl (Suc n, data'') gs
                               (ab gs [] [b] (Suc n, data'')) (ap gs [] [] [b] (Suc n, data'')))) =
                   pideal (insert (fst b0) (fst ` set bs))" by (simp add: b_def)
@@ -2572,7 +2572,7 @@ proof (rule compl_pidealI)
   from assms gb un have "fst ` set ?res \<subseteq> pideal (args_to_set (gs, bs, ?ks))"
     unfolding discard_red_cp_def by (rule rcp_specD4)
   also have "... \<subseteq> pideal (args_to_set (gs, bs, ps))"
-  proof (rule pideal_mono)
+  proof (rule ideal.module_mono)
     from discard_crit_pairs_subset \<open>set sps \<subseteq> set ps\<close> have "set ?ks \<subseteq> set ps"
       by (rule subset_trans)
     thus "args_to_set (gs, bs, ?ks) \<subseteq> args_to_set (gs, bs, ps)" by (rule args_to_set_subset3)

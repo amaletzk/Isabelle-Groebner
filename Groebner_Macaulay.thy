@@ -162,12 +162,12 @@ proof -
     from \<open>card ?S = dim_col ?E\<close> pf this(1) this(3) have lpb: "lp b = ?ts ! (f i1)"
       by (simp only: b Keys_to_list_eq_pps_to_list, rule lp_row_to_poly_pivot_fun)
     from \<open>b \<in> set (Macaulay_list ps)\<close> have "b \<in> phull (set (Macaulay_list ps))"
-      by (rule generator_in_phull)
+      by (rule phull.generator_in_module)
     hence "b \<in> phull (set ps)" by (simp only: phull_Macaulay_list)
 
     assume "a \<in> reduced_GB F"
     from assms(3) this have "a \<in> phull (set ps)" ..
-    from this \<open>b \<in> phull (set ps)\<close> have "?c \<in> phull (set ps)" by (rule phull_closed_minus)
+    from this \<open>b \<in> phull (set ps)\<close> have "?c \<in> phull (set ps)" by (rule phull.module_closed_minus)
     moreover assume "?c \<noteq> 0"
     ultimately obtain r where "r \<in> set (Macaulay_list ps)" and "r \<noteq> 0" and "lp ?c = lp r"
       by (rule Macaulay_list_lp)
@@ -308,14 +308,14 @@ lemma deg_shifts_mono:
 lemma pideal_deg_shifts [simp]: "pideal (set (deg_shifts n d fs)) = pideal (set fs)"
 proof
   show "pideal (set (deg_shifts n d fs)) \<subseteq> pideal (set fs)"
-    by (rule pideal_subset_pidealI, simp add: set_deg_shifts_2 UN_subset_iff,
+    by (rule ideal.module_subset_moduleI, simp add: set_deg_shifts_2 UN_subset_iff,
         intro ballI image_subsetI monom_mult_in_pideal)
 next
   from deg_shifts_superset show "pideal (set fs) \<subseteq> pideal (set (deg_shifts n d fs))"
-    by (rule pideal_mono)
+    by (rule ideal.module_mono)
 qed
 
-definition is_cofactor_bound :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_0) set \<Rightarrow> nat \<Rightarrow> bool"
+definition is_cofactor_bound :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::ring_1) set \<Rightarrow> nat \<Rightarrow> bool"
   where "is_cofactor_bound F b \<longleftrightarrow>
     (\<forall>p\<in>pideal F. \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg p + b))"
 
@@ -333,7 +333,7 @@ lemma is_cofactor_boundI:
   unfolding is_cofactor_bound_def using assms by blast
 
 lemma is_cofactor_boundE:
-  assumes "is_cofactor_bound F b" and "(p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_semiring_1) \<in> pideal F"
+  assumes "is_cofactor_bound F b" and "(p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_ring_1) \<in> pideal F"
   obtains q where "p = (\<Sum>f\<in>F. q f * f)"
     and "\<And>f. f \<in> F \<Longrightarrow> q f \<noteq> 0 \<Longrightarrow>
              dgrad_p_set_le varnum {q f} (insert p F) \<and> poly_deg (q f) \<le> poly_deg p + b"
@@ -461,20 +461,20 @@ proof (rule reduced_Macaulay_list_is_reduced_GB)
   proof
     fix g
     assume "g \<in> reduced_GB (set fs)"
-    hence "g \<in> pideal (reduced_GB (set fs))" by (rule generator_in_pideal)
+    hence "g \<in> pideal (reduced_GB (set fs))" by (rule ideal.generator_in_module)
     hence "g \<in> pideal (set fs)" by (simp add: reduced_GB_pideal_finite)
     with assms(2) obtain q where g: "g = (\<Sum>f\<in>(set fs). q f * f)"
       and 1: "\<And>f. f \<in> set fs \<Longrightarrow> q f \<noteq> 0 \<Longrightarrow>
                 dgrad_p_set_le varnum {q f} (insert g (set fs)) \<and> poly_deg (q f) \<le> poly_deg g + b1"
       by (rule is_cofactor_boundE, blast)
     show "g \<in> ?H" unfolding g
-    proof (rule phull_closed_sum)
+    proof (rule phull.module_closed_sum)
       fix f
       assume "f \<in> set fs"
       show "q f * f \<in> ?H"
       proof (cases "f = 0 \<or> q f = 0")
         case True
-        thus ?thesis by (auto simp add: zero_in_phull)
+        thus ?thesis by (auto simp add: phull.module_0)
       next
         case False
         hence "f \<noteq> 0" and "q f \<noteq> 0" by simp_all
@@ -509,12 +509,10 @@ proof (rule reduced_Macaulay_list_is_reduced_GB)
           assume "monom_mult 1 s f = monom_mult 1 t f"
           thus "s = t" using \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close> by (rule monom_mult_inj_2)
         qed
-        finally have "q f * f \<in> phull (set (deg_shifts n (b1 + b2) [f]))" by (simp add: sum_in_phullI)
-        thus ?thesis
-        proof
-          show "phull (set (deg_shifts n (b1 + b2) [f])) \<subseteq> ?H"
-            by (rule phull_mono, rule deg_shifts_mono, simp add: \<open>f \<in> set fs\<close>)
-        qed
+        finally have "q f * f \<in> phull (set (deg_shifts n (b1 + b2) [f]))"
+          by (simp add: phull.sum_in_moduleI)
+        also have "... \<subseteq> ?H" by (rule phull.module_mono, rule deg_shifts_mono, simp add: \<open>f \<in> set fs\<close>)
+        finally show ?thesis .
       qed
     qed
   qed
@@ -525,7 +523,7 @@ theorem thm_2_3_7:
   shows "1 \<in> pideal (set fs) \<longleftrightarrow> 1 \<in> set (Macaulay_list (deg_shifts n b fs))" (is "?L \<longleftrightarrow> ?R")
 proof
   assume ?L
-  hence "pideal (set fs) = UNIV" by (simp only: pideal_eq_UNIV_iff_contains_one)
+  hence "pideal (set fs) = UNIV" by (simp only: ideal_eq_UNIV_iff_contains_one)
   hence eq: "reduced_GB (set fs) = {1}"
     by (simp only: pideal_eq_UNIV_iff_reduced_GB_eq_one_dgrad_p_set[OF dickson_grading_varnum assms(1)])
   have "is_GB_bound (set fs) 0" by (rule is_GB_boundI, simp add: eq poly_deg_def)
@@ -537,7 +535,7 @@ proof
   finally show ?R by simp
 next
   assume ?R
-  also have "... \<subseteq> phull (set (Macaulay_list (deg_shifts n b fs)))" by (rule generator_subset_phull)
+  also have "... \<subseteq> phull (set (Macaulay_list (deg_shifts n b fs)))" by (rule phull.generator_subset_module)
   also have "... = phull (set (deg_shifts n b fs))" by (fact phull_Macaulay_list)
   also have "... \<subseteq> pideal (set (deg_shifts n b fs))" by (fact phull_subset_pideal)
   finally show ?L by simp

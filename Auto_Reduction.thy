@@ -1003,20 +1003,20 @@ next
   also have "... = pideal (set (?b # xs @ ys))" by simp
   also from a have "... = pideal (insert ?b (set (a # xs @ ys) - {a}))" by auto
   also have "... \<subseteq> pideal (set (a # xs @ ys))"
-  proof (rule replace_pideal)
+  proof (rule ideal.replace_module)
     have "a - (trd (xs @ ys) a) \<in> pideal (set (xs @ ys))" by (rule trd_in_pideal)
     have "a - (trd (xs @ ys) a) \<in> pideal (set (a # xs @ ys))"
     proof
-      show "pideal (set (xs @ ys)) \<subseteq> pideal (set (a # xs @ ys))" by (rule pideal_mono, auto)
+      show "pideal (set (xs @ ys)) \<subseteq> pideal (set (a # xs @ ys))" by (rule ideal.module_mono, auto)
     qed fact
-    hence "- (a - (trd (xs @ ys) a)) \<in> pideal (set (a # xs @ ys))" by (rule pideal_closed_uminus)
+    hence "- (a - (trd (xs @ ys) a)) \<in> pideal (set (a # xs @ ys))" by (rule ideal.module_closed_uminus)
     hence "(trd (xs @ ys) a) - a \<in> pideal (set (a # xs @ ys))" by simp
     hence "((trd (xs @ ys) a) - a) + a \<in> pideal (set (a # xs @ ys))"
-    proof (rule pideal_closed_plus)
+    proof (rule ideal.module_closed_plus)
       show "a \<in> pideal (set (a # xs @ ys))"
       proof
         show "a \<in> set (a # xs @ ys)" by simp
-      qed (rule generator_subset_pideal)
+      qed (rule ideal.generator_subset_module)
     qed
     thus "trd (xs @ ys) a \<in> pideal (set (a # xs @ ys))" by simp
   qed
@@ -1162,7 +1162,7 @@ proof
     thus "pideal (set (comp_red_basis_aux (comp_min_basis xs) [])) \<subseteq> pideal (set (comp_min_basis xs))"
       by simp
   qed
-  also from comp_min_basis_subset have "... \<subseteq> pideal (set xs)" by (rule pideal_mono)
+  also from comp_min_basis_subset have "... \<subseteq> pideal (set xs)" by (rule ideal.module_mono)
   finally show "f \<in> pideal (set xs)" .
 qed
 

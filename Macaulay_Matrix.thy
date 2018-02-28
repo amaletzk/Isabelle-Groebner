@@ -1057,11 +1057,11 @@ lemma pideal_row_echelon:
     (is "?l = ?r")
 proof
   show "?l \<subseteq> ?r"
-    by (rule pideal_subset_pidealI, rule subset_trans, rule generator_subset_phull,
+    by (rule ideal.module_subset_moduleI, rule subset_trans, rule phull.generator_subset_module,
       simp only: phull_row_echelon[OF assms] phull_subset_pideal)
 next
   show "?r \<subseteq> ?l"
-    by (rule pideal_subset_pidealI, rule subset_trans, rule generator_subset_phull,
+    by (rule ideal.module_subset_moduleI, rule subset_trans, rule phull.generator_subset_module,
         simp only: phull_row_echelon[OF assms, symmetric] phull_subset_pideal)
 qed
 
@@ -1323,7 +1323,7 @@ proof -
     by (simp add: set_Keys_to_list)
   have "phull (set (Macaulay_list ps)) =
           phull (set (mat_to_polys (Keys_to_list ps) (row_echelon (Macaulay_mat ps))))"
-    by (simp only: set_Macaulay_list phull_minus_singleton_zero)
+    by (simp only: set_Macaulay_list phull.module_minus_singleton_zero)
   also have "... = phull (set ps)"
     by (simp only: Macaulay_mat_def phull_row_echelon[OF * distinct_Keys_to_list])
   finally show ?thesis .
@@ -1335,7 +1335,7 @@ proof -
     by (simp add: set_Keys_to_list)
   have "pideal (set (Macaulay_list ps)) =
           pideal (set (mat_to_polys (Keys_to_list ps) (row_echelon (Macaulay_mat ps))))"
-    by (simp only: set_Macaulay_list pideal_minus_singleton_zero)
+    by (simp only: set_Macaulay_list ideal.module_minus_singleton_zero)
   also have "... = pideal (set ps)"
     by (simp only: Macaulay_mat_def pideal_row_echelon[OF * distinct_Keys_to_list])
   finally show ?thesis .

@@ -151,7 +151,7 @@ lemma in_pideal_listE:
   obtains qs where "length qs = length bs" and "p = (\<Sum>(q, b)\<leftarrow>zip qs bs. q * b)"
 proof -
   have "finite (set bs)" ..
-  from this assms obtain q where p: "p = (\<Sum>b\<in>set bs. (q b) * b)" by (rule in_pideal_finiteE)
+  from this assms obtain q where p: "p = (\<Sum>b\<in>set bs. (q b) * b)" by (rule ideal.in_module_finiteE)
   let ?qs = "map_dup q (\<lambda>_. 0) bs"
   show ?thesis
   proof
@@ -175,15 +175,15 @@ qed
 lemma in_pideal_listI: "(\<Sum>(q, b)\<leftarrow>zip qs bs. q * b) \<in> pideal (set bs)"
 proof (induct qs arbitrary: bs)
   case Nil
-  show ?case by (simp add: zero_in_pideal)
+  show ?case by (simp add: ideal.module_0)
 next
   case step: (Cons q qs)
   show ?case
-  proof (simp add: zip_Cons1 zero_in_pideal split: list.split, intro allI impI)
+  proof (simp add: zip_Cons1 ideal.module_0 split: list.split, intro allI impI)
     fix a as
     have "(\<Sum>(x, y)\<leftarrow>zip qs as. x * y) \<in> pideal (insert a (set as))" (is "?x \<in> ?A")
-      by (rule, fact step, rule pideal_mono, auto)
-    show "q * a + ?x \<in> ?A" by (rule pideal_closed_plus, rule times_in_pideal, simp, fact)
+      by (rule, fact step, rule ideal.module_mono, auto)
+    show "q * a + ?x \<in> ?A" by (rule ideal.module_closed_plus, rule ideal.smult_in_module, simp, fact)
   qed
 qed
 
@@ -192,7 +192,8 @@ lemma in_phull_listE:
   obtains cs where "length cs = length bs" and "p = (\<Sum>(c, b)\<leftarrow>zip cs bs. monom_mult c 0 b)"
 proof -
   have "finite (set bs)" ..
-  from this assms obtain c where p: "p = (\<Sum>b\<in>set bs. monom_mult (c b) 0 b)" by (rule in_phull_finiteE)
+  from this assms obtain c where p: "p = (\<Sum>b\<in>set bs. monom_mult (c b) 0 b)"
+    by (rule phull.in_module_finiteE)
   let ?cs = "map_dup c (\<lambda>_. 0) bs"
   show ?thesis
   proof
@@ -216,15 +217,16 @@ qed
 lemma in_phull_listI: "(\<Sum>(c, b)\<leftarrow>zip cs bs. monom_mult c 0 b) \<in> phull (set bs)"
 proof (induct cs arbitrary: bs)
   case Nil
-  show ?case by (simp add: zero_in_phull)
+  show ?case by (simp add: phull.module_0)
 next
   case step: (Cons c cs)
   show ?case
-  proof (simp add: zip_Cons1 zero_in_phull split: list.split, intro allI impI)
+  proof (simp add: zip_Cons1 phull.module_0 split: list.split, intro allI impI)
     fix a and as::"('a, 'b) poly_mapping list"
     have "(\<Sum>(x, y)\<leftarrow>zip cs as. monom_mult x 0 y) \<in> phull (insert a (set as))" (is "?x \<in> ?A")
-      by (rule, fact step, rule phull_mono, auto)
-    show "monom_mult c 0 a + ?x \<in> ?A" by (rule phull_closed_plus, rule monom_mult_in_phull, simp, fact)
+      by (rule, fact step, rule phull.module_mono, auto)
+    show "monom_mult c 0 a + ?x \<in> ?A"
+      by (rule phull.module_closed_plus, rule phull.smult_in_module, simp, fact)
   qed
 qed
 
@@ -566,7 +568,7 @@ text \<open>The following lemma also holds in context @{locale comm_powerprod}, 
   additional assumption that function @{const monom_mult} is injective in its second argument (the
   power-product), provided the other two arguments (coefficient, polynomial) are non-zero.\<close>
 lemma in_pideal_in_phull:
-  fixes B::"('a::comm_powerprod, 'b::semiring_1_no_zero_divisors) poly_mapping set"
+  fixes B::"('a::comm_powerprod, 'b::ring_1_no_zero_divisors) poly_mapping set"
     and A::"('a, 'b) poly_mapping set"
     and q::"('a, 'b) poly_mapping \<Rightarrow> ('a, 'b) poly_mapping"
   assumes "\<And>b t. b \<in> B \<Longrightarrow> t \<in> keys (q b) \<Longrightarrow> monom_mult 1 t b \<in> A"
@@ -688,14 +690,12 @@ proof (cases "finite B")
   qed
   finally have *: "?p = (\<Sum>a\<in>?A. monom_mult (?c a) 0 a)" .
 
-  have "?p \<in> phull ?A" unfolding * by (rule sum_in_phullI)
-  thus ?thesis
-  proof
-    show "phull ?A \<subseteq> phull A" by (rule phull_mono, auto)
-  qed
+  have "?p \<in> phull ?A" unfolding * by (rule phull.sum_in_moduleI)
+  also have "... \<subseteq> phull A" by (rule phull.module_mono, auto)
+  finally show ?thesis .
 next                             
   case False
-  thus ?thesis by (simp add: zero_in_phull)
+  thus ?thesis by (simp add: phull.module_0)
 qed
 
 subsection \<open>Sets of Leading Power-Products and -Coefficients\<close>
@@ -1352,13 +1352,13 @@ proof
     thus "p \<in> pideal B"
     proof (induct p rule: pideal_induct)
       case base: pideal_0
-      show ?case by (fact zero_in_pideal)
+      show ?case by (fact ideal.module_0)
     next
       case ind: (pideal_plus a b c t)
       from ind(3) obtain b' where b_def: "b = monic b'" and "b' \<in> B" unfolding monic_set_def ..
       have eq: "b = monom_mult (1 / lc b') 0 b'" by (simp only: b_def monic_def)
       show ?case unfolding eq monom_mult_assoc
-        by (rule pideal_closed_plus, fact, rule monom_mult_in_pideal, fact)
+        by (rule ideal.module_closed_plus, fact, rule monom_mult_in_pideal, fact)
     qed
   qed
 next
@@ -1369,7 +1369,7 @@ next
     thus "p \<in> pideal (monic_set B)"
     proof (induct p rule: pideal_induct)
       case base: pideal_0
-      show ?case by (fact zero_in_pideal)
+      show ?case by (fact ideal.module_0)
     next
       case ind: (pideal_plus a b c t)
       show ?case
@@ -1382,7 +1382,7 @@ next
         from ind(3) have "?b \<in> monic_set B" unfolding monic_set_def by (rule imageI)
         have "a + monom_mult c t (monom_mult (lc b) 0 ?b) \<in> pideal (monic_set B)"
           unfolding monom_mult_assoc
-          by (rule pideal_closed_plus, fact, rule monom_mult_in_pideal, fact)
+          by (rule ideal.module_closed_plus, fact, rule monom_mult_in_pideal, fact)
         thus ?thesis unfolding mult_lc_monic[OF False] .
       qed
     qed

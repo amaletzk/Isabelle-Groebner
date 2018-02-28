@@ -53,14 +53,14 @@ proof
   have lca: "lc a = 1" by (rule reduced_GB_lc, fact Ared, fact \<open>a \<in> A\<close>)
   have AGB: "is_Groebner_basis A" by (rule reduced_GB_D1, fact Ared)
       
-  from \<open>a \<in> A\<close> generator_subset_pideal have "a \<in> pideal A" ..
+  from \<open>a \<in> A\<close> ideal.generator_subset_module have "a \<in> pideal A" ..
   also have "... = pideal B" using id_eq by simp
   finally have "a \<in> pideal B" .
 
   from BGB this \<open>a \<noteq> 0\<close> obtain b where "b \<in> B" and "b \<noteq> 0" and baddsa: "lp b adds lp a"
     by (rule GB_adds_lp)
   from Bmon this(1) this(2) have lcb: "lc b = 1" by (rule is_monic_setD)
-  from \<open>b \<in> B\<close> generator_subset_pideal have "b \<in> pideal B" ..
+  from \<open>b \<in> B\<close> ideal.generator_subset_module have "b \<in> pideal B" ..
   also have "... = pideal A" using id_eq by simp
   finally have "b \<in> pideal A" .
       
@@ -89,7 +89,7 @@ proof
   proof (rule ccontr)
     let ?c = "a - b"
     assume "?c \<noteq> 0"
-    have "?c \<in> pideal A" by (rule pideal_closed_minus, fact+)
+    have "?c \<in> pideal A" by (rule ideal.module_closed_minus, fact+)
     also have "... = pideal B" using id_eq by simp
     finally have "?c \<in> pideal B" .
         
@@ -155,9 +155,9 @@ proof -
     let ?c = "a - b"
     assume "a \<in> A" and "b \<in> B" and "a \<noteq> 0" and "b \<noteq> 0" and "?c \<noteq> 0" and "lp ?c \<in> keys b" and "lp ?c \<prec> lp b"
   
-    from \<open>a \<in> A\<close> have "a \<in> pideal B" by (simp only: id_eq[symmetric], rule generator_in_pideal)
-    moreover from \<open>b \<in> B\<close> have "b \<in> pideal B" by (rule generator_in_pideal)
-    ultimately have "?c \<in> pideal B" by (rule pideal_closed_minus)
+    from \<open>a \<in> A\<close> have "a \<in> pideal B" by (simp only: id_eq[symmetric], rule ideal.generator_in_module)
+    moreover from \<open>b \<in> B\<close> have "b \<in> pideal B" by (rule ideal.generator_in_module)
+    ultimately have "?c \<in> pideal B" by (rule ideal.module_closed_minus)
     from BGB this \<open>?c \<noteq> 0\<close> obtain b'
       where "b' \<in> B" and "b' \<noteq> 0" and b'addsc: "lp b' adds lp ?c" by (rule GB_adds_lp)
   
@@ -215,7 +215,7 @@ proof (rule is_reduced_GB_unique)
       from this(1) have "f \<in> B" and "f \<noteq> b" by simp_all
 
       from assms(1) \<open>f \<in> B\<close> have "f \<noteq> 0" by (rule is_minimal_basisD1)
-      from \<open>f \<in> B\<close> have "f \<in> pideal B" by (rule generator_in_pideal)
+      from \<open>f \<in> B\<close> have "f \<in> pideal B" by (rule ideal.generator_in_module)
       hence "f \<in> pideal G" by (simp only: assms(5))
       from \<open>is_Groebner_basis G\<close> this \<open>f \<noteq> 0\<close> obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds lp f"
         by (rule GB_adds_lp)
@@ -230,7 +230,7 @@ proof (rule is_reduced_GB_unique)
       with \<open>f \<in> B - {b}\<close> \<open>is_red {f} b\<close> have red: "is_red (G - {b}) b"
         by (meson Diff_iff is_red_singletonD)
 
-      from \<open>b \<in> B\<close> have "b \<in> pideal B" by (rule generator_in_pideal)
+      from \<open>b \<in> B\<close> have "b \<in> pideal B" by (rule ideal.generator_in_module)
       hence "b \<in> pideal G" by (simp only: assms(5))
       from \<open>is_Groebner_basis G\<close> this \<open>b \<noteq> 0\<close> obtain g' where "g' \<in> G" and "g' \<noteq> 0" and "lp g' adds lp b"
         by (rule GB_adds_lp)
@@ -265,7 +265,7 @@ lemma comp_min_basis_aux_Nil_GB:
 proof (intro ballI impI)
   fix f
   assume fin: "f \<in> pideal (set (comp_min_basis_aux xs []))" and "f \<noteq> 0"
-  have "f \<in> pideal (set xs)" by (rule, fact fin, rule pideal_mono, fact comp_min_basis_aux_Nil_subset)
+  have "f \<in> pideal (set xs)" by (rule, fact fin, rule ideal.module_mono, fact comp_min_basis_aux_Nil_subset)
   show "is_red (set (comp_min_basis_aux xs [])) f"
   proof (rule comp_min_basis_aux_Nil_is_red)
     from assms \<open>f \<noteq> 0\<close> \<open>f \<in> pideal (set xs)\<close> show "is_red (set xs) f"
@@ -279,7 +279,7 @@ lemma comp_min_basis_aux_Nil_pideal:
   shows "pideal (set (comp_min_basis_aux xs [])) = pideal (set xs)"
 proof -
   show ?thesis
-  proof (rule, rule pideal_mono, fact comp_min_basis_aux_Nil_subset)
+  proof (rule, rule ideal.module_mono, fact comp_min_basis_aux_Nil_subset)
     show "pideal (set xs) \<subseteq> pideal (set (comp_min_basis_aux xs []))"
     proof
       fix f
@@ -287,12 +287,12 @@ proof -
       show "f \<in> pideal (set (comp_min_basis_aux xs []))"
       proof (cases "f = 0")
         case True
-        show ?thesis unfolding True by (rule zero_in_pideal)
+        show ?thesis unfolding True by (rule ideal.module_0)
       next
         case False
         let ?xs = "comp_min_basis_aux xs []"
         have "(red (set ?xs))\<^sup>*\<^sup>* f 0"
-        proof (rule is_red_implies_0_red_finite[OF finite_set], rule pideal_mono,
+        proof (rule is_red_implies_0_red_finite[OF finite_set], rule ideal.module_mono,
                 fact comp_min_basis_aux_Nil_subset)
           fix q
           assume "q \<noteq> 0" and "q \<in> pideal (set xs)"
@@ -312,7 +312,7 @@ lemma comp_min_basis_pre_GB:
 proof (intro ballI impI)
   fix f
   assume fin: "f \<in> pideal (set (comp_min_basis_pre xs))" and "f \<noteq> 0"
-  have "f \<in> pideal (set xs)" by (rule, fact fin, rule pideal_mono, rule comp_min_basis_pre_subset)
+  have "f \<in> pideal (set xs)" by (rule, fact fin, rule ideal.module_mono, rule comp_min_basis_pre_subset)
   from assms this \<open>f \<noteq> 0\<close> obtain g where "g \<in> set xs" and "g \<noteq> 0" and "lp g adds lp f" by (rule GB_adds_lp)
   from this(1) this(2) obtain g' where g'_in: "g' \<in> set (comp_min_basis_pre xs)" and "lp g' = lp g"
     by (rule comp_min_basis_pre_lp)
@@ -329,18 +329,18 @@ lemma comp_min_basis_pre_pideal:
   shows "pideal (set (comp_min_basis_pre xs)) = pideal (set xs)"
 proof -
   show ?thesis
-  proof (rule, rule pideal_mono, rule comp_min_basis_pre_subset, rule)
+  proof (rule, rule ideal.module_mono, rule comp_min_basis_pre_subset, rule)
     fix f
     assume "f \<in> pideal (set xs)"
     show "f \<in> pideal (set (comp_min_basis_pre xs))"
     proof (cases "f = 0")
       case True
-      show ?thesis unfolding True by (rule zero_in_pideal)
+      show ?thesis unfolding True by (rule ideal.module_0)
     next
       case False
       let ?xs = "comp_min_basis_pre xs"
       have "(red (set ?xs))\<^sup>*\<^sup>* f 0"
-      proof (rule is_red_implies_0_red_finite[OF finite_set], rule pideal_mono, rule comp_min_basis_pre_subset)
+      proof (rule is_red_implies_0_red_finite[OF finite_set], rule ideal.module_mono, rule comp_min_basis_pre_subset)
         fix q
         assume "q \<noteq> 0" and "q \<in> pideal (set xs)"
         with assms have "is_red (set xs) q" by (rule GB_imp_reducibility)
@@ -381,7 +381,7 @@ proof (rule, fact pideal_comp_red_basis_subset, rule)
   show "f \<in> pideal (set (comp_red_basis xs))"
   proof (cases "f = 0")
     case True
-    show ?thesis unfolding True by (rule zero_in_pideal)
+    show ?thesis unfolding True by (rule ideal.module_0)
   next
     case False
     let ?xs = "comp_red_basis xs"
@@ -603,14 +603,14 @@ proof
     qed simp
   next
     show "pideal {1} = pideal F"
-      by (simp only: \<open>pideal F = UNIV\<close> pideal_eq_UNIV_iff_contains_one, rule generator_in_pideal, simp)
+      by (simp only: \<open>pideal F = UNIV\<close> ideal_eq_UNIV_iff_contains_one, rule ideal.generator_in_module, simp)
   qed
 next
   assume "reduced_GB F = {1}"
   hence "1 \<in> reduced_GB F" by simp
-  hence "1 \<in> pideal (reduced_GB F)" by (rule generator_in_pideal)
+  hence "1 \<in> pideal (reduced_GB F)" by (rule ideal.generator_in_module)
   also from assms have "... = pideal F" by (rule reduced_GB_pideal_dgrad_p_set)
-  finally show "pideal F = UNIV" by (simp only: pideal_eq_UNIV_iff_contains_one)
+  finally show "pideal F = UNIV" by (simp only: ideal_eq_UNIV_iff_contains_one)
 qed
 
 lemmas pideal_eq_UNIV_iff_reduced_GB_eq_one_finite =

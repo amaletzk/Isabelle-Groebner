@@ -21,14 +21,14 @@ lemma trdsp_in_pideal: "trdsp bs (p, q) \<in> pideal (insert (fst p) (insert (fs
   unfolding trdsp_alt
 proof (rule pideal_closed_trd)
   have "spoly (fst p) (fst q) \<in> pideal {fst p, fst q}" unfolding spoly_def
-    by (rule pideal_closed_minus, (rule monom_mult_in_pideal, simp)+)
+    by (rule ideal.module_closed_minus, (rule monom_mult_in_pideal, simp)+)
   also have "... \<subseteq> pideal (insert (fst p) (insert (fst q) (set bs)))"
-    by (rule pideal_mono, simp)
+    by (rule ideal.module_mono, simp)
   finally show "spoly (fst p) (fst q) \<in> pideal (insert (fst p) (insert (fst q) (set bs)))" .
 next
   have "set bs \<subseteq> insert (fst p) (insert (fst q) (set bs))" by blast
   also have "... \<subseteq> pideal (insert (fst p) (insert (fst q) (set bs)))"
-    by (fact generator_subset_pideal)
+    by (fact ideal.generator_subset_module)
   finally show "set bs \<subseteq> pideal (insert (fst p) (insert (fst q) (set bs)))" .
 qed
 
@@ -129,7 +129,7 @@ proof
   have "h \<in> pideal (insert (fst p) (insert (fst q) (set (map fst bs))))" unfolding h
     by (fact trdsp_in_pideal)
   also have "... \<subseteq> pideal (args_to_set ([], bs, ps))"
-  proof (rule pideal_mono, intro insert_subsetI)
+  proof (rule ideal.module_mono, intro insert_subsetI)
     from \<open>(p, q) \<in> set ps\<close> have "fst p \<in> fst ` fst ` set ps" by force
     thus "fst p \<in> args_to_set ([], bs, ps)" by (auto simp add: args_to_set_alt)
   next
