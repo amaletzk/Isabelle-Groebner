@@ -3,7 +3,7 @@
 section \<open>Faug\`ere's F4 Algorithm\<close>
 
 theory F4
-  imports Macaulay_Matrix Algorithm_Schema
+  imports Macaulay_Matrix Groebner_Bases.Algorithm_Schema
 begin
 
 text \<open>This theory implements Faug\`ere's F4 algorithm based on @{const gd_powerprod.gb_schema_direct}.\<close>

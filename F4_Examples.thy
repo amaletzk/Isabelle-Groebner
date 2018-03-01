@@ -3,7 +3,7 @@
 section \<open>Sample Computations with the F4 Algorithm\<close>
 
 theory F4_Examples
-  imports F4 Algorithm_Schema_Impl Jordan_Normal_Form.Gauss_Jordan_IArray_Impl
+  imports F4 Groebner_Bases.Algorithm_Schema_Impl Jordan_Normal_Form.Gauss_Jordan_IArray_Impl
 begin
 
 lemma compute_list_to_poly [code]: "list_to_poly ts cs = sparse\<^sub>0 (zip ts cs)"

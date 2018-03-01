@@ -1,5 +1,5 @@
 theory Reduced_GB_Examples
-  imports Buchberger Reduced_GB Polynomials.MPoly_Type_Class_FMap
+  imports Groebner_Bases.Buchberger Reduced_GB Polynomials.MPoly_Type_Class_FMap
 begin
 
 definition (in gd_powerprod) rgb :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
