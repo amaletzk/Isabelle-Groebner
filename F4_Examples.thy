@@ -6,11 +6,6 @@ theory F4_Examples
   imports F4 Algorithm_Schema_Impl Jordan_Normal_Form.Gauss_Jordan_IArray_Impl
 begin
 
-lemma (in ordered_powerprod) compute_keys_to_list [code]:
-  "keys_to_list (Pm_fmap (fmap_of_list xs)) = rev (ordered_powerprod_lin.sort (keys_list xs))"
-  by (simp add: keys_to_list_def compute_keys_alt pps_to_list_def distinct_keys_list
-        distinct_remdups_id ordered_powerprod_lin.sorted_list_of_set_sort_remdups)
-
 lemma compute_list_to_poly [code]: "list_to_poly ts cs = sparse\<^sub>0 (zip ts cs)"
   by (rule poly_mapping_eqI, simp add: lookup_list_to_poly sparse\<^sub>0_def list_to_fun_def
       fmlookup_default_def fmlookup_of_list)
