@@ -1,7 +1,7 @@
 section \<open>Multivariate Polynomials with Power-Products Represented by Polynomial Mappings\<close>
 
 theory MPoly_PM
-  imports Poly_Utils
+  imports Polynomials.MPoly_Type_Class
 begin
 
 text \<open>Many notions introduced in this theory for type @{typ "('n \<Rightarrow>\<^sub>0 'a) \<Rightarrow>\<^sub>0 'b"} closely resemble
@@ -14,6 +14,61 @@ proof -
     by (induct n, simp_all add: add.commute single_add)
   show ?thesis by (simp add: monomial_power eq)
 qed
+
+(*
+subsection \<open>Integral Domains\<close>
+
+class orderable_powerprod = comm_powerprod +
+  assumes "\<exists>ord ord_strict::'a \<Rightarrow> 'a \<Rightarrow> bool. class.linorder ord ord_strict \<and>
+                  (\<forall>s. ord 0 s) \<and> (\<forall>s t u. ord s t \<longrightarrow> ord (s + u) (t + u))"
+
+instance "fun" :: (wellorder, add_linorder_min) orderable_powerprod
+proof (standard, intro exI conjI allI impI)
+  show "class.linorder (lex_fun::('a \<Rightarrow> 'b) \<Rightarrow> _) lex_fun_strict"
+    apply standard
+    subgoal by (simp add: lex_fun_strict_def)
+    subgoal by (fact lex_fun_refl)
+    subgoal by (fact lex_fun_trans)
+    subgoal by (fact lex_fun_antisym)
+    subgoal by (fact lex_fun_lin)
+    done
+next
+  fix s::"'a \<Rightarrow> 'b"
+  show "lex_fun 0 s" by (fact lex_fun_zero_min)
+next
+  fix s t u :: "'a \<Rightarrow> 'b"
+  assume "lex_fun s t"
+  thus "lex_fun (s + u) (t + u)" by (rule lex_fun_plus_monotone)
+qed
+
+instance poly_mapping :: (wellorder, add_linorder_min) orderable_powerprod
+proof (standard, intro exI conjI allI impI)
+  show "class.linorder (lex_pm::('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> _) lex_pm_strict"
+    apply standard
+    subgoal by (simp add: lex_pm_strict_def)
+    subgoal by (fact lex_pm_refl)
+    subgoal by (fact lex_pm_trans)
+    subgoal by (fact lex_pm_antisym)
+    subgoal by (fact lex_pm_lin)
+    done
+next
+  fix s::"'a \<Rightarrow>\<^sub>0 'b"
+  show "lex_pm 0 s" by (fact lex_pm_zero_min)
+next
+  fix s t u :: "'a \<Rightarrow>\<^sub>0 'b"
+  assume "lex_pm s t"
+  thus "lex_pm (s + u) (t + u)" by (rule lex_pm_plus_monotone)
+qed
+
+instance poly_mapping :: (orderable_powerprod, ring_no_zero_divisors) ring_no_zero_divisors
+  sorry
+
+instance poly_mapping :: (orderable_powerprod, ring_1_no_zero_divisors) ring_1_no_zero_divisors
+  ..
+
+instance poly_mapping :: (orderable_powerprod, idom) idom
+  ..
+*)
 
 subsection \<open>Order relation on polynomial mappings\<close>
 
