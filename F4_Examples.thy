@@ -93,8 +93,8 @@ global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
   and f4_sel_scalar_drlex = drlex.punit.f4_sel
   and f4_red_aux_scalar_drlex = drlex.punit.f4_red_aux
   and f4_red_scalar_drlex = drlex.punit.f4_red
-  and f4_aux_scalar_drlex = drlex.punit.f4_aux
-  and f4_scalar_drlex = drlex.punit.f4
+  and f4_aux_scalar_drlex = drlex.punit.f4_aux_punit
+  and f4_scalar_drlex = drlex.punit.f4_punit
 proof -
   show "gd_powerprod drlex_pm drlex_pm_strict"
     apply standard

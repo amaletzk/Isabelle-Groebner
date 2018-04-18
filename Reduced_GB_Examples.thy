@@ -2,8 +2,16 @@ theory Reduced_GB_Examples
   imports "Groebner_Bases/Buchberger" Reduced_GB "Polynomials/MPoly_Type_Class_FMap"
 begin
 
-definition (in gd_term) rgb :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::field) list"
+context gd_term
+begin
+
+definition rgb :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::field) list"
   where "rgb bs = comp_red_monic_basis (map fst (gb (map (\<lambda>b. (b, ())) bs) ()))"
+
+definition rgb_punit :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
+  where "rgb_punit bs = punit.comp_red_monic_basis (map fst (gb_punit (map (\<lambda>b. (b, ())) bs) ()))"
+
+end
 
 text \<open>We only consider scalar polynomials here, but vector-polynomials could be handled, too.\<close>
 
@@ -49,8 +57,8 @@ global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
   and gb_sel_scalar_drlex = drlex.punit.gb_sel
   and gb_red_aux_scalar_drlex = drlex.punit.gb_red_aux
   and gb_red_scalar_drlex = drlex.punit.gb_red
-  and gb_aux_scalar_drlex = drlex.punit.gb_aux
-  and gb_scalar_drlex = drlex.punit.gb
+  and gb_aux_scalar_drlex = drlex.punit.gb_aux_punit
+  and gb_scalar_drlex = drlex.punit.gb_punit
   and comp_min_basis_pre_scalar_drlex = drlex.punit.comp_min_basis_pre
   and comp_min_basis_aux_scalar_drlex = drlex.punit.comp_min_basis_aux
   and comp_min_basis_scalar_drlex = drlex.punit.comp_min_basis
@@ -58,7 +66,7 @@ global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
   and comp_red_basis_scalar_drlex = drlex.punit.comp_red_basis
   and monic_scalar_drlex = drlex.punit.monic
   and comp_red_monic_basis_scalar_drlex = drlex.punit.comp_red_monic_basis
-  and rgb_scalar_drlex = drlex.punit.rgb
+  and rgb_scalar_drlex = drlex.punit.rgb_punit
 proof -
   show "gd_powerprod drlex_pm drlex_pm_strict"
     apply standard

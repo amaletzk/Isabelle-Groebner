@@ -57,8 +57,8 @@ global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
   and gb_sel_scalar_drlex = drlex.punit.gb_sel
   and gb_red_aux_scalar_drlex = drlex.punit.gb_red_aux
   and gb_red_scalar_drlex = drlex.punit.gb_red
-  and gb_aux_scalar_drlex = drlex.punit.gb_aux
-  and gb_scalar_drlex = drlex.punit.gb
+  and gb_aux_scalar_drlex = drlex.punit.gb_aux_punit
+  and gb_scalar_drlex = drlex.punit.gb_punit \<comment>\<open>Faster, because incorporates product criterion.\<close>
 
   (* POT *)
   (*and ord_pot_strict_drlex = drlex.ord_pot_strict*)

@@ -1768,6 +1768,35 @@ lemmas f4_isGB = gb_schema_direct_isGB[OF struct_spec_f4 compl_conn_f4_compl, fo
 
 lemmas f4_pmdl = gb_schema_direct_pmdl[OF struct_spec_f4 compl_pmdl_f4_compl, folded f4_def]
 
+subsubsection \<open>Special Case: \<open>punit\<close>\<close>
+
+abbreviation (in gd_term) "f4_compl_punit \<equiv> punit.discard_red_cp pc_crit punit.f4_red"
+
+lemma struct_spec_f4_punit: "punit.struct_spec punit.f4_sel punit.f4_ap punit.f4_ab f4_compl_punit"
+  using punit.sel_spec_f4_sel punit.ap_spec_add_pairs_sorted ab_spec_add_basis_sorted
+proof (rule punit.struct_specI)
+  from punit.rcp_spec_f4_red show "punit.compl_struct f4_compl_punit"
+    by (rule punit.compl_struct_discard_red_cp)
+qed
+
+lemmas compl_conn_f4_compl_punit = punit.compl_conn_discard_red_cp[OF crit_spec_pc_crit punit.rcp_spec_f4_red]
+
+definition f4_aux_punit :: "nat \<times> nat \<times> 'd \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+                   ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b::field, 'c::default) pdata list"
+  where "f4_aux_punit = punit.gb_schema_aux punit.f4_sel punit.f4_ap punit.f4_ab f4_compl_punit"
+
+lemmas f4_aux_punit_simps [code] = punit.gb_schema_aux_simp[OF struct_spec_f4_punit, folded f4_aux_punit_def]
+
+definition f4_punit :: "('a, 'b, 'c) pdata' list \<Rightarrow> 'd \<Rightarrow> ('a, 'b::field, 'c::default) pdata' list"
+  where "f4_punit = punit.gb_schema_direct punit.f4_sel punit.f4_ap punit.f4_ab f4_compl_punit"
+
+lemmas f4_punit_simps [code] = punit.gb_schema_direct_def[of "punit.f4_sel" "punit.f4_ap"
+                                "punit.f4_ab" "f4_compl_punit", folded f4_punit_def f4_aux_punit_def]
+
+lemmas f4_punit_isGB = punit.gb_schema_direct_isGB[OF struct_spec_f4_punit compl_conn_f4_compl_punit, folded f4_punit_def]
+
+lemmas f4_punit_pmdl = punit.gb_schema_direct_pmdl[OF struct_spec_f4_punit punit.compl_pmdl_f4_compl, folded f4_punit_def]
+
 end (* gd_term *)
 
 end (* theory *)

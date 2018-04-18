@@ -292,10 +292,6 @@ abbreviation "gb_ap \<equiv> add_pairs_sorted canon_pair_order"
 abbreviation "gb_ab \<equiv> add_basis_sorted canon_basis_order"
 abbreviation "gb_compl \<equiv> discard_red_cp chain_crit gb_red"
 
-text \<open>Note that we cannot use the product criterion to detect useless pairs, since the product
-  criterion is only applicable to scalar polynomials. One could, however, give a separate
-  instance of @{const punit.gb_schema_direct} that does make use of the product criterion.\<close>
-
 lemma struct_spec_gb: "struct_spec gb_sel gb_ap gb_ab gb_compl"
   using sel_spec_gb_sel ap_spec_add_pairs_sorted ab_spec_add_basis_sorted
 proof (rule struct_specI)
@@ -320,6 +316,35 @@ lemmas gb_simps [code] = gb_schema_direct_def[of "gb_sel" "gb_ap" "gb_ab" "gb_co
 lemmas gb_isGB = gb_schema_direct_isGB[OF struct_spec_gb compl_conn_gb_compl, folded gb_def]
 
 lemmas gb_pmdl = gb_schema_direct_pmdl[OF struct_spec_gb compl_pmdl_gb_compl, folded gb_def]
+
+subsubsection \<open>Special Case: \<open>punit\<close>\<close>
+
+abbreviation (in gd_term) "gb_compl_punit \<equiv> punit.discard_red_cp pc_crit punit.gb_red"
+
+lemma struct_spec_gb_punit: "punit.struct_spec punit.gb_sel punit.gb_ap punit.gb_ab gb_compl_punit"
+  using punit.sel_spec_gb_sel punit.ap_spec_add_pairs_sorted ab_spec_add_basis_sorted
+proof (rule punit.struct_specI)
+  from punit.rcp_spec_gb_red show "punit.compl_struct gb_compl_punit"
+    by (rule punit.compl_struct_discard_red_cp)
+qed
+
+lemmas compl_conn_gb_compl_punit = punit.compl_conn_discard_red_cp[OF crit_spec_pc_crit punit.rcp_spec_gb_red]
+
+definition gb_aux_punit :: "nat \<times> nat \<times> 'd \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+                   ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b::field, 'c::default) pdata list"
+  where "gb_aux_punit = punit.gb_schema_aux punit.gb_sel punit.gb_ap punit.gb_ab gb_compl_punit"
+
+lemmas gb_aux_punit_simps [code] = punit.gb_schema_aux_simp[OF struct_spec_gb_punit, folded gb_aux_punit_def]
+
+definition gb_punit :: "('a, 'b, 'c) pdata' list \<Rightarrow> 'd \<Rightarrow> ('a, 'b::field, 'c::default) pdata' list"
+  where "gb_punit = punit.gb_schema_direct punit.gb_sel punit.gb_ap punit.gb_ab gb_compl_punit"
+
+lemmas gb_punit_simps [code] = punit.gb_schema_direct_def[of "punit.gb_sel" "punit.gb_ap"
+                                "punit.gb_ab" "gb_compl_punit", folded gb_punit_def gb_aux_punit_def]
+
+lemmas gb_punit_isGB = punit.gb_schema_direct_isGB[OF struct_spec_gb_punit compl_conn_gb_compl_punit, folded gb_punit_def]
+
+lemmas gb_punit_pmdl = punit.gb_schema_direct_pmdl[OF struct_spec_gb_punit punit.compl_pmdl_gb_compl, folded gb_punit_def]
 
 end (* gd_term *)
 
