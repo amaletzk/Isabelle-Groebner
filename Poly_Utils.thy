@@ -568,9 +568,9 @@ text \<open>The following lemma also holds in context @{locale comm_powerprod}, 
   additional assumption that function @{const monom_mult} is injective in its second argument (the
   power-product), provided the other two arguments (coefficient, polynomial) are non-zero.\<close>
 lemma in_pideal_in_phull:
-  fixes B::"('a::comm_powerprod, 'b::ring_1_no_zero_divisors) poly_mapping set"
-    and A::"('a, 'b) poly_mapping set"
-    and q::"('a, 'b) poly_mapping \<Rightarrow> ('a, 'b) poly_mapping"
+  fixes B::"('a::comm_powerprod \<Rightarrow>\<^sub>0 'b::ring_1_no_zero_divisors) set"
+    and A::"('a \<Rightarrow>\<^sub>0 'b) set"
+    and q::"('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b)"
   assumes "\<And>b t. b \<in> B \<Longrightarrow> t \<in> keys (q b) \<Longrightarrow> monom_mult 1 t b \<in> A"
   shows "(\<Sum>b\<in>B. q b * b) \<in> phull A" (is "?p \<in> _")
 proof (cases "finite B")

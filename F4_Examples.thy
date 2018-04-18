@@ -6,6 +6,13 @@ theory F4_Examples
   imports F4 Groebner_Bases.Algorithm_Schema_Impl Jordan_Normal_Form.Gauss_Jordan_IArray_Impl
 begin
 
+(*
+value (code) "row_echelon (mat_of_rows_list 5 [
+  [1,0,-5,0,-2],
+  [-4,2,1,0,0],
+  [2,-1,0,-1,4::rat]])"
+*)
+
 lemma compute_list_to_poly [code]: "list_to_poly ts cs = sparse\<^sub>0 (zip ts cs)"
   by (rule poly_mapping_eqI, simp add: lookup_list_to_poly sparse\<^sub>0_def list_to_fun_def
       fmlookup_default_def fmlookup_of_list)
