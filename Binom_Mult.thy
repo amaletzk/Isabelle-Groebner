@@ -7,52 +7,59 @@ begin
 context ordered_powerprod
 begin
 
+abbreviation "lc \<equiv> punit.lc"
+abbreviation "tc \<equiv> punit.tc"
+abbreviation "lp \<equiv> punit.lt"
+abbreviation "tp \<equiv> punit.tt"
+
 lemma keys_monomial_plus_times:
-  assumes "is_proper_binomial (p::('a, 'b::field) poly_mapping)" and "q \<noteq> 0" and "v \<prec> u"
+  assumes "punit.is_proper_binomial (p::'a \<Rightarrow>\<^sub>0 'b::field)" and "q \<noteq> 0" and "v \<prec> u"
     and "keys (q * p) = {u + tp p, v + tp p}"
   shows "keys ((monomial (- (lc q * lc p) / tc p) u + q) * p) = {u + lp p, v + tp p}"
 proof -
-  from assms(1) have "tp p \<prec> lp p" by (rule lp_gr_tp_binomial)
-  from assms(1) have "p \<noteq> 0" by (rule proper_binomial_not_0)
-  hence "tc p \<noteq> 0" by (rule tc_not_0)
+  from assms(1) have "tp p \<prec> lp p" by (rule punit.lt_gr_tt_binomial)
+  from assms(1) have "p \<noteq> 0" by (rule punit.proper_binomial_not_0)
+  hence "tc p \<noteq> 0" by (rule punit.tc_not_0)
   from assms(3) have "v + tp p \<prec> u + tp p" by (rule plus_monotone_strict)
-  have "lp q + lp p = lp (q * p)" by (simp only: lp_times[OF assms(2) \<open>p \<noteq> 0\<close>])
+  have "lp q + lp p = lp (q * p)" by (simp only: lt_times[OF assms(2) \<open>p \<noteq> 0\<close>])
   also from assms(4) have "... = u + tp p"
-  proof (rule keys_2_lp)
+  proof (rule punit.keys_2_lt)
     from \<open>v + tp p \<prec> u + tp p\<close> show "v + tp p \<preceq> u + tp p" by simp
   qed
   finally have *: "u + tp p = lp q + lp p" by simp
   let ?c = "- (lc q * lc p) / tc p"
-  from lc_not_0[OF \<open>p \<noteq> 0\<close>] lc_not_0[OF \<open>q \<noteq> 0\<close>] \<open>tc p \<noteq> 0\<close> have "?c \<noteq> 0" by simp
+  from punit.lc_not_0[OF \<open>p \<noteq> 0\<close>] punit.lc_not_0[OF \<open>q \<noteq> 0\<close>] \<open>tc p \<noteq> 0\<close> have "?c \<noteq> 0" by simp
   show ?thesis
-  proof (simp only: algebra_simps(17) times_monomial_left, rule keys_2_plus,
-        simp only: keys_monom_mult[OF \<open>?c \<noteq> 0\<close>], simp add: keys_proper_binomial[OF assms(1)], fact, fact)
+  proof (simp only: algebra_simps(17) times_monomial_left, rule punit.keys_2_plus,
+        simp only: punit.keys_monom_mult[OF \<open>?c \<noteq> 0\<close>], simp add: punit.keys_proper_binomial[OF assms(1)], fact, fact)
     from \<open>tp p \<prec> lp p\<close> show "u + tp p \<prec> u + lp p" by (rule plus_monotone_strict_left)
-  qed (simp only: lookup_monom_mult_plus tc_def[symmetric], simp add: \<open>tc p \<noteq> 0\<close> * lookup_times_lp_lp)
+  qed (simp only: punit.lookup_monom_mult_plus[simplified] punit.tc_def[symmetric],
+        simp add: \<open>tc p \<noteq> 0\<close> * lookup_times_lt_lt)
 qed
 
 lemma keys_plus_monomial_times:
-  assumes "is_proper_binomial (p::('a, 'b::field) poly_mapping)" and "q \<noteq> 0" and "v \<prec> u"
+  assumes "punit.is_proper_binomial (p::'a \<Rightarrow>\<^sub>0 'b::field)" and "q \<noteq> 0" and "v \<prec> u"
     and "keys (q * p) = {u + lp p, v + lp p}"
   shows "keys ((q + monomial (- (tc q * tc p) / lc p) v) * p) = {u + lp p, v + tp p}"
 proof -
-  from assms(1) have "tp p \<prec> lp p" by (rule lp_gr_tp_binomial)
-  from assms(1) have "p \<noteq> 0" by (rule proper_binomial_not_0)
-  hence "lc p \<noteq> 0" by (rule lc_not_0)
+  from assms(1) have "tp p \<prec> lp p" by (rule punit.lt_gr_tt_binomial)
+  from assms(1) have "p \<noteq> 0" by (rule punit.proper_binomial_not_0)
+  hence "lc p \<noteq> 0" by (rule punit.lc_not_0)
   from assms(3) have "v + lp p \<prec> u + lp p" by (rule plus_monotone_strict)
-  have "tp q + tp p = tp (q * p)" by (simp only: tp_times[OF assms(2) \<open>p \<noteq> 0\<close>])
+  have "tp q + tp p = tp (q * p)" by (simp only: tt_times[OF assms(2) \<open>p \<noteq> 0\<close>])
   also from assms(4) have "... = v + lp p"
-  proof (rule keys_2_tp)
+  proof (rule punit.keys_2_tt)
     from \<open>v + lp p \<prec> u + lp p\<close> show "v + lp p \<preceq> u + lp p" by simp
   qed
   finally have *: "v + lp p = tp q + tp p" by simp
   let ?c = "- (tc q * tc p) / lc p"
-  from tc_not_0[OF \<open>p \<noteq> 0\<close>] tc_not_0[OF \<open>q \<noteq> 0\<close>] \<open>lc p \<noteq> 0\<close> have "?c \<noteq> 0" by simp
+  from punit.tc_not_0[OF \<open>p \<noteq> 0\<close>] punit.tc_not_0[OF \<open>q \<noteq> 0\<close>] \<open>lc p \<noteq> 0\<close> have "?c \<noteq> 0" by simp
   show ?thesis
-  proof (simp only: algebra_simps(17) times_monomial_left, rule keys_2_plus, fact,
-        simp only: keys_monom_mult[OF \<open>?c \<noteq> 0\<close>], simp add: keys_proper_binomial[OF assms(1)])
+  proof (simp only: algebra_simps(17) times_monomial_left, rule punit.keys_2_plus, fact,
+        simp only: punit.keys_monom_mult[OF \<open>?c \<noteq> 0\<close>], simp add: punit.keys_proper_binomial[OF assms(1)])
     from \<open>tp p \<prec> lp p\<close> show "v + tp p \<prec> v + lp p" by (rule plus_monotone_strict_left)
-  qed (fact, simp only: lookup_monom_mult_plus lc_def[symmetric], simp add: \<open>lc p \<noteq> 0\<close> * lookup_times_tp_tp)
+  qed (fact, simp only: punit.lookup_monom_mult_plus[simplified] punit.lc_def[symmetric],
+        simp add: \<open>lc p \<noteq> 0\<close> * lookup_times_tt_tt)
 qed
 
 end (* ordered_powerprod *)
@@ -198,12 +205,12 @@ proof -
 qed
 
 lemma associated_inj_3:
-  assumes "\<not> has_bounded_keys 1 q" and "associated q s t k1" and "associated q s t k2"
+  assumes "\<not> punit.has_bounded_keys 1 q" and "associated q s t k1" and "associated q s t k2"
   shows "k1 = k2"
 proof -
   let ?lp = "lookup (lp q)"
   let ?tp = "lookup (tp q)"
-  from assms(1) have "lp q \<noteq> tp q" by (simp add: lp_eq_tp_iff)
+  from assms(1) have "lp q \<noteq> tp q" by (simp add: punit.lt_eq_tt_iff)
   hence "?lp \<noteq> ?tp" by (simp add: lookup_inject)
   then obtain x where "?lp x \<noteq> ?tp x" by auto
   from assms(2) have 1: "lookup t x + k1 * ?lp x = lookup s x + k1 * ?tp x" by (rule associatedD_lookup)
@@ -324,7 +331,7 @@ qed
 lemma associated_0_left:
   assumes "associated 0 s t k"
   shows "s = t"
-  using assms by (auto simp add: associated_def lp_def tp_def)
+  using assms by (auto simp add: associated_def punit.lt_def punit.tt_def)
 
 lemma associated_monomial:
   assumes "associated (monomial c u) s t k"
@@ -335,15 +342,16 @@ proof (cases "c = 0")
   thus ?thesis by (rule associated_0_left)
 next
   case False
-  hence lp: "lp (monomial c u) = u" and tp: "tp (monomial c u) = u" by (rule lp_monomial, rule tp_monomial)
+  hence lp: "lp (monomial c u) = u" and tp: "tp (monomial c u) = u"
+    by (rule punit.lt_monomial, rule punit.tt_monomial)
   from assms show ?thesis by (auto simp add: associated_def lp tp)
 qed
 
 lemma associated_has_bounded_keys_1:
-  assumes "has_bounded_keys 1 q" and "associated q s t k"
+  assumes "punit.has_bounded_keys 1 q" and "associated q s t k"
   shows "s = t"
 proof -
-  from assms(1) have "q = 0 \<or> is_monomial q" by (rule has_bounded_keys_1_D)
+  from assms(1) have "q = 0 \<or> is_monomial q" by (rule punit.has_bounded_keys_1_D)
   thus ?thesis
   proof
     assume "q = 0"
@@ -369,18 +377,18 @@ next
   hence "t + lp q \<preceq> s + tp q" by (rule ind(1))
   also have "... \<preceq> s + lp q"
   proof -
-    from lp_ge_tp[of q] have "tp q + s \<preceq> lp q + s" by (rule plus_monotone)
+    from punit.lt_ge_tt[of q] have "tp q + s \<preceq> lp q + s" by (rule plus_monotone)
     thus ?thesis by (simp add: ac_simps)
   qed
   finally show ?case by (rule ord_canc)
 qed
 
 lemma associated_eq_iff:
-  assumes "\<not> has_bounded_keys 1 q" and "associated q s t k"
+  assumes "\<not> punit.has_bounded_keys 1 q" and "associated q s t k"
   shows "s = t \<longleftrightarrow> k = 0"
 proof
   assume "s = t"
-  from assms(1) have "lp q \<noteq> tp q" by (simp add: lp_eq_tp_iff)
+  from assms(1) have "lp q \<noteq> tp q" by (simp add: punit.lt_eq_tt_iff)
   then obtain x where "lookup (tp q) x \<noteq> lookup (lp q) x" using poly_mapping_eqI by fastforce
   from assms(2) have "lookup t x + k * lookup (lp q) x = lookup s x + k * lookup (tp q) x"
     by (rule associatedD_lookup)
@@ -392,7 +400,7 @@ next
 qed
 
 lemma associated_less:
-  assumes "\<not> has_bounded_keys 1 q" and "associated q s t k" and "k \<noteq> 0"
+  assumes "\<not> punit.has_bounded_keys 1 q" and "associated q s t k" and "k \<noteq> 0"
   shows "t \<prec> s"
 proof -
   from assms(2) have "t \<preceq> s" by (rule associated_leq)
@@ -401,12 +409,12 @@ proof -
 qed
 
 lemma associated_lp_not_in_keys:
-  assumes "is_proper_binomial p" and "associated p u (v + lp p) k" and "k \<noteq> 0"
+  assumes "punit.is_proper_binomial p" and "associated p u (v + lp p) k" and "k \<noteq> 0"
   shows "u \<notin> {v + lp p, v + tp p}" (is "_ \<notin> {?s, ?t}")
 proof -
   let ?lp = "lookup (lp p)"
   let ?tp = "lookup (tp p)"
-  from \<open>is_proper_binomial p\<close> have "tp p \<prec> lp p" by (rule lp_gr_tp_binomial)
+  from assms(1) have "tp p \<prec> lp p" by (rule punit.lt_gr_tt_binomial)
   have "\<exists>x. ?tp x < ?lp x"
   proof (rule ccontr)
     assume "\<nexists>x. ?tp x < ?lp x"
@@ -439,12 +447,12 @@ proof -
 qed
 
 lemma associated_tp_not_in_keys:
-  assumes "is_proper_binomial p" and "associated p (v + tp p) u k" and "k \<noteq> 0"
+  assumes "punit.is_proper_binomial p" and "associated p (v + tp p) u k" and "k \<noteq> 0"
   shows "u \<notin> {v + lp p, v + tp p}" (is "_ \<notin> {?s, ?t}")
 proof -
   let ?lp = "lookup (lp p)"
   let ?tp = "lookup (tp p)"
-  from \<open>is_proper_binomial p\<close> have "tp p \<prec> lp p" by (rule lp_gr_tp_binomial)
+  from assms(1) have "tp p \<prec> lp p" by (rule punit.lt_gr_tt_binomial)
   have "\<exists>x. ?tp x < ?lp x"
   proof (rule ccontr)
     assume "\<nexists>x. ?tp x < ?lp x"
@@ -488,27 +496,27 @@ proof (rule associatedI, simp add: scalar_distrib_right)
 qed
 
 lemma associated_adds_obtains_cofactor_keys:
-  assumes "is_binomial p" and "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
+  assumes "punit.is_binomial p" and "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
     and "lp p adds s" and "tp p adds t"
   obtains q where "keys (q * p) = {s, t}"
 proof (cases "is_monomial p")
   assume rl: "(\<And>q. keys (q * p) = {s, t} \<Longrightarrow> thesis)"
   assume "is_monomial p"
-  hence "has_bounded_keys 1 p" by (rule has_bounded_keys_1_I1)
+  hence "punit.has_bounded_keys 1 p" by (rule punit.has_bounded_keys_1_I1)
   hence "s = t" using assms(2) by (rule associated_has_bounded_keys_1)
   from assms(4) obtain u where s_eq: "s = u + lp p" by (metis addsE add.commute)
   let ?q = "monomial (1::'a) u"
   show ?thesis
   proof (rule rl)
     show "keys (?q * p) = {s, t}"
-      by (simp add: times_monomial_left keys_monom_mult keys_monomial[OF \<open>is_monomial p\<close>]
+      by (simp add: times_monomial_left punit.keys_monom_mult punit.keys_monomial[OF \<open>is_monomial p\<close>]
           s_eq \<open>s = t\<close>[symmetric])
   qed
 next
   assume rl: "(\<And>q. keys (q * p) = {s, t} \<Longrightarrow> thesis)"
   assume "\<not> is_monomial p"
-  with assms(1) have "is_proper_binomial p" by (simp add: is_binomial_alt)
-  have "\<not> has_bounded_keys 1 p" using \<open>\<not> is_monomial p\<close> assms(1) binomial_not_0 has_bounded_keys_1_D
+  with assms(1) have "punit.is_proper_binomial p" by (simp add: punit.is_binomial_alt)
+  have "\<not> punit.has_bounded_keys 1 p" using \<open>\<not> is_monomial p\<close> assms(1) punit.binomial_not_0 punit.has_bounded_keys_1_D
     by blast
   have "1 \<noteq> (0::'a)" by simp
   from assms(2) assms(3) assms(4) rl show ?thesis
@@ -517,8 +525,8 @@ next
     from this(2) show ?case by simp
   next
     case step: (Suc k)
-    from assms(1) have "p \<noteq> 0" by (rule binomial_not_0)
-    hence "tc p \<noteq> 0" by (rule tc_not_0)
+    from assms(1) have "p \<noteq> 0" by (rule punit.binomial_not_0)
+    hence "tc p \<noteq> 0" by (rule punit.tc_not_0)
     from assms(5) obtain u where t_eq: "t = u + tp p" by (metis addsE add.commute)
     show ?case
     proof (cases "k = 0")
@@ -529,14 +537,14 @@ next
       show ?thesis
       proof (rule step(5))
         show "keys (?q * p) = {s, t}"
-          by (simp add: times_monomial_left keys_monom_mult[OF \<open>1 \<noteq> 0\<close>] keys_binomial[OF assms(1)] s_eq t_eq)
+          by (simp add: times_monomial_left punit.keys_monom_mult[OF \<open>1 \<noteq> 0\<close>] punit.keys_binomial[OF assms(1)] s_eq t_eq)
       qed
     next
       case False
       from step(2) have "associated p s t (k + 1)" by simp
       then obtain s' where a1: "associated p s' t k" and a2: "associated p s s' 1"
         by (rule associated_trans_rev)
-      from \<open>\<not> has_bounded_keys 1 p\<close> a1 False have "t \<prec> s'" by (rule associated_less)
+      from \<open>\<not> punit.has_bounded_keys 1 p\<close> a1 False have "t \<prec> s'" by (rule associated_less)
       from a2 a1 step(4) assms(5) False have "lp p adds s'" by (rule associated_lp_adds_between')
       with a1 False obtain q' where keys_q': "keys (q' * p) = {s', t}" by (rule step(1))
       from step(4) obtain v where s_eq: "s = v + lp p" by (metis addsE add.commute)
@@ -559,64 +567,64 @@ next
 qed
 
 lemma associated_adds_obtains_cofactor_binomial_lc:
-  assumes "is_proper_binomial p" and "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
+  assumes "punit.is_proper_binomial p" and "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
     and "lp p adds s" and "tp p adds t" and "c \<noteq> 0"
-  obtains q d where "q * p = binomial c s d t" and "is_obd c s d t"
+  obtains q d where "q * p = punit.binomial c s d t" and "punit.is_obd c s d t"
 proof -
-  from assms(1) have "is_binomial p" by (rule proper_binomial_imp_binomial)
+  from assms(1) have "punit.is_binomial p" by (rule punit.proper_binomial_imp_binomial)
   from this assms(2) assms(3) assms(4) assms(5) obtain q' where eq1: "keys (q' * p) = {s, t}"
     by (rule associated_adds_obtains_cofactor_keys)
-  from assms(1) have "\<not> has_bounded_keys 1 p"
-    using has_bounded_keys_1_D proper_binomial_no_monomial proper_binomial_not_0 by blast
+  from assms(1) have "\<not> punit.has_bounded_keys 1 p"
+    using punit.has_bounded_keys_1_D punit.proper_binomial_no_monomial punit.proper_binomial_not_0 by blast
   from this assms(2) assms(3) have "t \<prec> s" by (rule associated_less)
   hence "t \<noteq> s" by simp
   let ?p = "q' * p"
   define a where "a = lookup ?p s"
   define b where "b = lookup ?p t"
   have "a \<noteq> 0" and "b \<noteq> 0" by (simp_all add: a_def b_def eq1)
-  with \<open>t \<noteq> s\<close> have "is_pbd a s b t" by (simp add: is_pbd_def)
-  have eq: "?p = binomial a s b t"
-    by (rule poly_mapping_keys_eqI, simp only: eq1 keys_binomial_pbd[OF \<open>is_pbd a s b t\<close>], simp add: eq1, elim disjE,
-          simp_all add: lookup_binomial[OF \<open>is_pbd a s b t\<close>], simp only: a_def, simp add: b_def \<open>t \<noteq> s\<close>)
+  with \<open>t \<noteq> s\<close> have "punit.is_pbd a s b t" by (simp add: punit.is_pbd_def)
+  have eq: "?p = punit.binomial a s b t"
+    by (rule poly_mapping_keys_eqI, simp only: eq1 punit.keys_binomial_pbd[OF \<open>punit.is_pbd a s b t\<close>], simp add: eq1, elim disjE,
+          simp_all add: punit.lookup_binomial[OF \<open>punit.is_pbd a s b t\<close>], simp only: a_def, simp add: b_def \<open>t \<noteq> s\<close>)
   let ?c = "c / a"
   let ?d = "?c * b"
-  let ?q = "monom_mult ?c 0 q'"
+  let ?q = "punit.monom_mult ?c 0 q'"
   from \<open>a \<noteq> 0\<close> have "?c \<noteq> 0" using assms(6) by simp
   show ?thesis
   proof
-    show "?q * p = binomial c s ?d t"
+    show "?q * p = punit.binomial c s ?d t"
       by (simp only: times_monomial_left[symmetric] ac_simps(4),
-          simp add: times_monomial_left eq monom_mult_binomial \<open>a \<noteq> 0\<close>)
+          simp add: times_monomial_left eq punit.monom_mult_binomial \<open>a \<noteq> 0\<close>)
   next
-    show "is_obd c s ?d t"
-    proof (simp only: is_obd_def, intro conjI, fact)
+    show "punit.is_obd c s ?d t"
+    proof (simp only: punit.is_obd_def, intro conjI, fact)
       from \<open>?c \<noteq> 0\<close> \<open>b \<noteq> 0\<close> show "?d \<noteq> 0" by simp
     qed fact
   qed
 qed
 
 lemma associated_adds_obtains_cofactor_binomial_tc:
-  assumes "is_proper_binomial p" and "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
+  assumes "punit.is_proper_binomial p" and "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
     and "lp p adds s" and "tp p adds t" and "d \<noteq> 0"
-  obtains q c where "q * p = binomial c s d t" and "is_obd c s d t"
+  obtains q c where "q * p = punit.binomial c s d t" and "punit.is_obd c s d t"
 proof -
   have "1 \<noteq> (0::'a)" by simp
   with assms(1) assms(2) assms(3) assms(4) assms(5) obtain q' d'
-    where eq: "q' * p = binomial 1 s d' t" and obd: "is_obd 1 s d' t"
+    where eq: "q' * p = punit.binomial 1 s d' t" and obd: "punit.is_obd 1 s d' t"
     by (rule associated_adds_obtains_cofactor_binomial_lc)
   let ?c = "d / d'"
-  let ?q = "monom_mult ?c 0 q'"
-  from obd have "d' \<noteq> 0" by (simp add: is_obd_def)
+  let ?q = "punit.monom_mult ?c 0 q'"
+  from obd have "d' \<noteq> 0" by (simp add: punit.is_obd_def)
   with assms(6) have "?c \<noteq> 0" by simp
   show ?thesis
   proof
-    show "?q * p = binomial ?c s d t"
+    show "?q * p = punit.binomial ?c s d t"
       by (simp only: times_monomial_left[symmetric] ac_simps(4),
-          simp add: times_monomial_left eq monom_mult_binomial \<open>d' \<noteq> 0\<close>)
+          simp add: times_monomial_left eq punit.monom_mult_binomial \<open>d' \<noteq> 0\<close>)
   next
-    show "is_obd ?c s d t"
-    proof (simp only: is_obd_def, intro conjI, fact, fact)
-      from obd show "t \<prec> s" by (simp add: is_obd_def)
+    show "punit.is_obd ?c s d t"
+    proof (simp only: punit.is_obd_def, intro conjI, fact, fact)
+      from obd show "t \<prec> s" by (simp add: punit.is_obd_def)
     qed
   qed
 qed
@@ -626,7 +634,7 @@ subsection \<open>associated_poly\<close>
 definition associated_poly :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_0) \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> bool"
   where "associated_poly p q \<longleftrightarrow>
     ((\<forall>s\<in>(keys q). \<forall>t\<in>(keys q). t \<prec> s \<longrightarrow> associated p s t (card {u\<in>(keys q). u \<prec> s \<and> t \<preceq> u})) \<and>
-    (\<forall>s\<in>(keys q). tp q \<prec> s \<longrightarrow> lookup q s * tc p + lc (lower q s) * lc p = 0))"
+    (\<forall>s\<in>(keys q). tp q \<prec> s \<longrightarrow> lookup q s * tc p + lc (punit.lower q s) * lc p = 0))"
 
 lemma associated_polyD1:
   assumes "associated_poly p q" and "s \<in> keys q" and "t \<in> keys q" and "t \<prec> s"
@@ -656,24 +664,24 @@ qed
 
 lemma associated_polyD2:
   assumes "associated_poly p q" and "s \<in> keys q" and "tp q \<prec> s"
-  shows "lookup q s * tc p + lc (lower q s) * lc p = 0"
+  shows "lookup q s * tc p + lc (punit.lower q s) * lc p = 0"
 proof -
-  from assms(1) have "\<forall>s\<in>(keys q). tp q \<prec> s \<longrightarrow> lookup q s * tc p + lc (lower q s) * lc p = 0"
+  from assms(1) have "\<forall>s\<in>(keys q). tp q \<prec> s \<longrightarrow> lookup q s * tc p + lc (punit.lower q s) * lc p = 0"
     unfolding associated_poly_def ..
-  hence "tp q \<prec> s \<longrightarrow> lookup q s * tc p + lc (lower q s) * lc p = 0" using assms(2) ..
+  hence "tp q \<prec> s \<longrightarrow> lookup q s * tc p + lc (punit.lower q s) * lc p = 0" using assms(2) ..
   thus ?thesis using assms(3) ..
 qed
 
 lemma associated_polyI:
   assumes "\<And>s t. s \<in> keys q \<Longrightarrow> t \<in> keys q \<Longrightarrow> t \<prec> s \<Longrightarrow> associated p s t (card {u\<in>(keys q). u \<prec> s \<and> t \<preceq> u})"
-    and "\<And>s. s \<in> keys q \<Longrightarrow> tp q \<prec> s \<Longrightarrow> lookup q s * tc p + lc (lower q s) * lc p = 0"
+    and "\<And>s. s \<in> keys q \<Longrightarrow> tp q \<prec> s \<Longrightarrow> lookup q s * tc p + lc (punit.lower q s) * lc p = 0"
   shows "associated_poly p q"
   unfolding associated_poly_def using assms by auto
 
 lemma associated_poly_lower:
   assumes "associated_poly p q"
-  shows "associated_poly p (lower q v)"
-proof (rule associated_polyI, simp_all add: keys_lower)
+  shows "associated_poly p (punit.lower q v)"
+proof (rule associated_polyI, simp_all add: punit.keys_lower)
   fix s t
   assume "s \<in> keys q \<and> s \<prec> v"
   hence "s \<in> keys q" and "s \<prec> v" by simp_all
@@ -688,23 +696,24 @@ next
   fix s
   assume "s \<in> keys q \<and> s \<prec> v"
   hence "s \<in> keys q" and "s \<prec> v" by simp_all
-  from \<open>s \<in> keys q\<close> have "tp q \<preceq> s" by (rule tp_min_keys)
+  from \<open>s \<in> keys q\<close> have "tp q \<preceq> s" by (rule punit.tt_min_keys)
   also have "... \<prec> v" by fact
   finally have "tp q \<prec> v" .
-  assume "tp (lower q v) \<prec> s"
-  with \<open>tp q \<prec> v\<close> have "tp q \<prec> s" by (simp add: tp_lower)
-  with assms \<open>s \<in> keys q\<close> have *: "lookup q s * tc p + lc (lower q s) * lc p = 0"
+  assume "tp (punit.lower q v) \<prec> s"
+  with \<open>tp q \<prec> v\<close> have "tp q \<prec> s" by (simp add: punit.tt_lower)
+  with assms \<open>s \<in> keys q\<close> have *: "lookup q s * tc p + lc (punit.lower q s) * lc p = 0"
     by (rule associated_polyD2)
-  from \<open>s \<prec> v\<close> have eq1: "lookup (lower q v) s = lookup q s" by (simp add: lookup_lower)
-  from \<open>s \<prec> v\<close> have eq2: "lc (lower (lower q v) s) = lc (lower q s)"
-    by (simp add: lower_lower ordered_powerprod_lin.min.absorb2)
-  show "lookup (lower q v) s * tc p + lc (lower (lower q v) s) * lc p = 0" unfolding eq1 eq2 by (fact *)
+  from \<open>s \<prec> v\<close> have eq1: "lookup (punit.lower q v) s = lookup q s" by (simp add: punit.lookup_lower)
+  from \<open>s \<prec> v\<close> have eq2: "lc (punit.lower (punit.lower q v) s) = lc (punit.lower q s)"
+    by (simp add: punit.lower_lower ordered_powerprod_lin.min.absorb2)
+  show "lookup (punit.lower q v) s * tc p + lc (punit.lower (punit.lower q v) s) * lc p = 0"
+    unfolding eq1 eq2 by fact
 qed
 
 lemma associated_poly_higher:
   assumes "associated_poly p q"
-  shows "associated_poly p (higher q v)"
-proof (rule associated_polyI, simp_all add: keys_higher)
+  shows "associated_poly p (punit.higher q v)"
+proof (rule associated_polyI, simp_all add: punit.keys_higher)
   fix s t
   assume "s \<in> keys q \<and> v \<prec> s"
   hence "s \<in> keys q" ..
@@ -719,35 +728,36 @@ next
   fix s
   assume "s \<in> keys q \<and> v \<prec> s"
   hence "s \<in> keys q" and "v \<prec> s" by simp_all
-  moreover from \<open>s \<in> keys q\<close> have "... \<preceq> lp q" by (rule lp_max_keys)
+  moreover from \<open>s \<in> keys q\<close> have "... \<preceq> lp q" by (rule punit.lt_max_keys)
   ultimately have "v \<prec> lp q" by simp
-  hence "tp q \<preceq> tp (higher q v)" by (rule tp_higher)
+  hence "tp q \<preceq> tp (punit.higher q v)" by (rule punit.tt_higher)
   also assume "... \<prec> s"
   finally have "tp q \<prec> s" .
-  with assms \<open>s \<in> keys q\<close> have *: "lookup q s * tc p + lc (lower q s) * lc p = 0"
+  with assms \<open>s \<in> keys q\<close> have *: "lookup q s * tc p + lc (punit.lower q s) * lc p = 0"
     by (rule associated_polyD2)
-  from \<open>v \<prec> s\<close> have eq1: "lookup (higher q v) s = lookup q s" by (simp add: lookup_higher)
-  have "lower (higher q v) s \<noteq> 0"
-  proof (simp add: lower_eq_zero_iff del: lookup_not_eq_zero_eq_in_keys, rule, rule conjI)
-    have "tc (higher q v) \<noteq> 0"
-      by (rule tc_not_0, simp add: higher_0_iff ordered_powerprod_lin.not_le \<open>v \<prec> lp q\<close>)
-    thus "lookup (higher q v) (tp (higher q v)) \<noteq> 0" by (simp add: tc_def)
+  from \<open>v \<prec> s\<close> have eq1: "lookup (punit.higher q v) s = lookup q s" by (simp add: punit.lookup_higher)
+  have "punit.lower (punit.higher q v) s \<noteq> 0"
+  proof (simp add: punit.lower_eq_zero_iff del: lookup_not_eq_zero_eq_in_keys, rule, rule conjI)
+    have "tc (punit.higher q v) \<noteq> 0"
+      by (rule punit.tc_not_0, auto simp: punit.higher_eq_zero_iff intro: \<open>s \<in> keys q\<close> \<open>v \<prec> s\<close>)
+    thus "lookup (punit.higher q v) (tp (punit.higher q v)) \<noteq> 0" by (simp add: punit.tc_def)
   qed fact
-  hence "keys (lower (higher q v) s) \<noteq> {}" by simp
-  then obtain u where "u \<in> keys (lower (higher q v) s)" by blast
-  hence "lookup (lower (higher q v) s) u \<noteq> 0" and "u \<prec> s" by (simp, simp add: keys_lower)
-  hence "lookup (higher q v) u \<noteq> 0" by (simp add: lookup_lower)
-  have "v \<prec> lp (lower q s)"
-  proof (rule lp_gr, rule)
-    assume "lookup (lower q s) u = 0"
-    with \<open>u \<prec> s\<close> have "lookup q u = 0" by (simp add: lookup_lower)
-    hence "lookup (higher q v) u = 0" by (simp add: lookup_higher)
-    with \<open>lookup (higher q v) u \<noteq> 0\<close> show False ..
+  hence "keys (punit.lower (punit.higher q v) s) \<noteq> {}" by simp
+  then obtain u where "u \<in> keys (punit.lower (punit.higher q v) s)" by blast
+  hence "lookup (punit.lower (punit.higher q v) s) u \<noteq> 0" and "u \<prec> s" by (simp, simp add: punit.keys_lower)
+  hence "lookup (punit.higher q v) u \<noteq> 0" by (simp add: punit.lookup_lower)
+  have "v \<prec> lp (punit.lower q s)"
+  proof (rule punit.lt_gr, rule)
+    assume "lookup (punit.lower q s) u = 0"
+    with \<open>u \<prec> s\<close> have "lookup q u = 0" by (simp add: punit.lookup_lower)
+    hence "lookup (punit.higher q v) u = 0" by (simp add: punit.lookup_higher)
+    with \<open>lookup (punit.higher q v) u \<noteq> 0\<close> show False ..
   next
-    from \<open>lookup (higher q v) u \<noteq> 0\<close> show "v \<prec> u" by (metis lookup_higher)
+    from \<open>lookup (punit.higher q v) u \<noteq> 0\<close> show "v \<prec> u" by (metis punit.lookup_higher)
   qed
-  hence eq2: "lc (lower (higher q v) s) = lc (lower q s)" by (rule lc_lower_higher)
-  show "lookup (higher q v) s * tc p + lc (lower (higher q v) s) * lc p = 0" unfolding eq1 eq2 by (fact *)
+  hence eq2: "lc (punit.lower (punit.higher q v) s) = lc (punit.lower q s)" by (rule punit.lc_lower_higher)
+  show "lookup (punit.higher q v) s * tc p + lc (punit.lower (punit.higher q v) s) * lc p = 0"
+    unfolding eq1 eq2 by fact
 qed
 
 lemma associated_poly_0: "associated_poly p 0"
@@ -757,8 +767,8 @@ lemma associated_poly_monomial':
   assumes "is_monomial q"
   shows "associated_poly p q"
 proof -
-  from assms have keys_q: "keys q = {lp q}" by (rule keys_monomial)
-  from assms have eq1: "tp q = lp q" by (simp add: lp_eq_tp_monomial)
+  from assms have keys_q: "keys q = {lp q}" by (rule punit.keys_monomial)
+  from assms have eq1: "tp q = lp q" by (simp add: punit.lt_eq_tt_monomial)
   have eq2: "{u. u = lp q \<and> u \<prec> lp q \<and> lp q \<preceq> u} = {}" by auto
   show ?thesis by (rule associated_polyI, simp_all add: keys_q eq1 eq2 associated_0)
 qed
@@ -775,28 +785,28 @@ next
 qed
 
 lemma associated_poly_base:
-  assumes "has_bounded_keys 1 q"
+  assumes "punit.has_bounded_keys 1 q"
   shows "associated_poly p q"
 proof -
-  from assms have "q = 0 \<or> is_monomial q" by (rule has_bounded_keys_1_D)
+  from assms have "q = 0 \<or> is_monomial q" by (rule punit.has_bounded_keys_1_D)
   with associated_poly_0 associated_poly_monomial' show ?thesis by auto
 qed
 
 lemma associated_poly_recD1:
-  assumes "\<not> has_bounded_keys 1 q" and "associated_poly p q"
-  shows "associated p (lp q) (lp (tail q)) 1"
+  assumes "\<not> punit.has_bounded_keys 1 q" and "associated_poly p q"
+  shows "associated p (lp q) (lp (punit.tail q)) 1"
 proof -
   let ?s = "lp q"
-  let ?t = "lp (tail q)"
-  from assms(1) have "tail q \<noteq> 0" using tail_0D by auto
-  hence "q \<noteq> 0" and "?t \<prec> ?s" by (auto, rule lp_tail)
+  let ?t = "lp (punit.tail q)"
+  from assms(1) have "punit.tail q \<noteq> 0" using punit.tail_0D by auto
+  hence "q \<noteq> 0" and "?t \<prec> ?s" by (auto, rule punit.lt_tail)
   note assms(2)
-  moreover from \<open>q \<noteq> 0\<close> have "?s \<in> keys q" by (rule lp_in_keys)
+  moreover from \<open>q \<noteq> 0\<close> have "?s \<in> keys q" by (rule punit.lt_in_keys)
   moreover have "?t \<in> keys q"
   proof
-    from \<open>tail q \<noteq> 0\<close> show "?t \<in> keys (tail q)" by (rule lp_in_keys)
+    from \<open>punit.tail q \<noteq> 0\<close> show "?t \<in> keys (punit.tail q)" by (rule punit.lt_in_keys)
   next
-    show "keys (tail q) \<subseteq> keys q" unfolding keys_tail by (rule Diff_subset)
+    show "keys (punit.tail q) \<subseteq> keys q" unfolding punit.keys_tail by (rule Diff_subset)
   qed
   ultimately have "associated p ?s ?t (card {u\<in>(keys q). u \<prec> ?s \<and> ?t \<preceq> u})" using \<open>?t \<prec> ?s\<close>
     by (rule associated_polyD1)
@@ -807,7 +817,7 @@ proof -
     proof
       assume ?L
       hence "u \<in> keys q" and "u \<prec> ?s" and "?t \<preceq> u" by simp_all
-      from \<open>tail q \<noteq> 0\<close> this(1) this(2) have "u \<preceq> ?t" by (rule lp_tail_max)
+      from \<open>punit.tail q \<noteq> 0\<close> this(1) this(2) have "u \<preceq> ?t" by (rule punit.lt_tail_max)
       with \<open>?t \<preceq> u\<close> show ?R by simp
     next
       assume ?R
@@ -818,28 +828,28 @@ proof -
 qed
 
 lemma associated_poly_recD2:
-  assumes "\<not> has_bounded_keys 1 q" and "associated_poly p q"
-  shows "lc q * tc p + lc (tail q) * lc p = 0"
+  assumes "\<not> punit.has_bounded_keys 1 q" and "associated_poly p q"
+  shows "lc q * tc p + lc (punit.tail q) * lc p = 0"
 proof -
   let ?s = "lp q"
   let ?t = "tp q"
-  from assms(1) have "tail q \<noteq> 0" using tail_0D by auto
+  from assms(1) have "punit.tail q \<noteq> 0" using punit.tail_0D by auto
   hence "q \<noteq> 0" by auto
-  hence "?s \<in> keys q" by (rule lp_in_keys)
-  from assms(1) have "?t \<prec> ?s" by (simp add: lp_gr_tp_iff)
-  with assms(2) \<open>?s \<in> keys q\<close> have "lookup q ?s * tc p + lc (lower q ?s) * lc p = 0"
+  hence "?s \<in> keys q" by (rule punit.lt_in_keys)
+  from assms(1) have "?t \<prec> ?s" by (simp add: punit.lt_gr_tt_iff)
+  with assms(2) \<open>?s \<in> keys q\<close> have "lookup q ?s * tc p + lc (punit.lower q ?s) * lc p = 0"
     by (rule associated_polyD2)
-  thus ?thesis by (simp add: tail_def lc_def)
+  thus ?thesis by (simp add: punit.tail_def punit.lc_def)
 qed
 
 lemma associated_poly_recD3:
   assumes "associated_poly p q"
-  shows "associated_poly p (tail q)"
-  unfolding tail_def using assms by (rule associated_poly_lower)
+  shows "associated_poly p (punit.tail q)"
+  unfolding punit.tail_def using assms by (rule associated_poly_lower)
 
 lemma associated_poly_recI:
-  assumes "\<not> has_bounded_keys 1 q" and "associated p (lp q) (lp (tail q)) 1"
-    and "lc q * tc p + lc (tail q) * lc p = 0" and "associated_poly p (tail q)"
+  assumes "\<not> punit.has_bounded_keys 1 q" and "associated p (lp q) (lp (punit.tail q)) 1"
+    and "lc q * tc p + lc (punit.tail q) * lc p = 0" and "associated_poly p (punit.tail q)"
   shows "associated_poly p q"
 proof (rule associated_polyI)
   fix s t
@@ -848,84 +858,86 @@ proof (rule associated_polyI)
   proof (cases "s \<prec> lp q")
     case True
     with \<open>t \<prec> s\<close> have "t \<prec> lp q" by simp
-    with True \<open>s \<in> keys q\<close> \<open>t \<in> keys q\<close> have "s \<in> keys (tail q)" and "t \<in> keys (tail q)"
-      by (simp_all add: keys_tail)
-    from assms(4) this \<open>t \<prec> s\<close> have a: "associated p s t (card {u \<in> keys (tail q). u \<prec> s \<and> t \<preceq> u})"
+    with True \<open>s \<in> keys q\<close> \<open>t \<in> keys q\<close> have "s \<in> keys (punit.tail q)" and "t \<in> keys (punit.tail q)"
+      by (simp_all add: punit.keys_tail)
+    from assms(4) this \<open>t \<prec> s\<close> have a: "associated p s t (card {u \<in> keys (punit.tail q). u \<prec> s \<and> t \<preceq> u})"
       by (rule associated_polyD1)
     {
       assume "lp q \<prec> s"
       with True have False by simp
     }
-    hence eq: "{u \<in> keys (tail q). u \<prec> s \<and> t \<preceq> u} = {u \<in> keys q. u \<prec> s \<and> t \<preceq> u}"
-      by (auto simp add: keys_tail)
+    hence eq: "{u \<in> keys (punit.tail q). u \<prec> s \<and> t \<preceq> u} = {u \<in> keys q. u \<prec> s \<and> t \<preceq> u}"
+      by (auto simp add: punit.keys_tail)
     from a show ?thesis by (simp add: eq)
   next
     case False
-    with lp_max_keys[OF \<open>s \<in> keys q\<close>] have "s = lp q" by simp
+    with punit.lt_max_keys[OF \<open>s \<in> keys q\<close>] have "s = lp q" by simp
     with \<open>t \<prec> s\<close> have "t \<prec> lp q" by simp
-    with \<open>t \<in> keys q\<close> have "t \<in> keys (tail q)" by (simp add: keys_tail)
-    hence "tail q \<noteq> 0" by auto
-    hence "lp (tail q) \<in> keys (tail q)" by (rule lp_in_keys)
-    from \<open>t \<in> keys (tail q)\<close> have "t \<preceq> lp (tail q)" by (rule lp_max_keys)
-    with assms(4) \<open>lp (tail q) \<in> keys (tail q)\<close> \<open>t \<in> keys (tail q)\<close>
-    have a: "associated p (lp (tail q)) t (card {u \<in> keys (tail q). u \<prec> lp (tail q) \<and> t \<preceq> u})"
+    with \<open>t \<in> keys q\<close> have "t \<in> keys (punit.tail q)" by (simp add: punit.keys_tail)
+    hence "punit.tail q \<noteq> 0" by auto
+    hence "lp (punit.tail q) \<in> keys (punit.tail q)" by (rule punit.lt_in_keys)
+    from \<open>t \<in> keys (punit.tail q)\<close> have "t \<preceq> lp (punit.tail q)" by (rule punit.lt_max_keys)
+    with assms(4) \<open>lp (punit.tail q) \<in> keys (punit.tail q)\<close> \<open>t \<in> keys (punit.tail q)\<close>
+    have a: "associated p (lp (punit.tail q)) t (card {u \<in> keys (punit.tail q). u \<prec> lp (punit.tail q) \<and> t \<preceq> u})"
       by (rule associated_polyD1')
     have "\<And>x. x \<in> keys q \<Longrightarrow> x \<noteq> lp q \<Longrightarrow> x \<prec> lp q"
     proof -
       fix x
       assume "x \<in> keys q"
-      hence "x \<preceq> lp q" by (rule lp_max_keys)
+      hence "x \<preceq> lp q" by (rule punit.lt_max_keys)
       moreover assume "x \<noteq> lp q"
       ultimately show "x \<prec> lp q" by simp
     qed
-    moreover have "\<And>x. x \<in> keys q \<Longrightarrow> x \<prec> lp q \<Longrightarrow> x \<noteq> lp (tail q) \<Longrightarrow> x \<prec> lp (tail q)"
+    moreover have "\<And>x. x \<in> keys q \<Longrightarrow> x \<prec> lp q \<Longrightarrow> x \<noteq> lp (punit.tail q) \<Longrightarrow> x \<prec> lp (punit.tail q)"
     proof -
       fix x
       assume "x \<in> keys q" and "x \<prec> lp q"
-      hence "x \<in> keys (tail q)" by (simp add: keys_tail)
-      hence "x \<preceq> lp (tail q)" by (rule lp_max_keys)
-      moreover assume "x \<noteq> lp (tail q)"
-      ultimately show "x \<prec> lp (tail q)" by simp
+      hence "x \<in> keys (punit.tail q)" by (simp add: punit.keys_tail)
+      hence "x \<preceq> lp (punit.tail q)" by (rule punit.lt_max_keys)
+      moreover assume "x \<noteq> lp (punit.tail q)"
+      ultimately show "x \<prec> lp (punit.tail q)" by simp
     qed
-    moreover have "lp (tail q) \<in> {u \<in> keys q. u \<prec> s \<and> t \<preceq> u}" (is "_ \<in> ?A")
-      by (simp add: \<open>s = lp q\<close>, intro conjI, rule, fact, auto simp add: keys_tail, rule lp_tail, fact, fact)
-    ultimately have "... = insert (lp (tail q)) {u \<in> keys (tail q). u \<prec> lp (tail q) \<and> t \<preceq> u}" (is "_ = insert _ ?B")
-      by (auto simp add: keys_tail \<open>s = lp q\<close>)
-    moreover have "?B - {lp (tail q)} = ?B" by simp
-    moreover have "finite ?B" using finite_keys[of "tail q"] by simp
+    moreover have "lp (punit.tail q) \<in> {u \<in> keys q. u \<prec> s \<and> t \<preceq> u}" (is "_ \<in> ?A")
+      by (simp add: \<open>s = lp q\<close>, intro conjI, rule, fact, auto simp add: punit.keys_tail, rule punit.lt_tail, fact, fact)
+    ultimately have "... = insert (lp (punit.tail q)) {u \<in> keys (punit.tail q). u \<prec> lp (punit.tail q) \<and> t \<preceq> u}"
+      (is "_ = insert _ ?B")
+      by (auto simp add: punit.keys_tail \<open>s = lp q\<close>)
+    moreover have "?B - {lp (punit.tail q)} = ?B" by simp
+    moreover have "finite ?B" using finite_keys[of "punit.tail q"] by simp
     ultimately have eq: "card ?A = card ?B + 1" by (simp add: card_insert)
     from a show ?thesis unfolding eq
     proof (rule associated_trans)
-      show "associated p s (lp (tail q)) 1" unfolding \<open>s = lp q\<close> by (fact assms(2))
+      show "associated p s (lp (punit.tail q)) 1" unfolding \<open>s = lp q\<close> by (fact assms(2))
     qed
   qed
 next
   fix s
   assume "s \<in> keys q" and "tp q \<prec> s"
-  show "lookup q s * tc p + lc (lower q s) * lc p = 0"
+  show "lookup q s * tc p + lc (punit.lower q s) * lc p = 0"
   proof (cases "s \<prec> lp q")
     case True
-    from \<open>s \<in> keys q\<close> \<open>tp q \<prec> s\<close> have "tp q \<prec> lp q" by (rule lp_gr_keys)
+    from \<open>s \<in> keys q\<close> \<open>tp q \<prec> s\<close> have "tp q \<prec> lp q" by (rule punit.lt_gr_keys)
     note assms(4)
-    moreover from \<open>s \<in> keys q\<close> True have "s \<in> keys (tail q)" by (simp add: keys_tail)
-    moreover from \<open>tp q \<prec> s\<close> have "tp (tail q) \<prec> s" by (simp add: tail_def tp_lower[OF \<open>tp q \<prec> lp q\<close>])
-    ultimately have "lookup (tail q) s * tc p + lc (lower (tail q) s) * lc p = 0"
+    moreover from \<open>s \<in> keys q\<close> True have "s \<in> keys (punit.tail q)" by (simp add: punit.keys_tail)
+    moreover from \<open>tp q \<prec> s\<close> have "tp (punit.tail q) \<prec> s"
+      by (simp add: punit.tail_def punit.tt_lower[OF \<open>tp q \<prec> lp q\<close>])
+    ultimately have "lookup (punit.tail q) s * tc p + lc (punit.lower (punit.tail q) s) * lc p = 0"
       by (rule associated_polyD2)
     moreover from True have "ordered_powerprod_lin.min (lp q) s = s"
       unfolding ordered_powerprod_lin.min_def by auto
-    ultimately show ?thesis using True by (simp add: tail_def lower_lower lookup_lower)
+    ultimately show ?thesis using True by (simp add: punit.tail_def punit.lower_lower punit.lookup_lower)
   next
     case False
-    with lp_max_keys[OF \<open>s \<in> keys q\<close>] have "s = lp q" by simp
-    from assms(3) show ?thesis by (simp add: \<open>s = lp q\<close> lc_def tail_def)
+    with punit.lt_max_keys[OF \<open>s \<in> keys q\<close>] have "s = lp q" by simp
+    from assms(3) show ?thesis by (simp add: \<open>s = lp q\<close> punit.lc_def punit.tail_def)
   qed
 qed
 
 lemma associated_poly_rec_iff:
-  assumes "\<not> has_bounded_keys 1 q"
+  assumes "\<not> punit.has_bounded_keys 1 q"
   shows "associated_poly p q \<longleftrightarrow>
-          (associated p (lp q) (lp (tail q)) 1 \<and> lc q * tc p + lc (tail q) * lc p = 0 \<and>
-            associated_poly p (tail q))"
+          (associated p (lp q) (lp (punit.tail q)) 1 \<and> lc q * tc p + lc (punit.tail q) * lc p = 0 \<and>
+            associated_poly p (punit.tail q))"
   using assms associated_poly_recI associated_poly_recD1 associated_poly_recD2 associated_poly_recD3
   by auto
 
@@ -933,8 +945,9 @@ lemma associated_poly_associated_lp_tp:
   assumes "q \<noteq> 0" and "associated_poly p q"
   shows "associated p (lp q) (tp q) (card (keys q) - 1)"
 proof -
-  from assms(1) have 1: "lp q \<in> keys q" and 2: "tp q \<in> keys q" by (rule lp_in_keys, rule tp_in_keys)
-  have 3: "tp q \<preceq> lp q" by (rule lp_ge_tp)
+  from assms(1) have 1: "lp q \<in> keys q" and 2: "tp q \<in> keys q"
+    by (rule punit.lt_in_keys, rule punit.tt_in_keys)
+  have 3: "tp q \<preceq> lp q" by (rule punit.lt_ge_tt)
   have eq: "card (keys q) - 1 = card {u\<in>(keys q). u \<prec> lp q \<and> tp q \<preceq> u}" (is "?l = card ?r")
   proof -
     have "?r = keys q - {lp q}"
@@ -950,7 +963,7 @@ proof -
         assume ?R
         hence "x \<in> keys q" and "x \<noteq> lp q" by simp_all
         from \<open>x \<in> keys q\<close> have "lookup q x \<noteq> 0" by simp
-        hence "x \<preceq> lp q" and "tp q \<preceq> x" by (rule lp_max, rule tp_min)
+        hence "x \<preceq> lp q" and "tp q \<preceq> x" by (rule punit.lt_max, rule punit.tt_min)
         from \<open>x \<preceq> lp q\<close> \<open>x \<noteq> lp q\<close> have "x \<prec> lp q" by simp
         from \<open>x \<in> keys q\<close> this \<open>tp q \<preceq> x\<close> show ?L by simp
       qed
@@ -963,9 +976,9 @@ qed
 lemma associated_associated_poly:
   assumes "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k"
   obtains q where "q \<noteq> 0" and "lp q = s" and "tp q = t" and "associated_poly p q"
-proof (cases "has_bounded_keys 1 p")
+proof (cases "punit.has_bounded_keys 1 p")
   assume rl: "(\<And>q. q \<noteq> 0 \<Longrightarrow> lp q = s \<Longrightarrow> tp q = t \<Longrightarrow> associated_poly p q \<Longrightarrow> thesis)"
-  assume "has_bounded_keys 1 p"
+  assume "punit.has_bounded_keys 1 p"
   hence "s = t" using assms by (rule associated_has_bounded_keys_1)
   let ?q = "monomial (1::'a) t"
   show ?thesis
@@ -977,14 +990,14 @@ proof (cases "has_bounded_keys 1 p")
       thus False by simp
     qed
   next
-    from \<open>s = t\<close> show "lp ?q = s" by (simp add: lp_monomial)
+    from \<open>s = t\<close> show "lp ?q = s" by (simp add: punit.lt_monomial)
   next
-    show "tp ?q = t" by (rule tp_monomial, simp)
+    show "tp ?q = t" by (rule punit.tt_monomial, simp)
   qed (rule associated_poly_monomial)
 next
   assume rl: "(\<And>q. q \<noteq> 0 \<Longrightarrow> lp q = s \<Longrightarrow> tp q = t \<Longrightarrow> associated_poly p q \<Longrightarrow> thesis)"
-  assume p_keys: "\<not> has_bounded_keys 1 p"
-  hence "p \<noteq> 0" using has_bounded_keys_1_I2 by auto
+  assume p_keys: "\<not> punit.has_bounded_keys 1 p"
+  hence "p \<noteq> 0" using punit.has_bounded_keys_1_I2 by auto
   from assms rl show ?thesis
   proof (induct k arbitrary: thesis s)
     case base: 0
@@ -999,9 +1012,9 @@ next
         thus False by simp
       qed
     next
-      from \<open>s = t\<close> show "lp ?q = s" by (simp add: lp_monomial)
+      from \<open>s = t\<close> show "lp ?q = s" by (simp add: punit.lt_monomial)
     next
-      show "tp ?q = t" by (rule tp_monomial, simp)
+      show "tp ?q = t" by (rule punit.tt_monomial, simp)
     qed (rule associated_poly_monomial)
   next
     case step: (Suc k)
@@ -1010,43 +1023,45 @@ next
       by (rule associated_trans_rev)
     from a1 obtain q' where "q' \<noteq> 0" and "lp q' = s'" and "tp q' = t" and "associated_poly p q'"
       by (rule step(1))
-    from \<open>p \<noteq> 0\<close> have "tc p \<noteq> 0" by (rule tc_not_0)
+    from \<open>p \<noteq> 0\<close> have "tc p \<noteq> 0" by (rule punit.tc_not_0)
     let ?c = "(- lc q' * lc p) / tc p"
     let ?q = "(monomial ?c s) + q'"
-    from lc_not_0[OF \<open>p \<noteq> 0\<close>] lc_not_0[OF \<open>q' \<noteq> 0\<close>] \<open>tc p \<noteq> 0\<close> have "?c \<noteq> 0" by simp
+    from punit.lc_not_0[OF \<open>p \<noteq> 0\<close>] punit.lc_not_0[OF \<open>q' \<noteq> 0\<close>] \<open>tc p \<noteq> 0\<close> have "?c \<noteq> 0" by simp
     from p_keys a2 have "lp q' \<prec> s" by (simp only: \<open>lp q' = s'\<close>, rule associated_less, simp)
     from \<open>?c \<noteq> 0\<close> \<open>lp q' \<prec> s\<close> have "?q \<noteq> 0" and lp_q: "lp ?q = s" and lc_q: "lc ?q = ?c"
-      and tail_q: "tail ?q = q'"
-      by (rule monomial_plus_not_0, rule lp_monomial_plus, rule lc_monomial_plus, rule tail_monomial_plus)
+      and tail_q: "punit.tail ?q = q'"
+      by (rule punit.monomial_plus_not_0, rule punit.lt_monomial_plus[simplified],
+          rule punit.lc_monomial_plus[simplified], rule punit.tail_monomial_plus)
     show ?case
     proof (rule step(3))
-      from \<open>q' \<noteq> 0\<close> \<open>lp q' \<prec> s\<close> show "tp ?q = t" by (simp only: \<open>tp q' = t\<close>[symmetric], rule tp_monomial_plus)
+      from \<open>q' \<noteq> 0\<close> \<open>lp q' \<prec> s\<close> show "tp ?q = t" by (simp only: \<open>tp q' = t\<close>[symmetric], rule punit.tt_monomial_plus)
     next
       show "associated_poly p ?q"
       proof (rule associated_poly_recI,
-            simp_all only: lp_q lc_q tail_q \<open>lp q' = s'\<close> tail_eq_0_iff_has_bounded_keys_1[symmetric])
+            simp_all only: lp_q lc_q tail_q \<open>lp q' = s'\<close> punit.tail_eq_0_iff_has_bounded_keys_1[symmetric])
         from \<open>tc p \<noteq> 0\<close> show "?c * tc p + lc q' * lc p = 0" by (simp add: field_simps)
       qed fact+
     qed fact+
   qed
 qed
 
+(* Removed one redundant assumption. *)
 lemma associated_poly_times_binomial_associated:
-  assumes "is_proper_binomial p" and "q \<noteq> 0" and "associated_poly p q"
+  assumes "q \<noteq> 0" and "associated_poly p q"
   shows "associated p (lp q + lp p) (tp q + tp p) (card (keys q))"
 proof -
-  from keys_eq_empty_iff[of q] assms(2) have "keys q \<noteq> {}" by auto
+  from keys_eq_empty_iff[of q] assms(1) have "keys q \<noteq> {}" by auto
   with finite_keys[of q] have "card (keys q) \<noteq> 0" by simp
   hence eq: "associated p (lp q + lp p) (tp q + tp p) (card (keys q)) \<longleftrightarrow>
               associated p (lp q + lp p) (tp q + tp p) ((card (keys q) - 1) + 1)" by force
   show ?thesis unfolding eq
-  proof (rule associated_plus, rule associated_poly_associated_lp_tp, fact assms(2), fact assms(3))
+  proof (rule associated_plus, rule associated_poly_associated_lp_tp, fact assms(1), fact assms(2))
     show "associated p (lp p) (tp p) 1" unfolding associated_1 by (simp add: add.commute)
   qed
 qed
 
 lemma associated_poly_times_binomial_keys:
-  assumes "is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)" and "q \<noteq> 0"
+  assumes "punit.is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)" and "q \<noteq> 0"
     and "associated_poly p q"
   shows "keys (q * p) = {lp q + lp p, tp q + tp p}"
   using assms(2) assms(3)

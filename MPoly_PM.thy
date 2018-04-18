@@ -1,7 +1,7 @@
 section \<open>Multivariate Polynomials with Power-Products Represented by Polynomial Mappings\<close>
 
 theory MPoly_PM
-  imports Polynomials.MPoly_Type_Class
+  imports "Polynomials/MPoly_Type_Class"
 begin
 
 text \<open>Many notions introduced in this theory for type @{typ "('n \<Rightarrow>\<^sub>0 'a) \<Rightarrow>\<^sub>0 'b"} closely resemble
@@ -12,7 +12,7 @@ lemma monomial_single_power:
 proof -
   have eq: "(\<Sum>i = 0..<n. Poly_Mapping.single x k) = Poly_Mapping.single x (k * n)"
     by (induct n, simp_all add: add.commute single_add)
-  show ?thesis by (simp add: monomial_power eq)
+  show ?thesis by (simp add: punit.monomial_power eq)
 qed
 
 (*
@@ -196,9 +196,9 @@ proof (rule poly_deg_leI)
 qed
 
 corollary poly_deg_monom_mult_le:
-  "poly_deg (monom_mult c (t::_ \<Rightarrow>\<^sub>0 'a::add_linorder_min) p) \<le> deg_pm t + poly_deg p"
+  "poly_deg (punit.monom_mult c (t::_ \<Rightarrow>\<^sub>0 'a::add_linorder_min) p) \<le> deg_pm t + poly_deg p"
 proof -
-  have "poly_deg (monom_mult c t p) \<le> poly_deg (monomial c t) + poly_deg p"
+  have "poly_deg (punit.monom_mult c t p) \<le> poly_deg (monomial c t) + poly_deg p"
     by (simp only: times_monomial_left[symmetric] poly_deg_times_le)
   also have "... \<le> deg_pm t + poly_deg p" by (simp add: poly_deg_monomial)
   finally show ?thesis .
@@ -206,18 +206,18 @@ qed
 
 lemma poly_deg_monom_mult:
   assumes "c \<noteq> 0" and "p \<noteq> (0::(_ \<Rightarrow>\<^sub>0 'a::add_linorder_min) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)"
-  shows "poly_deg (monom_mult c t p) = deg_pm t + poly_deg p"
+  shows "poly_deg (punit.monom_mult c t p) = deg_pm t + poly_deg p"
 proof (rule order.antisym, fact poly_deg_monom_mult_le)
   from assms(2) have "keys p \<noteq> {}" by simp
   then obtain s where "s \<in> keys p" and "poly_deg p = deg_pm s" unfolding poly_deg_def
     by (metis (mono_tags, lifting) finite_keys Max_in finite_imageI image_iff image_is_empty)
   have "deg_pm t + poly_deg p = deg_pm (t + s)" by (simp add: \<open>poly_deg p = deg_pm s\<close> deg_pm_plus)
-  also have "... \<le> poly_deg (monom_mult c t p)"
+  also have "... \<le> poly_deg (punit.monom_mult c t p)"
   proof (rule poly_deg_max_keys)
-    from \<open>s \<in> keys p\<close> show "t + s \<in> keys (monom_mult c t p)"
-      unfolding keys_monom_mult[OF assms(1)] by fastforce
+    from \<open>s \<in> keys p\<close> show "t + s \<in> keys (punit.monom_mult c t p)"
+      unfolding punit.keys_monom_mult[OF assms(1)] by fastforce
   qed
-  finally show "deg_pm t + poly_deg p \<le> poly_deg (monom_mult c t p)" .
+  finally show "deg_pm t + poly_deg p \<le> poly_deg (punit.monom_mult c t p)" .
 qed
 
 lemma poly_deg_sum_le: "((poly_deg (sum f A))::'a::add_linorder_min) \<le> Max (poly_deg ` f ` A)"
@@ -379,7 +379,7 @@ proof
   thus "x \<in> indets p \<union> indets q" using indets_def \<open>x \<in> keys t\<close> by fastforce
 qed
 
-lemma indets_times_subset: "indets (p * q) \<subseteq> indets p \<union> indets q"
+lemma indets_times_subset: "indets (p * q) \<subseteq> indets p \<union> indets (q::(_ \<Rightarrow>\<^sub>0 _::cancel_comm_monoid_add) \<Rightarrow>\<^sub>0 _)"
 proof
   fix x
   assume "x \<in> indets (p * q)"
@@ -389,9 +389,9 @@ proof
   thus "x \<in> indets p \<union> indets q" unfolding indets_def using \<open>u \<in> keys p\<close> \<open>v \<in> keys q\<close> by blast
 qed
 
-corollary indets_monom_mult_subset: "indets (monom_mult c t p) \<subseteq> keys t \<union> indets p"
+corollary indets_monom_mult_subset: "indets (punit.monom_mult c t p) \<subseteq> keys t \<union> indets p"
 proof -
-  have "indets (monom_mult c t p) \<subseteq> indets (monomial c t) \<union> indets p"
+  have "indets (punit.monom_mult c t p) \<subseteq> indets (monomial c t) \<union> indets p"
     by (simp only: times_monomial_left[symmetric] indets_times_subset)
   also have "... \<subseteq> keys t \<union> indets p" using indets_monomial_subset[of t c] by blast
   finally show ?thesis .
@@ -399,18 +399,18 @@ qed
 
 lemma indets_monom_mult:
   assumes "c \<noteq> 0" and "p \<noteq> (0::('n \<Rightarrow>\<^sub>0 'a::{comm_powerprod,ninv_comm_monoid_add}) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)"
-  shows "indets (monom_mult c t p) = keys t \<union> indets p"
+  shows "indets (punit.monom_mult c t p) = keys t \<union> indets p"
 proof (rule, fact indets_monom_mult_subset, rule)
   fix x
   assume "x \<in> keys t \<union> indets p"
-  thus "x \<in> indets (monom_mult c t p)"
+  thus "x \<in> indets (punit.monom_mult c t p)"
   proof
     assume "x \<in> keys t"
     from assms(2) have "keys p \<noteq> {}" by simp
     then obtain s where "s \<in> keys p" by blast
     hence "t + s \<in> (+) t ` keys p" by fastforce
-    also from assms(1) have "... = keys (monom_mult c t p)" by (simp add: keys_monom_mult)
-    finally have "t + s \<in> keys (monom_mult c t p)" .
+    also from assms(1) have "... = keys (punit.monom_mult c t p)" by (simp add: punit.keys_monom_mult)
+    finally have "t + s \<in> keys (punit.monom_mult c t p)" .
     show ?thesis
     proof (rule in_indetsI)
       from \<open>x \<in> keys t\<close> show "x \<in> keys (t + s)" by (simp add: keys_plus_ninv_comm_monoid_add)
@@ -419,8 +419,8 @@ proof (rule, fact indets_monom_mult_subset, rule)
     assume "x \<in> indets p"
     then obtain s where "s \<in> keys p" and "x \<in> keys s" by (rule in_indetsE)
     from this(1) have "t + s \<in> (+) t ` keys p" by fastforce
-    also from assms(1) have "... = keys (monom_mult c t p)" by (simp add: keys_monom_mult)
-    finally have "t + s \<in> keys (monom_mult c t p)" .
+    also from assms(1) have "... = keys (punit.monom_mult c t p)" by (simp add: punit.keys_monom_mult)
+    finally have "t + s \<in> keys (punit.monom_mult c t p)" .
     show ?thesis
     proof (rule in_indetsI)
       from \<open>x \<in> keys s\<close> show "x \<in> keys (t + s)" by (simp add: keys_plus_ninv_comm_monoid_add)
@@ -448,7 +448,8 @@ next
   thus ?thesis by simp
 qed
 
-lemma indets_prod_subset: "indets (prod f A) \<subseteq> (\<Union>a\<in>A. indets (f a))"
+lemma indets_prod_subset:
+  "indets (prod (f::_ \<Rightarrow> ((_ \<Rightarrow>\<^sub>0 _::cancel_comm_monoid_add) \<Rightarrow>\<^sub>0 _)) A) \<subseteq> (\<Union>a\<in>A. indets (f a))"
 proof (cases "finite A")
   case True
   thus ?thesis
@@ -499,7 +500,7 @@ definition subst_pp :: "('n \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Righ
   where "subst_pp f t = (\<Prod>x\<in>keys t. (f x) ^ (lookup t x))"
 
 definition poly_subst :: "('n \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a)) \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::comm_semiring_1)"
-  where "poly_subst f p = (\<Sum>t\<in>keys p. monom_mult (lookup p t) 0 (subst_pp f t))"
+  where "poly_subst f p = (\<Sum>t\<in>keys p. punit.monom_mult (lookup p t) 0 (subst_pp f t))"
 
 lemma subst_pp_alt: "subst_pp f t = (\<Prod>x. (f x) ^ (lookup t x))"
 proof -
@@ -553,7 +554,8 @@ proof -
     thus "f x ^ lookup t x = monomial 1 (Poly_Mapping.single x (lookup t x))"
       by (simp add: assms monomial_single_power)
   qed
-  also have "... = monomial 1 t" by (simp add: monomial_prod_sum[symmetric] poly_mapping_sum_monomials)
+  also have "... = monomial 1 t"
+    by (simp add: punit.monomial_prod_sum[symmetric] punit.poly_mapping_sum_monomials)
   finally show ?thesis .
 qed
 
@@ -610,40 +612,39 @@ proof -
   finally show ?thesis by simp
 qed
 
-lemma poly_subst_alt: "poly_subst f p = (\<Sum>t. monom_mult (lookup p t) 0 (subst_pp f t))"
+lemma poly_subst_alt: "poly_subst f p = (\<Sum>t. punit.monom_mult (lookup p t) 0 (subst_pp f t))"
 proof -
-  from finite_keys have "poly_subst f p = (\<Sum>t. if t \<in> keys p then monom_mult (lookup p t) 0 (subst_pp f t) else 0)"
+  from finite_keys have "poly_subst f p = (\<Sum>t. if t \<in> keys p then punit.monom_mult (lookup p t) 0 (subst_pp f t) else 0)"
     unfolding poly_subst_def by (rule Sum_any.conditionalize)
-  also have "... = (\<Sum>t. monom_mult (lookup p t) 0 (subst_pp f t))"
-    by (rule Sum_any.cong, simp add: monom_mult_left0)
+  also have "... = (\<Sum>t. punit.monom_mult (lookup p t) 0 (subst_pp f t))" by (rule Sum_any.cong, simp)
   finally show ?thesis .
 qed
 
 lemma poly_subst_trivial [simp]: "poly_subst (\<lambda>_. 0) p = monomial (lookup p 0) 0"
   apply (simp add: poly_subst_def subst_pp_trivial if_distrib)
-  apply (simp add: monom_mult_right0 cong: if_cong)
+  apply (simp cong: if_cong)
   apply (metis mult.right_neutral times_monomial_left)
   done
 
 lemma poly_subst_zero [simp]: "poly_subst f 0 = 0"
   by (simp add: poly_subst_def)
 
-lemma monom_mult_lookup_not_zero_subset_keys: "{t. monom_mult (lookup p t) 0 (subst_pp f t) \<noteq> 0} \<subseteq> keys p"
+lemma monom_mult_lookup_not_zero_subset_keys: "{t. punit.monom_mult (lookup p t) 0 (subst_pp f t) \<noteq> 0} \<subseteq> keys p"
 proof (rule, simp)
   fix t
-  assume "monom_mult (lookup p t) 0 (subst_pp f t) \<noteq> 0"
-  thus "t \<in> keys p" unfolding in_keys_iff by (metis monom_mult_left0)
+  assume "punit.monom_mult (lookup p t) 0 (subst_pp f t) \<noteq> 0"
+  thus "t \<in> keys p" unfolding in_keys_iff by (metis punit.monom_mult_zero_left)
 qed
 
-corollary finite_monom_mult_lookup_not_zero: "finite {t. monom_mult (lookup p t) 0 (subst_pp f t) \<noteq> 0}"
+corollary finite_monom_mult_lookup_not_zero: "finite {t. punit.monom_mult (lookup p t) 0 (subst_pp f t) \<noteq> 0}"
   by (rule finite_subset, fact monom_mult_lookup_not_zero_subset_keys, fact finite_keys)
 
 lemma poly_subst_plus: "poly_subst f (p + q) = poly_subst f p + poly_subst f q"
-  by (simp add: poly_subst_alt lookup_add monom_mult_dist_left, rule Sum_any.distrib,
+  by (simp add: poly_subst_alt lookup_add punit.monom_mult_dist_left, rule Sum_any.distrib,
       (fact finite_monom_mult_lookup_not_zero)+)
 
 lemma poly_subst_uminus: "poly_subst f (-p) = - poly_subst f (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_ring_1)"
-  by (simp add: poly_subst_def keys_uminus monom_mult_uminus_left sum_negf)
+  by (simp add: poly_subst_def keys_uminus punit.monom_mult_uminus_left sum_negf)
 
 lemma poly_subst_minus: "poly_subst f (p - q) = poly_subst f p - poly_subst f (q::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_ring_1)"
 proof -
@@ -651,11 +652,11 @@ proof -
   thus ?thesis by (simp add: poly_subst_uminus)
 qed
 
-lemma poly_subst_monomial: "poly_subst f (monomial c t) = monom_mult c 0 (subst_pp f t)"
-  by (simp add: poly_subst_def lookup_single monom_mult_left0)
+lemma poly_subst_monomial: "poly_subst f (monomial c t) = punit.monom_mult c 0 (subst_pp f t)"
+  by (simp add: poly_subst_def lookup_single punit.monom_mult_zero_left)
 
 corollary poly_subst_one [simp]: "poly_subst f 1 = 1"
-  by (simp add: single_one[symmetric] poly_subst_monomial monom_mult_monomial del: single_one)
+  by (simp add: single_one[symmetric] poly_subst_monomial punit.monom_mult_monomial del: single_one)
 
 lemma poly_subst_times: "poly_subst f (p * q) = poly_subst f p * poly_subst f q"
 proof -
@@ -681,45 +682,47 @@ proof -
     show "{v. (lookup p u * lookup q v when t = u + v) \<noteq> 0} \<subseteq> keys q"
       by (rule, auto simp add: in_keys_iff simp del: lookup_not_eq_zero_eq_in_keys)
   qed (fact finite_keys)
-  have "(\<Sum>t. monom_mult (lookup (p * q) t) 0 (subst_pp f t)) =
-        (\<Sum>t. \<Sum>u. monom_mult (lookup p u * (\<Sum>v. lookup q v when t = u + v)) 0 (subst_pp f t))"
-    by (simp add: times_poly_mapping.rep_eq prod_fun_def monom_mult_Sum_any_left[OF fin_1])
-  also have "\<dots> = (\<Sum>t. \<Sum>u. \<Sum>v. (monom_mult (lookup p u * lookup q v) 0 (subst_pp f t)) when t = u + v)"
-    by (simp add: Sum_any_right_distrib[OF fin_2] monom_mult_Sum_any_left[OF fin_3] mult_when when_monom_mult)
-  also have "\<dots> = (\<Sum>t. (\<Sum>(u, v). (monom_mult (lookup p u * lookup q v) 0 (subst_pp f t)) when t = u + v))"
+  have "(\<Sum>t. punit.monom_mult (lookup (p * q) t) 0 (subst_pp f t)) =
+        (\<Sum>t. \<Sum>u. punit.monom_mult (lookup p u * (\<Sum>v. lookup q v when t = u + v)) 0 (subst_pp f t))"
+    by (simp add: times_poly_mapping.rep_eq prod_fun_def punit.monom_mult_Sum_any_left[OF fin_1])
+  also have "\<dots> = (\<Sum>t. \<Sum>u. \<Sum>v. (punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f t)) when t = u + v)"
+    by (simp add: Sum_any_right_distrib[OF fin_2] punit.monom_mult_Sum_any_left[OF fin_3] mult_when punit.when_monom_mult)
+  also have "\<dots> = (\<Sum>t. (\<Sum>(u, v). (punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f t)) when t = u + v))"
     apply (subst (2) Sum_any.cartesian_product [of "?P \<times> ?Q"])
-    apply (auto simp add: in_keys_iff monom_mult_left0 simp del: lookup_not_eq_zero_eq_in_keys)
+    apply (auto simp add: in_keys_iff punit.monom_mult_zero_left simp del: lookup_not_eq_zero_eq_in_keys)
     done
-  also have "\<dots> = (\<Sum>(t, u, v). monom_mult (lookup p u * lookup q v) 0 (subst_pp f t) when t = u + v)"
+  also have "\<dots> = (\<Sum>(t, u, v). punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f t) when t = u + v)"
     apply (subst Sum_any.cartesian_product [of "?PQ \<times> (?P \<times> ?Q)"])
-    apply (auto simp add: fin_PQ in_keys_iff monom_mult_left0 simp del: lookup_not_eq_zero_eq_in_keys)
+    apply (auto simp add: fin_PQ in_keys_iff punit.monom_mult_zero_left simp del: lookup_not_eq_zero_eq_in_keys)
     apply (metis monomial_0I mult_not_zero times_monomial_left)
     done
-  also have "\<dots> = (\<Sum>(u, v, t). monom_mult (lookup p u * lookup q v) 0 (subst_pp f t) when t = u + v)"
+  also have "\<dots> = (\<Sum>(u, v, t). punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f t) when t = u + v)"
     using bij by (rule Sum_any.reindex_cong [of "\<lambda>(u, v, t). (t, u, v)"]) (simp add: fun_eq_iff)
-  also have "\<dots> = (\<Sum>(u, v). \<Sum>t. monom_mult (lookup p u * lookup q v) 0 (subst_pp f t) when t = u + v)"
+  also have "\<dots> = (\<Sum>(u, v). \<Sum>t. punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f t) when t = u + v)"
     apply (subst Sum_any.cartesian_product2 [of "(?P \<times> ?Q) \<times> ?PQ"])
-    apply (auto simp add: fin_PQ in_keys_iff monom_mult_left0 simp del: lookup_not_eq_zero_eq_in_keys)
+    apply (auto simp add: fin_PQ in_keys_iff punit.monom_mult_zero_left simp del: lookup_not_eq_zero_eq_in_keys)
     apply (metis monomial_0I mult_not_zero times_monomial_left)
     done
-  also have "\<dots> = (\<Sum>(u, v). monom_mult (lookup p u * lookup q v) 0 (subst_pp f u * subst_pp f v))"
+  also have "\<dots> = (\<Sum>(u, v). punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f u * subst_pp f v))"
     by (simp add: subst_pp_plus)
-  also have "\<dots> = (\<Sum>u. \<Sum>v. monom_mult (lookup p u * lookup q v) 0 (subst_pp f u * subst_pp f v))"
+  also have "\<dots> = (\<Sum>u. \<Sum>v. punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f u * subst_pp f v))"
     apply (subst Sum_any.cartesian_product [of "?P \<times> ?Q"])
-    apply (auto simp add: in_keys_iff monom_mult_left0 simp del: lookup_not_eq_zero_eq_in_keys)
+    apply (auto simp add: in_keys_iff punit.monom_mult_zero_left simp del: lookup_not_eq_zero_eq_in_keys)
     done
-  also have "\<dots> = (\<Sum>u. \<Sum>v. (monom_mult (lookup p u) 0 (subst_pp f u)) * (monom_mult (lookup q v) 0 (subst_pp f v)))"
+  also have "\<dots> = (\<Sum>u. \<Sum>v. (punit.monom_mult (lookup p u) 0 (subst_pp f u)) * (punit.monom_mult (lookup q v) 0 (subst_pp f v)))"
     by (simp add: times_monomial_left[symmetric] ac_simps mult_single)
-  also have "\<dots> = (\<Sum>t. monom_mult (lookup p t) 0 (subst_pp f t)) *
-                  (\<Sum>t. monom_mult (lookup q t) 0 (subst_pp f t))"
+  also have "\<dots> = (\<Sum>t. punit.monom_mult (lookup p t) 0 (subst_pp f t)) *
+                  (\<Sum>t. punit.monom_mult (lookup q t) 0 (subst_pp f t))"
     by (rule Sum_any_product [symmetric], (fact finite_monom_mult_lookup_not_zero)+)
   finally show ?thesis by (simp add: poly_subst_alt)
 qed
 
-corollary poly_subst_monom_mult: "poly_subst f (monom_mult c t p) = monom_mult c 0 (subst_pp f t * poly_subst f p)"
+corollary poly_subst_monom_mult:
+  "poly_subst f (punit.monom_mult c t p) = punit.monom_mult c 0 (subst_pp f t * poly_subst f p)"
   by (simp only: times_monomial_left[symmetric] poly_subst_times poly_subst_monomial mult.assoc)
 
-corollary poly_subst_monom_mult': "poly_subst f (monom_mult c t p) = (monom_mult c 0 (subst_pp f t)) * poly_subst f p"
+corollary poly_subst_monom_mult':
+  "poly_subst f (punit.monom_mult c t p) = (punit.monom_mult c 0 (subst_pp f t)) * poly_subst f p"
   by (simp only: times_monomial_left[symmetric] poly_subst_times poly_subst_monomial)
 
 lemma poly_subst_sum: "poly_subst f (sum p A) = (\<Sum>a\<in>A. poly_subst f (p a))"
@@ -741,10 +744,10 @@ proof -
     assume "t \<in> keys p"
     have eq: "subst_pp f t = monomial 1 t"
       by (rule subst_pp_id, rule assms, erule in_indetsI, fact \<open>t \<in> keys p\<close>)
-    show "monom_mult (lookup p t) 0 (subst_pp f t) = monomial (lookup p t) t"
-      by (simp add: eq monom_mult_monomial)
+    show "punit.monom_mult (lookup p t) 0 (subst_pp f t) = monomial (lookup p t) t"
+      by (simp add: eq punit.monom_mult_monomial)
   qed
-  also have "... = p" by (simp only: poly_mapping_sum_monomials)
+  also have "... = p" by (simp only: punit.poly_mapping_sum_monomials)
   finally show ?thesis .
 qed
 
@@ -753,11 +756,11 @@ lemma in_indets_poly_substE:
   obtains y where "y \<in> indets p" and "x \<in> indets (f y)"
 proof -
   note assms
-  also have "indets (poly_subst f p) \<subseteq> (\<Union>t\<in>keys p. indets (monom_mult (lookup p t) 0 (subst_pp f t)))"
+  also have "indets (poly_subst f p) \<subseteq> (\<Union>t\<in>keys p. indets (punit.monom_mult (lookup p t) 0 (subst_pp f t)))"
     unfolding poly_subst_def by (rule indets_sum_subset)
-  finally obtain t where "t \<in> keys p" and "x \<in> indets (monom_mult (lookup p t) 0 (subst_pp f t))" ..
+  finally obtain t where "t \<in> keys p" and "x \<in> indets (punit.monom_mult (lookup p t) 0 (subst_pp f t))" ..
   note this(2)
-  also have "indets (monom_mult (lookup p t) 0 (subst_pp f t)) \<subseteq> keys (0::('a \<Rightarrow>\<^sub>0 nat)) \<union> indets (subst_pp f t)"
+  also have "indets (punit.monom_mult (lookup p t) 0 (subst_pp f t)) \<subseteq> keys (0::('a \<Rightarrow>\<^sub>0 nat)) \<union> indets (subst_pp f t)"
     by (rule indets_monom_mult_subset)
   also have "... = indets (subst_pp f t)" by simp
   finally obtain y where "y \<in> keys t" and "x \<in> indets (f y)" by (rule in_indets_subst_ppE)
@@ -773,18 +776,18 @@ proof (cases "p = 0")
   thus ?thesis by simp
 next
   case False
-  have "poly_deg (poly_subst f p) \<le> Max (poly_deg ` (\<lambda>t. monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p)"
+  have "poly_deg (poly_subst f p) \<le> Max (poly_deg ` (\<lambda>t. punit.monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p)"
     unfolding poly_subst_def by (fact poly_deg_sum_le)
   also have "... \<le> 0"
   proof (rule Max.boundedI)
-    show "finite (poly_deg ` (\<lambda>t. monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p)"
+    show "finite (poly_deg ` (\<lambda>t. punit.monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p)"
       by (simp add: finite_image_iff)
   next
-    from False show "poly_deg ` (\<lambda>t. monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p \<noteq> {}" by simp
+    from False show "poly_deg ` (\<lambda>t. punit.monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p \<noteq> {}" by simp
   next
     fix d
-    assume "d \<in> poly_deg ` (\<lambda>t. monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p"
-    then obtain t where "t \<in> keys p" and d: "d = poly_deg (monom_mult (lookup p t) 0 (subst_pp f t))"
+    assume "d \<in> poly_deg ` (\<lambda>t. punit.monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p"
+    then obtain t where "t \<in> keys p" and d: "d = poly_deg (punit.monom_mult (lookup p t) 0 (subst_pp f t))"
       by fastforce
     have "d \<le> deg_pm (0::'n \<Rightarrow>\<^sub>0 nat) + poly_deg (subst_pp f t)"
       unfolding d by (fact poly_deg_monom_mult_le)
@@ -803,18 +806,18 @@ proof (cases "p = 0")
   thus ?thesis by simp
 next
   case False
-  have "poly_deg (poly_subst f p) \<le> Max (poly_deg ` (\<lambda>t. monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p)"
+  have "poly_deg (poly_subst f p) \<le> Max (poly_deg ` (\<lambda>t. punit.monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p)"
     unfolding poly_subst_def by (fact poly_deg_sum_le)
   also have "... \<le> poly_deg p"
   proof (rule Max.boundedI)
-    show "finite (poly_deg ` (\<lambda>t. monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p)"
+    show "finite (poly_deg ` (\<lambda>t. punit.monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p)"
       by (simp add: finite_image_iff)
   next
-    from False show "poly_deg ` (\<lambda>t. monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p \<noteq> {}" by simp
+    from False show "poly_deg ` (\<lambda>t. punit.monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p \<noteq> {}" by simp
   next
     fix d
-    assume "d \<in> poly_deg ` (\<lambda>t. monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p"
-    then obtain t where "t \<in> keys p" and d: "d = poly_deg (monom_mult (lookup p t) 0 (subst_pp f t))"
+    assume "d \<in> poly_deg ` (\<lambda>t. punit.monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p"
+    then obtain t where "t \<in> keys p" and d: "d = poly_deg (punit.monom_mult (lookup p t) 0 (subst_pp f t))"
       by fastforce
     have "d \<le> deg_pm (0::'n \<Rightarrow>\<^sub>0 nat) + poly_deg (subst_pp f t)"
       unfolding d by (fact poly_deg_monom_mult_le)

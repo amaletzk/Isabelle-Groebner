@@ -3,21 +3,21 @@
 section \<open>Sample Computations with the F4 Algorithm\<close>
 
 theory F4_Examples
-  imports F4 Groebner_Bases.Algorithm_Schema_Impl Jordan_Normal_Form.Gauss_Jordan_IArray_Impl
+  imports F4 "Groebner_Bases/Algorithm_Schema_Impl" Jordan_Normal_Form.Gauss_Jordan_IArray_Impl
 begin
 
-(*
-value (code) "row_echelon (mat_of_rows_list 5 [
-  [1,0,-5,0,-2],
-  [-4,2,1,0,0],
-  [2,-1,0,-1,4::rat]])"
-*)
+text \<open>We only consider scalar polynomials here, but vector-polynomials could be handled, too.\<close>
 
-lemma compute_list_to_poly [code]: "list_to_poly ts cs = sparse\<^sub>0 (zip ts cs)"
+lemma (in ordered_term) compute_keys_to_list [code]:
+  "keys_to_list (Pm_fmap (fmap_of_list xs)) = rev (ord_term_lin.sort (keys_list xs))"
+  by (simp add: keys_to_list_def compute_keys_alt pps_to_list_def distinct_keys_list
+        distinct_remdups_id ord_term_lin.sorted_list_of_set_sort_remdups)
+
+lemma (in term_powerprod) compute_list_to_poly [code]: "list_to_poly ts cs = sparse\<^sub>0 (zip ts cs)"
   by (rule poly_mapping_eqI, simp add: lookup_list_to_poly sparse\<^sub>0_def list_to_fun_def
       fmlookup_default_def fmlookup_of_list)
 
-lemma (in ordered_powerprod) compute_Macaulay_list [code]:
+lemma (in ordered_term) compute_Macaulay_list [code]:
   "Macaulay_list ps =
      (let ts = Keys_to_list ps in
       filter (\<lambda>p. p \<noteq> 0) (mat_to_polys ts (row_echelon (polys_to_mat ts ps)))
@@ -38,92 +38,107 @@ derive (no) cenum rat
 
 subsection \<open>Degree-Reverse-Lexicographic Order\<close>
 
-thm RBT_ext.linorder_class.is_rbt_fold_rbt_insert_impl
-thm RBT_Set2.linorder_class.is_rbt_fold_rbt_insert
-thm linorder_class.set_less_eq_aux''_refl
-thm ord_class.set_less_eq_aux'_refl
-thm RBT_Set2.linorder_class.rbt_lookup_fold_rbt_insert
-thm RBT_ext.linorder_class.rbt_lookup_fold_rbt_insert_impl
+global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
+  rewrites "punit.adds_term = (adds)"
+  and "punit.pp_of_term = id"
+  and "punit.component_of_term = (\<lambda>_. ())"
+  and "punit.monom_mult = monom_mult_punit"
+  and "punit.mult_scalar = mult_scalar_punit"
 
-global_interpretation f4_drlex: gd_powerprod drlex_pm drlex_pm_strict
-  defines lp_drlex = f4_drlex.lp
-  and max_drlex = f4_drlex.ordered_powerprod_lin.max
-  and max_list_drlex = f4_drlex.ordered_powerprod_lin.max_list
-  and list_max_drlex = f4_drlex.list_max
-  and higher_drlex = f4_drlex.higher
-  and lower_drlex = f4_drlex.lower
-  and lc_drlex = f4_drlex.lc
-  and tail_drlex = f4_drlex.tail
-  and ord_drlex = f4_drlex.ord_p
-  and ord_strict_drlex = f4_drlex.ord_strict_p
-  and rd_mult_drlex = f4_drlex.rd_mult
-  and rd_drlex = f4_drlex.rd
-  and rd_list_drlex = f4_drlex.rd_list
-  and trd_drlex = f4_drlex.trd
-  and spoly_drlex = f4_drlex.spoly
-  and canon_pair_order_drlex = f4_drlex.canon_pair_order
-  and canon_basis_order_drlex = f4_drlex.canon_basis_order
-  and product_crit_drlex = f4_drlex.product_crit
-  and chain_crit_drlex = f4_drlex.chain_crit
-  and comb_crit_drlex = f4_drlex.comb_crit
-  and pc_crit_drlex = f4_drlex.pc_crit
-  and discard_crit_pairs_aux_drlex = f4_drlex.discard_crit_pairs_aux
-  and discard_crit_pairs_drlex = f4_drlex.discard_crit_pairs
-  and discard_red_cp_drlex = f4_drlex.discard_red_cp
-  and part_key_drlex = f4_drlex.ordered_powerprod_lin.part
-  and sort_key_drlex = f4_drlex.ordered_powerprod_lin.sort_key
-  and pps_to_list_drlex = f4_drlex.pps_to_list
-  and keys_to_list_drlex = f4_drlex.keys_to_list
-  and Keys_to_list_drlex = f4_drlex.Keys_to_list
-  and sym_preproc_addnew_drlex = f4_drlex.sym_preproc_addnew
-  and sym_preproc_aux_drlex = f4_drlex.sym_preproc_aux
-  and sym_preproc_drlex = f4_drlex.sym_preproc
-  and Macaulay_mat_drlex = f4_drlex.Macaulay_mat
-  and Macaulay_list_drlex = f4_drlex.Macaulay_list
-  and pdata_pairs_to_list_drlex = f4_drlex.pdata_pairs_to_list
-  and Macaulay_red_drlex = f4_drlex.Macaulay_red
-  and f4_sel_aux_drlex = f4_drlex.f4_sel_aux
-  and f4_sel_drlex = f4_drlex.f4_sel
-  and f4_red_aux_drlex = f4_drlex.f4_red_aux
-  and f4_red_drlex = f4_drlex.f4_red
-  and f4_aux_drlex = f4_drlex.f4_aux
-  and f4_drlex = f4_drlex.f4
-  apply standard
-  subgoal by (simp add: drlex_pm_strict_def)
-  subgoal by (rule drlex_pm_refl)
-  subgoal by (erule drlex_pm_trans, simp)
-  subgoal by (erule drlex_pm_antisym, simp)
-  subgoal by (rule drlex_pm_lin)
-  subgoal by (rule drlex_pm_zero_min)
-  subgoal by (erule drlex_pm_plus_monotone)
-  done
+  defines min_term_scalar_drlex = drlex.punit.min_term
+  and lt_scalar_drlex = drlex.punit.lt
+  and max_scalar_drlex = drlex.ordered_powerprod_lin.max
+  and max_list_scalar_drlex = drlex.ordered_powerprod_lin.max_list
+  and list_max_scalar_drlex = drlex.punit.list_max
+  and higher_scalar_drlex = drlex.punit.higher
+  and lower_scalar_drlex = drlex.punit.lower
+  and lc_scalar_drlex = drlex.punit.lc
+  and tail_scalar_drlex = drlex.punit.tail
+  and ord_p_scalar_drlex = drlex.punit.ord_p
+  and ord_strict_p_scalar_drlex = drlex.punit.ord_strict_p
+  and rd_mult_scalar_drlex = drlex.punit.rd_mult
+  and rd_scalar_drlex = drlex.punit.rd
+  and rd_list_scalar_drlex = drlex.punit.rd_list
+  and trd_scalar_drlex = drlex.punit.trd
+  and spoly_scalar_drlex = drlex.punit.spoly
+  and count_const_lt_components_scalar_drlex = drlex.punit.count_const_lt_components
+  and count_rem_components_scalar_drlex = drlex.punit.count_rem_components
+  and const_lt_component_scalar_drlex = drlex.punit.const_lt_component
+  and add_pairs_sorted_scalar_drlex = drlex.punit.add_pairs_sorted
+  and full_gb_scalar_drlex = drlex.punit.full_gb
+  and add_pairs_single_sorted_scalar_drlex = drlex.punit.add_pairs_single_sorted
+  and add_pairs_single_sorted_aux_scalar_drlex = drlex.punit.add_pairs_single_sorted_aux
+  and canon_pair_order_scalar_drlex = drlex.punit.canon_pair_order
+  and canon_basis_order_scalar_drlex = drlex.punit.canon_basis_order
+  and product_crit_scalar_drlex = drlex.punit.product_crit
+  and chain_crit_scalar_drlex = drlex.punit.chain_crit
+  and comb_crit_scalar_drlex = drlex.punit.comb_crit
+  and pc_crit_scalar_drlex = drlex.punit.pc_crit
+  and discard_crit_pairs_aux_scalar_drlex = drlex.punit.discard_crit_pairs_aux
+  and discard_crit_pairs_scalar_drlex = drlex.punit.discard_crit_pairs
+  and discard_red_cp_scalar_drlex = drlex.punit.discard_red_cp
+  and part_key_scalar_drlex = drlex.ordered_powerprod_lin.part
+  and sort_key_scalar_drlex = drlex.ordered_powerprod_lin.sort_key
+  and pps_to_list_scalar_drlex = drlex.punit.pps_to_list
+  and keys_to_list_scalar_drlex = drlex.punit.keys_to_list
+  and Keys_to_list_scalar_drlex = drlex.punit.Keys_to_list
+  and sym_preproc_addnew_scalar_drlex = drlex.punit.sym_preproc_addnew
+  and sym_preproc_aux_scalar_drlex = drlex.punit.sym_preproc_aux
+  and sym_preproc_scalar_drlex = drlex.punit.sym_preproc
+  and Macaulay_mat_scalar_drlex = drlex.punit.Macaulay_mat
+  and Macaulay_list_scalar_drlex = drlex.punit.Macaulay_list
+  and pdata_pairs_to_list_scalar_drlex = drlex.punit.pdata_pairs_to_list
+  and Macaulay_red_scalar_drlex = drlex.punit.Macaulay_red
+  and f4_sel_aux_scalar_drlex = drlex.punit.f4_sel_aux
+  and f4_sel_scalar_drlex = drlex.punit.f4_sel
+  and f4_red_aux_scalar_drlex = drlex.punit.f4_red_aux
+  and f4_red_scalar_drlex = drlex.punit.f4_red
+  and f4_aux_scalar_drlex = drlex.punit.f4_aux
+  and f4_scalar_drlex = drlex.punit.f4
+proof -
+  show "gd_powerprod drlex_pm drlex_pm_strict"
+    apply standard
+    subgoal by (simp add: drlex_pm_strict_def)
+    subgoal by (rule drlex_pm_refl)
+    subgoal by (erule drlex_pm_trans, simp)
+    subgoal by (erule drlex_pm_antisym, simp)
+    subgoal by (rule drlex_pm_lin)
+    subgoal by (rule drlex_pm_zero_min)
+    subgoal by (erule drlex_pm_plus_monotone)
+    done
+  show "punit.adds_term = (adds)" by (fact punit_adds_term)
+  show "punit.pp_of_term = id" by (fact punit_pp_of_term)
+  show "punit.component_of_term = (\<lambda>_. ())" by (fact punit_component_of_term)
+  show "punit.monom_mult = monom_mult_punit" by (simp only: monom_mult_punit_def)
+  show "punit.mult_scalar = mult_scalar_punit" by (simp only: mult_scalar_punit_def)
+qed
 
 subsubsection \<open>Computations\<close>
 
 experiment begin interpretation trivariate\<^sub>0_rat .
 
 lemma
-  "lp_drlex (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y) = sparse\<^sub>0 [(0, 2), (2, 3)]"
+  "lt_scalar_drlex (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y) = sparse\<^sub>0 [(0, 2), (2, 3)]"
   by eval
 
 lemma
-  "lc_drlex (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y) = 1"
+  "lc_scalar_drlex (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y) = 1"
   by eval
 
 lemma
-  "tail_drlex (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y) = 3 * X\<^sup>2 * Y"
+  "tail_scalar_drlex (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y) = 3 * X\<^sup>2 * Y"
   by eval
 
 lemma
-  "higher_drlex (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y) (sparse\<^sub>0 [(0, 2)]) = X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y"
+  "higher_scalar_drlex (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y) (sparse\<^sub>0 [(0, 2)]) = X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y"
   by eval
 
 lemma
-  "ord_strict_drlex (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) (X\<^sup>2 * Z ^ 7 + 2 * Y ^ 3 * Z\<^sup>2)"
+  "ord_strict_p_scalar_drlex (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) (X\<^sup>2 * Z ^ 7 + 2 * Y ^ 3 * Z\<^sup>2)"
   by eval
 
 lemma
-  "f4_drlex
+  "f4_scalar_drlex
     [
      (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2, ()),
      (Y\<^sup>2 * Z + 2 * Z ^ 3, ())
@@ -137,7 +152,7 @@ lemma
   by eval
 
 lemma
-  "f4_drlex
+  "f4_scalar_drlex
     [
      (X\<^sup>2 + Y\<^sup>2 + Z\<^sup>2 - 1, ()),
      (X * Y - Z - 1, ()),
@@ -151,8 +166,8 @@ lemma
 
 end
 
-value [code] "f4_drlex (map (\<lambda>p. (p, ())) (cyclic 4)) ()"
+value [code] "f4_scalar_drlex (map (\<lambda>p. (p, ())) (cyclic 4)) ()"
 
-value [code] "f4_drlex (map (\<lambda>p. (p, ())) (Katsura 2)) ()"
+value [code] "f4_scalar_drlex (map (\<lambda>p. (p, ())) (Katsura 2)) ()"
 
 end (* theory *)

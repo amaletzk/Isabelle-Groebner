@@ -1,76 +1,100 @@
 theory Reduced_GB_Examples
-  imports Groebner_Bases.Buchberger Reduced_GB Polynomials.MPoly_Type_Class_FMap
+  imports "Groebner_Bases/Buchberger" Reduced_GB "Polynomials/MPoly_Type_Class_FMap"
 begin
 
-definition (in gd_powerprod) rgb :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
+definition (in gd_term) rgb :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::field) list"
   where "rgb bs = comp_red_monic_basis (map fst (gb (map (\<lambda>b. (b, ())) bs) ()))"
 
-global_interpretation opp_dlex: gd_powerprod dlex_pm dlex_pm_strict
-  defines lp_dlex = opp_dlex.lp
-  and max_dlex = opp_dlex.ordered_powerprod_lin.max
-  and list_max_dlex = opp_dlex.list_max
-  and higher_dlex = opp_dlex.higher
-  and lower_dlex = opp_dlex.lower
-  and lc_dlex = opp_dlex.lc
-  and tail_dlex = opp_dlex.tail
-  and ord_dlex = opp_dlex.ord_p
-  and ord_strict_dlex = opp_dlex.ord_strict_p
-  and rd_mult_dlex = opp_dlex.rd_mult
-  and rd_dlex = opp_dlex.rd
-  and rd_list_dlex = opp_dlex.rd_list
-  and trd_dlex = opp_dlex.trd
-  and spoly_dlex = opp_dlex.spoly
-  and canon_pair_order_dlex = opp_dlex.canon_pair_order
-  and canon_basis_order_dlex = opp_dlex.canon_basis_order
-  and product_crit_dlex = opp_dlex.product_crit
-  and chain_crit_dlex = opp_dlex.chain_crit
-  and comb_crit_dlex = opp_dlex.comb_crit
-  and pc_crit_dlex = opp_dlex.pc_crit
-  and discard_crit_pairs_aux_dlex = opp_dlex.discard_crit_pairs_aux
-  and discard_crit_pairs_dlex = opp_dlex.discard_crit_pairs
-  and discard_red_cp_dlex = opp_dlex.discard_red_cp
-  and trdsp_dlex = opp_dlex.trdsp
-  and gb_sel_dlex = opp_dlex.gb_sel
-  and gb_red_aux_dlex = opp_dlex.gb_red_aux
-  and gb_red_dlex = opp_dlex.gb_red
-  and gb_aux_dlex = opp_dlex.gb_aux
-  and gb_dlex = opp_dlex.gb
-  and comp_min_basis_pre_dlex = opp_dlex.comp_min_basis_pre
-  and comp_min_basis_aux_dlex = opp_dlex.comp_min_basis_aux
-  and comp_min_basis_dlex = opp_dlex.comp_min_basis
-  and comp_red_basis_aux_dlex = opp_dlex.comp_red_basis_aux
-  and comp_red_basis_dlex = opp_dlex.comp_red_basis
-  and monic_dlex = opp_dlex.monic
-  and comp_red_monic_basis_dlex = opp_dlex.comp_red_monic_basis
-  and rgb_dlex = opp_dlex.rgb
-  apply standard
-  subgoal by (simp add: dlex_pm_strict_def)
-  subgoal by (rule dlex_pm_refl)
-  subgoal by (erule dlex_pm_trans, simp)
-  subgoal by (erule dlex_pm_antisym, simp)
-  subgoal by (rule dlex_pm_lin)
-  subgoal by (rule dlex_pm_zero_min)
-  subgoal by (erule dlex_pm_plus_monotone)
-  done
+text \<open>We only consider scalar polynomials here, but vector-polynomials could be handled, too.\<close>
+
+global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
+  rewrites "punit.adds_term = (adds)"
+  and "punit.pp_of_term = id"
+  and "punit.component_of_term = (\<lambda>_. ())"
+  and "punit.monom_mult = monom_mult_punit"
+  and "punit.mult_scalar = mult_scalar_punit"
+
+  defines min_term_scalar_drlex = drlex.punit.min_term
+  and lt_scalar_drlex = drlex.punit.lt
+  and max_scalar_drlex = drlex.ordered_powerprod_lin.max
+  and list_max_scalar_drlex = drlex.punit.list_max
+  and higher_scalar_drlex = drlex.punit.higher
+  and lower_scalar_drlex = drlex.punit.lower
+  and lc_scalar_drlex = drlex.punit.lc
+  and tail_scalar_drlex = drlex.punit.tail
+  and ord_p_scalar_drlex = drlex.punit.ord_p
+  and ord_strict_p_scalar_drlex = drlex.punit.ord_strict_p
+  and rd_mult_scalar_drlex = drlex.punit.rd_mult
+  and rd_scalar_drlex = drlex.punit.rd
+  and rd_list_scalar_drlex = drlex.punit.rd_list
+  and trd_scalar_drlex = drlex.punit.trd
+  and spoly_scalar_drlex = drlex.punit.spoly
+  and count_const_lt_components_scalar_drlex = drlex.punit.count_const_lt_components
+  and count_rem_components_scalar_drlex = drlex.punit.count_rem_components
+  and const_lt_component_scalar_drlex = drlex.punit.const_lt_component
+  and add_pairs_sorted_scalar_drlex = drlex.punit.add_pairs_sorted
+  and full_gb_scalar_drlex = drlex.punit.full_gb
+  and add_pairs_single_sorted_scalar_drlex = drlex.punit.add_pairs_single_sorted
+  and add_pairs_single_sorted_aux_scalar_drlex = drlex.punit.add_pairs_single_sorted_aux
+  and canon_pair_order_scalar_drlex = drlex.punit.canon_pair_order
+  and canon_basis_order_scalar_drlex = drlex.punit.canon_basis_order
+  and product_crit_scalar_drlex = drlex.punit.product_crit
+  and chain_crit_scalar_drlex = drlex.punit.chain_crit
+  and comb_crit_scalar_drlex = drlex.punit.comb_crit
+  and pc_crit_scalar_drlex = drlex.punit.pc_crit
+  and discard_crit_pairs_aux_scalar_drlex = drlex.punit.discard_crit_pairs_aux
+  and discard_crit_pairs_scalar_drlex = drlex.punit.discard_crit_pairs
+  and discard_red_cp_scalar_drlex = drlex.punit.discard_red_cp
+  and trdsp_scalar_drlex = drlex.punit.trdsp
+  and gb_sel_scalar_drlex = drlex.punit.gb_sel
+  and gb_red_aux_scalar_drlex = drlex.punit.gb_red_aux
+  and gb_red_scalar_drlex = drlex.punit.gb_red
+  and gb_aux_scalar_drlex = drlex.punit.gb_aux
+  and gb_scalar_drlex = drlex.punit.gb
+  and comp_min_basis_pre_scalar_drlex = drlex.punit.comp_min_basis_pre
+  and comp_min_basis_aux_scalar_drlex = drlex.punit.comp_min_basis_aux
+  and comp_min_basis_scalar_drlex = drlex.punit.comp_min_basis
+  and comp_red_basis_aux_scalar_drlex = drlex.punit.comp_red_basis_aux
+  and comp_red_basis_scalar_drlex = drlex.punit.comp_red_basis
+  and monic_scalar_drlex = drlex.punit.monic
+  and comp_red_monic_basis_scalar_drlex = drlex.punit.comp_red_monic_basis
+  and rgb_scalar_drlex = drlex.punit.rgb
+proof -
+  show "gd_powerprod drlex_pm drlex_pm_strict"
+    apply standard
+    subgoal by (simp add: drlex_pm_strict_def)
+    subgoal by (rule drlex_pm_refl)
+    subgoal by (erule drlex_pm_trans, simp)
+    subgoal by (erule drlex_pm_antisym, simp)
+    subgoal by (rule drlex_pm_lin)
+    subgoal by (rule drlex_pm_zero_min)
+    subgoal by (erule drlex_pm_plus_monotone)
+    done
+  show "punit.adds_term = (adds)" by (fact punit_adds_term)
+  show "punit.pp_of_term = id" by (fact punit_pp_of_term)
+  show "punit.component_of_term = (\<lambda>_. ())" by (fact punit_component_of_term)
+  show "punit.monom_mult = monom_mult_punit" by (simp only: monom_mult_punit_def)
+  show "punit.mult_scalar = mult_scalar_punit" by (simp only: mult_scalar_punit_def)
+qed
 
 experiment begin interpretation trivariate\<^sub>0_rat .
 
 lemma
-  "rgb_dlex
+  "rgb_scalar_drlex
     [
      X ^ 3 - X * Y * Z\<^sup>2,
      Y\<^sup>2 * Z - 1
     ] =
     [
+     X ^ 3 * Y - X * Z,
      - (X ^ 3) + X * Y * Z\<^sup>2,
      Y\<^sup>2 * Z - 1,
-     X ^ 3 * Y - X * Z,
      - (X * Z ^ 3) + X ^ 5
     ]"
   by eval
 
 lemma
-  "rgb_dlex
+  "rgb_scalar_drlex
     [
      X\<^sup>2 + Y\<^sup>2 + Z\<^sup>2 - 1,
      X * Y - Z - 1,

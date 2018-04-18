@@ -1,7 +1,7 @@
 (* Author: Alexander Maletzky *)
 
 theory Poly_Utils
-  imports Polynomials.MPoly_Type_Class General_Utils
+  imports "Polynomials/MPoly_Type_Class_Ordered" General_Utils
 begin
 
 text \<open>Some further general properties of (ordered) multivariate polynomials. This theory is an
@@ -9,37 +9,37 @@ text \<open>Some further general properties of (ordered) multivariate polynomial
   
 section \<open>Further Properties of Multivariate Polynomials\<close>
 
-context comm_powerprod
+context term_powerprod
 begin
 
 subsection \<open>Sub-Polynomials\<close>
 
-definition subpoly :: "('a, 'b) poly_mapping \<Rightarrow> ('a, 'b::zero) poly_mapping \<Rightarrow> bool" (infixl "\<sqsubseteq>" 50)
-  where "subpoly p q \<longleftrightarrow> (\<forall>t\<in>(keys p). lookup p t = lookup q t)"
+definition subpoly :: "('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool" (infixl "\<sqsubseteq>" 50)
+  where "subpoly p q \<longleftrightarrow> (\<forall>v\<in>(keys p). lookup p v = lookup q v)"
 
 lemma subpolyI:
-  assumes "\<And>t. t \<in> keys p \<Longrightarrow> lookup p t = lookup q t"
-  shows "p \<sqsubseteq> q"
+  assumes "\<And>v. v \<in> keys p \<Longrightarrow> lookup p v = lookup q v"
+  shows "p \<sqsubseteq> (q::'t \<Rightarrow>\<^sub>0 _)"
   unfolding subpoly_def using assms by auto
 
 lemma subpolyE:
-  assumes "p \<sqsubseteq> q" and "t \<in> keys p"
-  shows "lookup p t = lookup q t"
+  assumes "p \<sqsubseteq> (q::'t \<Rightarrow>\<^sub>0 _)" and "v \<in> keys p"
+  shows "lookup p v = lookup q v"
   using assms unfolding subpoly_def by auto
 
 lemma subpoly_keys:
-  assumes "p \<sqsubseteq> q"
+  assumes "p \<sqsubseteq> (q::'t \<Rightarrow>\<^sub>0 _)"
   shows "keys p \<subseteq> keys q"
 proof
-  fix t
-  assume "t \<in> keys p"
-  hence "lookup p t \<noteq> 0" unfolding in_keys_iff .
-  from assms \<open>t \<in> keys p\<close> have "lookup p t = lookup q t" by (rule subpolyE)
-  with \<open>lookup p t \<noteq> 0\<close> show "t \<in> keys q" unfolding in_keys_iff by simp
+  fix v
+  assume "v \<in> keys p"
+  hence "lookup p v \<noteq> 0" unfolding in_keys_iff .
+  from assms \<open>v \<in> keys p\<close> have "lookup p v = lookup q v" by (rule subpolyE)
+  with \<open>lookup p v \<noteq> 0\<close> show "v \<in> keys q" unfolding in_keys_iff by simp
 qed
 
 lemma subpoly_diff_keys_disjoint:
-  assumes "p \<sqsubseteq> q"
+  assumes "p \<sqsubseteq> (q::'t \<Rightarrow>\<^sub>0 _)"
   shows "keys p \<inter> keys (q - p) = {}"
   unfolding disjoint_iff_not_equal
 proof (intro ballI)
@@ -55,10 +55,10 @@ proof (intro ballI)
   qed
 qed
 
-lemma zero_subpoly: "0 \<sqsubseteq> p"
+lemma zero_subpoly: "0 \<sqsubseteq> (q::'t \<Rightarrow>\<^sub>0 _)"
   by (rule subpolyI, simp)
 
-lemma monomial_subpoly: "(monomial (lookup p t) t) \<sqsubseteq> p" (is "?q \<sqsubseteq> p")
+lemma monomial_subpoly: "(monomial (lookup p t) t) \<sqsubseteq> (p::'t \<Rightarrow>\<^sub>0 _)" (is "?q \<sqsubseteq> (_::'t \<Rightarrow>\<^sub>0 _)")
 proof (rule subpolyI)
   fix s
   assume "s \<in> keys ?q"
@@ -73,11 +73,11 @@ proof (rule subpolyI)
   show "lookup ?q s = lookup p s" by (simp add: \<open>s = t\<close> lookup_single)
 qed
 
-lemma subpoly_refl: "p \<sqsubseteq> p"
+lemma subpoly_refl: "p \<sqsubseteq> (p::'t \<Rightarrow>\<^sub>0 _)"
   by (rule subpolyI, rule)
 
 lemma subpoly_antisym:
-  assumes "p \<sqsubseteq> q" and "q \<sqsubseteq> p"
+  assumes "p \<sqsubseteq> (q::'t \<Rightarrow>\<^sub>0 _)" and "q \<sqsubseteq> (p::'t \<Rightarrow>\<^sub>0 _)"
   shows "p = q"
 proof (rule poly_mapping_keys_eqI, rule, rule subpoly_keys, fact, rule subpoly_keys, fact)
   fix t
@@ -86,8 +86,8 @@ proof (rule poly_mapping_keys_eqI, rule, rule subpoly_keys, fact, rule subpoly_k
 qed
 
 lemma subpoly_trans:
-  assumes "p \<sqsubseteq> q" and "q \<sqsubseteq> r"
-  shows "p \<sqsubseteq> r"
+  assumes "p \<sqsubseteq> (q::'t \<Rightarrow>\<^sub>0 _)" and "q \<sqsubseteq> (r::'t \<Rightarrow>\<^sub>0 _)"
+  shows "p \<sqsubseteq> (r::'t \<Rightarrow>\<^sub>0 _)"
 proof (rule subpolyI)
   fix t
   assume "t \<in> keys p"
@@ -98,8 +98,8 @@ proof (rule subpolyI)
 qed
 
 lemma plus_subpolyI:
-  assumes "p \<sqsubseteq> r" and "q \<sqsubseteq> r" and "keys p \<inter> keys q = {}"
-  shows "p + q \<sqsubseteq> r"
+  assumes "p \<sqsubseteq> (r::'t \<Rightarrow>\<^sub>0 _)" and "q \<sqsubseteq> (r::'t \<Rightarrow>\<^sub>0 _)" and "keys p \<inter> keys q = {}"
+  shows "p + q \<sqsubseteq> (r::'t \<Rightarrow>\<^sub>0 _)"
 proof (rule subpolyI)
   fix t
   assume "t \<in> keys (p + q)"
@@ -120,7 +120,7 @@ proof (rule subpolyI)
   qed
 qed
 
-lemma except_subpoly: "except p S \<sqsubseteq> p"
+lemma except_subpoly: "except p S \<sqsubseteq> (p::'t \<Rightarrow>\<^sub>0 _)"
 proof (rule subpolyI)
   fix s
   assume "s \<in> keys (except p S)"
@@ -128,30 +128,28 @@ proof (rule subpolyI)
   thus "lookup (except p S) s = lookup p s" by (rule lookup_except_eq_idI)
 qed
 
-end (* comm_powerprod *)
+subsection \<open>Modules and Linear Hulls\<close>
 
-subsection \<open>Ideals and Linear Hulls\<close>
-
-lemma monomial_1_in_pidealI:
-  assumes "(f::_ \<Rightarrow>\<^sub>0 'b::field) \<in> pideal F" and "keys f = {t}"
-  shows "monomial 1 t \<in> pideal F"
+lemma monomial_1_in_pmdlI:
+  assumes "(f::_ \<Rightarrow>\<^sub>0 'b::field) \<in> pmdl F" and "keys f = {t}"
+  shows "monomial 1 t \<in> pmdl F"
 proof -
   define c where "c \<equiv> lookup f t"
   from assms(2) have f_eq: "f = monomial c t" unfolding c_def
     by (metis (mono_tags, lifting) Diff_insert_absorb cancel_comm_monoid_add_class.add_cancel_right_right
         plus_except insert_absorb insert_not_empty keys_eq_empty_iff keys_except)
   from assms(2) have "c \<noteq> 0" by (simp add: c_def)
-  hence "monomial 1 t = monom_mult (1 / c) 0 f" by (simp add: f_eq monom_mult_monomial)
-  also from assms(1) have "... \<in> pideal F" by (rule pideal_closed_monom_mult)
+  hence "monomial 1 t = monom_mult (1 / c) 0 f" by (simp add: f_eq monom_mult_monomial term_simps)
+  also from assms(1) have "... \<in> pmdl F" by (rule pmdl_closed_monom_mult)
   finally show ?thesis .
 qed
 
-lemma in_pideal_listE:
-  assumes "p \<in> (pideal (set bs))"
-  obtains qs where "length qs = length bs" and "p = (\<Sum>(q, b)\<leftarrow>zip qs bs. q * b)"
+lemma in_pmdl_listE:
+  assumes "p \<in> pmdl (set bs)"
+  obtains qs where "length qs = length bs" and "p = (\<Sum>(q, b)\<leftarrow>zip qs bs. q \<odot> b)"
 proof -
   have "finite (set bs)" ..
-  from this assms obtain q where p: "p = (\<Sum>b\<in>set bs. (q b) * b)" by (rule ideal.in_module_finiteE)
+  from this assms obtain q where p: "p = (\<Sum>b\<in>set bs. (q b) \<odot> b)" by (rule pmdl.in_module_finiteE)
   let ?qs = "map_dup q (\<lambda>_. 0) bs"
   show ?thesis
   proof
@@ -160,35 +158,35 @@ proof -
     let ?zs = "zip (map q (remdups bs)) (remdups bs)"
     have *: "distinct ?zs" by (rule distinct_zipI2, rule distinct_remdups)
     have inj: "inj_on (\<lambda>b. (q b, b)) (set bs)" by (rule, simp)
-    have "p = (\<Sum>(q, b)\<leftarrow>?zs. q * b)"
+    have "p = (\<Sum>(q, b)\<leftarrow>?zs. q \<odot> b)"
       by (simp add: sum_list_distinct_conv_sum_set[OF *] set_zip_map1 p comm_monoid_add_class.sum.reindex[OF inj])
-    also have "... = (\<Sum>(q, b)\<leftarrow>(filter (\<lambda>(q, b). q \<noteq> 0) ?zs). q * b)"
-      by (rule monoid_add_class.sum_list_map_filter[symmetric], auto simp add: monom_mult_left0)
-    also have "... = (\<Sum>(q, b)\<leftarrow>(filter (\<lambda>(q, b). q \<noteq> 0) (zip ?qs bs)). q * b)"
+    also have "... = (\<Sum>(q, b)\<leftarrow>(filter (\<lambda>(q, b). q \<noteq> 0) ?zs). q \<odot> b)"
+      by (rule monoid_add_class.sum_list_map_filter[symmetric], auto)
+    also have "... = (\<Sum>(q, b)\<leftarrow>(filter (\<lambda>(q, b). q \<noteq> 0) (zip ?qs bs)). q \<odot> b)"
       by (simp only: filter_zip_map_dup_const)
-    also have "... = (\<Sum>(q, b)\<leftarrow>zip ?qs bs. q * b)"
-      by (rule monoid_add_class.sum_list_map_filter, auto simp add: monom_mult_left0)
-    finally show "p = (\<Sum>(q, b)\<leftarrow>zip ?qs bs. q * b)" .
+    also have "... = (\<Sum>(q, b)\<leftarrow>zip ?qs bs. q \<odot> b)"
+      by (rule monoid_add_class.sum_list_map_filter, auto)
+    finally show "p = (\<Sum>(q, b)\<leftarrow>zip ?qs bs. q \<odot> b)" .
   qed
 qed
 
-lemma in_pideal_listI: "(\<Sum>(q, b)\<leftarrow>zip qs bs. q * b) \<in> pideal (set bs)"
+lemma in_pmdl_listI: "(\<Sum>(q, b)\<leftarrow>zip qs bs. q \<odot> b) \<in> pmdl (set bs)"
 proof (induct qs arbitrary: bs)
   case Nil
-  show ?case by (simp add: ideal.module_0)
+  show ?case by (simp add: pmdl.module_0)
 next
   case step: (Cons q qs)
   show ?case
-  proof (simp add: zip_Cons1 ideal.module_0 split: list.split, intro allI impI)
+  proof (simp add: zip_Cons1 pmdl.module_0 split: list.split, intro allI impI)
     fix a as
-    have "(\<Sum>(x, y)\<leftarrow>zip qs as. x * y) \<in> pideal (insert a (set as))" (is "?x \<in> ?A")
-      by (rule, fact step, rule ideal.module_mono, auto)
-    show "q * a + ?x \<in> ?A" by (rule ideal.module_closed_plus, rule ideal.smult_in_module, simp, fact)
+    have "(\<Sum>(x, y)\<leftarrow>zip qs as. x \<odot> y) \<in> pmdl (insert a (set as))" (is "?x \<in> ?A")
+      by (rule, fact step, rule pmdl.module_mono, auto)
+    show "q \<odot> a + ?x \<in> ?A" by (rule pmdl.module_closed_plus, rule pmdl.smult_in_module, simp, fact)
   qed
 qed
 
 lemma in_phull_listE:
-  assumes "p \<in> (phull (set bs))"
+  assumes "p \<in> phull (set bs)"
   obtains cs where "length cs = length bs" and "p = (\<Sum>(c, b)\<leftarrow>zip cs bs. monom_mult c 0 b)"
 proof -
   have "finite (set bs)" ..
@@ -205,11 +203,11 @@ proof -
     have "p = (\<Sum>(q, b)\<leftarrow>?zs. monom_mult q 0 b)"
       by (simp add: sum_list_distinct_conv_sum_set[OF *] set_zip_map1 p comm_monoid_add_class.sum.reindex[OF inj])
     also have "... = (\<Sum>(q, b)\<leftarrow>(filter (\<lambda>(c, b). c \<noteq> 0) ?zs). monom_mult q 0 b)"
-      by (rule monoid_add_class.sum_list_map_filter[symmetric], auto simp add: monom_mult_left0)
+      by (rule monoid_add_class.sum_list_map_filter[symmetric], auto)
     also have "... = (\<Sum>(q, b)\<leftarrow>(filter (\<lambda>(c, b). c \<noteq> 0) (zip ?cs bs)). monom_mult q 0 b)"
       by (simp only: filter_zip_map_dup_const)
     also have "... = (\<Sum>(q, b)\<leftarrow>zip ?cs bs. monom_mult q 0 b)"
-      by (rule monoid_add_class.sum_list_map_filter, auto simp add: monom_mult_left0)
+      by (rule monoid_add_class.sum_list_map_filter, auto)
     finally show "p = (\<Sum>(q, b)\<leftarrow>zip ?cs bs. monom_mult q 0 b)" .
   qed
 qed
@@ -222,20 +220,19 @@ next
   case step: (Cons c cs)
   show ?case
   proof (simp add: zip_Cons1 phull.module_0 split: list.split, intro allI impI)
-    fix a and as::"('a, 'b) poly_mapping list"
+    fix a and as::"('t \<Rightarrow>\<^sub>0 'b) list"
     have "(\<Sum>(x, y)\<leftarrow>zip cs as. monom_mult x 0 y) \<in> phull (insert a (set as))" (is "?x \<in> ?A")
       by (rule, fact step, rule phull.module_mono, auto)
-    show "monom_mult c 0 a + ?x \<in> ?A"
-      by (rule phull.module_closed_plus, rule phull.smult_in_module, simp, fact)
+    show "monom_mult c 0 a + ?x \<in> ?A" by (rule phull.module_closed_plus, rule phull.smult_in_module, simp, fact)
   qed
 qed
 
 subsection \<open>Bounded Support\<close>
   
-definition has_bounded_keys :: "nat \<Rightarrow> ('a, 'b::zero) poly_mapping \<Rightarrow> bool" where
+definition has_bounded_keys :: "nat \<Rightarrow> ('t, 'b::zero) poly_mapping \<Rightarrow> bool" where
   "has_bounded_keys n p \<longleftrightarrow> card (keys p) \<le> n"
 
-definition has_bounded_keys_set :: "nat \<Rightarrow> ('a, 'b::zero) poly_mapping set \<Rightarrow> bool" where
+definition has_bounded_keys_set :: "nat \<Rightarrow> ('t, 'b::zero) poly_mapping set \<Rightarrow> bool" where
   "has_bounded_keys_set n A \<longleftrightarrow> (\<forall>a\<in>A. has_bounded_keys n a)"
 
 lemma not_has_bounded_keys: "\<not> has_bounded_keys n p \<longleftrightarrow> n < card (keys p)"
@@ -253,7 +250,7 @@ lemma has_bounded_keys_set_subset:
   assumes "has_bounded_keys_set n A" and "B \<subseteq> A"
   shows "has_bounded_keys_set n B"
   using assms unfolding has_bounded_keys_set_def by auto
-    
+
 lemma has_bounded_keys_setI:
   assumes "\<And>a. a \<in> A \<Longrightarrow> has_bounded_keys n a"
   shows "has_bounded_keys_set n A"
@@ -266,25 +263,26 @@ lemma has_bounded_keys_setD:
     
 subsection \<open>Binomials\<close>
   
-definition is_binomial :: "('a \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool"
+definition is_binomial :: "('t \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool"
   where "is_binomial p \<longleftrightarrow> (card (keys p) = 1 \<or> card (keys p) = 2)"
 
-definition is_proper_binomial :: "('a \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool"
+definition is_proper_binomial :: "('t \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool"
   where "is_proper_binomial p \<longleftrightarrow> card (keys p) = 2"
     
-definition binomial :: "'b::comm_monoid_add \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b)"
+definition binomial :: "'b::comm_monoid_add \<Rightarrow> 't \<Rightarrow> 'b \<Rightarrow> 't \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b)"
   where "binomial c s d t = monomial c s + monomial d t"
     
-definition is_monomial_set :: "('a \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> bool"
+definition is_monomial_set :: "('t \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> bool"
   where "is_monomial_set A \<longleftrightarrow> (\<forall>p\<in>A. is_monomial p)"
 
-definition is_binomial_set :: "('a \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> bool"
+definition is_binomial_set :: "('t \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> bool"
   where "is_binomial_set A \<longleftrightarrow> (\<forall>p\<in>A. is_binomial p)"
 
-text \<open>@{term is_pbd} stands for "is proper binomial data".\<close>
-definition is_pbd :: "'b::zero \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> bool"
+definition is_pbd :: "'b::zero \<Rightarrow> 't \<Rightarrow> 'b \<Rightarrow> 't \<Rightarrow> bool"
   where "is_pbd c s d t \<longleftrightarrow> (c \<noteq> 0 \<and> d \<noteq> 0 \<and> s \<noteq> t)"
-    
+
+text \<open>@{const is_pbd} stands for "is proper binomial data".\<close>
+
 lemma has_bounded_keys_1_I1:
   assumes "is_monomial p"
   shows "has_bounded_keys 1 p"
@@ -547,32 +545,33 @@ proof -
 qed
     
 lemma is_pbd_mult:
-  fixes c::"'b::field" and s::"'a::comm_powerprod" and d a t u
-  assumes "is_pbd c s d t" and "a \<noteq> 0"
-  shows "is_pbd (a * c) (u + s) (a * d) (u + t)"
-  using assms unfolding is_pbd_def by auto
+  assumes "is_pbd (c::'b::field) u d v" and "a \<noteq> 0"
+  shows "is_pbd (a * c) (t \<oplus> u) (a * d) (t \<oplus> v)"
+  using assms unfolding is_pbd_def by (auto simp add: term_simps)
     
 lemma monom_mult_binomial:
-  fixes c d a s t u
-  shows "monom_mult a u (binomial c s d t) = binomial (a * c) (u + s) (a * d) (u + t)"
+  "monom_mult a t (binomial c u d v) = binomial (a * c) (t \<oplus> u) (a * d) (t \<oplus> v)"
   unfolding binomial_def monom_mult_dist_right monom_mult_monomial ..
+
+end (* term_powerprod *)
   
 section \<open>Further Properties of Ordered Polynomials\<close>
   
-context ordered_powerprod
+context ordered_term
 begin
 
-subsection \<open>Ideals and Linear Hulls\<close>
+subsection \<open>Modules and Linear Hulls\<close>
 
-text \<open>The following lemma also holds in context @{locale comm_powerprod}, but then one needs the
+text \<open>The following lemma also holds in context @{locale term_powerprod}, but then one needs the
   additional assumption that function @{const monom_mult} is injective in its second argument (the
   power-product), provided the other two arguments (coefficient, polynomial) are non-zero.\<close>
-lemma in_pideal_in_phull:
-  fixes B::"('a::comm_powerprod \<Rightarrow>\<^sub>0 'b::ring_1_no_zero_divisors) set"
-    and A::"('a \<Rightarrow>\<^sub>0 'b) set"
-    and q::"('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b)"
+
+lemma in_pmdl_in_phull:
+  fixes B::"('t \<Rightarrow>\<^sub>0 'b::ring_1_no_zero_divisors) set"
+    and A::"('t \<Rightarrow>\<^sub>0 'b) set"
+    and q::"('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b)"
   assumes "\<And>b t. b \<in> B \<Longrightarrow> t \<in> keys (q b) \<Longrightarrow> monom_mult 1 t b \<in> A"
-  shows "(\<Sum>b\<in>B. q b * b) \<in> phull A" (is "?p \<in> _")
+  shows "(\<Sum>b\<in>B. q b \<odot> b) \<in> phull A" (is "?p \<in> _")
 proof (cases "finite B")
   case True
   define f where "f = (\<lambda>a. \<lambda>b. lookup (q b) (THE t. a = monom_mult 1 t b) when (\<exists>t. a = monom_mult 1 t b))"
@@ -608,7 +607,7 @@ proof (cases "finite B")
     show "finite ?A'" by (rule, simp add: True, simp)
   qed
 
-  have "?p = (\<Sum>b\<in>?B. q b * b)"
+  have "?p = (\<Sum>b\<in>?B. q b \<odot> b)"
   proof (cases "0 \<in> B")
     case True
     show ?thesis by (simp add: sum.remove[OF \<open>finite B\<close> True])
@@ -622,7 +621,8 @@ proof (cases "finite B")
     fix b
     assume "b \<in> ?B"
     hence "b \<in> B" and "b \<noteq> 0" by auto
-    have "q b * b = (\<Sum>t\<in>keys (q b). monom_mult (lookup (q b) t) t b)" by (rule times_sum_monomials)
+    have "q b \<odot> b = (\<Sum>t\<in>keys (q b). monom_mult (lookup (q b) t) t b)"
+      by (fact mult_scalar_sum_monomials)
     also have "... = sum ((\<lambda>a. monom_mult (f a b) 0 a) \<circ> (\<lambda>t. monom_mult 1 t b)) (keys (q b))"
     proof (rule sum.cong, rule, simp add: monom_mult_assoc)
       fix t
@@ -653,8 +653,8 @@ proof (cases "finite B")
         have "(THE t. a = monom_mult 1 t b) = t" unfolding a
           by (rule, rule, elim monom_mult_inj_2[symmetric], simp, rule \<open>b \<noteq> 0\<close>)
         with \<open>t \<notin> keys (q b)\<close> show "monom_mult (lookup (q b) (THE t. a = monom_mult 1 t b)) 0 a = 0"
-          by (simp add: monom_mult_left0)
-      qed (simp only: monom_mult_left0)
+          by simp
+      qed (simp only: monom_mult_zero_left)
     next
       fix a
       assume "a \<in> (\<lambda>t. monom_mult 1 t b) ` keys (q b) - ?A"
@@ -684,9 +684,9 @@ proof (cases "finite B")
         assume "\<forall>b\<in>?B. f a b = 0"
         from this \<open>b \<in> ?B\<close> show ?thesis ..
       qed
-      thus "monom_mult (f a b) 0 a = 0" by (simp add: monom_mult_left0)
+      thus "monom_mult (f a b) 0 a = 0" by simp
     qed (rule)
-    finally show "q b * b = (\<Sum>a\<in>?A. monom_mult (f a b) 0 a)" .
+    finally show "q b \<odot> b = (\<Sum>a\<in>?A. monom_mult (f a b) 0 a)" .
   qed
   finally have *: "?p = (\<Sum>a\<in>?A. monom_mult (?c a) 0 a)" .
 
@@ -698,27 +698,27 @@ next
   thus ?thesis by (simp add: phull.module_0)
 qed
 
-subsection \<open>Sets of Leading Power-Products and -Coefficients\<close>
+subsection \<open>Sets of Leading Terms and -Coefficients\<close>
   
-definition lp_set :: "('a, 'b::zero) poly_mapping set \<Rightarrow> 'a set" where
-  "lp_set F = lp ` (F - {0})"
+definition lt_set :: "('t, 'b::zero) poly_mapping set \<Rightarrow> 't set" where
+  "lt_set F = lt ` (F - {0})"
 
-definition lc_set :: "('a, 'b::zero) poly_mapping set \<Rightarrow> 'b set" where
+definition lc_set :: "('t, 'b::zero) poly_mapping set \<Rightarrow> 'b set" where
   "lc_set F = lc ` (F - {0})"
   
-lemma lp_setI:
+lemma lt_setI:
   assumes "f \<in> F" and "f \<noteq> 0"
-  shows "lp f \<in> lp_set F"
-  unfolding lp_set_def using assms by simp
+  shows "lt f \<in> lt_set F"
+  unfolding lt_set_def using assms by simp
 
-lemma lp_setE:
-  assumes "t \<in> lp_set F"
-  obtains f where "f \<in> F" and "f \<noteq> 0" and "lp f = t"
-  using assms unfolding lp_set_def by auto
+lemma lt_setE:
+  assumes "t \<in> lt_set F"
+  obtains f where "f \<in> F" and "f \<noteq> 0" and "lt f = t"
+  using assms unfolding lt_set_def by auto
     
-lemma lp_set_iff:
-  shows "t \<in> lp_set F \<longleftrightarrow> (\<exists>f\<in>F. f \<noteq> 0 \<and> lp f = t)"
-  unfolding lp_set_def by auto
+lemma lt_set_iff:
+  shows "t \<in> lt_set F \<longleftrightarrow> (\<exists>f\<in>F. f \<noteq> 0 \<and> lt f = t)"
+  unfolding lt_set_def by auto
 
 lemma lc_setI:
   assumes "f \<in> F" and "f \<noteq> 0"
@@ -743,10 +743,10 @@ proof
   from this \<open>lc f = 0\<close> show False ..
 qed
 
-lemma lp_sum_distinct_eq_Max:
+lemma lt_sum_distinct_eq_Max:
   assumes "finite I" and "sum p I \<noteq> 0"
-    and "\<And>i1 i2. i1 \<in> I \<Longrightarrow> i2 \<in> I \<Longrightarrow> p i1 \<noteq> 0 \<Longrightarrow> p i2 \<noteq> 0 \<Longrightarrow> lp (p i1) = lp (p i2) \<Longrightarrow> i1 = i2"
-  shows "lp (sum p I) = ordered_powerprod_lin.Max (lp_set (p ` I))"
+    and "\<And>i1 i2. i1 \<in> I \<Longrightarrow> i2 \<in> I \<Longrightarrow> p i1 \<noteq> 0 \<Longrightarrow> p i2 \<noteq> 0 \<Longrightarrow> lt (p i1) = lt (p i2) \<Longrightarrow> i1 = i2"
+  shows "lt (sum p I) = ord_term_lin.Max (lt_set (p ` I))"
 proof -
   have "\<not> p ` I \<subseteq> {0}"
   proof
@@ -771,8 +771,8 @@ proof -
         with insert(4) show False ..
       qed
       hence "insert (p x) (p ` I) - {0} = insert (p x) (p ` I - {0})" by auto
-      hence "lp_set (p ` insert x I) = {lp (p x)}" by (simp add: lp_set_def \<open>p ` I - {0} = {}\<close>)
-      hence eq1: "ordered_powerprod_lin.Max (lp_set (p ` insert x I)) = lp (p x)" by simp
+      hence "lt_set (p ` insert x I) = {lt (p x)}" by (simp add: lt_set_def \<open>p ` I - {0} = {}\<close>)
+      hence eq1: "ord_term_lin.Max (lt_set (p ` insert x I)) = lt (p x)" by simp
       have eq2: "sum p I = 0"
       proof (rule ccontr)
         assume "sum p I \<noteq> 0"
@@ -782,36 +782,36 @@ proof -
       show ?thesis by (simp only: eq1 sum.insert[OF insert(1) insert(2)], simp add: eq2)
     next
       case False
-      hence IH: "lp (sum p I) = ordered_powerprod_lin.Max (lp_set (p ` I))"
+      hence IH: "lt (sum p I) = ord_term_lin.Max (lt_set (p ` I))"
       proof (rule insert(3))
         fix i1 i2
         assume "i1 \<in> I" and "i2 \<in> I"
         hence "i1 \<in> insert x I" and "i2 \<in> insert x I" by simp_all
-        moreover assume "p i1 \<noteq> 0" and "p i2 \<noteq> 0" and "lp (p i1) = lp (p i2)"
+        moreover assume "p i1 \<noteq> 0" and "p i2 \<noteq> 0" and "lt (p i1) = lt (p i2)"
         ultimately show "i1 = i2" by (rule insert(5))
       qed
       show ?thesis
       proof (cases "p x = 0")
         case True
-        hence eq: "lp_set (p ` insert x I) = lp_set (p ` I)" by (simp add: lp_set_def)
+        hence eq: "lt_set (p ` insert x I) = lt_set (p ` I)" by (simp add: lt_set_def)
         show ?thesis by (simp only: eq, simp add: sum.insert[OF insert(1) insert(2)] True, fact IH)
       next
         case False
-        hence eq1: "lp_set (p ` insert x I) = insert (lp (p x)) (lp_set (p ` I))"
-          by (auto simp add: lp_set_def)
-        from insert(1) have "finite (lp_set (p ` I))" by (simp add: lp_set_def)
-        moreover from \<open>\<not> p ` I \<subseteq> {0}\<close> have "lp_set (p ` I) \<noteq> {}" by (simp add: lp_set_def)
-        ultimately have eq2: "ordered_powerprod_lin.Max (insert (lp (p x)) (lp_set (p ` I))) =
-                          ordered_powerprod_lin.max (lp (p x)) (ordered_powerprod_lin.Max (lp_set (p ` I)))"
-          by (rule ordered_powerprod_lin.Max_insert)
+        hence eq1: "lt_set (p ` insert x I) = insert (lt (p x)) (lt_set (p ` I))"
+          by (auto simp add: lt_set_def)
+        from insert(1) have "finite (lt_set (p ` I))" by (simp add: lt_set_def)
+        moreover from \<open>\<not> p ` I \<subseteq> {0}\<close> have "lt_set (p ` I) \<noteq> {}" by (simp add: lt_set_def)
+        ultimately have eq2: "ord_term_lin.Max (insert (lt (p x)) (lt_set (p ` I))) =
+                          ord_term_lin.max (lt (p x)) (ord_term_lin.Max (lt_set (p ` I)))"
+          by (rule ord_term_lin.Max_insert)
         show ?thesis
         proof (simp only: eq1, simp add: sum.insert[OF insert(1) insert(2)] eq2 IH[symmetric],
-            rule lp_plus_distinct_eq_max, rule)
-          assume *: "lp (p x) = lp (sum p I)"
-          have "lp (p x) \<in> lp_set (p ` I)" by (simp only: * IH, rule ordered_powerprod_lin.Max_in, fact+)
-          then obtain f where "f \<in> p ` I" and "f \<noteq> 0" and lpf: "lp f = lp (p x)" by (rule lp_setE)
+            rule lt_plus_distinct_eq_max, rule)
+          assume *: "lt (p x) = lt (sum p I)"
+          have "lt (p x) \<in> lt_set (p ` I)" by (simp only: * IH, rule ord_term_lin.Max_in, fact+)
+          then obtain f where "f \<in> p ` I" and "f \<noteq> 0" and ltf: "lt f = lt (p x)" by (rule lt_setE)
           from this(1) obtain y where "y \<in> I" and "f = p y" ..
-          from this(2) \<open>f \<noteq> 0\<close> lpf have "p y \<noteq> 0" and lp_eq: "lp (p y) = lp (p x)" by simp_all
+          from this(2) \<open>f \<noteq> 0\<close> ltf have "p y \<noteq> 0" and lt_eq: "lt (p y) = lt (p x)" by simp_all
           from _ _ this(1) \<open>p x \<noteq> 0\<close> this(2) have "y = x"
           proof (rule insert(5))
             from \<open>y \<in> I\<close> show "y \<in> insert x I" by simp
@@ -826,10 +826,10 @@ proof -
   qed
 qed
 
-lemma lp_sum_distinct_in_lp_set:
+lemma lt_sum_distinct_in_lt_set:
   assumes "finite I" and "sum p I \<noteq> 0"
-    and "\<And>i1 i2. i1 \<in> I \<Longrightarrow> i2 \<in> I \<Longrightarrow> p i1 \<noteq> 0 \<Longrightarrow> p i2 \<noteq> 0 \<Longrightarrow> lp (p i1) = lp (p i2) \<Longrightarrow> i1 = i2"
-  shows "lp (sum p I) \<in> lp_set (p ` I)"
+    and "\<And>i1 i2. i1 \<in> I \<Longrightarrow> i2 \<in> I \<Longrightarrow> p i1 \<noteq> 0 \<Longrightarrow> p i2 \<noteq> 0 \<Longrightarrow> lt (p i1) = lt (p i2) \<Longrightarrow> i1 = i2"
+  shows "lt (sum p I) \<in> lt_set (p ` I)"
 proof -
   have "\<not> p ` I \<subseteq> {0}"
   proof
@@ -837,40 +837,40 @@ proof -
     hence "sum p I = 0" by (rule sum_poly_mapping_eq_zeroI)
     with assms(2) show False ..
   qed
-  have "lp (sum p I) = ordered_powerprod_lin.Max (lp_set (p ` I))"
-    by (rule lp_sum_distinct_eq_Max, fact+)
-  also have "... \<in> lp_set (p ` I)"
-  proof (rule ordered_powerprod_lin.Max_in)
-    from assms(1) show "finite (lp_set (p ` I))" by (simp add: lp_set_def)
+  have "lt (sum p I) = ord_term_lin.Max (lt_set (p ` I))"
+    by (rule lt_sum_distinct_eq_Max, fact+)
+  also have "... \<in> lt_set (p ` I)"
+  proof (rule ord_term_lin.Max_in)
+    from assms(1) show "finite (lt_set (p ` I))" by (simp add: lt_set_def)
   next
-    from \<open>\<not> p ` I \<subseteq> {0}\<close> show "lp_set (p ` I) \<noteq> {}" by (simp add: lp_set_def)
+    from \<open>\<not> p ` I \<subseteq> {0}\<close> show "lt_set (p ` I) \<noteq> {}" by (simp add: lt_set_def)
   qed
   finally show ?thesis .
 qed
   
-subsection \<open>Trailing Power-Products and -Coefficients\<close>
+subsection \<open>Trailing Terms and -Coefficients\<close>
 
-lemma lp_gr_tp_iff: "(tp p \<prec> lp p) \<longleftrightarrow> (\<not> has_bounded_keys 1 p)"
+lemma lt_gr_tt_iff: "(tt p \<prec>\<^sub>t lt p) \<longleftrightarrow> (\<not> has_bounded_keys 1 p)"
   unfolding not_has_bounded_keys
 proof
-  assume "tp p \<prec> lp p"
-  hence "tp p \<noteq> lp p" by simp
+  assume "tt p \<prec>\<^sub>t lt p"
+  hence "tt p \<noteq> lt p" by simp
   show "1 < card (keys p)"
   proof (rule ccontr)
     assume "\<not> 1 < card (keys p)"
     hence "card (keys p) = 0 \<or> card (keys p) = 1" by linarith
-    hence "lp p = tp p"
+    hence "lt p = tt p"
     proof
       assume "card (keys p) = 0"
       hence "keys p = {}" using finite_keys[of p] by simp
       hence "p = 0" using keys_eq_empty_iff[of p] by simp
-      show ?thesis unfolding \<open>p = 0\<close> lp_def tp_def by simp
+      show ?thesis unfolding \<open>p = 0\<close> lt_def tt_def by simp
     next
       assume "card (keys p) = 1"
       hence "is_monomial p" unfolding is_monomial_def .
-      thus "lp p = tp p" by (rule lp_eq_tp_monomial)
+      thus "lt p = tt p" by (rule lt_eq_tt_monomial)
     qed
-    with \<open>tp p \<noteq> lp p\<close> show False by simp
+    with \<open>tt p \<noteq> lt p\<close> show False by simp
   qed
 next
   assume "1 < card (keys p)"
@@ -878,36 +878,36 @@ next
   then obtain A where "card A = 2" and sp: "A \<subseteq> keys p" by (rule card_geq_ex_subset)
   from \<open>card A = 2\<close> obtain s t where "s \<noteq> t" and A: "A = {s, t}" by (rule card_2_E)
   from sp have "s \<in> keys p" and "t \<in> keys p" unfolding A by simp_all
-  from \<open>s \<noteq> t\<close> have "s \<prec> t \<or> t \<prec> s" by auto
-  thus "tp p \<prec> lp p"
+  from \<open>s \<noteq> t\<close> have "s \<prec>\<^sub>t t \<or> t \<prec>\<^sub>t s" by auto
+  thus "tt p \<prec>\<^sub>t lt p"
   proof
-    assume "s \<prec> t"
-    also from \<open>t \<in> keys p\<close> have "... \<preceq> lp p" by (rule lp_max_keys)
-    finally have "s \<prec> lp p" .
-    with \<open>s \<in> keys p\<close> show ?thesis by (rule tp_less)
+    assume "s \<prec>\<^sub>t t"
+    also from \<open>t \<in> keys p\<close> have "... \<preceq>\<^sub>t lt p" by (rule lt_max_keys)
+    finally have "s \<prec>\<^sub>t lt p" .
+    with \<open>s \<in> keys p\<close> show ?thesis by (rule tt_less)
   next
-    assume "t \<prec> s"
-    also from \<open>s \<in> keys p\<close> have "... \<preceq> lp p" by (rule lp_max_keys)
-    finally have "t \<prec> lp p" .
-    with \<open>t \<in> keys p\<close> show ?thesis by (rule tp_less)
+    assume "t \<prec>\<^sub>t s"
+    also from \<open>s \<in> keys p\<close> have "... \<preceq>\<^sub>t lt p" by (rule lt_max_keys)
+    finally have "t \<prec>\<^sub>t lt p" .
+    with \<open>t \<in> keys p\<close> show ?thesis by (rule tt_less)
   qed
 qed
 
-lemma lp_eq_tp_iff: "lp p = tp p \<longleftrightarrow> has_bounded_keys 1 p" (is "?A \<longleftrightarrow> ?B")
+lemma lt_eq_tt_iff: "lt p = tt p \<longleftrightarrow> has_bounded_keys 1 p" (is "?A \<longleftrightarrow> ?B")
 proof -
-  have "?A \<longleftrightarrow> (tp p \<preceq> lp p \<and> \<not> tp p \<prec> lp p)" by auto
-  also from lp_ge_tp[of p] have "... \<longleftrightarrow> \<not> tp p \<prec> lp p" by simp
-  finally show ?thesis by (simp add: lp_gr_tp_iff)
+  have "?A \<longleftrightarrow> (tt p \<preceq>\<^sub>t lt p \<and> \<not> tt p \<prec>\<^sub>t lt p)" by auto
+  also from lt_ge_tt[of p] have "... \<longleftrightarrow> \<not> tt p \<prec>\<^sub>t lt p" by simp
+  finally show ?thesis by (simp add: lt_gr_tt_iff)
 qed
   
-subsection \<open>@{term lower}, @{term higher}, @{term tail}\<close>
+subsection \<open>@{const lower}, @{const higher}, @{const tail}\<close>
 
 lemma tail_0D:
   assumes "tail p = 0"
   shows "has_bounded_keys 1 p"
 proof -
   from assms have "keys (tail p) = {}" by simp
-  hence "keys p \<subseteq> {lp p}" by (simp add: keys_tail)
+  hence "keys p \<subseteq> {lt p}" by (simp add: keys_tail)
   thus ?thesis unfolding has_bounded_keys_def
     by (metis One_nat_def card.insert card_empty finite.emptyI insert_absorb order_class.le_less subset_singleton_iff zero_le_one)
 qed
@@ -915,9 +915,9 @@ qed
 lemma tail_eq_0_iff_has_bounded_keys_1: "(tail p = 0) \<longleftrightarrow> has_bounded_keys 1 p" (is "?L \<longleftrightarrow> ?R")
 proof
   assume ?L
-  hence "(\<forall>s. s \<prec> lp p \<longrightarrow> lookup p s = 0)" by (simp add: tail_def lower_eq_zero_iff)
-  hence "\<And>s. s \<in> keys p \<Longrightarrow> lp p \<preceq> s" unfolding in_keys_iff using ordered_powerprod_lin.leI by auto
-  hence a: "\<And>s. s \<in> keys p \<Longrightarrow> s = lp p" using lp_max_keys by force
+  hence "(\<forall>s. s \<prec>\<^sub>t lt p \<longrightarrow> lookup p s = 0)" by (simp add: tail_def lower_eq_zero_iff)
+  hence "\<And>s. s \<in> keys p \<Longrightarrow> lt p \<preceq>\<^sub>t s" unfolding in_keys_iff using ord_term_lin.leI by auto
+  hence a: "\<And>s. s \<in> keys p \<Longrightarrow> s = lt p" using lt_max_keys by force
   show ?R unfolding has_bounded_keys_def
   proof (rule ccontr)
     assume "\<not> card (keys p) \<le> 1"
@@ -925,10 +925,10 @@ proof
     then obtain A where "card A = 2" and "A \<subseteq> keys p" by (rule card_geq_ex_subset) 
     from \<open>card A = 2\<close> obtain s t where "s \<noteq> t" and A_eq: "A = {s, t}" by (rule card_2_E)
     from \<open>A \<subseteq> keys p\<close> have "s \<in> keys p" by (rule in_mono[rule_format], simp add: A_eq)
-    hence "s = lp p" by (rule a)
+    hence "s = lt p" by (rule a)
     from \<open>A \<subseteq> keys p\<close> have "t \<in> keys p" by (rule in_mono[rule_format], simp add: A_eq)
-    hence "t = lp p" by (rule a)
-    with \<open>s \<noteq> t\<close> \<open>s = lp p\<close> show False by simp
+    hence "t = lt p" by (rule a)
+    with \<open>s \<noteq> t\<close> \<open>s = lt p\<close> show False by simp
   qed
 next
   assume ?R
@@ -946,31 +946,31 @@ qed
 
 subsection \<open>Monomials and Binomials\<close>
 
-lemma lp_gr_tp_binomial:
+lemma lt_gr_tt_binomial:
   assumes "is_proper_binomial p"
-  shows "tp p \<prec> lp p"
-  using assms by (simp only: lp_gr_tp_iff is_proper_binomial_def not_has_bounded_keys)
+  shows "tt p \<prec>\<^sub>t lt p"
+  using assms by (simp only: lt_gr_tt_iff is_proper_binomial_def not_has_bounded_keys)
 
 lemma keys_proper_binomial:
   assumes "is_proper_binomial p"
-  shows "keys p = {lp p, tp p}"
+  shows "keys p = {lt p, tt p}"
 proof -
-  from assms have "card (keys p) = 2" and "p \<noteq> 0" and "tp p \<prec> lp p"
-    by (simp only: is_proper_binomial_def, rule proper_binomial_not_0, rule lp_gr_tp_binomial)
-  from \<open>tp p \<prec> lp p\<close> have "lp p \<noteq> tp p" by simp
+  from assms have "card (keys p) = 2" and "p \<noteq> 0" and "tt p \<prec>\<^sub>t lt p"
+    by (simp only: is_proper_binomial_def, rule proper_binomial_not_0, rule lt_gr_tt_binomial)
+  from \<open>tt p \<prec>\<^sub>t lt p\<close> have "lt p \<noteq> tt p" by simp
   from \<open>card (keys p) = 2\<close> obtain s t where keys_p: "keys p = {s, t}" and "s \<noteq> t" by (rule card_2_E)
-  with lp_in_keys[OF \<open>p \<noteq> 0\<close>] tp_in_keys[OF \<open>p \<noteq> 0\<close>] \<open>lp p \<noteq> tp p\<close> show ?thesis by auto
+  with lt_in_keys[OF \<open>p \<noteq> 0\<close>] tt_in_keys[OF \<open>p \<noteq> 0\<close>] \<open>lt p \<noteq> tt p\<close> show ?thesis by auto
 qed
 
 corollary keys_binomial:
   assumes "is_binomial p"
-  shows "keys p = {lp p, tp p}"
+  shows "keys p = {lt p, tt p}"
 proof -
   from assms have "is_monomial p \<or> is_proper_binomial p" by (simp only: is_binomial_alt)
   thus ?thesis
   proof
     assume "is_monomial p"
-    hence "lp p = tp p" and "keys p = {lp p}" by (rule lp_eq_tp_monomial, rule keys_monomial)
+    hence "lt p = tt p" and "keys p = {lt p}" by (rule lt_eq_tt_monomial, rule keys_monomial)
     thus ?thesis by simp
   next
     assume "is_proper_binomial p"
@@ -980,23 +980,24 @@ qed
 
 lemma binomial_eq_itself:
   assumes "is_proper_binomial p"
-  shows "binomial (lc p) (lp p) (tc p) (tp p) = p"
+  shows "binomial (lc p) (lt p) (tc p) (tt p) = p"
 proof -
   from assms have "p \<noteq> 0" by (rule proper_binomial_not_0)
   hence "lc p \<noteq> 0" and "tc p \<noteq> 0" by (rule lc_not_0, rule tc_not_0)
-  from assms have "tp p \<prec> lp p" by (rule lp_gr_tp_binomial)
-  hence "tp p \<noteq> lp p" by simp
-  with \<open>lc p \<noteq> 0\<close> \<open>tc p \<noteq> 0\<close> have pbd: "is_pbd (lc p) (lp p) (tc p) (tp p)" by (simp add: is_pbd_def)
-  hence keys1: "keys (binomial (lc p) (lp p) (tc p) (tp p)) = {lp p, tp p}" by (rule keys_binomial_pbd)
+  from assms have "tt p \<prec>\<^sub>t lt p" by (rule lt_gr_tt_binomial)
+  hence "tt p \<noteq> lt p" by simp
+  with \<open>lc p \<noteq> 0\<close> \<open>tc p \<noteq> 0\<close> have pbd: "is_pbd (lc p) (lt p) (tc p) (tt p)" by (simp add: is_pbd_def)
+  hence keys1: "keys (binomial (lc p) (lt p) (tc p) (tt p)) = {lt p, tt p}" by (rule keys_binomial_pbd)
   show ?thesis
     by (rule poly_mapping_keys_eqI, simp only: keys_proper_binomial[OF assms] keys1, simp add: keys1 lookup_binomial,
         elim disjE, simp add: lookup_binomial[OF pbd] lc_def[symmetric],
-        simp add: lookup_binomial[OF pbd] \<open>tp p \<noteq> lp p\<close> tc_def[symmetric])
+        simp add: lookup_binomial[OF pbd] \<open>tt p \<noteq> lt p\<close> tc_def[symmetric])
 qed
 
-text \<open>@{term is_obd} stands for "is ordered binomial data".\<close>
-definition is_obd :: "'b::zero \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> bool"
-  where "is_obd c s d t \<longleftrightarrow> (c \<noteq> 0 \<and> d \<noteq> 0 \<and> t \<prec> s)"
+definition is_obd :: "'b::zero \<Rightarrow> 't \<Rightarrow> 'b \<Rightarrow> 't \<Rightarrow> bool"
+  where "is_obd c s d t \<longleftrightarrow> (c \<noteq> 0 \<and> d \<noteq> 0 \<and> t \<prec>\<^sub>t s)"
+
+text \<open>@{const is_obd} stands for "is ordered binomial data".\<close>
     
 lemma obd_imp_pbd:
   assumes "is_obd c s d t"
@@ -1008,24 +1009,23 @@ lemma pbd_imp_obd:
   shows "is_obd c s d t \<or> is_obd d t c s"
 proof -
   have "s \<noteq> t" by (rule is_pbdE3, fact)
-  hence "s \<prec> t \<or> t \<prec> s" by auto
+  hence "s \<prec>\<^sub>t t \<or> t \<prec>\<^sub>t s" by auto
   thus ?thesis
   proof
-    assume "s \<prec> t"
+    assume "s \<prec>\<^sub>t t"
     with \<open>is_pbd c s d t\<close> have "is_obd d t c s" unfolding is_pbd_def is_obd_def by simp
     thus ?thesis ..
   next
-    assume "t \<prec> s"
+    assume "t \<prec>\<^sub>t s"
     with \<open>is_pbd c s d t\<close> have "is_obd c s d t" unfolding is_pbd_def is_obd_def by simp
     thus ?thesis ..
   qed
 qed
 
 lemma is_obd_mult:
-  fixes c::"'b::field" and d a s t u
-  assumes "is_obd c s d t" and "a \<noteq> 0"
-  shows "is_obd (a * c) (u + s) (a * d) (u + t)"
-  using assms plus_monotone_strict_left[of t s u] unfolding is_obd_def by auto
+  assumes "is_obd (c::'b::semiring_no_zero_divisors) u d v" and "a \<noteq> 0"
+  shows "is_obd (a * c) (t \<oplus> u) (a * d) (t \<oplus> v)"
+  using assms splus_mono_strict[of v u t] unfolding is_obd_def by auto
 
 lemma is_proper_binomial_binomial_od:
   fixes p
@@ -1051,14 +1051,14 @@ proof -
   qed
 qed
   
-lemma lp_binomial:
+lemma lt_binomial:
   assumes "is_obd c s d t"
-  shows "lp (binomial c s d t) = s"
+  shows "lt (binomial c s d t) = s"
 proof -
   have pbd: "is_pbd c s d t" by (rule obd_imp_pbd, fact)
   hence "c \<noteq> 0" by (rule is_pbdE1)
   show ?thesis
-  proof (intro lp_eqI)
+  proof (intro lt_eqI)
     from \<open>c \<noteq> 0\<close> show "lookup (binomial c s d t) s \<noteq> 0" unfolding lookup_binomial[OF pbd] by simp
   next
     fix u
@@ -1066,14 +1066,14 @@ proof -
     hence "u \<in> keys (binomial c s d t)" by simp
     hence "u \<in> {s, t}" unfolding keys_binomial_pbd[OF pbd] .
     hence "u = s \<or> u = t" by simp
-    thus "u \<preceq> s"
+    thus "u \<preceq>\<^sub>t s"
     proof
       assume "u = s"
-      thus "u \<preceq> s" by simp
+      thus "u \<preceq>\<^sub>t s" by simp
     next
       assume "u = t"
-      from \<open>is_obd c s d t\<close> have "u \<prec> s" unfolding \<open>u = t\<close> is_obd_def by simp
-      thus "u \<preceq> s" by simp
+      from \<open>is_obd c s d t\<close> have "u \<prec>\<^sub>t s" unfolding \<open>u = t\<close> is_obd_def by simp
+      thus "u \<preceq>\<^sub>t s" by simp
     qed
   qed
 qed
@@ -1081,26 +1081,26 @@ qed
 lemma lc_binomial:
   assumes "is_obd c s d t"
   shows "lc (binomial c s d t) = c"
-  unfolding lc_def lp_binomial[OF assms] lookup_binomial[OF assms[THEN obd_imp_pbd]] by simp
+  unfolding lc_def lt_binomial[OF assms] lookup_binomial[OF assms[THEN obd_imp_pbd]] by simp
 
-lemma tp_binomial:
+lemma tt_binomial:
   assumes "is_obd c s d t"
-  shows "tp (binomial c s d t) = t"
+  shows "tt (binomial c s d t) = t"
 proof -
   from assms have pbd: "is_pbd c s d t" by (rule obd_imp_pbd)
   hence "c \<noteq> 0" by (rule is_pbdE1)
   show ?thesis
-  proof (intro tp_eqI)
+  proof (intro tt_eqI)
     from \<open>c \<noteq> 0\<close> show "t \<in> keys (binomial c s d t)" unfolding keys_binomial_pbd[OF pbd] by simp
   next
     fix u
     assume "u \<in> keys (binomial c s d t)"
     hence "u \<in> {s, t}" unfolding keys_binomial_pbd[OF pbd] .
     hence "u = s \<or> u = t" by simp
-    thus "t \<preceq> u"
+    thus "t \<preceq>\<^sub>t u"
     proof
       assume "u = s"
-      from \<open>is_obd c s d t\<close> have "t \<prec> u" unfolding \<open>u = s\<close> is_obd_def by simp
+      from \<open>is_obd c s d t\<close> have "t \<prec>\<^sub>t u" unfolding \<open>u = s\<close> is_obd_def by simp
       thus ?thesis by simp
     next
       assume "u = t"
@@ -1115,21 +1115,21 @@ lemma tc_binomial:
 proof -
   from assms have "is_pbd c s d t" by (rule obd_imp_pbd)
   hence "s \<noteq> t" unfolding is_pbd_def by simp
-  thus ?thesis unfolding tc_def tp_binomial[OF assms] lookup_binomial[OF assms[THEN obd_imp_pbd]] by simp
+  thus ?thesis unfolding tc_def tt_binomial[OF assms] lookup_binomial[OF assms[THEN obd_imp_pbd]] by simp
 qed
 
-lemma keys_2_lp:
-  assumes "keys p = {s, t}" and "t \<preceq> s"
-  shows "lp p = s"
-  by (rule lp_eqI_keys, simp_all add: assms(1), auto simp add: assms(2))
+lemma keys_2_lt:
+  assumes "keys p = {s, t}" and "t \<preceq>\<^sub>t s"
+  shows "lt p = s"
+  by (rule lt_eqI_keys, simp_all add: assms(1), auto simp add: assms(2))
 
-lemma keys_2_tp:
-  assumes "keys p = {s, t}" and "t \<preceq> s"
-  shows "tp p = t"
-  by (rule tp_eqI, simp_all add: assms(1), auto simp add: assms(2))
+lemma keys_2_tt:
+  assumes "keys p = {s, t}" and "t \<preceq>\<^sub>t s"
+  shows "tt p = t"
+  by (rule tt_eqI, simp_all add: assms(1), auto simp add: assms(2))
 
 lemma keys_2_plus:
-  assumes "keys p = {s, t}" and "keys q = {t, u}" and "u \<prec> t" and "t \<prec> s" and "lookup p t + lookup q t = 0"
+  assumes "keys p = {s, t}" and "keys q = {t, u}" and "u \<prec>\<^sub>t t" and "t \<prec>\<^sub>t s" and "lookup p t + lookup q t = 0"
   shows "keys (p + q) = {s, u}"
 proof -
   have "lookup (p + q) t = 0" by (simp only: lookup_add assms(5))
@@ -1141,18 +1141,18 @@ proof -
     finally have "keys (p + q) \<subseteq> {s, t, u}" by auto
     with \<open>t \<notin> keys (p + q)\<close> show "keys (p + q) \<subseteq> {s, u}" by auto
   next
-    from \<open>u \<prec> t\<close> \<open>t \<prec> s\<close> have "u \<prec> s" by simp
+    from \<open>u \<prec>\<^sub>t t\<close> \<open>t \<prec>\<^sub>t s\<close> have "u \<prec>\<^sub>t s" by simp
     have "s \<in> keys (p + q)"
     proof (rule in_keys_plusI1, simp add: assms(1), simp add: assms(2), rule conjI)
-      from \<open>t \<prec> s\<close> show "s \<noteq> t" by simp
+      from \<open>t \<prec>\<^sub>t s\<close> show "s \<noteq> t" by simp
     next
-      from \<open>u \<prec> s\<close> show "s \<noteq> u" by simp
+      from \<open>u \<prec>\<^sub>t s\<close> show "s \<noteq> u" by simp
     qed
     moreover have "u \<in> keys (p + q)"
     proof (rule in_keys_plusI2, simp add: assms(2), simp add: assms(1), rule conjI)
-      from \<open>u \<prec> s\<close> show "u \<noteq> s" by simp
+      from \<open>u \<prec>\<^sub>t s\<close> show "u \<noteq> s" by simp
     next
-      from \<open>u \<prec> t\<close> show "u \<noteq> t" by simp
+      from \<open>u \<prec>\<^sub>t t\<close> show "u \<noteq> t" by simp
     qed
     ultimately show "{s, u} \<subseteq> keys (p + q)" by simp
   qed
@@ -1180,48 +1180,48 @@ lemma is_binomial_setD:
   shows "is_binomial p"
   using assms unfolding is_binomial_set_def by simp
     
-lemma monomial_set_pideal:
-  fixes f :: "('a, 'b::field) poly_mapping"
-  assumes "is_monomial_set G" and "f \<in> pideal G" and "t \<in> keys f"
-  shows "\<exists>g\<in>G. lp g adds t"
-  using \<open>f \<in> pideal G\<close> \<open>t \<in> keys f\<close>
-proof (induct f rule: pideal_induct)
-  case pideal_0
+lemma monomial_set_pmdl:
+  fixes f :: "'t \<Rightarrow>\<^sub>0 'b::field"
+  assumes "is_monomial_set G" and "f \<in> pmdl G" and "v \<in> keys f"
+  shows "\<exists>g\<in>G. lt g adds\<^sub>t v"
+  using \<open>f \<in> pmdl G\<close> \<open>v \<in> keys f\<close>
+proof (induct f rule: pmdl_induct)
+  case module_0
   have "keys 0 = {}" by (simp only: keys_eq_empty_iff)
-  with \<open>t \<in> keys 0\<close> show ?case by auto
+  with \<open>v \<in> keys 0\<close> show ?case by auto
 next
-  case (pideal_plus a b c s)
-  have "t \<in> keys (a + monom_mult c s b)" by fact
+  case (module_plus a b c s)
+  have "v \<in> keys (a + monom_mult c s b)" by fact
   also have "... \<subseteq> (keys a) \<union> (keys (monom_mult c s b))" by (rule keys_add_subset)
-  finally have "t \<in> (keys a) \<union> (keys (monom_mult c s b))" .
-  hence "t \<in> keys a \<or> t \<in> keys (monom_mult c s b)" by simp
+  finally have "v \<in> (keys a) \<union> (keys (monom_mult c s b))" .
+  hence "v \<in> keys a \<or> v \<in> keys (monom_mult c s b)" by simp
   thus ?case
   proof
-    assume "t \<in> keys a"
-    thus ?thesis by (rule \<open>t \<in> keys a \<Longrightarrow> (\<exists>g\<in>G. lp g adds t)\<close>)
+    assume "v \<in> keys a"
+    thus ?thesis by (rule \<open>v \<in> keys a \<Longrightarrow> (\<exists>g\<in>G. lt g adds\<^sub>t v)\<close>)
   next
-    assume "t \<in> keys (monom_mult c s b)"
+    assume "v \<in> keys (monom_mult c s b)"
     show ?thesis
     proof
       from \<open>is_monomial_set G\<close> \<open>b \<in> G\<close> have "is_monomial b" by (rule is_monomial_setD)
       then obtain d u where "d \<noteq> 0" and b_def: "b = monomial d u" by (rule is_monomial_monomial)
-      from \<open>d \<noteq> 0\<close> have "lp b = u" unfolding b_def by (rule lp_monomial)
-      have "monom_mult c s b = monomial (c * d) (s + u)" unfolding b_def monom_mult_monomial ..
-      with \<open>t \<in> keys (monom_mult c s b)\<close> have t: "t \<in> keys (monomial (c * d) (s + u))" by simp
-      show "lp b adds t"
+      from \<open>d \<noteq> 0\<close> have "lt b = u" unfolding b_def by (rule lt_monomial)
+      have "monom_mult c s b = monomial (c * d) (s \<oplus> u)" unfolding b_def monom_mult_monomial ..
+      with \<open>v \<in> keys (monom_mult c s b)\<close> have v: "v \<in> keys (monomial (c * d) (s \<oplus> u))" by simp
+      show "lt b adds\<^sub>t v"
       proof (cases "c = 0")
         case True
         hence "c * d = 0" by simp
-        hence "monomial (c * d) (s + u) = 0" by (rule monomial_0I)
-        hence "keys (monomial (c * d) (s + u)) = {}" by simp
-        with t have "t \<in> {}" by simp
+        hence "monomial (c * d) (s \<oplus> u) = 0" by (rule monomial_0I)
+        hence "keys (monomial (c * d) (s \<oplus> u)) = {}" by simp
+        with v have "v \<in> {}" by simp
         thus ?thesis ..
       next
         case False
         with \<open>d \<noteq> 0\<close> have "c * d \<noteq> 0" by simp
-        hence "keys (monomial (c * d) (s + u)) = {s + u}" by (rule keys_of_monomial)
-        with t have "t = s + u" by simp
-        thus ?thesis unfolding \<open>lp b = u\<close> by simp
+        hence "keys (monomial (c * d) (s \<oplus> u)) = {s \<oplus> u}" by (rule keys_of_monomial)
+        with v have "v = s \<oplus> u" by simp
+        thus ?thesis unfolding \<open>lt b = u\<close> by (simp add: term_simps)
       qed
     qed fact
   qed
@@ -1229,39 +1229,39 @@ qed
 
 subsection \<open>Monicity\<close>
   
-definition monic :: "('a, 'b) poly_mapping \<Rightarrow> ('a, 'b::field) poly_mapping" where
+definition monic :: "('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::field)" where
   "monic p = monom_mult (1 / lc p) 0 p"
 
-definition monic_set :: "('a, 'b) poly_mapping set \<Rightarrow> ('a, 'b::field) poly_mapping set" where
+definition monic_set :: "('t \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::field) set" where
   "monic_set = image monic"
   
-definition is_monic_set :: "('a, 'b::field) poly_mapping set \<Rightarrow> bool" where
+definition is_monic_set :: "('t \<Rightarrow>\<^sub>0 'b::field) set \<Rightarrow> bool" where
   "is_monic_set B \<equiv> (\<forall>b\<in>B. b \<noteq> 0 \<longrightarrow> lc b = 1)"
 
-lemma lookup_monic: "lookup (monic p) t = (lookup p t) / lc p"
+lemma lookup_monic: "lookup (monic p) v = (lookup p v) / lc p"
 proof -
-  have "lookup (monic p) (0 + t) = (1 / lc p) * (lookup p t)" unfolding monic_def
+  have "lookup (monic p) (0 \<oplus> v) = (1 / lc p) * (lookup p v)" unfolding monic_def
     by (rule lookup_monom_mult_plus)
-  thus ?thesis by simp
+  thus ?thesis by (simp add: term_simps)
 qed
 
-lemma lookup_monic_lp:
+lemma lookup_monic_lt:
   assumes "p \<noteq> 0"
-  shows "lookup (monic p) (lp p) = 1"
+  shows "lookup (monic p) (lt p) = 1"
   unfolding monic_def
 proof -
   from assms have "lc p \<noteq> 0" by (rule lc_not_0)
   hence "1 / lc p \<noteq> 0" by simp
   let ?q = "monom_mult (1 / lc p) 0 p"
-  have "lookup ?q (0 + lp p) = (1 / lc p) * (lookup p (lp p))" by (rule lookup_monom_mult_plus)
+  have "lookup ?q (0 \<oplus> lt p) = (1 / lc p) * (lookup p (lt p))" by (rule lookup_monom_mult_plus)
   also have "... = (1 / lc p) * lc p" unfolding lc_def ..
   also have "... = 1" using \<open>lc p \<noteq> 0\<close> by simp
-  finally have "lookup ?q (0 + lp p) = 1" .
-  thus "lookup ?q (lp p) = 1" by simp
+  finally have "lookup ?q (0 \<oplus> lt p) = 1" .
+  thus "lookup ?q (lt p) = 1" by (simp add: term_simps)
 qed
   
 lemma monic_0 [simp]: "monic 0 = 0"
-  unfolding monic_def by (rule monom_mult_right0)
+  unfolding monic_def by (rule monom_mult_zero_right)
 
 lemma monic_0_iff: "(monic p = 0) \<longleftrightarrow> (p = 0)"
 proof
@@ -1269,8 +1269,8 @@ proof
   show "p = 0"
   proof (rule ccontr)
     assume "p \<noteq> 0"
-    hence "lookup (monic p) (lp p) = 1" by (rule lookup_monic_lp)
-    with \<open>monic p = 0\<close> have "lookup 0 (lp p) = (1::'b)" by simp
+    hence "lookup (monic p) (lt p) = 1" by (rule lookup_monic_lt)
+    with \<open>monic p = 0\<close> have "lookup 0 (lt p) = (1::'b)" by simp
     thus False by simp
   qed
 next
@@ -1290,35 +1290,35 @@ next
     by (rule set_eqI, simp add: in_keys_iff lookup_monic \<open>lc p \<noteq> 0\<close> del: lookup_not_eq_zero_eq_in_keys)
 qed
 
-lemma lp_monic [simp]: "lp (monic p) = lp p"
+lemma lt_monic [simp]: "lt (monic p) = lt p"
 proof (cases "p = 0")
   case True
   show ?thesis unfolding True monic_0 ..
 next
   case False
-  have "lp (monom_mult (1 / lc p) 0 p) = 0 + lp p"
-  proof (rule lp_monom_mult)
+  have "lt (monom_mult (1 / lc p) 0 p) = 0 \<oplus> lt p"
+  proof (rule lt_monom_mult)
     from False have "lc p \<noteq> 0" by (rule lc_not_0)
     thus "1 / lc p \<noteq> 0" by simp
   qed fact
-  thus ?thesis unfolding monic_def by simp
+  thus ?thesis by (simp add: monic_def term_simps)
 qed
 
 lemma lc_monic:
   assumes "p \<noteq> 0"
   shows "lc (monic p) = 1"
-  using assms by (simp add: lc_def lookup_monic_lp)
+  using assms by (simp add: lc_def lookup_monic_lt)
 
 lemma mult_lc_monic:
   assumes "p \<noteq> 0"
   shows "monom_mult (lc p) 0 (monic p) = p" (is "?q = p")
 proof (rule poly_mapping_eqI)
-  fix t
+  fix v
   from assms have "lc p \<noteq> 0" by (rule lc_not_0)
-  have "lookup ?q (0 + t) = (lc p) * (lookup (monic p) t)" by (rule lookup_monom_mult_plus)
-  also have "... = (lc p) * ((lookup p t) / lc p)" by (simp add: lookup_monic)
-  also have "... = lookup p t" using \<open>lc p \<noteq> 0\<close> by simp
-  finally show "lookup ?q t = lookup p t" by simp
+  have "lookup ?q (0 \<oplus> v) = (lc p) * (lookup (monic p) v)" by (rule lookup_monom_mult_plus)
+  also have "... = (lc p) * ((lookup p v) / lc p)" by (simp add: lookup_monic)
+  also have "... = lookup p v" using \<open>lc p \<noteq> 0\<close> by simp
+  finally show "lookup ?q v = lookup p v" by (simp add: term_simps)
 qed
 
 lemma is_monic_setI:
@@ -1343,46 +1343,46 @@ proof (rule is_monic_setI)
   thus "lc p = 1" unfolding p_def by (rule lc_monic)
 qed
   
-lemma monic_set_pideal [simp]: "pideal (monic_set B) = pideal B"
+lemma monic_set_pmdl [simp]: "pmdl (monic_set B) = pmdl B"
 proof
-  show "pideal (monic_set B) \<subseteq> pideal B"
+  show "pmdl (monic_set B) \<subseteq> pmdl B"
   proof
     fix p
-    assume "p \<in> pideal (monic_set B)"
-    thus "p \<in> pideal B"
-    proof (induct p rule: pideal_induct)
-      case base: pideal_0
-      show ?case by (fact ideal.module_0)
+    assume "p \<in> pmdl (monic_set B)"
+    thus "p \<in> pmdl B"
+    proof (induct p rule: pmdl_induct)
+      case base: module_0
+      show ?case by (fact pmdl.module_0)
     next
-      case ind: (pideal_plus a b c t)
+      case ind: (module_plus a b c t)
       from ind(3) obtain b' where b_def: "b = monic b'" and "b' \<in> B" unfolding monic_set_def ..
       have eq: "b = monom_mult (1 / lc b') 0 b'" by (simp only: b_def monic_def)
       show ?case unfolding eq monom_mult_assoc
-        by (rule ideal.module_closed_plus, fact, rule monom_mult_in_pideal, fact)
+        by (rule pmdl.module_closed_plus, fact, rule monom_mult_in_pmdl, fact)
     qed
   qed
 next
-  show "pideal B \<subseteq> pideal (monic_set B)"
+  show "pmdl B \<subseteq> pmdl (monic_set B)"
   proof
     fix p
-    assume "p \<in> pideal B"
-    thus "p \<in> pideal (monic_set B)"
-    proof (induct p rule: pideal_induct)
-      case base: pideal_0
-      show ?case by (fact ideal.module_0)
+    assume "p \<in> pmdl B"
+    thus "p \<in> pmdl (monic_set B)"
+    proof (induct p rule: pmdl_induct)
+      case base: module_0
+      show ?case by (fact pmdl.module_0)
     next
-      case ind: (pideal_plus a b c t)
+      case ind: (module_plus a b c t)
       show ?case
       proof (cases "b = 0")
         case True
-        from ind(2) show ?thesis unfolding True monom_mult_right0 by simp
+        from ind(2) show ?thesis by (simp add: True)
       next
         case False
         let ?b = "monic b"
         from ind(3) have "?b \<in> monic_set B" unfolding monic_set_def by (rule imageI)
-        have "a + monom_mult c t (monom_mult (lc b) 0 ?b) \<in> pideal (monic_set B)"
+        have "a + monom_mult c t (monom_mult (lc b) 0 ?b) \<in> pmdl (monic_set B)"
           unfolding monom_mult_assoc
-          by (rule ideal.module_closed_plus, fact, rule monom_mult_in_pideal, fact)
+          by (rule pmdl.module_closed_plus, fact, rule monom_mult_in_pmdl, fact)
         thus ?thesis unfolding mult_lc_monic[OF False] .
       qed
     qed
@@ -1405,6 +1405,6 @@ proof (rule has_bounded_keys_setI)
   thus "has_bounded_keys n a" unfolding a_def by (rule monic_has_bounded_keys)
 qed
 
-end (* ordered_powerprod *)
+end (* ordered_term *)
 
 end (* theory *)

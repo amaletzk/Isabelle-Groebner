@@ -1,36 +1,36 @@
 (* Author: Alexander Maletzky *)
 
 theory Binomials
-  imports Reduced_GB Buchberger
+  imports Reduced_GB "Groebner_Bases/Buchberger"
 begin
 
-context ordered_powerprod
+context ordered_term
 begin
 
 section \<open>Monomial Ideals\<close>
 
-lemma keys_monomial_pideal:
-  assumes "is_monomial_set F" and "p \<in> pideal F" and "t \<in> keys p"
-  obtains f where "f \<in> F" and "f \<noteq> 0" and "lp f adds t"
+lemma keys_monomial_pmdl:
+  assumes "is_monomial_set F" and "p \<in> pmdl F" and "t \<in> keys p"
+  obtains f where "f \<in> F" and "f \<noteq> 0" and "lt f adds\<^sub>t t"
   using assms(2) assms(3)
-proof (induct arbitrary: thesis rule: pideal_induct)
-  case pideal_0
+proof (induct arbitrary: thesis rule: pmdl_induct)
+  case module_0
   from this(2) show ?case by simp
 next
-  case step: (pideal_plus p f0 c s)
+  case step: (module_plus p f0 c s)
   from assms(1) step(3) have "is_monomial f0" unfolding is_monomial_set_def ..
-  hence "keys f0 = {lp f0}" and "f0 \<noteq> 0" by (rule keys_monomial, rule monomial_not_0)
+  hence "keys f0 = {lt f0}" and "f0 \<noteq> 0" by (rule keys_monomial, rule monomial_not_0)
   from keys_add_subset step(6) have "t \<in> keys p \<union> keys (monom_mult c s f0)" ..
   thus ?case
   proof
     assume "t \<in> keys p"
-    from step(2)[OF _ this] obtain f where "f \<in> F" and "f \<noteq> 0" and "lp f adds t" by blast
+    from step(2)[OF _ this] obtain f where "f \<in> F" and "f \<noteq> 0" and "lt f adds\<^sub>t t" by blast
     thus ?thesis by (rule step(5))
   next
     assume "t \<in> keys (monom_mult c s f0)"
-    with keys_monom_mult_subset have "t \<in> plus s ` keys f0" ..
-    hence "t = s + lp f0" by (simp add: \<open>keys f0 = {lp f0}\<close>)
-    hence "lp f0 adds t" by simp
+    with keys_monom_mult_subset have "t \<in> (\<oplus>) s ` keys f0" ..
+    hence "t = s \<oplus> lt f0" by (simp add: \<open>keys f0 = {lt f0}\<close>)
+    hence "lt f0 adds\<^sub>t t" by (simp add: term_simps)
     with \<open>f0 \<in> F\<close> \<open>f0 \<noteq> 0\<close> show ?thesis by (rule step(5))
   qed
 qed
@@ -51,16 +51,16 @@ lemma red_monomial_keys:
   shows "card (keys p) = Suc (card (keys q))"
 proof -
   from red obtain s where rs: "red_single p q r s" unfolding red_singleton ..
-  hence cp0: "lookup p (s + lp r) \<noteq> 0" and q_def0: "q = p - monom_mult (lookup p (s + lp r) / lc r) s r"
+  hence cp0: "lookup p (s \<oplus> lt r) \<noteq> 0" and q_def0: "q = p - monom_mult (lookup p (s \<oplus> lt r) / lc r) s r"
     unfolding red_single_def by simp_all
   from mon obtain c t where "c \<noteq> 0" and r_def: "r = monomial c t" by (rule is_monomial_monomial)
-  have lpr: "lp r = t" unfolding r_def by (rule lp_monomial, fact)
+  have ltr: "lt r = t" unfolding r_def by (rule lt_monomial, fact)
   have lcr: "lc r = c" unfolding r_def by (rule lc_monomial)
-  define u where "u = s + t"
-  from q_def0 have "q = p - monom_mult (lookup p u / c) s r" unfolding u_def lpr lcr .
+  define u where "u = s \<oplus> t"
+  from q_def0 have "q = p - monom_mult (lookup p u / c) s r" unfolding u_def ltr lcr .
   also have "... = p - monomial ((lookup p u / c) * c) u" unfolding u_def r_def monom_mult_monomial ..
   finally have q_def: "q = p - monomial (lookup p u) u" using \<open>c \<noteq> 0\<close> by simp
-  from cp0 have "lookup p u \<noteq> 0" unfolding u_def lpr .
+  from cp0 have "lookup p u \<noteq> 0" unfolding u_def ltr .
   hence "u \<in> keys p" by simp
       
   have "keys q = keys p - {u}" unfolding q_def
@@ -104,20 +104,20 @@ proof -
   define r where "r = binomial c s d t"
   have sr: "keys r = {s, t}" unfolding r_def by (rule keys_binomial_pbd, rule obd_imp_pbd, fact)
   hence "r \<noteq> 0" using keys_eq_empty_iff[of r] by simp
-  have lpr: "lp r = s" unfolding r_def by (rule lp_binomial, fact)
+  have ltr: "lt r = s" unfolding r_def by (rule lt_binomial, fact)
   have lcr: "lc r = c" unfolding r_def by (rule lc_binomial, fact)
   
   from red obtain u where rs: "red_single p q r u" unfolding r_def red_singleton ..
-  hence cp0: "lookup p (u + lp r) \<noteq> 0" and q_def0: "q = p - monom_mult (lookup p (u + lp r) / lc r) u r"
+  hence cp0: "lookup p (u \<oplus> lt r) \<noteq> 0" and q_def0: "q = p - monom_mult (lookup p (u \<oplus> lt r) / lc r) u r"
     unfolding red_single_def by simp_all
-  define v where "v = u + s"
-  define w where "w = u + t"
+  define v where "v = u \<oplus> s"
+  define w where "w = u \<oplus> t"
   define cpv where "cpv = lookup p v"
   define r' where "r' = binomial cpv v ((cpv / c) * d) w"
-  from cp0 have "cpv \<noteq> 0" unfolding cpv_def v_def lpr .
+  from cp0 have "cpv \<noteq> 0" unfolding cpv_def v_def ltr .
   with \<open>c \<noteq> 0\<close> have "cpv / c \<noteq> 0" by simp
   from \<open>cpv \<noteq> 0\<close> have "v \<in> keys p" unfolding cpv_def by simp
-  from q_def0 have "q = p - monom_mult (cpv / c) u r" unfolding cpv_def lpr lcr v_def .
+  from q_def0 have "q = p - monom_mult (cpv / c) u r" unfolding cpv_def ltr lcr v_def .
   also have "... = p - binomial ((cpv / c) * c) v ((cpv / c) * d) w"
     unfolding r_def monom_mult_binomial v_def w_def ..
   finally have q_def: "q = p - r'" using \<open>c \<noteq> 0\<close> unfolding r'_def by simp
@@ -128,7 +128,7 @@ proof -
       
   have sr': "keys r' = {v, w}" unfolding r'_def by (rule keys_binomial_pbd, rule obd_imp_pbd, fact)
   hence "r' \<noteq> 0" using keys_eq_empty_iff[of r'] by simp
-  have lpr': "lp r' = v" unfolding r'_def by (rule lp_binomial, fact)
+  have ltr': "lt r' = v" unfolding r'_def by (rule lt_binomial, fact)
   have lcr': "lc r' = cpv" unfolding r'_def by (rule lc_binomial, fact)
       
   have "keys q \<subseteq> (keys p - {v}) \<union> {w}"
@@ -253,9 +253,9 @@ next
   show ?case by (rule has_bounded_keys_red, rule ind(3), fact+)
 qed
 
-end (* ordered_powerprod *)
+end (* ordered_term *)
 
-context gd_powerprod
+context gd_term
 begin
 
 lemma has_bounded_keys_trd:
@@ -271,7 +271,7 @@ lemma monomial_set_is_GB:
   unfolding GB_alt_1
 proof
   fix f
-  assume "f \<in> pideal G"
+  assume "f \<in> pmdl G"
   thus "(red G)\<^sup>*\<^sup>* f 0"
   proof (induct f rule: poly_mapping_plus_induct)
     case 1
@@ -281,53 +281,55 @@ proof
     let ?f = "monomial c t + f"
     from 2(1) have "t \<in> keys (monomial c t)" by simp
     from this 2(2) have "t \<in> keys ?f" by (rule in_keys_plusI1)
-    with assms \<open>?f \<in> pideal G\<close> obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds t"
-      by (rule keys_monomial_pideal)
+    with assms \<open>?f \<in> pmdl G\<close> obtain g where "g \<in> G" and "g \<noteq> 0" and "lt g adds\<^sub>t t"
+      by (rule keys_monomial_pmdl)
     from this(1) have "red G ?f f"
     proof (rule red_setI)
-      from \<open>lp g adds t\<close> have eq: "t - lp g + lp g = t" by (rule adds_minus)
+      from \<open>lt g adds\<^sub>t t\<close> have "component_of_term (lt g) = component_of_term t" and "lp g adds pp_of_term t"
+        by (simp_all add: adds_term_def)
+      from this have eq: "(pp_of_term t - lp g) \<oplus> lt g = t"
+        by (simp add: adds_minus splus_def term_of_pair_pair)
       moreover from 2(2) have "lookup ?f t = c" by (simp add: lookup_add)
-      ultimately show "red_single (monomial c t + f) f g (t - lp g)"
+      ultimately show "red_single (monomial c t + f) f g (pp_of_term t - lp g)"
       proof (simp add: red_single_def \<open>g \<noteq> 0\<close> \<open>t \<in> keys ?f\<close> 2(1))
-        thm monom_mult_monomial
         from \<open>g \<noteq> 0\<close> have "lc g \<noteq> 0" by (rule lc_not_0)
-        hence "monomial c t = monom_mult (c / lc g) (t - lp g) (monomial (lc g) (lp g))"
+        hence "monomial c t = monom_mult (c / lc g) (pp_of_term t - lp g) (monomial (lc g) (lt g))"
           by (simp add: monom_mult_monomial eq)
         moreover from assms \<open>g \<in> G\<close> have "is_monomial g" unfolding is_monomial_set_def ..
-        ultimately show "monomial c t = monom_mult (c / lc g) (t - lp g) g"
+        ultimately show "monomial c t = monom_mult (c / lc g) (pp_of_term t - lp g) g"
           by (simp only: monomial_eq_itself)
       qed
     qed
-    have "f \<in> pideal G" by (rule pideal_closed_red, fact subset_refl, fact+)
+    have "f \<in> pmdl G" by (rule pmdl_closed_red, fact subset_refl, fact+)
     hence "(red G)\<^sup>*\<^sup>* f 0" by (rule 2(3))
     with \<open>red G ?f f\<close> show ?case by simp
   qed
 qed
   
-section \<open>Functions @{const gb} and @{term rgb}\<close>
+section \<open>Functions @{const gb} and \<open>rgb\<close>\<close>
 
 lemma comp_red_monic_basis_of_gb_is_reduced_GB:
   "is_reduced_GB (set (comp_red_monic_basis (map fst (gb xs ()))))"
   by (rule comp_red_monic_basis_is_reduced_GB, simp, rule gb_isGB)
     
-lemma comp_red_monic_basis_of_gb_pideal:
-  "pideal (set (comp_red_monic_basis (map fst (gb xs ())))) = pideal (fst ` set xs)" (is "?l = ?r")
+lemma comp_red_monic_basis_of_gb_pmdl:
+  "pmdl (set (comp_red_monic_basis (map fst (gb xs ())))) = pmdl (fst ` set xs)" (is "?l = ?r")
 proof -
-  have "?l = pideal (set (map fst (gb xs ())))"
-    by (rule comp_red_monic_basis_pideal, simp, rule gb_isGB)
-  also have "... = pideal (fst ` set (gb xs ()))" by simp
-  also have "... = ?r" by (rule gb_pideal)
+  have "?l = pmdl (set (map fst (gb xs ())))"
+    by (rule comp_red_monic_basis_pmdl, simp, rule gb_isGB)
+  also have "... = pmdl (fst ` set (gb xs ()))" by simp
+  also have "... = ?r" by (rule gb_pmdl)
   finally show ?thesis .
 qed
 
-definition rgb :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
+definition rgb :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::field) list"
   where "rgb bs = comp_red_monic_basis (map fst (gb (map (\<lambda>b. (b, ())) bs) ()))"
 
 lemma reduced_GB_comp: "reduced_GB (set xs) = set (rgb xs)"
   apply (rule reduced_GB_unique_finite)
   subgoal by (fact finite_set)
   subgoal by (simp add: rgb_def, rule comp_red_monic_basis_of_gb_is_reduced_GB)
-  subgoal by (simp add: rgb_def comp_red_monic_basis_of_gb_pideal image_image)
+  subgoal by (simp add: rgb_def comp_red_monic_basis_of_gb_pmdl image_image)
   done
 
 subsection \<open>Monomials\<close>
@@ -338,32 +340,43 @@ lemma spoly_monom:
 proof -
   define p where "p = monomial c s"
   define q where "q = monomial d t"
-  define u where "u = lcs_powerprod_class.lcs (lp p) (lp q)"
+  define u where "u = lcs (lp p) (lp q)"
  
-  from \<open>c \<noteq> 0\<close> have lpp: "lp p = s" and lcp: "lc p = c" unfolding p_def
-    by (rule lp_monomial, intro lc_monomial)
-  from \<open>d \<noteq> 0\<close> have lpq: "lp q = t" and lcq: "lc q = d" unfolding q_def
-    by (rule lp_monomial, intro lc_monomial)
-      
-  have "s adds u" unfolding u_def lpp by (rule adds_lcs)
-  have "t adds u" unfolding u_def lpq by (rule adds_lcs_2)
-  
-  have "monom_mult (1 / lc p) (lcs_powerprod_class.lcs (lp p) (lp q) - lp p) p =
-        monom_mult (1 / c) (u - s) p" unfolding u_def lpp lcp ..
-  also have "... = monomial 1 u" unfolding p_def monom_mult_monomial adds_minus[OF \<open>s adds u\<close>]
-    using \<open>c \<noteq> 0\<close> by simp
-  finally have eq1: "monom_mult (1 / lc p) (lcs_powerprod_class.lcs (lp p) (lp q) - lp p) p = monomial 1 u" .
-      
-  have "monom_mult (1 / lc q) (lcs_powerprod_class.lcs (lp p) (lp q) - lp q) q =
-        monom_mult (1 / d) (u - t) q" unfolding u_def lpq lcq ..
-  also have "... = monomial 1 u" unfolding q_def monom_mult_monomial adds_minus[OF \<open>t adds u\<close>]
-    using \<open>d \<noteq> 0\<close> by simp
-  finally have eq2: "monom_mult (1 / lc q) (lcs_powerprod_class.lcs (lp p) (lp q) - lp q) q = monomial 1 u" .
-      
-  have "spoly p q = 0" unfolding spoly_def eq1 eq2 by simp
-  thus ?thesis unfolding p_def q_def .
+  from \<open>c \<noteq> 0\<close> have ltp: "lt p = s" and lcp: "lc p = c" unfolding p_def
+    by (rule lt_monomial, intro lc_monomial)
+  from \<open>d \<noteq> 0\<close> have ltq: "lt q = t" and lcq: "lc q = d" unfolding q_def
+    by (rule lt_monomial, intro lc_monomial)
+
+  show ?thesis
+  proof (cases "component_of_term s = component_of_term t")
+    case True
+    have "(pp_of_term s) adds u" unfolding u_def ltp by (rule adds_lcs)
+    have "(pp_of_term t) adds u" unfolding u_def ltq by (rule adds_lcs_2)
+    
+    have "monom_mult (1 / lc p) (lcs (lp p) (lp q) - lp p) p =
+          monom_mult (1 / c) (u - (pp_of_term s)) p" unfolding u_def ltp lcp ..
+    also have "... = monomial 1 (term_of_pair (u, component_of_term s))"
+      unfolding p_def monom_mult_monomial adds_minus_splus[OF \<open>(pp_of_term s) adds u\<close>]
+      using \<open>c \<noteq> 0\<close> by simp
+    finally have eq1: "monom_mult (1 / lc p) (lcs (lp p) (lp q) - lp p) p =
+                        monomial 1 (term_of_pair (u, component_of_term s))" .
+        
+    have "monom_mult (1 / lc q) (lcs (lp p) (lp q) - lp q) q =
+          monom_mult (1 / d) (u - (pp_of_term t)) q" unfolding u_def ltq lcq ..
+    also have "... = monomial 1 (term_of_pair (u, component_of_term s))"
+      unfolding q_def monom_mult_monomial adds_minus_splus[OF \<open>(pp_of_term t) adds u\<close>] True
+      using \<open>d \<noteq> 0\<close> by simp
+    finally have eq2: "monom_mult (1 / lc q) (lcs (lp p) (lp q) - lp q) q =
+                        monomial 1 (term_of_pair (u, component_of_term s))" .
+        
+    have "spoly p q = 0" by (simp add: spoly_def eq1 eq2 Let_def lc_def[symmetric])
+    thus ?thesis unfolding p_def q_def .
+  next
+    case False
+    thus ?thesis by (simp add: spoly_def ltp ltq p_def[symmetric] q_def[symmetric])
+  qed
 qed
-  
+
 lemma spoly_monomial:
   assumes "is_monomial p" and "is_monomial q"
   shows "spoly p q = 0"
@@ -379,9 +392,9 @@ lemma gb_compl_monomial_set:
 proof -
   have "fst ` set (fst (gb_compl gs bs ps sps data)) = {}"
   proof (simp only: discard_red_cp_def fst_set_fst_gb_red set_gb_red_aux Diff_eq_empty_iff)
-    have "set (discard_crit_pairs pc_crit gs bs ps sps data) \<subseteq> set sps"
-      by (simp add: set_discard_crit_pairs_partition[of sps pc_crit gs bs ps data])
-    hence "trdsp (map fst (gs @ bs)) ` set (discard_crit_pairs pc_crit gs bs ps sps data) \<subseteq>
+    have "set (discard_crit_pairs chain_crit gs bs ps sps data) \<subseteq> set sps"
+      by (simp add: set_discard_crit_pairs_partition[of sps chain_crit gs bs ps data])
+    hence "trdsp (map fst (gs @ bs)) ` set (discard_crit_pairs chain_crit gs bs ps sps data) \<subseteq>
             trdsp (map fst (gs @ bs)) ` set sps" by (rule image_mono)
     also have "... \<subseteq> {0}"
     proof
@@ -394,7 +407,7 @@ proof -
       have "h = 0" unfolding h trdsp_alt spoly using rtrancl_0 trd_red_rtrancl by blast
       thus "h \<in> {0}" by simp
     qed
-    finally show "trdsp (map fst (gs @ bs)) ` set (discard_crit_pairs pc_crit gs bs ps sps data) \<subseteq> {0}" .
+    finally show "trdsp (map fst (gs @ bs)) ` set (discard_crit_pairs chain_crit gs bs ps sps data) \<subseteq> {0}" .
   qed
   thus ?thesis by simp
 qed
@@ -402,26 +415,26 @@ qed
 lemma gb_aux_monomial_set:
   assumes "\<And>p q. (p, q) \<in> (set ps) \<Longrightarrow> is_monomial (fst p) \<and> is_monomial (fst q)"
   assumes "gb_aux data gs bs ps = gs @ bs \<Longrightarrow> thesis"
-    and "gb_aux data gs bs ps = [(1, 0, default)] \<Longrightarrow> thesis"
+    and "gb_aux data gs bs ps = full_gb (gs @ bs) \<Longrightarrow> thesis"
   shows thesis
   using struct_spec_gb assms unfolding gb_aux_def
 proof (induct data gs bs ps arbitrary: thesis rule: gb_schema_aux_induct)
   case (base bs data)
   from refl show ?case by (rule base.prems(2))
 next
-  case (rec1 bs ps sps h data)
+  case (rec1 bs ps sps data)
   from refl show ?case by (rule rec1.prems(3))
 next
-  case (rec2 bs ps sps hs data data')
-  have *: "fst (gb_compl gs bs (ps -- sps) sps data) = []"
+  case (rec2 bs ps sps aux hs rc data data')
+  have *: "fst (gb_compl gs bs (ps -- sps) sps (snd data)) = []"
   proof (rule gb_compl_monomial_set, rule rec2.prems)
     fix p q
     assume "(p, q) \<in> set sps"
     also from sel_spec_gb_sel rec2(1) have "... \<subseteq> set ps" unfolding rec2(2) by (rule sel_specD2)
     finally show "(p, q) \<in> set ps" .
   qed
-  have "hs = fst (add_indices (gb_compl gs bs (ps -- sps) sps data) data)"
-    by (simp add: rec2(3)[symmetric])
+  have "hs = fst (add_indices (gb_compl gs bs (ps -- sps) sps (snd data)) (snd data))"
+    by (simp add: rec2(4)[symmetric] rec2(3)[symmetric])
   also have "... = []" by (simp add: add_indices_def *)
   finally have "hs = []" .
   hence eq: "gb_ab gs bs hs data' = bs" by (simp add: add_basis_sorted_def)
@@ -438,10 +451,11 @@ lemma gb_is_monomial_set:
   assumes "is_monomial_set (fst ` set bs0)"
   shows "is_monomial_set (fst ` set (gb bs0 ()))"
 proof (simp add: gb_simps Let_def fst_set_drop_indices)
-  define data where "data = (length bs0, ())"
+  define data0 where "data0 = (length bs0, ())"
+  define data where "data = (count_rem_components (gb_ab [] [] (fst (add_indices (bs0, ()) (0, ()))) data0), data0)"
   define bs where "bs = fst (add_indices (bs0, ()) (0, ()))"
-  define bs' where "bs' = gb_ab [] [] bs data"
-  define ps where "ps = gb_ap [] [] [] bs data"
+  define bs' where "bs' = gb_ab [] [] bs data0"
+  define ps where "ps = gb_ap [] [] [] bs data0"
   have bs: "fst ` set bs = fst ` set bs0" by (simp add: bs_def fst_set_add_indices)
   show "is_monomial_set (fst ` set (gb_aux data [] bs' ps))"
   proof (rule gb_aux_monomial_set)
@@ -461,10 +475,9 @@ proof (simp add: gb_simps Let_def fst_set_drop_indices)
       by (simp add: bs'_def ab_specD1[OF ab_spec_add_basis_sorted] bs)
     ultimately show ?thesis by (simp add: assms)
   next
-    assume eq: "gb_aux data [] bs' ps = [(1, 0, default)]"
+    assume eq: "gb_aux data [] bs' ps = full_gb ([] @ bs')"
     show ?thesis
-      by (simp add: eq is_monomial_set_def single_one[symmetric] del: single_one,
-          rule monomial_is_monomial, simp)
+      by (simp add: eq full_gb_def is_monomial_set_def monomial_is_monomial)
   qed
 qed
 
@@ -472,68 +485,79 @@ subsection \<open>Binomials\<close>
 
 lemma spoly_binomial_monom:
   fixes tp
-  assumes obd: "is_obd cp sp dp tp" and "cq \<noteq> 0"
+  assumes obd: "is_obd cp sp dp tp" and "cq \<noteq> 0" and "component_of_term sp = component_of_term sq"
   shows "spoly (binomial cp sp dp tp) (monomial cq sq) =
-         monomial (dp / cp) (((lcs_powerprod_class.lcs sp sq) - sp) + tp)"
-  unfolding spoly_def lc_binomial[OF obd] lp_binomial[OF obd] lc_monomial lp_monomial[OF \<open>cq \<noteq> 0\<close>]
-proof -
-  define u where "u = lcs_powerprod_class.lcs sp sq"
-  have "sp adds u" unfolding u_def by (rule adds_lcs)
-  have "sq adds u" unfolding u_def by (rule adds_lcs_2)
+            monomial (dp / cp) (((lcs (pp_of_term sp) (pp_of_term sq)) - (pp_of_term sp)) \<oplus> tp)"
+proof (simp add: spoly_def lt_binomial[OF obd] lt_monomial[OF \<open>cq \<noteq> 0\<close>] assms(3) Let_def
+      lookup_binomial obd obd_imp_pbd)
+  define u where "u = lcs (pp_of_term sp) (pp_of_term sq)"
+  have "(pp_of_term sp) adds u" unfolding u_def by (rule adds_lcs)
+  have "(pp_of_term sq) adds u" unfolding u_def by (rule adds_lcs_2)
   from obd have "cp \<noteq> 0" unfolding is_obd_def ..
-  from \<open>sp adds u\<close> have eq1: "monom_mult (1 / cp) (u - sp) (binomial cp sp dp tp) =
-                        binomial 1 u (dp / cp) ((u - sp) + tp)"
-    unfolding monom_mult_binomial by (simp add: \<open>cp \<noteq> 0\<close> adds_minus)
-  from \<open>sq adds u\<close> have eq2: "monom_mult (1 / cq) (u - sq) (monomial cq sq) = monomial 1 u"
-    unfolding monom_mult_monomial by (simp add: \<open>cq \<noteq> 0\<close> adds_minus)
-  have "monom_mult (1 / cp) (u - sp) (binomial cp sp dp tp) -
-        monom_mult (1 / cq) (u - sq) (monomial cq sq) =
-        monomial (dp / cp) (u - sp + tp)" unfolding eq1 eq2 unfolding binomial_def by simp
-  thus "monom_mult (1 / cp) (lcs_powerprod_class.lcs sp sq - sp) (binomial cp sp dp tp) -
-        monom_mult (1 / cq) (lcs_powerprod_class.lcs sp sq - sq) (monomial cq sq) =
-        monomial (dp / cp) (lcs_powerprod_class.lcs sp sq - sp + tp)" unfolding u_def .
+  from \<open>(pp_of_term sp) adds u\<close> have eq1: "monom_mult (1 / cp) (u - (pp_of_term sp)) (binomial cp sp dp tp) =
+                        binomial 1 (term_of_pair (u, component_of_term sp)) (dp / cp) ((u - (pp_of_term sp)) \<oplus> tp)"
+    unfolding monom_mult_binomial by (simp add: \<open>cp \<noteq> 0\<close> adds_minus_splus)
+  from \<open>(pp_of_term sq) adds u\<close> have eq2: "monom_mult (1 / cq) (u - (pp_of_term sq)) (monomial cq sq) =
+                        monomial 1 (term_of_pair (u, component_of_term sp))"
+    unfolding monom_mult_monomial by (simp add: \<open>cq \<noteq> 0\<close> adds_minus_splus assms(3))
+  have "monom_mult (1 / cp) (u - (pp_of_term sp)) (binomial cp sp dp tp) -
+        monom_mult (1 / cq) (u - (pp_of_term sq)) (monomial cq sq) =
+        monomial (dp / cp) ((u - (pp_of_term sp)) \<oplus> tp)" unfolding eq1 eq2 unfolding binomial_def by simp
+  thus "monom_mult (1 / cp) (lcs (pp_of_term sp) (pp_of_term sq) - pp_of_term sp) (binomial cp sp dp tp) -
+    monom_mult (1 / cq) (lcs (pp_of_term sp) (pp_of_term sq) - pp_of_term sq) (monomial cq sq) =
+    monomial (dp / cp) ((lcs (pp_of_term sp) (pp_of_term sq) - pp_of_term sp) \<oplus> tp)" unfolding u_def .
 qed
 
 lemma spoly_binomial:
   fixes tp
   assumes obdp: "is_obd cp sp dp tp" and obdq: "is_obd cq sq dq tq"
+     and "component_of_term sp = component_of_term sq"
   shows "spoly (binomial cp sp dp tp) (binomial cq sq dq tq) =
-         binomial (dp / cp) (((lcs_powerprod_class.lcs sp sq) - sp) + tp)
-               (-dq / cq) (((lcs_powerprod_class.lcs sp sq) - sq) + tq)"
-  unfolding spoly_def lc_binomial[OF obdp] lp_binomial[OF obdp] lc_binomial[OF obdq] lp_binomial[OF obdq]
-proof -
-  define u where "u = lcs_powerprod_class.lcs sp sq"
-  have "sp adds u" unfolding u_def by (rule adds_lcs)
-  have "sq adds u" unfolding u_def by (rule adds_lcs_2)
+         binomial (dp / cp) (((lcs (pp_of_term sp) (pp_of_term sq)) - (pp_of_term sp)) \<oplus> tp)
+               (-dq / cq) (((lcs (pp_of_term sp) (pp_of_term sq)) - (pp_of_term sq)) \<oplus> tq)"
+proof (simp add: spoly_def lt_binomial[OF obdp] lt_binomial[OF obdq] assms(3) Let_def
+        lookup_binomial obdp obdq obd_imp_pbd)
+  define u where "u = lcs (pp_of_term sp) (pp_of_term sq)"
+  have "(pp_of_term sp) adds u" unfolding u_def by (rule adds_lcs)
+  have "(pp_of_term sq) adds u" unfolding u_def by (rule adds_lcs_2)
   from obdp have "cp \<noteq> 0" unfolding is_obd_def ..
   from obdq have "cq \<noteq> 0" unfolding is_obd_def ..
-  from \<open>sp adds u\<close> have eq1: "monom_mult (1 / cp) (u - sp) (binomial cp sp dp tp) =
-                        binomial 1 u (dp / cp) ((u - sp) + tp)"
-    unfolding monom_mult_binomial by (simp add: \<open>cp \<noteq> 0\<close> adds_minus)
-  from \<open>sq adds u\<close> have eq2: "monom_mult (1 / cq) (u - sq) (binomial cq sq dq tq) =
-                        binomial 1 u (dq / cq) ((u - sq) + tq)"
-    unfolding monom_mult_binomial by (simp add: \<open>cq \<noteq> 0\<close> adds_minus)
-  have "monomial (- dq / cq) (u - sq + tq) = monomial (-(dq / cq)) (u - sq + tq)" by simp
-  also have "... = - monomial (dq / cq) (u - sq + tq)" by (simp only: monomial_uminus)
-  finally have eq3: "monomial (-dq / cq) (u - sq + tq) = - monomial (dq / cq) (u - sq + tq)" .
-  have "monom_mult (1 / cp) (u - sp) (binomial cp sp dp tp) -
-        monom_mult (1 / cq) (u - sq) (binomial cq sq dq tq) =
-        binomial (dp / cp) (u - sp + tp)
-              (-dq / cq) (u - sq + tq)" unfolding eq1 eq2 unfolding binomial_def eq3 by simp
-  thus "monom_mult (1 / cp) (lcs_powerprod_class.lcs sp sq - sp) (binomial cp sp dp tp) -
-        monom_mult (1 / cq) (lcs_powerprod_class.lcs sp sq - sq) (binomial cq sq dq tq) =
-        binomial (dp / cp) (lcs_powerprod_class.lcs sp sq - sp + tp)
-              (-dq / cq) (lcs_powerprod_class.lcs sp sq - sq + tq)" unfolding u_def .
+  from \<open>(pp_of_term sp) adds u\<close> have eq1: "monom_mult (1 / cp) (u - (pp_of_term sp)) (binomial cp sp dp tp) =
+                        binomial 1 (term_of_pair (u, component_of_term sp)) (dp / cp) ((u - (pp_of_term sp)) \<oplus> tp)"
+    unfolding monom_mult_binomial by (simp add: \<open>cp \<noteq> 0\<close> adds_minus_splus)
+  from \<open>(pp_of_term sq) adds u\<close> have eq2: "monom_mult (1 / cq) (u - (pp_of_term sq)) (binomial cq sq dq tq) =
+                        binomial 1 (term_of_pair (u, component_of_term sp)) (dq / cq) ((u - (pp_of_term sq)) \<oplus> tq)"
+    unfolding monom_mult_binomial by (simp add: \<open>cq \<noteq> 0\<close> adds_minus_splus assms(3))
+  have eq3: "monomial (- (dq / cq)) ((u - pp_of_term sq) \<oplus> tq) =
+                      - monomial (dq / cq) ((u - pp_of_term sq) \<oplus> tq)" by (simp only: monomial_uminus)
+  have "monom_mult (1 / cp) (u - pp_of_term sp) (binomial cp sp dp tp) -
+        monom_mult (1 / cq) (u - pp_of_term sq) (binomial cq sq dq tq) =
+        binomial (dp / cp) ((u - pp_of_term sp) \<oplus> tp)
+              (- (dq / cq)) ((u - pp_of_term sq) \<oplus> tq)" unfolding eq1 eq2 unfolding binomial_def eq3
+    by simp
+  thus "monom_mult (1 / cp) (lcs (pp_of_term sp) (pp_of_term sq) - pp_of_term sp) (binomial cp sp dp tp) -
+      monom_mult (1 / cq) (lcs (pp_of_term sp) (pp_of_term sq) - pp_of_term sq) (binomial cq sq dq tq) =
+       binomial (dp / cp) ((lcs (pp_of_term sp) (pp_of_term sq) - pp_of_term sp) \<oplus> tp) (- (dq / cq))
+       ((lcs (pp_of_term sp) (pp_of_term sq) - pp_of_term sq) \<oplus> tq)" unfolding u_def .
 qed
   
 lemma spoly_binomial_monomial:
   assumes "is_proper_binomial p" and "is_monomial q"
-  shows "is_monomial (spoly p q)"
-proof -
+  shows "is_monomial (spoly p q) \<or> spoly p q = 0"
+proof (rule disjCI)
+  assume "spoly p q \<noteq> 0"
   from \<open>is_proper_binomial p\<close> obtain cp sp dp tp where obd: "is_obd cp sp dp tp"
     and p_def: "p = binomial cp sp dp tp" by (rule is_proper_binomial_binomial_od)
   from \<open>is_monomial q\<close> obtain cq sq where "cq \<noteq> 0" and q_def: "q = monomial cq sq" by (rule is_monomial_monomial)
-  show ?thesis unfolding p_def q_def spoly_binomial_monom[OF obd \<open>cq \<noteq> 0\<close>]
+  have *: "component_of_term sp = component_of_term sq"
+  proof (rule ccontr)
+    assume "component_of_term sp \<noteq> component_of_term sq"
+    moreover have "lt q = sq" unfolding q_def using \<open>cq \<noteq> 0\<close> by (rule lt_monomial)
+    moreover have "lt p = sp" unfolding p_def using obd by (rule lt_binomial)
+    ultimately have "spoly p q = 0" by (simp add: spoly_def)
+    with \<open>spoly p q \<noteq> 0\<close> show False ..
+  qed
+  show "is_monomial (spoly p q)" unfolding p_def q_def spoly_binomial_monom[OF obd \<open>cq \<noteq> 0\<close> *]
   proof (rule monomial_is_monomial)
     from obd show "dp / cp \<noteq> 0" unfolding is_obd_def by simp
   qed
@@ -541,12 +565,12 @@ qed
     
 lemma spoly_monomial_binomial:
   assumes "is_monomial p" and "is_proper_binomial q"
-  shows "is_monomial (spoly p q)"
+  shows "is_monomial (spoly p q) \<or> spoly p q = 0"
 proof -
-  from \<open>is_proper_binomial q\<close> \<open>is_monomial p\<close> have "is_monomial (spoly q p)"
+  from \<open>is_proper_binomial q\<close> \<open>is_monomial p\<close> have "is_monomial (spoly q p) \<or> spoly q p = 0"
     by (rule spoly_binomial_monomial)
-  hence "is_monomial (- spoly p q)" unfolding spoly_swap[of q p] .
-  thus ?thesis unfolding is_monomial_uminus .
+  hence "is_monomial (- spoly p q) \<or> - spoly p q = 0" unfolding spoly_swap[of q p] .
+  thus ?thesis by (simp add: is_monomial_uminus)
 qed
 
 lemma spoly_binomial_keys:
@@ -563,23 +587,34 @@ proof -
       thus ?thesis by simp
     next
       assume "is_proper_binomial q"
-      with \<open>is_monomial p\<close> have "is_monomial (spoly p q)" by (rule spoly_monomial_binomial)
-      thus ?thesis unfolding is_monomial_def by simp
+      with \<open>is_monomial p\<close> have "is_monomial (spoly p q) \<or> spoly p q = 0"
+        by (rule spoly_monomial_binomial)
+      thus ?thesis by (auto simp add: is_monomial_def)
     qed
   next
     assume "is_proper_binomial p"
     from \<open>is_binomial q\<close> show ?thesis unfolding is_binomial_alt
     proof
       assume "is_monomial q"
-      with \<open>is_proper_binomial p\<close> have "is_monomial (spoly p q)" by (rule spoly_binomial_monomial)
-      thus ?thesis unfolding is_monomial_def by simp
+      with \<open>is_proper_binomial p\<close> have "is_monomial (spoly p q) \<or> spoly p q = 0"
+        by (rule spoly_binomial_monomial)
+      thus ?thesis by (auto simp add: is_monomial_def)
     next
       assume "is_proper_binomial q"
       from \<open>is_proper_binomial p\<close> obtain cp sp dp tp where obdp: "is_obd cp sp dp tp"
         and p_def: "p = binomial cp sp dp tp" by (rule is_proper_binomial_binomial_od)
       from \<open>is_proper_binomial q\<close> obtain cq sq dq tq where obdq: "is_obd cq sq dq tq"
         and q_def: "q = binomial cq sq dq tq" by (rule is_proper_binomial_binomial_od)
-      show ?thesis unfolding p_def q_def spoly_binomial[OF obdp obdq] by (rule card_keys_binomial)
+      show ?thesis
+      proof (cases "component_of_term sp = component_of_term sq")
+        case True
+        show ?thesis unfolding p_def q_def spoly_binomial[OF obdp obdq True] by (rule card_keys_binomial)
+      next
+        case False
+        moreover have "lt p = sp" unfolding p_def using obdp by (rule lt_binomial)
+        moreover have "lt q = sq" unfolding q_def using obdq by (rule lt_binomial)
+        ultimately show ?thesis by (simp add: spoly_def)
+      qed
     qed
   qed
 qed
@@ -590,9 +625,9 @@ lemma gb_compl_binomial_set:
   shows "is_binomial_set (fst ` set (fst (gb_compl gs bs ps sps data)))"
 proof (simp only: discard_red_cp_def fst_set_fst_gb_red set_gb_red_aux is_binomial_set_def, rule)
   fix h
-  assume "h \<in> trdsp (map fst (gs @ bs)) ` set (discard_crit_pairs pc_crit gs bs ps sps data) - {0}"
+  assume "h \<in> trdsp (map fst (gs @ bs)) ` set (discard_crit_pairs chain_crit gs bs ps sps data) - {0}"
   hence "h \<in> trdsp (map fst (gs @ bs)) ` set sps" and "h \<noteq> 0"
-    by (auto simp add: set_discard_crit_pairs_partition[of sps pc_crit gs bs ps data])
+    by (auto simp add: set_discard_crit_pairs_partition[of sps chain_crit gs bs ps data])
   from this(1) obtain p q where "(p, q) \<in> set sps" and h: "h = trdsp (map fst (gs @ bs)) (p, q)"
     by fastforce
   from this(1) have "is_binomial (fst p)" and "is_binomial (fst q)" by (simp_all add: assms(1))
@@ -617,19 +652,19 @@ proof (induct data gs bs ps rule: gb_schema_aux_induct)
   case (base bs data)
   from assms(2) base(2) show ?case by (auto simp add: is_binomial_set_def)
 next
-  case (rec1 bs ps sps h data)
-  show ?case by (simp add: is_binomial_set_def is_binomial_def)
+  case (rec1 bs ps sps data)
+  show ?case by (simp add: is_binomial_set_def is_binomial_def full_gb_def)
 next
-  case (rec2 bs ps sps hs data data')
-  have "is_binomial_set (fst ` set (fst (gb_compl gs bs (ps -- sps) sps data)))"
+  case (rec2 bs ps sps aux hs rc data data')
+  have "is_binomial_set (fst ` set (fst (gb_compl gs bs (ps -- sps) sps (snd data))))"
   proof (rule gb_compl_binomial_set, rule rec2.prems)
     fix p q
     assume "(p, q) \<in> set sps"
     also from sel_spec_gb_sel rec2(1) have "... \<subseteq> set ps" unfolding rec2(2) by (rule sel_specD2)
     finally show "(p, q) \<in> set ps" .
   qed fact+
-  moreover have "hs = fst (add_indices (gb_compl gs bs (ps -- sps) sps data) data)"
-    by (simp add: rec2(3)[symmetric])
+  moreover have "hs = fst (add_indices (gb_compl gs bs (ps -- sps) sps (snd data)) (snd data))"
+    by (simp add: rec2(3, 4)[symmetric])
   ultimately have hs: "is_binomial_set (fst ` set hs)" by (simp add: fst_set_add_indices)
   show ?case
   proof (rule rec2.hyps)
@@ -671,10 +706,11 @@ lemma gb_is_binomial_set:
   assumes "is_binomial_set (fst ` set bs0)"
   shows "is_binomial_set (fst ` set (gb bs0 ()))"
 proof (simp add: gb_simps Let_def fst_set_drop_indices)
-  define data where "data = (length bs0, ())"
+  define data0 where "data0 = (length bs0, ())"
+  define data where "data = (count_rem_components (gb_ab [] [] (fst (add_indices (bs0, ()) (0, ()))) data0), data0)"
   define bs where "bs = fst (add_indices (bs0, ()) (0, ()))"
-  define bs' where "bs' = gb_ab [] [] bs data"
-  define ps where "ps = gb_ap [] [] [] bs data"
+  define bs' where "bs' = gb_ab [] [] bs data0"
+  define ps where "ps = gb_ap [] [] [] bs data0"
   have bs: "fst ` set bs = fst ` set bs0" by (simp add: bs_def fst_set_add_indices)
   show "is_binomial_set (fst ` set (gb_aux data [] bs' ps))"
   proof (rule gb_aux_binomial_set)
@@ -746,7 +782,7 @@ lemma comp_red_monic_basis_is_monomial_set:
 proof  (rule has_bounded_keys_set_1_D, rule comp_red_monic_basis_has_bounded_keys_set,
         rule has_bounded_keys_set_1_I1, fact assms, simp, rule)
   assume "0 \<in> set (comp_red_monic_basis xs)"
-  hence "0 \<noteq> (0::('a, 'b) poly_mapping)" by (rule comp_red_monic_basis_nonzero)
+  hence "0 \<noteq> (0::'t \<Rightarrow>\<^sub>0 'b)" by (rule comp_red_monic_basis_nonzero)
   thus False by simp
 qed
   
@@ -769,7 +805,7 @@ lemma comp_red_monic_basis_is_binomial_set:
 proof  (rule has_bounded_keys_set_2_D, rule comp_red_monic_basis_has_bounded_keys_set,
         rule has_bounded_keys_set_2_I1, fact assms, simp, rule)
   assume "0 \<in> set (comp_red_monic_basis xs)"
-  hence "0 \<noteq> (0::('a, 'b) poly_mapping)" by (rule comp_red_monic_basis_nonzero)
+  hence "0 \<noteq> (0::'t \<Rightarrow>\<^sub>0 'b)" by (rule comp_red_monic_basis_nonzero)
   thus False by simp
 qed
   
@@ -784,6 +820,6 @@ proof -
         simp add: image_image, fact a)
 qed
 
-end (* gd_powerprod *)
+end (* gd_term *)
 
 end (* theory *)
