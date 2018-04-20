@@ -56,11 +56,6 @@ global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
   and tail_scalar_drlex = drlex.punit.tail
   and ord_p_scalar_drlex = drlex.punit.ord_p
   and ord_strict_p_scalar_drlex = drlex.punit.ord_strict_p
-  and rd_mult_scalar_drlex = drlex.punit.rd_mult
-  and rd_scalar_drlex = drlex.punit.rd
-  and rd_list_scalar_drlex = drlex.punit.rd_list
-  and trd_scalar_drlex = drlex.punit.trd
-  and spoly_scalar_drlex = drlex.punit.spoly
   and count_const_lt_components_scalar_drlex = drlex.punit.count_const_lt_components
   and count_rem_components_scalar_drlex = drlex.punit.count_rem_components
   and const_lt_component_scalar_drlex = drlex.punit.const_lt_component

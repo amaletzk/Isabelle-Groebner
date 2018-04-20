@@ -26,9 +26,8 @@ global_interpretation punit': gd_powerprod drlex_pm "drlex_pm_strict::(('a::{cou
   and "punit'.punit.ord_p = ord_p_punit"
   and "punit'.punit.ord_strict_p = ord_strict_p_punit"
 
-  defines rd_mult_punit = punit'.punit.rd_mult
-  and rd_punit = punit'.punit.rd
-  and rd_list_punit = punit'.punit.rd_list
+  defines finds_add_punit = punit'.punit.find_adds
+  and trd_aux_punit = punit'.punit.trd_aux
   and trd_punit = punit'.punit.trd
   and spoly_punit = punit'.punit.spoly
   and count_const_lt_components_punit = punit'.punit.count_const_lt_components
@@ -51,8 +50,8 @@ global_interpretation punit': gd_powerprod drlex_pm "drlex_pm_strict::(('a::{cou
   and gb_sel_punit = punit'.punit.gb_sel
   and gb_red_aux_punit = punit'.punit.gb_red_aux
   and gb_red_punit = punit'.punit.gb_red
-  and gb_aux_punit = punit'.punit.gb_aux
-  and gb_punit = punit'.punit.gb
+  and gb_aux_punit = punit'.punit.gb_aux_punit
+  and gb_punit = punit'.punit.gb_punit \<comment>\<open>Faster, because incorporates product criterion.\<close>
 proof -
   show "gd_powerprod drlex_pm drlex_pm_strict"
     apply standard
@@ -97,21 +96,6 @@ lemma
 
 lemma
   "ord_strict_p_punit (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) (X\<^sup>2 * Z ^ 7 + 2 * Y ^ 3 * Z\<^sup>2)"
-  by eval
-
-lemma
-  "rd_mult_punit (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) (Y\<^sup>2 * Z + 2 * Z ^ 3) =
-    Some (1 / 2, sparse\<^sub>0 [(0, 2), (2, 1)])"
-  by eval
-
-lemma
-  "rd_punit (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) (Y\<^sup>2 * Z + 2 * Z ^ 3) =
-    (-2 * Y ^ 3 * Z\<^sup>2 - Const\<^sub>0 (1 / 2) * X\<^sup>2 * Y\<^sup>2 * Z\<^sup>2, True)"
-  by eval
-
-lemma
-  "rd_list_punit [Y\<^sup>2 * Z + 2 * Z ^ 3] (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) =
-    (-2 * Y ^ 3 * Z\<^sup>2 - Const\<^sub>0 (1 / 2) * X\<^sup>2 * Y\<^sup>2 * Z\<^sup>2, True)"
   by eval
 
 lemma

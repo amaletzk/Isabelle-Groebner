@@ -26,9 +26,8 @@ global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
   and tail_pot_drlex = drlex.pot.tail
   and ord_p_pot_drlex = drlex.pot.ord_p
   and ord_strict_p_pot_drlex = drlex.pot.ord_strict_p
-  and rd_mult_pot_drlex = drlex.pot.rd_mult
-  and rd_pot_drlex = drlex.pot.rd
-  and rd_list_pot_drlex = drlex.pot.rd_list
+  and find_adds_pot_drlex = drlex.pot.find_adds
+  and trd_aux_pot_drlex = drlex.pot.trd_aux
   and trd_pot_drlex = drlex.pot.trd
   and spoly_pot_drlex = drlex.pot.spoly
   and insort_key_pot_drlex = drlex.pot.ord_term_lin.insort_key

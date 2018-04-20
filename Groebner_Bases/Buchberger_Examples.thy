@@ -32,9 +32,8 @@ global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
   and tail_scalar_drlex = drlex.punit.tail
   and ord_p_scalar_drlex = drlex.punit.ord_p
   and ord_strict_p_scalar_drlex = drlex.punit.ord_strict_p
-  and rd_mult_scalar_drlex = drlex.punit.rd_mult
-  and rd_scalar_drlex = drlex.punit.rd
-  and rd_list_scalar_drlex = drlex.punit.rd_list
+  and find_adds_scalar_drlex = drlex.punit.find_adds
+  and trd_aux_scalar_drlex = drlex.punit.trd_aux
   and trd_scalar_drlex = drlex.punit.trd
   and spoly_scalar_drlex = drlex.punit.spoly
   and count_const_lt_components_scalar_drlex = drlex.punit.count_const_lt_components
@@ -72,9 +71,8 @@ global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
   and tail_pot_drlex = drlex.pot.tail
   and ord_p_pot_drlex = drlex.pot.ord_p
   and ord_strict_p_pot_drlex = drlex.pot.ord_strict_p
-  and rd_mult_pot_drlex = drlex.pot.rd_mult
-  and rd_pot_drlex = drlex.pot.rd
-  and rd_list_pot_drlex = drlex.pot.rd_list
+  and find_adds_pot_drlex = drlex.pot.find_adds
+  and trd_aux_pot_drlex = drlex.pot.trd_aux
   and trd_pot_drlex = drlex.pot.trd
   and spoly_pot_drlex = drlex.pot.spoly
   and insort_key_pot_drlex = drlex.pot.ord_term_lin.insort_key
@@ -166,21 +164,6 @@ lemma
   by eval
 
 lemma
-  "rd_mult_pot_drlex (Vec\<^sub>0 1 (X\<^sup>2 * Z ^ 4) - Vec\<^sub>0 0 (2 * Y ^ 3 * Z\<^sup>2)) (Vec\<^sub>0 1 (Y\<^sup>2 * Z + 2 * Z ^ 3)) =
-    Some (1 / 2, sparse\<^sub>0 [(0, 2), (2, 1)])"
-  by eval
-
-lemma
-  "rd_pot_drlex (Vec\<^sub>0 1 (X\<^sup>2 * Z ^ 4) - Vec\<^sub>0 0 (2 * Y ^ 3 * Z\<^sup>2)) (Vec\<^sub>0 1 (Y\<^sup>2 * Z + 2 * Z ^ 3)) =
-    (Vec\<^sub>0 0 (-2 * Y ^ 3 * Z\<^sup>2) - Vec\<^sub>0 1 (Const\<^sub>0 (1 / 2) * X\<^sup>2 * Y\<^sup>2 * Z\<^sup>2), True)"
-  by eval
-
-lemma
-  "rd_list_pot_drlex [Vec\<^sub>0 1 (Y\<^sup>2 * Z + 2 * Z ^ 3)] (Vec\<^sub>0 1 (X\<^sup>2 * Z ^ 4) - Vec\<^sub>0 0 (2 * Y ^ 3 * Z\<^sup>2)) =
-    (Vec\<^sub>0 0 (-2 * Y ^ 3 * Z\<^sup>2) - Vec\<^sub>0 1 (Const\<^sub>0 (1 / 2) * X\<^sup>2 * Y\<^sup>2 * Z\<^sup>2), True)"
-  by eval
-
-lemma
   "trd_pot_drlex [Vec\<^sub>0 1 (Y\<^sup>2 * Z + 2 * Z ^ 3)] (Vec\<^sub>0 1 (X\<^sup>2 * Z ^ 4) - Vec\<^sub>0 0 (2 * Y ^ 3 * Z\<^sup>2)) =
     Vec\<^sub>0 0 (-2 * Y ^ 3 * Z\<^sup>2) - Vec\<^sub>0 1 (Const\<^sub>0 (1 / 2) * X\<^sup>2 * Y\<^sup>2 * Z\<^sup>2)"
   by eval
@@ -223,21 +206,6 @@ lemma
 
 lemma
   "ord_strict_p_scalar_drlex (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) (X\<^sup>2 * Z ^ 7 + 2 * Y ^ 3 * Z\<^sup>2)"
-  by eval
-
-lemma
-  "rd_mult_scalar_drlex (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) (Y\<^sup>2 * Z + 2 * Z ^ 3) =
-    Some (1 / 2, sparse\<^sub>0 [(0, 2), (2, 1)])"
-  by eval
-
-lemma
-  "rd_scalar_drlex (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) (Y\<^sup>2 * Z + 2 * Z ^ 3) =
-    (-2 * Y ^ 3 * Z\<^sup>2 - Const\<^sub>0 (1 / 2) * X\<^sup>2 * Y\<^sup>2 * Z\<^sup>2, True)"
-  by eval
-
-lemma
-  "rd_list_scalar_drlex [Y\<^sup>2 * Z + 2 * Z ^ 3] (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) =
-    (-2 * Y ^ 3 * Z\<^sup>2 - Const\<^sub>0 (1 / 2) * X\<^sup>2 * Y\<^sup>2 * Z\<^sup>2, True)"
   by eval
 
 lemma
