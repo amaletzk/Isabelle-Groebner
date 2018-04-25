@@ -1132,7 +1132,7 @@ next
       by (rule dgrad_p_set_le_red_rtrancl)
     thus "dgrad_p_set_le d {?h} (insert x (set xs \<union> set ys))" by simp
   qed
-  finally show ?case by (simp del: trd.simps)
+  finally show ?case by simp
 qed
 
 definition comp_red_basis :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"

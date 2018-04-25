@@ -15,9 +15,8 @@ global_interpretation opp_dlex: gd_powerprod dlex_pm dlex_pm_strict
   and tail_dlex = opp_dlex.tail
   and ord_dlex = opp_dlex.ord_p
   and ord_strict_dlex = opp_dlex.ord_strict_p
-  and rd_mult_dlex = opp_dlex.rd_mult
-  and rd_dlex = opp_dlex.rd
-  and rd_list_dlex = opp_dlex.rd_list
+  and find_adds_dlex = opp_dlex.find_adds
+  and trd_aux_dlex = opp_dlex.trd_aux
   and trd_dlex = opp_dlex.trd
   and spoly_dlex = opp_dlex.spoly
   and canon_pair_order_dlex = opp_dlex.canon_pair_order

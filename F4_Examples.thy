@@ -56,10 +56,6 @@ global_interpretation f4_drlex: gd_powerprod drlex_pm drlex_pm_strict
   and tail_drlex = f4_drlex.tail
   and ord_drlex = f4_drlex.ord_p
   and ord_strict_drlex = f4_drlex.ord_strict_p
-  and rd_mult_drlex = f4_drlex.rd_mult
-  and rd_drlex = f4_drlex.rd
-  and rd_list_drlex = f4_drlex.rd_list
-  and trd_drlex = f4_drlex.trd
   and spoly_drlex = f4_drlex.spoly
   and canon_pair_order_drlex = f4_drlex.canon_pair_order
   and canon_basis_order_drlex = f4_drlex.canon_basis_order
