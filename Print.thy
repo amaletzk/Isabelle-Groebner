@@ -1,5 +1,5 @@
 theory Print
-  imports Show.Show_Instances "HOL-Library.Code_Char"
+  imports Show.Show_Instances
 begin
 
 subsection \<open>Printing\<close>
@@ -35,7 +35,7 @@ consts time_to_string :: "time \<Rightarrow> String.literal"
 
 definition check_cpu_timer_string :: "('a, 'b) cpu_timer \<Rightarrow> String.literal"
   where "check_cpu_timer_string t =
-    (let (usr, sys) = check_cpu_timer t in (STR (''User: '') + time_to_string usr) + STR (''  System: '') + time_to_string sys)"
+    (let (usr, sys) = check_cpu_timer t in (STR ''User: '' + time_to_string usr) + STR ''  System: '' + time_to_string sys)"
 
 definition timing_raw :: "String.literal \<Rightarrow> (unit \<Rightarrow> 'a) \<Rightarrow> 'a"
   where "timing_raw s f = (let tmr = (start_cpu_timer ())::(nat, nat) cpu_timer;
