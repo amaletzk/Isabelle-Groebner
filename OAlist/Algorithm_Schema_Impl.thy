@@ -10,12 +10,43 @@ lemma compute_card_keys [code]: "card_keys (Pm_oalist xs) = length (list_of_oali
   apply (simp only: card_keys_def compute_keys_pm image_set o_def)
   sorry
 
+instantiation natural :: wellorder
+begin
+
+instance sorry
+
+end
+
+instantiation natural :: countable
+begin
+
+instance sorry
+
+end
+
+instantiation natural :: add_wellorder
+begin
+
+instance sorry
+
+end
+
+instantiation natural :: compare
+begin
+
+definition compare_natural :: "natural comparator" where
+  "compare_natural = comparator_of_le"
+
+instance sorry
+
+end
+
 subsection \<open>Generating Cyclic Polynomials\<close>
 
-definition cycl_pp :: "nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> (nat \<Rightarrow>\<^sub>0 nat)"
-  where "cycl_pp n d i = sparse\<^sub>0 (map (\<lambda>k. (modulo (k + i) n, 1)) [0..<d])"
+definition cycl_pp :: "nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> (natural \<Rightarrow>\<^sub>0 natural)"
+  where "cycl_pp n d i = sparse\<^sub>0 (map (\<lambda>k. (natural_of_nat (modulo (k + i) n), 1)) [0..<d])"
 
-definition cyclic :: "nat \<Rightarrow> ((nat \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 rat) list"
+definition cyclic :: "nat \<Rightarrow> ((natural \<Rightarrow>\<^sub>0 natural) \<Rightarrow>\<^sub>0 'a::{zero,one,uminus}) list"
   where "cyclic n =
             (let xs = [0..<n] in
               (map (\<lambda>d. sparse\<^sub>0 (map (\<lambda>i. (cycl_pp n d i, 1)) xs)) [1..<n]) @ [sparse\<^sub>0 [(cycl_pp n n 0, 1), (0, -1)]]
