@@ -65,23 +65,68 @@ where
                      | EQUAL \<Rightarrow> (if v = 0 then xs else (k, v) # xs)
                    | GREATER \<Rightarrow> (k', v') # update_by' (k, v) xs)"
 
+fun update_by_fun_raw :: "'a \<Rightarrow> ('b \<Rightarrow> 'b) \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b::zero) list"
+where
+  "update_by_fun_raw k f [] = (let v = f 0 in if v = 0 then [] else [(k, v)])"
+| "update_by_fun_raw k f ((k', v') # xs) =
+  (case compare k k' of LESS \<Rightarrow> (let v = f 0 in if v = 0 then (k', v') # xs else (k, v) # (k', v') # xs)
+                     | EQUAL \<Rightarrow> (let v = f v' in if v = 0 then xs else (k, v) # xs)
+                   | GREATER \<Rightarrow> (k', v') # update_by_fun_raw k f xs)"
+
+fun update_by_fun_gr_raw :: "'a \<Rightarrow> ('b \<Rightarrow> 'b) \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b::zero) list"
+  where "update_by_fun_gr_raw k f xs =
+          (if xs = [] then
+            (let v = f 0 in if v = 0 then [] else [(k, v)])
+          else if compare k (fst (last xs)) = GREATER then
+            (let v = f 0 in if v = 0 then xs else xs @ [(k, v)])
+          else
+            update_by_fun_raw k f xs
+          )"
+
 fun map_val_raw :: "('a \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('a \<times> 'b::zero) list \<Rightarrow> ('a \<times> 'c::zero) list"
 where
   "map_val_raw f [] = []"
 | "map_val_raw f ((kx, vx) # xs) =
     (let v = f kx vx; aux = map_val_raw f xs in if v = 0 then aux else (kx, v) # aux)"
 
-fun map2_val_raw :: "('a \<Rightarrow> 'b \<Rightarrow> 'c \<Rightarrow> 'd) \<Rightarrow> ('a \<times> 'b::zero) list \<Rightarrow> ('a \<times> 'c::zero) list \<Rightarrow> ('a \<times> 'd::zero) list"
+(*
+fun map2_val_raw_tr :: "('a \<Rightarrow> 'b \<Rightarrow> 'c \<Rightarrow> 'd) \<Rightarrow> ('a \<times> 'b::zero) list \<Rightarrow> ('a \<times> 'c::zero) list \<Rightarrow> ('a \<times> 'd::zero) list \<Rightarrow>
+                        ('a \<times> 'd::zero) list"
 where
-  "map2_val_raw f [] [] = []"
-| "map2_val_raw f [] ((ky, vy) # ys) =
-    (let v = f ky 0 vy; aux = map2_val_raw f [] ys in if v = 0 then aux else (ky, v) # aux)"
-| "map2_val_raw f ((kx, vx) # xs) [] =
-    (let v = f kx vx 0; aux = map2_val_raw f xs [] in if v = 0 then aux else (kx, v) # aux)"
-| "map2_val_raw f ((kx, vx) # xs) ((ky, vy) # ys) =
-    (case compare kx ky of LESS \<Rightarrow> (let v = f kx vx 0; aux = map2_val_raw f xs ((ky, vy) # ys) in if v = 0 then aux else (kx, v) # aux)
-                        | EQUAL \<Rightarrow> (let v = f kx vx vy; aux = map2_val_raw f xs ys in if v = 0 then aux else (kx, v) # aux)
-                      | GREATER \<Rightarrow> (let v = f ky 0 vy; aux = map2_val_raw f ((kx, vx) # xs) ys in if v = 0 then aux else (ky, v) # aux))"
+  "map2_val_raw_tr f [] [] acc = acc"
+| "map2_val_raw_tr f [] ((ky, vy) # ys) acc =
+    (let v = f ky 0 vy in map2_val_raw_tr f [] ys (if v = 0 then acc else (ky, v) # acc))"
+| "map2_val_raw_tr f ((kx, vx) # xs) [] acc =
+    (let v = f kx vx 0 in map2_val_raw_tr f xs [] (if v = 0 then acc else (kx, v) # acc))"
+| "map2_val_raw_tr f ((kx, vx) # xs) ((ky, vy) # ys) acc =
+    (case compare kx ky of LESS \<Rightarrow> (let v = f kx vx 0 in map2_val_raw_tr f xs ((ky, vy) # ys) (if v = 0 then acc else (kx, v) # acc))
+                        | EQUAL \<Rightarrow> (let v = f kx vx vy in map2_val_raw_tr f xs ys (if v = 0 then acc else (kx, v) # acc))
+                      | GREATER \<Rightarrow> (let v = f ky 0 vy in map2_val_raw_tr f ((kx, vx) # xs) ys (if v = 0 then acc else (ky, v) # acc)))"
+
+definition "map2_val_raw f xs ys = rev (map2_val_raw_tr f xs ys [])"
+*)
+
+fun map2_val_neutr_raw :: "('a \<Rightarrow> 'b \<Rightarrow> 'b \<Rightarrow> 'b) \<Rightarrow> ('a \<times> 'b::zero) list \<Rightarrow> ('a \<times> 'b::zero) list \<Rightarrow> ('a \<times> 'b::zero) list"
+where
+  "map2_val_neutr_raw f xs [] = xs"
+| "map2_val_neutr_raw f [] ys = ys"
+| "map2_val_neutr_raw f ((kx, vx) # xs) ((ky, vy) # ys) =
+    (case compare kx ky of LESS \<Rightarrow> (let v = f kx vx 0; aux = map2_val_neutr_raw f xs ((ky, vy) # ys) in if v = 0 then aux else (kx, v) # aux)
+                        | EQUAL \<Rightarrow> (let v = f kx vx vy; aux = map2_val_neutr_raw f xs ys in if v = 0 then aux else (kx, v) # aux)
+                      | GREATER \<Rightarrow> (let v = f ky 0 vy; aux = map2_val_neutr_raw f ((kx, vx) # xs) ys in if v = 0 then aux else (ky, v) # aux))"
+
+fun map2_val_rneutr_raw :: "('a \<Rightarrow> 'b \<Rightarrow> 'c \<Rightarrow> 'b) \<Rightarrow> ('a \<times> 'b::zero) list \<Rightarrow> ('a \<times> 'c::zero) list \<Rightarrow> ('a \<times> 'b::zero) list"
+where
+  "map2_val_rneutr_raw f xs [] = xs"
+| "map2_val_rneutr_raw f [] ((ky, vy) # ys) =
+    (let v = f ky 0 vy; aux = map2_val_rneutr_raw f [] ys in if v = 0 then aux else (ky, v) # aux)"
+| "map2_val_rneutr_raw f ((kx, vx) # xs) ((ky, vy) # ys) =
+    (case compare kx ky of LESS \<Rightarrow> (let v = f kx vx 0; aux = map2_val_rneutr_raw f xs ((ky, vy) # ys) in if v = 0 then aux else (kx, v) # aux)
+                        | EQUAL \<Rightarrow> (let v = f kx vx vy; aux = map2_val_rneutr_raw f xs ys in if v = 0 then aux else (kx, v) # aux)
+                      | GREATER \<Rightarrow> (let v = f ky 0 vy; aux = map2_val_rneutr_raw f ((kx, vx) # xs) ys in if v = 0 then aux else (ky, v) # aux))"
+
+text \<open>In addition to @{const map2_val_rneutr_raw} one could define \<open>map2_val_lneutr_raw\<close> and \<open>map2_val_raw\<close>,
+  but we do not need them.\<close>
 
 fun lex_ord_raw :: "('a \<Rightarrow> ('b comp_opt)) \<Rightarrow> (('a \<times> 'b::zero) list) comp_opt"
 where
@@ -202,6 +247,21 @@ next
   from Cons(2) have "compare_class.compare k k' = LESS" by (simp add: x)
   with assms(1) show ?case by (simp add: x)
 qed
+
+lemma update_by_fun_gr_raw_eq_update_by_fun_raw:
+  assumes "sorted_wrt less_of_comp (map fst xs)"
+  shows "update_by_fun_gr_raw k f xs = update_by_fun_raw k f xs"
+  sorry
+
+lemma map2_val_rneutr_raw_singleton_eq_update_by_fun_raw:
+  assumes "\<And>a x. f a x 0 = x"
+  shows "map2_val_rneutr_raw f xs [(k, v)] = update_by_fun_raw k (\<lambda>x. f k x v) xs"
+  sorry
+
+lemma map2_val_rneutr_raw_eq_map2_val_neutr_raw:
+  assumes "\<And>a x. f a x 0 = x" and "\<And>a. f a 0 = id"
+  shows "map2_val_rneutr_raw f = map2_val_neutr_raw f"
+  sorry
 
 end
 
@@ -380,6 +440,12 @@ qualified definition empty :: "('a::compare, 'b::zero) oalist"
 qualified definition insert :: "('a \<times> 'b) \<Rightarrow> ('a, 'b) oalist \<Rightarrow> ('a::compare, 'b::zero) oalist"
   where "insert x xs = OAlist (update_by' x (list_of_oalist xs))"
 
+qualified definition update_by_fun :: "'a \<Rightarrow> ('b \<Rightarrow> 'b) \<Rightarrow> ('a, 'b) oalist \<Rightarrow> ('a::compare, 'b::zero) oalist"
+  where "update_by_fun k f xs = OAlist (update_by_fun_raw k f (list_of_oalist xs))"
+
+qualified definition update_by_fun_gr :: "'a \<Rightarrow> ('b \<Rightarrow> 'b) \<Rightarrow> ('a, 'b) oalist \<Rightarrow> ('a::compare, 'b::zero) oalist"
+  where "update_by_fun_gr k f xs = OAlist (update_by_fun_gr_raw k f (list_of_oalist xs))"
+
 qualified definition map :: "(('a \<times> 'b) \<Rightarrow> ('d \<times> 'c)) \<Rightarrow> ('a::compare, 'b::zero) oalist \<Rightarrow>
                             ('d::compare, 'c::zero) oalist"
   where "map f xs = OAlist (List.map f (list_of_oalist xs))"
@@ -390,9 +456,13 @@ qualified definition lookup :: "('a::compare, 'b::zero) oalist \<Rightarrow> 'a 
 qualified definition filter :: "(('a \<times> 'b) \<Rightarrow> bool) \<Rightarrow> ('a, 'b) oalist \<Rightarrow> ('a::compare, 'b::zero) oalist"
   where "filter P xs = OAlist (List.filter P (list_of_oalist xs))"
 
-qualified definition map2_val :: "('a \<Rightarrow> 'b \<Rightarrow> 'c \<Rightarrow> 'd) \<Rightarrow> ('a, 'b::zero) oalist \<Rightarrow> ('a, 'c::zero) oalist \<Rightarrow>
-                                    ('a::compare, 'd::zero) oalist"
-  where "map2_val f xs ys = OAlist (map2_val_raw f (list_of_oalist xs) (list_of_oalist ys))"
+qualified definition map2_val_neutr :: "('a \<Rightarrow> 'b \<Rightarrow> 'b \<Rightarrow> 'b) \<Rightarrow> ('a, 'b) oalist \<Rightarrow> ('a, 'b) oalist \<Rightarrow>
+                                    ('a::compare, 'b::zero) oalist"
+  where "map2_val_neutr f xs ys = OAlist (map2_val_neutr_raw f (list_of_oalist xs) (list_of_oalist ys))"
+
+qualified definition map2_val_rneutr :: "('a \<Rightarrow> 'b \<Rightarrow> 'c \<Rightarrow> 'b) \<Rightarrow> ('a, 'b) oalist \<Rightarrow> ('a, 'c::zero) oalist \<Rightarrow>
+                                    ('a::compare, 'b::zero) oalist"
+  where "map2_val_rneutr f xs ys = OAlist (map2_val_rneutr_raw f (list_of_oalist xs) (list_of_oalist ys))"
 
 qualified definition lex_ord :: "('a \<Rightarrow> ('b comp_opt)) \<Rightarrow> ('a::compare, 'b::zero) oalist comp_opt"
   where "lex_ord f xs ys = lex_ord_raw f (list_of_oalist xs) (list_of_oalist ys)"
@@ -421,6 +491,19 @@ lemma list_of_oalist_insert [simp, code abstract]:
   unfolding OAlist.insert_def
   by (metis (no_types, hide_lams) OAlist_list_of_oalist foldr.simps(2) list_of_oalist_OAlist o_def sort_alist_def)
 
+lemma update_by_fun_gr_eq_update_by_fun: "OAlist.update_by_fun_gr = OAlist.update_by_fun"
+  apply (rule, rule, rule, simp only: OAlist.update_by_fun_gr_def OAlist.update_by_fun_def)
+  by (metis oalist_invD2 oalist_inv_list_of_oalist update_by_fun_gr_raw_eq_update_by_fun_raw)
+
+lemma list_of_oalist_update_by_fun [simp, code abstract]:
+  "list_of_oalist (OAlist.update_by_fun k f xs) = update_by_fun_raw k f (list_of_oalist xs)"
+  sorry
+
+lemma list_of_oalist_update_by_fun_gr [simp, code abstract]:
+  "list_of_oalist (OAlist.update_by_fun_gr k f xs) = update_by_fun_gr_raw k f (list_of_oalist xs)"
+  apply (simp only: update_by_fun_gr_eq_update_by_fun list_of_oalist_update_by_fun)
+  by (metis oalist_invD2 oalist_inv_list_of_oalist update_by_fun_gr_raw_eq_update_by_fun_raw)
+
 lemma list_of_oalist_filter [simp, code abstract]:
   "list_of_oalist (OAlist.filter P xs) = List.filter P (list_of_oalist xs)"
   by (simp add: OAlist.filter_def, rule sort_alist_id, rule oalist_inv_filter, simp)
@@ -429,8 +512,12 @@ lemma list_of_oalist_map_val [simp, code abstract]:
   "list_of_oalist (OAlist.map_val f xs) = map_val_raw f (list_of_oalist xs)"
   sorry
 
-lemma list_of_oalist_map2_val [simp, code abstract]:
-  "list_of_oalist (OAlist.map2_val f xs ys) = map2_val_raw f (list_of_oalist xs) (list_of_oalist ys)"
+lemma list_of_oalist_map2_val_neutr [simp, code abstract]:
+  "list_of_oalist (OAlist.map2_val_neutr f xs ys) = map2_val_neutr_raw f (list_of_oalist xs) (list_of_oalist ys)"
+  sorry
+
+lemma list_of_oalist_map2_val_rneutr [simp, code abstract]:
+  "list_of_oalist (OAlist.map2_val_rneutr f xs ys) = map2_val_rneutr_raw f (list_of_oalist xs) (list_of_oalist ys)"
   sorry
 
 lemma list_of_oalist_except_min [code abstract]:
@@ -438,6 +525,18 @@ lemma list_of_oalist_except_min [code abstract]:
   sorry
 
 (* TODO: Prove relationship between operations and "lookup", and prove that "lookup" is injective. *)
+
+subsection \<open>Further Lemmas\<close>
+
+lemma map2_val_rneutr_singleton_eq_update_by_fun:
+  assumes "\<And>a x. f a x 0 = x" and "list_of_oalist ys = [(k, v)]"
+  shows "OAlist.map2_val_rneutr f xs ys = OAlist.update_by_fun k (\<lambda>x. f k x v) xs"
+  by (simp add: OAlist.map2_val_rneutr_def OAlist.update_by_fun_def assms map2_val_rneutr_raw_singleton_eq_update_by_fun_raw)
+
+lemma map2_val_rneutr_eq_map2_val_neutr:
+  assumes "\<And>a x. f a x 0 = x" and "\<And>a. f a 0 = id"
+  shows "OAlist.map2_val_rneutr f = OAlist.map2_val_neutr f"
+  by (rule, rule, simp add: OAlist.map2_val_rneutr_def OAlist.map2_val_neutr_def assms map2_val_rneutr_raw_eq_map2_val_neutr_raw)
 
 text \<open>Explicit executable conversion\<close>
 
