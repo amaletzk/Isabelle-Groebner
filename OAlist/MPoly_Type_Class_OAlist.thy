@@ -39,11 +39,11 @@ lemma compute_is_zero_pm [code]:
   sorry
 
 lemma compute_plus_pm [code]:
-  "Pm_oalist xs + Pm_oalist ys = Pm_oalist (OAlist.map2_val (\<lambda>_. (+)) xs ys)"
+  "Pm_oalist xs + Pm_oalist ys = Pm_oalist (OAlist.map2_val_neutr (\<lambda>_. (+)) xs ys)"
   sorry
 
 lemma compute_minus_pm [code]:
-  "Pm_oalist xs - Pm_oalist ys = Pm_oalist (OAlist.map2_val (\<lambda>_. (-)) xs ys)"
+  "Pm_oalist xs - Pm_oalist ys = Pm_oalist (OAlist.map2_val_rneutr (\<lambda>_. (-)) xs ys)"
   sorry
 
 lemma compute_uminus_pm [code]:
@@ -62,6 +62,22 @@ lemma compute_range_pm [code]:
   "Poly_Mapping.range (Pm_oalist xs) = set (map snd (list_of_oalist xs))"
   sorry
 
+subsubsection \<open>Special case of addition: adding monomials\<close>
+
+definition plus_monomial_less :: "('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> 'b \<Rightarrow> 't \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::monoid_add)"
+  where "plus_monomial_less p c u = p + monomial c u"
+
+text \<open>@{const plus_monomial_less} is useful when adding a monomial to a polynomial, where the term
+  of the monomial is known to be smaller than all terms in the polynomial, because it can be
+  implemented more efficiently than general addition.\<close>
+
+lemma compute_plus_monomial_less [code]:
+  "plus_monomial_less (Pm_oalist xs) c u = Pm_oalist (OAlist.update_by_fun_gr u ((+) c) xs)"
+  apply (simp add: plus_monomial_less_def) sorry
+
+text \<open>@{const plus_monomial_less} is computed by @{const OAlist.update_by_fun_gr}, because greater
+  terms come @{emph \<open>before\<close>} smaller ones in the associative lists.\<close>
+
 subsubsection \<open>Constructors\<close>
 
 definition "sparse\<^sub>0 xs = Pm_oalist (oalist_of_list xs)" \<comment>\<open>sparse representation\<close>
@@ -72,7 +88,7 @@ lemma compute_single [code]: "Poly_Mapping.single k v = sparse\<^sub>0 [(k, v)]"
 subsection \<open>Power Products\<close>
 
 lemma compute_lcs_pm [code]:
-  "lcs (Pm_oalist xs) (Pm_oalist ys) = Pm_oalist (OAlist.map2_val (\<lambda>_. max) xs ys)"
+  "lcs (Pm_oalist xs) (Pm_oalist ys) = Pm_oalist (OAlist.map2_val_neutr (\<lambda>_. max) xs ys)"
   sorry
 
 lemma compute_deg_pm [code]: "deg_pm (Pm_oalist xs) = sum_list (map snd (list_of_oalist xs))"
