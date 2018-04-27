@@ -3,7 +3,7 @@
 section \<open>Sample Computations with Buchberger's Algorithm\<close>
 
 theory Buchberger_Examples
-  imports Buchberger Algorithm_Schema_Impl
+  imports Buchberger Code_Target_Rat Algorithm_Schema_Impl
 begin
 
 subsection \<open>Degree-Reverse-Lexicographic Order\<close>
@@ -274,8 +274,8 @@ lemma
 
 end
 
-value [code] "gb_scalar_drlex (map (\<lambda>p. (p, ())) (cyclic 4)) ()"
+value [code] "length (gb_scalar_drlex (map (\<lambda>p. (p, ())) ((cyclic 4)::(_ \<Rightarrow>\<^sub>0 rat) list)) ())"
 
-value [code] "gb_scalar_drlex (map (\<lambda>p. (p, ())) (Katsura 2)) ()"
+value [code] "length (gb_scalar_drlex (map (\<lambda>p. (p, ())) (Katsura 4)) ())"
 
 end (* theory *)

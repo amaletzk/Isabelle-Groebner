@@ -3,7 +3,7 @@
 section \<open>Sample Computations with Buchberger's Algorithm\<close>
 
 theory Buchberger_Examples
-  imports "../Groebner_Bases/Buchberger" "Algorithm_Schema_Impl" "../Print"
+  imports "../Groebner_Bases/Buchberger" "Algorithm_Schema_Impl" "../Print" "../Groebner_Bases/Code_Target_Rat"
 begin
 
 lemma greater_eq_of_comp: "greater_eq_of_comp = drlex_pm"
@@ -132,7 +132,7 @@ definition "add_pairs_sorted_punit_timing =
                 (merge_wrt (rel data) ps (Algorithm_Schema.pairs (add_pairs_single_sorted_punit (rel data)) hs))))"
 
 definition "add_basis_sorted_print =
-  (\<lambda>rel gs bs ns data. print (length bs + length ns, map (card_keys \<circ> fst) ns) (merge_wrt (rel data) bs ns))"
+  (\<lambda>rel gs bs ns data. (if length ns = 0 then (\<lambda>_ x. x) else print) (length bs + length ns, map (card_keys \<circ> fst) ns) (merge_wrt (rel data) bs ns))"
 
 definition "add_basis_sorted_print2 =
   (\<lambda>rel gs bs ns data. print (length (filter (\<lambda>b. let v = lt_punit (fst b) in \<exists>h\<in>set ns. adds_pm_add_linorder (lt_punit (fst h)) v) bs)) (merge_wrt (rel data) bs ns))"
@@ -175,10 +175,8 @@ lemma add_basis_sorted_timing [code_abbrev]: "add_basis_sorted_timing = add_basi
   sorry
 *)
 
-(*
-lemma add_basis_sorted_print2 [code_abbrev]: "add_basis_sorted_print2 = add_basis_sorted"
+lemma add_basis_sorted_print [code_abbrev]: "add_basis_sorted_print = add_basis_sorted"
   sorry
-*)
 
 (*
 lemma trd_punit_print [code_abbrev]: "trd_punit_print = trd_punit"
@@ -283,22 +281,22 @@ end
 
 definition "gb_cyclic n = (gb_punit (map (\<lambda>p. (p, ())) (rev ((cyclic n)::(_ \<Rightarrow>\<^sub>0 rat) list))) ())"
 
-(*export_code gb_punit cyclic gb_cyclic in OCaml module_name GB file "gb.ml"*)
-
 value [code] "timing (length (gb_punit (map (\<lambda>p. (p, ())) (Katsura 2)) ()))"
 
-value [code] "timing (length (gb_cyclic 4))"
+value [code] "timing (length (gb_cyclic 5))"
 
 function repeat :: "(natural \<Rightarrow> 'c) \<Rightarrow> natural \<Rightarrow> 'c" where
   "repeat f n = (if n = 0 then f 0 else (let _ = f n in repeat f (n - 1)))"
   by auto
 termination sorry
 
-value [code] "let r1 = (1587403220023648961010354787510025/754422498806579781314598530046874::rat);
-                  r2 = (1587410325684552047810144874/8455657518197317514479580621624761948498527639189070213488573493541897381325890539198611871410797366962398562593692460878056090389366922786523226701592701116126522722087517900268748285083392130388459943058915232146768::rat) in
+value [code] "(215/587)::rat"
+
+value [code] "let r1 = (1587403220023648961010354787510025/754422498806579781314598530046874)::rat;
+                  r2 = (1587410325684552047810144874/8455657518197317514479580621624761948498527639189070213488573493541897381325890539198611871410797366962398562593692460878056090389366922786523226701592701116126522722087517900268748285083392130388459943058915232146768)::rat in
                 timing (repeat (\<lambda>i. r1 + r2) (natural_of_nat 1000))"
 
-(* The same computation takes *0.004* seconds with Ratio.ratio in OCaml!
+(* The same computation takes 0.004 seconds with Ratio.ratio in OCaml!
   The denominator of r2 with 200+ digits actually appears in the computation of cyclic-6. *)
 
 end (* theory *)
