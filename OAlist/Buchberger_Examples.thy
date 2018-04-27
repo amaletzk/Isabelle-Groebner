@@ -3,7 +3,7 @@
 section \<open>Sample Computations with Buchberger's Algorithm\<close>
 
 theory Buchberger_Examples
-  imports "../Groebner_Bases/Buchberger" "Algorithm_Schema_Impl"
+  imports "../Groebner_Bases/Buchberger" "Algorithm_Schema_Impl" "../Print"
 begin
 
 lemma greater_eq_of_comp: "greater_eq_of_comp = drlex_pm"
@@ -26,7 +26,7 @@ global_interpretation punit': gd_powerprod drlex_pm "drlex_pm_strict::(('a::{cou
   and "punit'.punit.ord_p = ord_p_punit"
   and "punit'.punit.ord_strict_p = ord_strict_p_punit"
 
-  defines finds_add_punit = punit'.punit.find_adds
+  defines find_adds_punit = punit'.punit.find_adds
   and trd_aux_punit = punit'.punit.trd_aux
   and trd_punit = punit'.punit.trd
   and spoly_punit = punit'.punit.spoly
@@ -73,10 +73,127 @@ qed (simp_all only: min_term_punit_def lt_punit_def lc_punit_def tail_punit_def 
 
 lemmas [code_unfold] = id_def
 
+consts pm_to_list :: "('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<times> 'b) list"
+
+lemma compute_pm_to_list [code]: "pm_to_list (Pm_oalist xs) = list_of_oalist xs"
+  sorry
+
 lemma compute_spoly_punit [code]:
   "spoly_punit p q = (let t1 = lt_punit p; t2 = lt_punit q; l = lcs t1 t2 in
          (monom_mult_punit (1 / lc_punit p) (l - t1) p) - (monom_mult_punit (1 / lc_punit q) (l - t2) q))"
   sorry
+
+lemma compute_trd_aux_punit [code]:
+  "trd_aux_punit fs p r =
+    (if is_zero p then
+      r
+    else
+      case find_adds_punit fs (lt_punit p) of
+        None   \<Rightarrow> trd_aux_punit fs (tail_punit p) (plus_monomial_less r (lc_punit p) (lt_punit p))
+      | Some f \<Rightarrow> trd_aux_punit fs (tail_punit p - monom_mult_punit (lc_punit p / lc_punit f) (lt_punit p - lt_punit f) (tail_punit f)) r
+    )"
+  apply (simp only: trd_aux_punit_def)
+  sorry
+
+function trd_aux_punit_print where
+  "trd_aux_punit_print fs p r (i::nat) (j::nat) =
+    (if is_zero p then
+      print (i, j) r
+    else
+      case find_adds_punit fs (lt_punit p) of
+        None   \<Rightarrow> trd_aux_punit_print fs (tail_punit p) (plus_monomial_less r (lc_punit p) (lt_punit p)) (Suc i) j
+      | Some f \<Rightarrow> trd_aux_punit_print fs
+                    (timing (tail_punit p - monom_mult_punit (lc_punit p / lc_punit f) (lt_punit p - lt_punit f) (tail_punit f)))
+                    (print (lc_punit p / lc_punit f) r)
+                    i (Suc j)
+    )"
+  by auto
+termination sorry
+
+definition "product_crit_punit_print =
+  (\<lambda>gs bs ps data p q. if product_crit_punit gs bs ps data p q then (print ''prod'' True) else False)"
+
+definition "chain_crit_punit_print =
+  (\<lambda>gs bs ps data p q. if chain_crit_punit gs bs ps data p q then (print ''chain'' True) else False)"
+
+definition "pc_crit_punit_print = comb_crit_punit product_crit_punit_print chain_crit_punit_print"
+
+definition "pc_crit_punit_timing =
+  (\<lambda>gs bs ps data p q. timing_lbl ''pc'' (comb_crit_punit product_crit_punit chain_crit_punit gs bs ps data p q))"
+
+definition "trdsp_punit_timing = (\<lambda>bs p. timing_lbl ''trdsp'' (trd_punit bs (spoly_punit (fst (fst p)) (fst (snd p)))))"
+
+definition "discard_red_cp_punit_timing =
+  (\<lambda>crit rcp gs bs ps sps data. timing_lbl ''rd'' (rcp gs bs (discard_crit_pairs_punit crit gs bs ps sps data) data))"
+
+definition "add_pairs_sorted_punit_timing =
+  (\<lambda>rel gs bs ps hs data.
+      timing_lbl ''ap'' (fold (add_pairs_single_sorted_punit (rel data) gs bs) hs
+                (merge_wrt (rel data) ps (Algorithm_Schema.pairs (add_pairs_single_sorted_punit (rel data)) hs))))"
+
+definition "add_basis_sorted_print =
+  (\<lambda>rel gs bs ns data. print (length bs + length ns, map (card_keys \<circ> fst) ns) (merge_wrt (rel data) bs ns))"
+
+definition "add_basis_sorted_print2 =
+  (\<lambda>rel gs bs ns data. print (length (filter (\<lambda>b. let v = lt_punit (fst b) in \<exists>h\<in>set ns. adds_pm_add_linorder (lt_punit (fst h)) v) bs)) (merge_wrt (rel data) bs ns))"
+
+definition "add_basis_sorted_timing =
+  (\<lambda>rel gs bs ns data. timing_lbl ''ab'' (merge_wrt (rel data) bs ns))"
+
+definition "gb_sel_punit_print =
+  (\<lambda>_ _ ps _. print (length ps) (if List.null ps then [] else [hd ps]))"
+
+lemma product_crit_punit_print [simp]: "product_crit_punit_print = product_crit_punit"
+  by (simp add: product_crit_punit_print_def)
+
+lemma chain_crit_punit_print [simp]: "chain_crit_punit_print = chain_crit_punit"
+  by (simp add: chain_crit_punit_print_def)
+
+(*
+lemma pc_crit_punit_print [code_abbrev]: "pc_crit_punit_print = pc_crit_punit"
+  by (simp add: pc_crit_punit_print_def punit'.punit.pc_crit_def)
+*)
+
+(*
+lemma gb_sel_punit_print [code_abbrev]: "gb_sel_punit_print = gb_sel_punit"
+  apply (simp add: gb_sel_punit_print_def Let_def) sorry
+*)
+
+(*
+lemma pc_crit_punit_timing [code_abbrev]: "pc_crit_punit_timing = pc_crit_punit"
+  sorry
+*)
+
+(*
+lemma discard_red_cp_punit_timing [code_abbrev]: "discard_red_cp_punit_timing = discard_red_cp_punit"
+  sorry
+
+lemma add_pairs_sorted_punit_timing [code_abbrev]: "add_pairs_sorted_punit_timing = add_pairs_sorted_punit"
+  sorry
+
+lemma add_basis_sorted_timing [code_abbrev]: "add_basis_sorted_timing = add_basis_sorted"
+  sorry
+*)
+
+(*
+lemma add_basis_sorted_print2 [code_abbrev]: "add_basis_sorted_print2 = add_basis_sorted"
+  sorry
+*)
+
+(*
+lemma trd_punit_print [code_abbrev]: "trd_punit_print = trd_punit"
+  sorry
+*)
+
+(*
+lemma compute_trd_punit [code]: "trd_punit fs p = trd_aux_punit_print fs p 0 0 0"
+  sorry
+*)
+
+(*
+lemma trdsp_punit_timing [code_abbrev]: "trdsp_punit_timing = trdsp_punit"
+  sorry
+*)
 
 experiment begin interpretation trivariate\<^sub>0_rat .
 
@@ -99,8 +216,8 @@ lemma
   by eval
 
 lemma
-  "trd_punit [Y\<^sup>2 * Z + 2 * Y * Z ^ 3] (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2) =
-    (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z\<^sup>2)"
+  "trd_punit [Y\<^sup>2 * Z + 2 * Y * Z ^ 3] (X\<^sup>2 * Z ^ 4 - 2 * Y ^ 3 * Z ^ 3) =
+    X\<^sup>2 * Z ^ 4 + Y ^ 4 * Z"
   by eval
 
 lemma
@@ -164,8 +281,24 @@ lemma
 
 end
 
-value [code] "gb_punit (map (\<lambda>p. (p, ())) (cyclic 4)) ()"
+definition "gb_cyclic n = (gb_punit (map (\<lambda>p. (p, ())) (rev ((cyclic n)::(_ \<Rightarrow>\<^sub>0 rat) list))) ())"
 
-value [code] "gb_punit (map (\<lambda>p. (p, ())) (Katsura 2)) ()"
+(*export_code gb_punit cyclic gb_cyclic in OCaml module_name GB file "gb.ml"*)
+
+value [code] "timing (length (gb_punit (map (\<lambda>p. (p, ())) (Katsura 2)) ()))"
+
+value [code] "timing (length (gb_cyclic 4))"
+
+function repeat :: "(natural \<Rightarrow> 'c) \<Rightarrow> natural \<Rightarrow> 'c" where
+  "repeat f n = (if n = 0 then f 0 else (let _ = f n in repeat f (n - 1)))"
+  by auto
+termination sorry
+
+value [code] "let r1 = (1587403220023648961010354787510025/754422498806579781314598530046874::rat);
+                  r2 = (1587410325684552047810144874/8455657518197317514479580621624761948498527639189070213488573493541897381325890539198611871410797366962398562593692460878056090389366922786523226701592701116126522722087517900268748285083392130388459943058915232146768::rat) in
+                timing (repeat (\<lambda>i. r1 + r2) (natural_of_nat 1000))"
+
+(* The same computation takes *0.004* seconds with Ratio.ratio in OCaml!
+  The denominator of r2 with 200+ digits actually appears in the computation of cyclic-6. *)
 
 end (* theory *)
