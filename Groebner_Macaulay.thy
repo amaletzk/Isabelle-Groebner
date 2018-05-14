@@ -9,10 +9,10 @@ text \<open>Relationship between Gr\"obner bases and Macaulay matrices, followin
 
 subsection \<open>Gr\"obner Bases\<close>
 
-context ordered_powerprod
+context ordered_term
 begin
 
-definition reduced_Macaulay_list :: "('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
+definition reduced_Macaulay_list :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::field) list"
   where "reduced_Macaulay_list ps = comp_min_basis_aux (Macaulay_list ps) []"
 
 text \<open>It is important to note that in @{const reduced_Macaulay_list} there is no need to remove
@@ -35,9 +35,9 @@ proof (rule is_monic_setI)
   ultimately show "lc b = 1" by (rule is_monic_setD[OF Macaulay_list_is_monic_set])
 qed
 
-end (* ordered_powerprod *)
+end (* ordered_term *)
 
-context gd_powerprod
+context gd_term
 begin
 
 lemma reduced_Macaulay_list_is_minimal_basis: "is_minimal_basis (set (reduced_Macaulay_list ps))"
@@ -54,54 +54,54 @@ next
     by (simp only: reduced_Macaulay_list_def)
   moreover note p_in
   moreover from \<open>p \<noteq> q\<close> have "q \<noteq> p" ..
-  ultimately show "\<not> lp p adds lp q"
+  ultimately show "\<not> lt p adds\<^sub>t lt q"
   proof (rule comp_min_basis_aux_Nil_nadds)
     show "0 \<notin> set (Macaulay_list ps)" by (fact Macaulay_list_not_zero)
   next
-    fix x y :: "('a, 'b) poly_mapping"
+    fix x y :: "'t \<Rightarrow>\<^sub>0 'b"
     assume "x \<in> set (Macaulay_list ps)" and "y \<in> set (Macaulay_list ps)"
     moreover assume "x \<noteq> y"
-    ultimately show "lp x \<noteq> lp y" by (rule Macaulay_list_distinct_lp)
+    ultimately show "lt x \<noteq> lt y" by (rule Macaulay_list_distinct_lt)
   qed
 qed
 
-lemma pideal_reduced_Macaulay_list:
+lemma pmdl_reduced_Macaulay_list:
   assumes "is_Groebner_basis (set (Macaulay_list ps))"
-  shows "pideal (set (reduced_Macaulay_list ps)) = pideal (set ps)"
+  shows "pmdl (set (reduced_Macaulay_list ps)) = pmdl (set ps)"
 proof -
-  have "pideal (set (reduced_Macaulay_list ps)) = pideal (set (Macaulay_list ps))"
-    unfolding reduced_Macaulay_list_def by (rule comp_min_basis_aux_Nil_pideal, fact assms,
-        fact Macaulay_list_not_zero, fact Macaulay_list_distinct_lp)
-  also have "... = pideal (set ps)" by (simp only: pideal_Macaulay_list)
+  have "pmdl (set (reduced_Macaulay_list ps)) = pmdl (set (Macaulay_list ps))"
+    unfolding reduced_Macaulay_list_def by (rule comp_min_basis_aux_Nil_pmdl, fact assms,
+        fact Macaulay_list_not_zero, fact Macaulay_list_distinct_lt)
+  also have "... = pmdl (set ps)" by (simp only: pmdl_Macaulay_list)
   finally show ?thesis .
 qed
 
 lemma Macaulay_list_is_GB:
-  assumes "is_Groebner_basis G" and "pideal (set ps) = pideal G" and "G \<subseteq> phull (set ps)"
+  assumes "is_Groebner_basis G" and "pmdl (set ps) = pmdl G" and "G \<subseteq> phull (set ps)"
   shows "is_Groebner_basis (set (Macaulay_list ps))"
-proof (simp only: GB_alt_3_finite[OF finite_set] pideal_Macaulay_list, intro ballI impI)
+proof (simp only: GB_alt_3_finite[OF finite_set] pmdl_Macaulay_list, intro ballI impI)
   fix f
-  assume "f \<in> pideal (set ps)"
-  also from assms(2) have "... = pideal G" .
-  finally have "f \<in> pideal G" .
+  assume "f \<in> pmdl (set ps)"
+  also from assms(2) have "... = pmdl G" .
+  finally have "f \<in> pmdl G" .
   assume "f \<noteq> 0"
-  with assms(1) \<open>f \<in> pideal G\<close> obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds lp f" by (rule GB_adds_lp)
+  with assms(1) \<open>f \<in> pmdl G\<close> obtain g where "g \<in> G" and "g \<noteq> 0" and "lt g adds\<^sub>t lt f" by (rule GB_adds_lt)
   from assms(3) \<open>g \<in> G\<close> have "g \<in> phull (set ps)" ..
-  from this \<open>g \<noteq> 0\<close> obtain g' where "g' \<in> set (Macaulay_list ps)" and "g' \<noteq> 0" and "lp g = lp g'"
-    by (rule Macaulay_list_lp)
-  show "\<exists>g\<in>set (Macaulay_list ps). g \<noteq> 0 \<and> lp g adds lp f"
+  from this \<open>g \<noteq> 0\<close> obtain g' where "g' \<in> set (Macaulay_list ps)" and "g' \<noteq> 0" and "lt g = lt g'"
+    by (rule Macaulay_list_lt)
+  show "\<exists>g\<in>set (Macaulay_list ps). g \<noteq> 0 \<and> lt g adds\<^sub>t lt f"
   proof (rule, rule)
-    from \<open>lp g adds lp f\<close> show "lp g' adds lp f" by (simp only: \<open>lp g = lp g'\<close>)
+    from \<open>lt g adds\<^sub>t lt f\<close> show "lt g' adds\<^sub>t lt f" by (simp only: \<open>lt g = lt g'\<close>)
   qed fact+
 qed
 
 lemma reduced_Macaulay_list_lp:
   assumes "p \<in> phull (set ps)" and "p \<noteq> 0"
-  obtains g where "g \<in> set (reduced_Macaulay_list ps)" and "g \<noteq> 0" and "lp g adds lp p"
+  obtains g where "g \<in> set (reduced_Macaulay_list ps)" and "g \<noteq> 0" and "lt g adds\<^sub>t lt p"
 proof -
-  from assms obtain g' where "g' \<in> set (Macaulay_list ps)" and "g' \<noteq> 0" and "lp p = lp g'"
-    by (rule Macaulay_list_lp)
-  obtain g where "g \<in> set (reduced_Macaulay_list ps)" and "lp g adds lp g'"
+  from assms obtain g' where "g' \<in> set (Macaulay_list ps)" and "g' \<noteq> 0" and "lt p = lt g'"
+    by (rule Macaulay_list_lt)
+  obtain g where "g \<in> set (reduced_Macaulay_list ps)" and "lt g adds\<^sub>t lt g'"
   proof (simp only: reduced_Macaulay_list_def, rule comp_min_basis_aux_Nil_adds)
     show "g' \<in> set (Macaulay_list ps)" by fact
   next
@@ -109,44 +109,44 @@ proof -
   next
     fix x y
     assume "x \<in> set (Macaulay_list ps)" and "y \<in> set (Macaulay_list ps)" and "x \<noteq> y"
-    thus "lp x \<noteq> lp y" by (rule Macaulay_list_distinct_lp)
+    thus "lt x \<noteq> lt y" by (rule Macaulay_list_distinct_lt)
   qed
 
   from this(1) show ?thesis
   proof
     from \<open>g \<in> set (reduced_Macaulay_list ps)\<close> reduced_Macaulay_list_not_zero show "g \<noteq> 0" by auto
   next
-    from \<open>lp g adds lp g'\<close> show "lp g adds lp p" by (simp only: \<open>lp p = lp g'\<close>)
+    from \<open>lt g adds\<^sub>t lt g'\<close> show "lt g adds\<^sub>t lt p" by (simp only: \<open>lt p = lt g'\<close>)
   qed
 qed
 
 lemma reduced_Macaulay_list_is_GB:
-  assumes "is_Groebner_basis G" and "pideal (set ps) = pideal G" and "G \<subseteq> phull (set ps)"
+  assumes "is_Groebner_basis G" and "pmdl (set ps) = pmdl G" and "G \<subseteq> phull (set ps)"
   shows "is_Groebner_basis (set (reduced_Macaulay_list ps))"
   unfolding reduced_Macaulay_list_def
   apply (rule comp_min_basis_aux_Nil_GB)
   subgoal by (rule Macaulay_list_is_GB, fact, fact, fact)
   subgoal by (fact Macaulay_list_not_zero)
-  subgoal by (fact Macaulay_list_distinct_lp)
+  subgoal by (fact Macaulay_list_distinct_lt)
   done
 
 lemma reduced_Macaulay_list_is_reduced_GB:
-  assumes "finite F" and "pideal (set ps) = pideal F" and "reduced_GB F \<subseteq> phull (set ps)"
+  assumes "finite F" and "pmdl (set ps) = pmdl F" and "reduced_GB F \<subseteq> phull (set ps)"
   shows "set (reduced_Macaulay_list ps) = reduced_GB F"
 proof -
   from assms(1) have "is_reduced_GB (reduced_GB F)" by (rule reduced_GB_is_reduced_GB_finite)
   hence "is_Groebner_basis (reduced_GB F)" by (rule reduced_GB_D1)
-  have aux: "pideal (reduced_GB F) = pideal (set ps)"
-    by (simp only: assms(2), rule reduced_GB_pideal_finite, fact)
-  have pideal: "pideal (set (reduced_Macaulay_list ps)) = pideal (reduced_GB F)"
+  have aux: "pmdl (reduced_GB F) = pmdl (set ps)"
+    by (simp only: assms(2), rule reduced_GB_pmdl_finite, fact)
+  have pmdl: "pmdl (set (reduced_Macaulay_list ps)) = pmdl (reduced_GB F)"
     unfolding aux
-    by (rule pideal_reduced_Macaulay_list, rule Macaulay_list_is_GB, fact, simp only: aux, fact)
+    by (rule pmdl_reduced_Macaulay_list, rule Macaulay_list_is_GB, fact, simp only: aux, fact)
   show ?thesis
   proof (rule minimal_basis_is_reduced_GB, fact reduced_Macaulay_list_is_minimal_basis,
         fact reduced_Macaulay_list_is_monic_set, fact, rule is_reduced_GB_subsetI, fact,
         rule reduced_Macaulay_list_is_GB, fact, simp only: aux, fact,
         fact reduced_Macaulay_list_is_monic_set)
-    fix a b :: "('a, 'b) poly_mapping"
+    fix a b :: "'t \<Rightarrow>\<^sub>0 'b"
     let ?c = "a - b"
     let ?S = "Keys (set ps)"
     let ?ts = "pps_to_list ?S"
@@ -159,8 +159,8 @@ proof -
     moreover obtain f where pf: "pivot_fun ?E f (dim_col ?E)" by (rule row_echelon_pivot_fun)
     ultimately obtain i1 where "i1 < dim_row ?E" and b: "b = mat_to_polys (Keys_to_list ps) ?E ! i1"
       and "f i1 < dim_col ?E" by (rule in_Macaulay_listE)
-    from \<open>card ?S = dim_col ?E\<close> pf this(1) this(3) have lpb: "lp b = ?ts ! (f i1)"
-      by (simp only: b Keys_to_list_eq_pps_to_list, rule lp_row_to_poly_pivot_fun)
+    from \<open>card ?S = dim_col ?E\<close> pf this(1) this(3) have ltb: "lt b = ?ts ! (f i1)"
+      by (simp only: b Keys_to_list_eq_pps_to_list, rule lt_row_to_poly_pivot_fun)
     from \<open>b \<in> set (Macaulay_list ps)\<close> have "b \<in> phull (set (Macaulay_list ps))"
       by (rule phull.generator_in_module)
     hence "b \<in> phull (set ps)" by (simp only: phull_Macaulay_list)
@@ -169,42 +169,42 @@ proof -
     from assms(3) this have "a \<in> phull (set ps)" ..
     from this \<open>b \<in> phull (set ps)\<close> have "?c \<in> phull (set ps)" by (rule phull.module_closed_minus)
     moreover assume "?c \<noteq> 0"
-    ultimately obtain r where "r \<in> set (Macaulay_list ps)" and "r \<noteq> 0" and "lp ?c = lp r"
-      by (rule Macaulay_list_lp)
+    ultimately obtain r where "r \<in> set (Macaulay_list ps)" and "r \<noteq> 0" and "lt ?c = lt r"
+      by (rule Macaulay_list_lt)
     from this(1) pf obtain i2 where "i2 < dim_row ?E" and r: "r = mat_to_polys (Keys_to_list ps) ?E ! i2"
       and "f i2 < dim_col ?E" by (rule in_Macaulay_listE)
-    from \<open>card ?S = dim_col ?E\<close> pf this(1) this(3) have lpr: "lp r = ?ts ! (f i2)"
-      by (simp only: r Keys_to_list_eq_pps_to_list, rule lp_row_to_poly_pivot_fun)
+    from \<open>card ?S = dim_col ?E\<close> pf this(1) this(3) have ltr: "lt r = ?ts ! (f i2)"
+      by (simp only: r Keys_to_list_eq_pps_to_list, rule lt_row_to_poly_pivot_fun)
 
-    assume "lp ?c \<in> keys b"
+    assume "lt ?c \<in> keys b"
     hence "(?ts ! (f i2)) \<in> keys (mat_to_polys ?ts ?E ! i1)"
-      by (simp only: \<open>lp ?c = lp r\<close> lpr b[symmetric] Keys_to_list_eq_pps_to_list[symmetric])
+      by (simp only: \<open>lt ?c = lt r\<close> ltr b[symmetric] Keys_to_list_eq_pps_to_list[symmetric])
     with \<open>card ?S = dim_col ?E\<close> pf \<open>i2 < dim_row ?E\<close> \<open>i1 < dim_row ?E\<close> \<open>f i2 < dim_col ?E\<close> have "i2 = i1"
-      by (rule lp_row_to_poly_pivot_in_keysD)
+      by (rule lt_row_to_poly_pivot_in_keysD)
     hence "r = b" by (simp only: r b)
-    hence "lp ?c = lp b" by (simp only: \<open>lp ?c = lp r\<close>)
+    hence "lt ?c = lt b" by (simp only: \<open>lt ?c = lt r\<close>)
 
-    moreover assume "lp ?c \<prec> lp b"
+    moreover assume "lt ?c \<prec>\<^sub>t lt b"
     ultimately show False by simp
   next
-    show "pideal (reduced_GB F) = pideal (set (reduced_Macaulay_list ps))" by (simp only: pideal)
+    show "pmdl (reduced_GB F) = pmdl (set (reduced_Macaulay_list ps))" by (simp only: pmdl)
   qed fact
 qed
 
-end (* gd_powerprod *)
+end (* gd_term *)
 
 subsection \<open>Bounds\<close>
 
 context pm_powerprod
 begin
 
-abbreviation Polys where "Polys n \<equiv> dgrad_p_set varnum n"
+abbreviation Polys where "Polys n \<equiv> punit.dgrad_p_set varnum n"
 
 definition deg_set :: "nat \<Rightarrow> nat \<Rightarrow> ('n \<Rightarrow>\<^sub>0 nat) set"
   where "deg_set n d = {t. varnum t \<le> n \<and> deg_pm t \<le> d}"
 
 definition deg_shifts :: "nat \<Rightarrow> nat \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_1) list"
-  where "deg_shifts n d fs = concat (map (\<lambda>f. (map (\<lambda>t. monom_mult 1 t f) (pps_to_list (deg_set n d)))) fs)"
+  where "deg_shifts n d fs = concat (map (\<lambda>f. (map (\<lambda>t. punit.monom_mult 1 t f) (punit.pps_to_list (deg_set n d)))) fs)"
 
 lemma keys_subset_deg_setI:
   assumes "p \<in> Polys n" and "poly_deg p \<le> d"
@@ -214,7 +214,7 @@ proof
   assume "t \<in> keys p"
   hence "deg_pm t \<le> poly_deg p" by (rule poly_deg_max_keys)
   from this assms(2) have "deg_pm t \<le> d" by (rule le_trans)
-  moreover from assms(1) \<open>t \<in> keys p\<close> have "varnum t \<le> n" by (rule dgrad_p_setD)
+  moreover from assms(1) \<open>t \<in> keys p\<close> have "varnum t \<le> n" by (rule punit.dgrad_p_setD[simplified])
   ultimately show "t \<in> deg_set n d" by (simp add: deg_set_def)
 qed
 
@@ -283,18 +283,18 @@ qed
 lemma zero_in_deg_set: "0 \<in> deg_set n d"
   by (simp add: deg_set_def)
 
-lemma set_deg_shifts: "set (deg_shifts n d fs) = (\<Union>f\<in>set fs. (\<lambda>t. monom_mult 1 t f) ` (deg_set n d))"
-  by (simp add: deg_shifts_def set_pps_to_list[OF finite_deg_set])
+lemma set_deg_shifts: "set (deg_shifts n d fs) = (\<Union>f\<in>set fs. (\<lambda>t. punit.monom_mult 1 t f) ` (deg_set n d))"
+  by (simp add: deg_shifts_def punit.set_pps_to_list[OF finite_deg_set])
 
-lemma set_deg_shifts_2: "set (deg_shifts n d fs) = (\<Union>t\<in>deg_set n d. monom_mult 1 t ` set fs)"
+lemma set_deg_shifts_2: "set (deg_shifts n d fs) = (\<Union>t\<in>deg_set n d. punit.monom_mult 1 t ` set fs)"
   by (auto simp add: set_deg_shifts)
 
-corollary set_deg_shifts_singleton: "set (deg_shifts n d [f]) = (\<lambda>t. monom_mult 1 t f) ` (deg_set n d)"
+corollary set_deg_shifts_singleton: "set (deg_shifts n d [f]) = (\<lambda>t. punit.monom_mult 1 t f) ` (deg_set n d)"
   by (simp add: set_deg_shifts)
 
 lemma deg_shifts_superset: "set fs \<subseteq> set (deg_shifts n d fs)"
 proof -
-  have "set fs = (monom_mult 1 0) ` set fs" by (simp add: image_cong monom_mult_left1)
+  have "set fs = (punit.monom_mult 1 0) ` set fs" by (simp add: image_cong)
   also from zero_in_deg_set have "... \<subseteq> set (deg_shifts n d fs)"
     by (simp only: set_deg_shifts_2, rule UN_upper)
   finally show ?thesis .
@@ -305,38 +305,38 @@ lemma deg_shifts_mono:
   shows "set (deg_shifts n d fs) \<subseteq> set (deg_shifts n d gs)"
   using assms by (auto simp add: set_deg_shifts)
 
-lemma pideal_deg_shifts [simp]: "pideal (set (deg_shifts n d fs)) = pideal (set fs)"
+lemma pideal_deg_shifts [simp]: "ideal (set (deg_shifts n d fs)) = ideal (set fs)"
 proof
-  show "pideal (set (deg_shifts n d fs)) \<subseteq> pideal (set fs)"
+  show "ideal (set (deg_shifts n d fs)) \<subseteq> ideal (set fs)"
     by (rule ideal.module_subset_moduleI, simp add: set_deg_shifts_2 UN_subset_iff,
-        intro ballI image_subsetI monom_mult_in_pideal)
+        intro ballI image_subsetI, metis ideal.smult_in_module times_monomial_left)
 next
-  from deg_shifts_superset show "pideal (set fs) \<subseteq> pideal (set (deg_shifts n d fs))"
+  from deg_shifts_superset show "ideal (set fs) \<subseteq> ideal (set (deg_shifts n d fs))"
     by (rule ideal.module_mono)
 qed
 
 definition is_cofactor_bound :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::ring_1) set \<Rightarrow> nat \<Rightarrow> bool"
   where "is_cofactor_bound F b \<longleftrightarrow>
-    (\<forall>p\<in>pideal F. \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg p + b))"
+    (\<forall>p\<in>ideal F. \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg p + b))"
 
 text \<open>Note that @{const is_cofactor_bound} is only true for @{emph \<open>finite\<close>} sets \<open>F\<close>.\<close>
 
 definition is_GB_bound :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::field) set \<Rightarrow> nat \<Rightarrow> bool"
-  where "is_GB_bound F b \<longleftrightarrow> (\<forall>g\<in>reduced_GB F. poly_deg g \<le> b)"
+  where "is_GB_bound F b \<longleftrightarrow> (\<forall>g\<in>punit.reduced_GB F. poly_deg g \<le> b)"
 
 definition truncate_p :: "('n \<Rightarrow>\<^sub>0 nat) set \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b)"
   where "truncate_p V p = p"
 
 lemma is_cofactor_boundI:
-  assumes "\<And>p. p \<in> pideal F \<Longrightarrow> \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg p + b)"
+  assumes "\<And>p. p \<in> ideal F \<Longrightarrow> \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg p + b)"
   shows "is_cofactor_bound F b"
   unfolding is_cofactor_bound_def using assms by blast
 
 lemma is_cofactor_boundE:
-  assumes "is_cofactor_bound F b" and "(p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_ring_1) \<in> pideal F"
+  assumes "is_cofactor_bound F b" and "(p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_ring_1) \<in> ideal F"
   obtains q where "p = (\<Sum>f\<in>F. q f * f)"
     and "\<And>f. f \<in> F \<Longrightarrow> q f \<noteq> 0 \<Longrightarrow>
-             dgrad_p_set_le varnum {q f} (insert p F) \<and> poly_deg (q f) \<le> poly_deg p + b"
+             punit.dgrad_p_set_le varnum {q f} (insert p F) \<and> poly_deg (q f) \<le> poly_deg p + b"
 proof (cases "p = 0")
   case True
   define q where "q = (\<lambda>f::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b. 0::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b)"
@@ -346,7 +346,7 @@ proof (cases "p = 0")
   next
     fix f
     assume "q f \<noteq> 0"
-    thus "dgrad_p_set_le varnum {q f} (insert p F) \<and> poly_deg (q f) \<le> poly_deg p + b"
+    thus "punit.dgrad_p_set_le varnum {q f} (insert p F) \<and> poly_deg (q f) \<le> poly_deg p + b"
       by (simp only: q_def)
   qed
 next
@@ -395,10 +395,10 @@ next
   next
     fix f
     assume "f \<in> F" and "q f \<noteq> 0"
-    show "dgrad_p_set_le varnum {q f} (insert p F) \<and> poly_deg (q f) \<le> poly_deg p + b"
+    show "punit.dgrad_p_set_le varnum {q f} (insert p F) \<and> poly_deg (q f) \<le> poly_deg p + b"
     proof
-      show "dgrad_p_set_le varnum {q f} (insert p F)"
-      proof (simp add: dgrad_p_set_le_def Keys_insert[of "q f"], rule dgrad_set_leI, rule ccontr)
+      show "punit.dgrad_p_set_le varnum {q f} (insert p F)"
+      proof (simp add: punit.dgrad_p_set_le_def Keys_insert[of "q f"], rule dgrad_set_leI, rule ccontr)
         fix s
         assume "s \<in> keys (q f)"
         assume "\<not> (\<exists>t\<in>Keys (insert p F). varnum s \<le> varnum t)"
@@ -440,78 +440,79 @@ next
 qed
 
 lemma is_GB_boundI:
-  assumes "\<And>g. g \<in> reduced_GB F \<Longrightarrow> poly_deg g \<le> b"
+  assumes "\<And>g. g \<in> punit.reduced_GB F \<Longrightarrow> poly_deg g \<le> b"
   shows "is_GB_bound F b"
   unfolding is_GB_bound_def using assms by blast
 
 lemma is_GB_boundE:
-  assumes "is_GB_bound F b" and "g \<in> reduced_GB F"
+  assumes "is_GB_bound F b" and "g \<in> punit.reduced_GB F"
   shows "poly_deg g \<le> b"
   using assms unfolding is_GB_bound_def by blast
 
 theorem thm_2_3_6:
   assumes "set fs \<subseteq> Polys n" and "is_cofactor_bound (set fs) b1" and "is_GB_bound (set fs) b2"
-  shows "set (reduced_Macaulay_list (deg_shifts n (b1 + b2) fs)) = reduced_GB (set fs)"
-proof (rule reduced_Macaulay_list_is_reduced_GB)
-  let ?H = "phull (set (deg_shifts n (b1 + b2) fs))"
+  shows "set (punit.reduced_Macaulay_list (deg_shifts n (b1 + b2) fs)) = punit.reduced_GB (set fs)"
+proof (rule punit.reduced_Macaulay_list_is_reduced_GB)
+  let ?H = "punit.phull (set (deg_shifts n (b1 + b2) fs))"
   have "1 \<noteq> (0::'a)" by simp
-  from dickson_grading_varnum assms(1) have "reduced_GB (set fs) \<subseteq> Polys n"
-    by (rule reduced_GB_dgrad_p_set)
-  show "reduced_GB (set fs) \<subseteq> ?H"
+  note dickson_grading_varnum
+  moreover have "finite (punit.component_of_term ` Keys (set fs))" by simp
+  ultimately have "punit.reduced_GB (set fs) \<subseteq> Polys n" using assms(1)
+    by (rule punit.reduced_GB_dgrad_p_set)
+  show "punit.reduced_GB (set fs) \<subseteq> ?H"
   proof
     fix g
-    assume "g \<in> reduced_GB (set fs)"
-    hence "g \<in> pideal (reduced_GB (set fs))" by (rule ideal.generator_in_module)
-    hence "g \<in> pideal (set fs)" by (simp add: reduced_GB_pideal_finite)
+    assume "g \<in> punit.reduced_GB (set fs)"
+    hence "g \<in> ideal (punit.reduced_GB (set fs))" by (rule ideal.generator_in_module)
+    hence "g \<in> ideal (set fs)" using punit.reduced_GB_pmdl_finite by auto
     with assms(2) obtain q where g: "g = (\<Sum>f\<in>(set fs). q f * f)"
       and 1: "\<And>f. f \<in> set fs \<Longrightarrow> q f \<noteq> 0 \<Longrightarrow>
-                dgrad_p_set_le varnum {q f} (insert g (set fs)) \<and> poly_deg (q f) \<le> poly_deg g + b1"
+                punit.dgrad_p_set_le varnum {q f} (insert g (set fs)) \<and> poly_deg (q f) \<le> poly_deg g + b1"
       by (rule is_cofactor_boundE, blast)
     show "g \<in> ?H" unfolding g
-    proof (rule phull.module_closed_sum)
+    proof (rule punit.phull.module_closed_sum)
       fix f
       assume "f \<in> set fs"
       show "q f * f \<in> ?H"
       proof (cases "f = 0 \<or> q f = 0")
         case True
-        thus ?thesis by (auto simp add: phull.module_0)
+        thus ?thesis by (auto simp add: punit.phull.module_0)
       next
         case False
         hence "f \<noteq> 0" and "q f \<noteq> 0" by simp_all
         from \<open>f \<in> set fs\<close> this(2)
-        have "dgrad_p_set_le varnum {q f} (insert g (set fs)) \<and> poly_deg (q f) \<le> poly_deg g + b1"
+        have "punit.dgrad_p_set_le varnum {q f} (insert g (set fs)) \<and> poly_deg (q f) \<le> poly_deg g + b1"
           by (rule 1)
-        hence "dgrad_p_set_le varnum {q f} (insert g (set fs))" and "poly_deg (q f) \<le> poly_deg g + b1"
+        hence "punit.dgrad_p_set_le varnum {q f} (insert g (set fs))" and "poly_deg (q f) \<le> poly_deg g + b1"
           by simp_all
         note this(1)
         moreover have "insert g (set fs) \<subseteq> Polys n" by (rule insert_subsetI, rule set_rev_mp, fact+)
-        ultimately have "{q f} \<subseteq> Polys n" by (rule dgrad_p_set_le_dgrad_p_set)
+        ultimately have "{q f} \<subseteq> Polys n" by (rule punit.dgrad_p_set_le_dgrad_p_set)
         hence "q f \<in> Polys n" by simp
-        from assms(3) \<open>g \<in> reduced_GB (set fs)\<close> have "poly_deg g \<le> b2" by (rule is_GB_boundE)
+        from assms(3) \<open>g \<in> punit.reduced_GB (set fs)\<close> have "poly_deg g \<le> b2" by (rule is_GB_boundE)
         with \<open>poly_deg (q f) \<le> poly_deg g + b1\<close> have "poly_deg (q f) \<le> b1 + b2" by simp
         with \<open>q f \<in> Polys n\<close> have "keys (q f) \<subseteq> deg_set n (b1 + b2)" by (rule keys_subset_deg_setI)
-        with finite_deg_set have "q f * f = (\<Sum>t\<in>deg_set n (b1 + b2). monom_mult (lookup (q f) t) t f)"
-          unfolding times_sum_monomials
+        with finite_deg_set have "q f * f = (\<Sum>t\<in>deg_set n (b1 + b2). punit.monom_mult (lookup (q f) t) t f)"
+          unfolding punit.mult_scalar_sum_monomials[simplified]
         proof (rule sum.mono_neutral_left)
-          show "\<forall>t\<in>deg_set n (b1 + b2) - keys (q f). monom_mult (lookup (q f) t) t f = 0"
-            by (rule, simp add: monom_mult_left0)
+          show "\<forall>t\<in>deg_set n (b1 + b2) - keys (q f). punit.monom_mult (lookup (q f) t) t f = 0"
+            by (rule, simp)
         qed
-        thm sum.reindex
-        also have "... = (\<Sum>t\<in>deg_set n (b1 + b2). monom_mult (lookup (q f) t) 0 (monom_mult 1 t f))"
-          by (simp add: monom_mult_assoc)
+        also have "... = (\<Sum>t\<in>deg_set n (b1 + b2). punit.monom_mult (lookup (q f) t) 0 (punit.monom_mult 1 t f))"
+          by (simp add: punit.monom_mult_assoc)
         also have "... = (\<Sum>t\<in>deg_set n (b1 + b2).
-                    ((\<lambda>f0. monom_mult (lookup (q f) (lp f0 - lp f)) 0 f0) \<circ> (\<lambda>t. monom_mult 1 t f)) t)"
-          by (rule sum.cong, fact refl, simp add: lp_monom_mult[OF \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close>])
+                    ((\<lambda>f0. punit.monom_mult (lookup (q f) (punit.lp f0 - punit.lp f)) 0 f0) \<circ> (\<lambda>t. punit.monom_mult 1 t f)) t)"
+          by (rule sum.cong, fact refl, simp add: punit.lt_monom_mult[OF \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close>])
         also have "... = (\<Sum>f0\<in>set (deg_shifts n (b1 + b2) [f]).
-                                        monom_mult (lookup (q f) (lp f0 - lp f)) 0 f0)"
+                                        punit.monom_mult (lookup (q f) (punit.lp f0 - punit.lp f)) 0 f0)"
         proof (simp only: set_deg_shifts_singleton, rule sum.reindex[symmetric], rule inj_onI)
           fix s t
-          assume "monom_mult 1 s f = monom_mult 1 t f"
-          thus "s = t" using \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close> by (rule monom_mult_inj_2)
+          assume "punit.monom_mult 1 s f = punit.monom_mult 1 t f"
+          thus "s = t" using \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close> by (rule punit.monom_mult_inj_2)
         qed
-        finally have "q f * f \<in> phull (set (deg_shifts n (b1 + b2) [f]))"
-          by (simp add: phull.sum_in_moduleI)
-        also have "... \<subseteq> ?H" by (rule phull.module_mono, rule deg_shifts_mono, simp add: \<open>f \<in> set fs\<close>)
+        finally have "q f * f \<in> punit.phull (set (deg_shifts n (b1 + b2) [f]))"
+          by (simp add: punit.phull.sum_in_moduleI)
+        also have "... \<subseteq> ?H" by (rule punit.phull.module_mono, rule deg_shifts_mono, simp add: \<open>f \<in> set fs\<close>)
         finally show ?thesis .
       qed
     qed
@@ -520,24 +521,25 @@ qed simp_all
 
 theorem thm_2_3_7:
   assumes "set fs \<subseteq> Polys n" and "is_cofactor_bound (set fs) b"
-  shows "1 \<in> pideal (set fs) \<longleftrightarrow> 1 \<in> set (Macaulay_list (deg_shifts n b fs))" (is "?L \<longleftrightarrow> ?R")
+  shows "1 \<in> ideal (set fs) \<longleftrightarrow> 1 \<in> set (punit.Macaulay_list (deg_shifts n b fs))" (is "?L \<longleftrightarrow> ?R")
 proof
   assume ?L
-  hence "pideal (set fs) = UNIV" by (simp only: ideal_eq_UNIV_iff_contains_one)
-  hence eq: "reduced_GB (set fs) = {1}"
-    by (simp only: pideal_eq_UNIV_iff_reduced_GB_eq_one_dgrad_p_set[OF dickson_grading_varnum assms(1)])
+  hence "ideal (set fs) = UNIV" by (simp only: ideal_eq_UNIV_iff_contains_one)
+  hence eq: "punit.reduced_GB (set fs) = {1}"
+    by (simp only: ideal_eq_UNIV_iff_reduced_GB_eq_one_dgrad_p_set[OF dickson_grading_varnum assms(1)])
   have "is_GB_bound (set fs) 0" by (rule is_GB_boundI, simp add: eq poly_deg_def)
-  with assms have "set (reduced_Macaulay_list (deg_shifts n (b + 0) fs)) = reduced_GB (set fs)"
+  with assms have "set (punit.reduced_Macaulay_list (deg_shifts n (b + 0) fs)) = punit.reduced_GB (set fs)"
     by (rule thm_2_3_6)
-  hence "{1} = set (reduced_Macaulay_list (deg_shifts n b fs))" by (simp add: eq)
-  also have "... \<subseteq> set (Macaulay_list (deg_shifts n b fs))"
-    by (fact reduced_Macaulay_list_subset_Macaulay_list)
+  hence "{1} = set (punit.reduced_Macaulay_list (deg_shifts n b fs))" by (simp add: eq)
+  also have "... \<subseteq> set (punit.Macaulay_list (deg_shifts n b fs))"
+    by (fact punit.reduced_Macaulay_list_subset_Macaulay_list)
   finally show ?R by simp
 next
   assume ?R
-  also have "... \<subseteq> phull (set (Macaulay_list (deg_shifts n b fs)))" by (rule phull.generator_subset_module)
-  also have "... = phull (set (deg_shifts n b fs))" by (fact phull_Macaulay_list)
-  also have "... \<subseteq> pideal (set (deg_shifts n b fs))" by (fact phull_subset_pideal)
+  also have "... \<subseteq> punit.phull (set (punit.Macaulay_list (deg_shifts n b fs)))"
+    by (rule punit.phull.generator_subset_module)
+  also have "... = punit.phull (set (deg_shifts n b fs))" by (fact punit.phull_Macaulay_list)
+  also have "... \<subseteq> ideal (set (deg_shifts n b fs))" using punit.phull_subset_module by force
   finally show ?L by simp
 qed
 
