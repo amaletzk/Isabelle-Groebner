@@ -33,19 +33,18 @@ global_interpretation punit': gd_powerprod drlex_pm "drlex_pm_strict::(('a::{cou
   and count_const_lt_components_punit = punit'.punit.count_const_lt_components
   and count_rem_components_punit = punit'.punit.count_rem_components
   and const_lt_component_punit = punit'.punit.const_lt_component
-  and add_pairs_sorted_punit = punit'.punit.add_pairs_sorted
   and full_gb_punit = punit'.punit.full_gb
   and add_pairs_single_sorted_punit = punit'.punit.add_pairs_single_sorted
-  and add_pairs_single_sorted_aux_punit = punit'.punit.add_pairs_single_sorted_aux
-  and canon_pair_order_punit = punit'.punit.canon_pair_order
+  and add_pairs_punit = punit'.punit.add_pairs
+  and canon_pair_order_aux_punit = punit'.punit.canon_pair_order_aux
   and canon_basis_order_punit = punit'.punit.canon_basis_order
+  and new_pairs_sorted_punit = punit'.punit.new_pairs_sorted
   and product_crit_punit = punit'.punit.product_crit
-  and chain_crit_punit = punit'.punit.chain_crit
-  and comb_crit_punit = punit'.punit.comb_crit
-  and pc_crit_punit = punit'.punit.pc_crit
-  and discard_crit_pairs_aux_punit = punit'.punit.discard_crit_pairs_aux
-  and discard_crit_pairs_punit = punit'.punit.discard_crit_pairs
-  and discard_red_cp_punit = punit'.punit.discard_red_cp
+  and chain_ncrit_punit = punit'.punit.chain_ncrit
+  and chain_ocrit_punit = punit'.punit.chain_ocrit
+  and apply_icrit_punit = punit'.punit.apply_icrit
+  and apply_ncrit_punit = punit'.punit.apply_ncrit
+  and apply_ocrit_punit = punit'.punit.apply_ocrit
   and trdsp_punit = punit'.punit.trdsp
   and gb_sel_punit = punit'.punit.gb_sel
   and gb_red_aux_punit = punit'.punit.gb_red_aux
@@ -113,23 +112,25 @@ termination sorry
 definition "product_crit_punit_print =
   (\<lambda>gs bs ps data p q. if product_crit_punit gs bs ps data p q then (print ''prod'' True) else False)"
 
-definition "chain_crit_punit_print =
-  (\<lambda>gs bs ps data p q. if chain_crit_punit gs bs ps data p q then (print ''chain'' True) else False)"
+definition "chain_ncrit_punit_print =
+  (\<lambda>data gs bs hs ps q_in_bs p q. if chain_ncrit_punit data gs bs hs ps q_in_bs p q then (print ''nchain'' True) else False)"
 
-definition "pc_crit_punit_print = comb_crit_punit product_crit_punit_print chain_crit_punit_print"
-
-definition "pc_crit_punit_timing =
-  (\<lambda>gs bs ps data p q. timing_lbl ''pc'' (comb_crit_punit product_crit_punit chain_crit_punit gs bs ps data p q))"
+definition "chain_ocrit_punit_print =
+  (\<lambda>data hs ps p q. if chain_ocrit_punit data hs ps p q then (print ''ochain'' True) else False)"
 
 definition "trdsp_punit_timing = (\<lambda>bs p. timing_lbl ''trdsp'' (trd_punit bs (spoly_punit (fst (fst p)) (fst (snd p)))))"
 
-definition "discard_red_cp_punit_timing =
-  (\<lambda>crit rcp gs bs ps sps data. timing_lbl ''rd'' (rcp gs bs (discard_crit_pairs_punit crit gs bs ps sps data) data))"
+definition "add_pairs_punit_timing =
+  (\<lambda>np icrit ncrit ocrit comb gs bs ps hs data.
+      timing_lbl ''ap''
+        (let ps1 = apply_ncrit_punit ncrit data gs bs hs (apply_icrit_punit icrit data gs bs hs (np gs bs hs data));
+             ps2 = apply_ocrit_punit ocrit data hs ps1 ps in comb (map snd [x\<leftarrow>ps1 . \<not> fst x]) ps2))"
 
-definition "add_pairs_sorted_punit_timing =
-  (\<lambda>rel gs bs ps hs data.
-      timing_lbl ''ap'' (fold (add_pairs_single_sorted_punit (rel data) gs bs) hs
-                (merge_wrt (rel data) ps (Algorithm_Schema.pairs (add_pairs_single_sorted_punit (rel data)) hs))))"
+definition "add_pairs_punit_print =
+  (\<lambda>np icrit ncrit ocrit comb gs bs ps hs data.
+      (let ps1 = apply_ncrit_punit ncrit data gs bs hs (apply_icrit_punit icrit data gs bs hs (np gs bs hs data));
+           ps2 = apply_ocrit_punit ocrit data hs ps1 ps;
+           ps3 = [x\<leftarrow>ps1 . \<not> fst x] in print (length ps2 + length ps3) (comb (map snd ps3) ps2)))"
 
 definition "add_basis_sorted_print =
   (\<lambda>rel gs bs ns data. (if length ns = 0 then (\<lambda>_ x. x) else print) (length bs + length ns, map (card_keys \<circ> fst) ns) (merge_wrt (rel data) bs ns))"
@@ -146,8 +147,11 @@ definition "gb_sel_punit_print =
 lemma product_crit_punit_print [simp]: "product_crit_punit_print = product_crit_punit"
   by (simp add: product_crit_punit_print_def)
 
-lemma chain_crit_punit_print [simp]: "chain_crit_punit_print = chain_crit_punit"
-  by (simp add: chain_crit_punit_print_def)
+lemma chain_ncrit_punit_print [simp]: "chain_ncrit_punit_print = chain_ncrit_punit"
+  by (simp add: chain_ncrit_punit_print_def)
+
+lemma chain_ocrit_punit_print [simp]: "chain_ocrit_punit_print = chain_ocrit_punit"
+  by (simp add: chain_ocrit_punit_print_def)
 
 (*
 lemma pc_crit_punit_print [code_abbrev]: "pc_crit_punit_print = pc_crit_punit"
@@ -175,8 +179,15 @@ lemma add_basis_sorted_timing [code_abbrev]: "add_basis_sorted_timing = add_basi
   sorry
 *)
 
+(*
+lemma add_pairs_punit_canon_print [code_abbrev]: "add_pairs_punit_print = add_pairs_punit"
+  sorry
+*)
+
+(*
 lemma add_basis_sorted_print [code_abbrev]: "add_basis_sorted_print = add_basis_sorted"
   sorry
+*)
 
 (*
 lemma trd_punit_print [code_abbrev]: "trd_punit_print = trd_punit"
@@ -290,11 +301,9 @@ function repeat :: "(natural \<Rightarrow> 'c) \<Rightarrow> natural \<Rightarro
   by auto
 termination sorry
 
-value [code] "(215/587)::rat"
-
 value [code] "let r1 = (1587403220023648961010354787510025/754422498806579781314598530046874)::rat;
                   r2 = (1587410325684552047810144874/8455657518197317514479580621624761948498527639189070213488573493541897381325890539198611871410797366962398562593692460878056090389366922786523226701592701116126522722087517900268748285083392130388459943058915232146768)::rat in
-                timing (repeat (\<lambda>i. r1 + r2) (natural_of_nat 1000))"
+                timing_nores (repeat (\<lambda>i. r1 + r2) (natural_of_nat 1000))"
 
 (* The same computation takes 0.004 seconds with Ratio.ratio in OCaml!
   The denominator of r2 with 200+ digits actually appears in the computation of cyclic-6. *)

@@ -36,7 +36,7 @@ proof (rule wfP_onI_min)
   from wf_dickson_less_v[OF assms, of m] \<open>x \<in> Q\<close> obtain z
     where "z \<in> Q" and *: "\<And>y. dickson_less_v d m y z \<Longrightarrow> y \<notin> Q" by (rule wfE_min[to_pred], blast)
   from this(1) \<open>Q \<subseteq> pp_of_term -` dgrad_set d m\<close> have "z \<in> pp_of_term -` dgrad_set d m" ..
-  show "\<exists>z\<in>Q. \<forall>y\<in>pp_of_term -` dgrad_set d m. y \<prec>\<^sub>t z \<longrightarrow> y \<notin> Q"
+  show "\<exists>z\<in>Q. \<forall>y \<in> pp_of_term -` dgrad_set d m. y \<prec>\<^sub>t z \<longrightarrow> y \<notin> Q"
   proof (intro bexI ballI impI, rule *)
     fix y
     assume "y \<in> pp_of_term -` dgrad_set d m" and "y \<prec>\<^sub>t z"
@@ -229,7 +229,7 @@ next
         assume "s \<in> pp_of_term ` (Keys (set gs) \<union> insert v (set vs \<union> keys (tail (monom_mult 1 ?t g))))"
         hence "s \<in> pp_of_term ` (Keys (set gs) \<union> insert v (set vs)) \<union> pp_of_term ` keys (tail (monom_mult 1 ?t g))"
           by auto
-        thus "\<exists>t\<in>pp_of_term ` (Keys (insert g (set gs)) \<union> insert v (set vs)). d s \<le> d t"
+        thus "\<exists>t \<in> pp_of_term ` (Keys (insert g (set gs)) \<union> insert v (set vs)). d s \<le> d t"
         proof
           assume "s \<in> pp_of_term ` (Keys (set gs) \<union> insert v (set vs))"
           thus ?thesis by (auto simp add: Keys_insert)
@@ -581,8 +581,7 @@ lemma sym_preproc_aux_sorted:
   assumes "sorted_wrt (\<succ>\<^sub>t) (v # vs)"
   shows "sym_preproc_aux gs ks (v # vs, fs) = sym_preproc_aux gs (ks @ [v]) (sym_preproc_addnew gs vs fs v)"
 proof -
-  have "transp (\<succ>\<^sub>t)" using transp_def by fastforce
-  from assms have *: "u \<in> set vs \<Longrightarrow> u \<prec>\<^sub>t v" for u by (simp add: sorted_wrt_Cons[OF \<open>transp (\<succ>\<^sub>t)\<close>])
+  from assms have *: "u \<in> set vs \<Longrightarrow> u \<prec>\<^sub>t v" for u by simp
   have "ord_term_lin.max_list (v # vs) = ord_term_lin.Max (set (v # vs))"
     by (simp add: ord_term_lin.max_list_Max del: ord_term_lin.max_list.simps)
   also have "... = v"
@@ -698,9 +697,8 @@ next
     using ord_term_lin.antisym_conv3 by force
   show ?case
   proof (rule rec(4))
-    have tr: "transp (\<succ>\<^sub>t)" unfolding transp_def by fastforce
     show "sorted_wrt (\<succ>\<^sub>t) (ks @ [v])"
-    proof (simp add: sorted_wrt_append[OF tr] rec(5), rule)
+    proof (simp add: sorted_wrt_append rec(5), rule)
       fix k
       assume "k \<in> set ks"
       from this \<open>v \<in> set vs\<close> show "v \<prec>\<^sub>t k" by (rule rec(6))
@@ -994,7 +992,7 @@ proof -
   ultimately have d1: "distinct ?a" by (rule distinct_sorted_wrt_irrefl)
   have s2: "sorted_wrt (\<succ>\<^sub>t) ?b" by (fact Keys_to_list_sorted_wrt)
   with \<open>irreflp (\<succ>\<^sub>t)\<close> \<open>transp (\<succ>\<^sub>t)\<close> have d2: "distinct ?b" by (rule distinct_sorted_wrt_irrefl)
-  from \<open>transp (\<succ>\<^sub>t)\<close> \<open>antisymp (\<succ>\<^sub>t)\<close> s1 d1 s2 d2 show ?thesis
+  from \<open>antisymp (\<succ>\<^sub>t)\<close> s1 d1 s2 d2 show ?thesis
   proof (rule sorted_wrt_distinct_set_unique)
     show "set ?a = set ?b" unfolding set_Keys_to_list sym_preproc_def
       by (rule fst_sym_preproc_aux_complete, simp add: set_Keys_to_list)
@@ -1407,7 +1405,7 @@ proof
     by (rule dgrad_set_leE)
   from this(1) have "t \<in> pp_of_term ` Keys (fst ` set bs) \<or> t \<in> pp_of_term ` Keys (set (pdata_pairs_to_list ps))"
     by (simp add: Keys_Un image_Un)
-  thus "\<exists>t\<in>pp_of_term ` Keys (args_to_set ([], bs, ps)). d s \<le> d t"
+  thus "\<exists>t \<in> pp_of_term ` Keys (args_to_set ([], bs, ps)). d s \<le> d t"
   proof
     assume "t \<in> pp_of_term ` Keys (fst `  set bs)"
     also have "... \<subseteq> pp_of_term ` Keys (args_to_set ([], bs, ps))"
@@ -1643,65 +1641,69 @@ proof (rule f4_red_aux_phull_reducible)
     by (simp add: spoly_def Let_def phull.module_0 lc_def split: if_split)
 qed
 
-definition f4_red :: "('t, 'b::field, 'c::default, 'd) rcpT"
-  where "f4_red gs bs ps data = (map (\<lambda>h. (h, default)) (f4_red_aux (gs @ bs) ps), snd data)"
+definition f4_red :: "('t, 'b::field, 'c::default, 'd) complT"
+  where "f4_red gs bs ps sps data = (map (\<lambda>h. (h, default)) (f4_red_aux (gs @ bs) sps), snd data)"
 
-lemma fst_set_fst_f4_red: "fst ` set (fst (f4_red gs bs ps data)) = set (f4_red_aux (gs @ bs) ps)"
+lemma fst_set_fst_f4_red: "fst ` set (fst (f4_red gs bs ps sps data)) = set (f4_red_aux (gs @ bs) sps)"
   by (simp add: f4_red_def, force)
 
 lemma rcp_spec_f4_red: "rcp_spec f4_red"
 proof (rule rcp_specI)
-  fix gs bs::"('t, 'b, 'c) pdata list" and ps and data::"nat \<times> 'd"
-  show "0 \<notin> fst ` set (fst (f4_red gs bs ps data))"
+  fix gs bs::"('t, 'b, 'c) pdata list" and ps sps and data::"nat \<times> 'd"
+  show "0 \<notin> fst ` set (fst (f4_red gs bs ps sps data))"
     by (simp add: fst_set_fst_f4_red f4_red_aux_not_zero)
 next
-  fix gs bs::"('t, 'b, 'c) pdata list" and ps h b and data::"nat \<times> 'd"
-  assume "h \<in> set (fst (f4_red gs bs ps data))" and "b \<in> set gs \<union> set bs"
-  from this(1) have "fst h \<in> fst ` set (fst (f4_red gs bs ps data))" by simp
-  hence "fst h \<in> set (f4_red_aux (gs @ bs) ps)" by (simp only: fst_set_fst_f4_red)
+  fix gs bs::"('t, 'b, 'c) pdata list" and ps sps h b and data::"nat \<times> 'd"
+  assume "h \<in> set (fst (f4_red gs bs ps sps data))" and "b \<in> set gs \<union> set bs"
+  from this(1) have "fst h \<in> fst ` set (fst (f4_red gs bs ps sps data))" by simp
+  hence "fst h \<in> set (f4_red_aux (gs @ bs) sps)" by (simp only: fst_set_fst_f4_red)
   moreover from \<open>b \<in> set gs \<union> set bs\<close> have "b \<in> set (gs @ bs)" by simp
   moreover assume "fst b \<noteq> 0"
   ultimately show "\<not> lt (fst b) adds\<^sub>t lt (fst h)" by (rule f4_red_aux_irredudible)
 next
-  fix gs bs::"('t, 'b, 'c) pdata list" and ps and d::"'a \<Rightarrow> nat" and data::"nat \<times> 'd"
+  fix gs bs::"('t, 'b, 'c) pdata list" and ps sps and d::"'a \<Rightarrow> nat" and data::"nat \<times> 'd"
   assume "dickson_grading (+) d"
-  hence "dgrad_p_set_le d (set (f4_red_aux (gs @ bs) ps)) (args_to_set ([], gs @ bs, ps))"
+  hence "dgrad_p_set_le d (set (f4_red_aux (gs @ bs) sps)) (args_to_set ([], gs @ bs, sps))"
     by (fact f4_red_aux_dgrad_p_set_le)
-  also have "... = args_to_set (gs, bs, ps)" by (simp add: args_to_set_alt image_Un)
-  finally show "dgrad_p_set_le d (fst ` set (fst (f4_red gs bs ps data))) (args_to_set (gs, bs, ps))"
+  also have "... = args_to_set (gs, bs, sps)" by (simp add: args_to_set_alt image_Un)
+  finally show "dgrad_p_set_le d (fst ` set (fst (f4_red gs bs ps sps data))) (args_to_set (gs, bs, sps))"
     by (simp only: fst_set_fst_f4_red)
 next
-  fix gs bs::"('t, 'b, 'c) pdata list" and ps and data::"nat \<times> 'd"
-  have "component_of_term ` Keys (set (f4_red_aux (gs @ bs) ps)) \<subseteq>
-        component_of_term ` Keys (args_to_set ([], gs @ bs, ps))"
+  fix gs bs::"('t, 'b, 'c) pdata list" and ps sps and data::"nat \<times> 'd"
+  have "component_of_term ` Keys (set (f4_red_aux (gs @ bs) sps)) \<subseteq>
+        component_of_term ` Keys (args_to_set ([], gs @ bs, sps))"
     by (fact components_f4_red_aux_subset)
-  also have "... = component_of_term ` Keys (args_to_set (gs, bs, ps))"
+  also have "... = component_of_term ` Keys (args_to_set (gs, bs, sps))"
     by (simp add: args_to_set_alt image_Un)
-  finally show "component_of_term ` Keys (fst ` set (fst (f4_red gs bs ps data))) \<subseteq>
-        component_of_term ` Keys (args_to_set (gs, bs, ps))"
+  finally show "component_of_term ` Keys (fst ` set (fst (f4_red gs bs ps sps data))) \<subseteq>
+        component_of_term ` Keys (args_to_set (gs, bs, sps))"
     by (simp only: fst_set_fst_f4_red)
 next
-  fix gs bs::"('t, 'b, 'c) pdata list" and ps and data::"nat \<times> 'd"
-  have "set (f4_red_aux (gs @ bs) ps) \<subseteq> pmdl (args_to_set ([], gs @ bs, ps))"
+  fix gs bs::"('t, 'b, 'c) pdata list" and ps sps and data::"nat \<times> 'd"
+  have "set (f4_red_aux (gs @ bs) sps) \<subseteq> pmdl (args_to_set ([], gs @ bs, sps))"
     by (fact pmdl_f4_red_aux)
-  also have "... = pmdl (args_to_set (gs, bs, ps))" by (simp add: args_to_set_alt image_Un)
-  finally have "fst ` set (fst (f4_red gs bs ps data)) \<subseteq> pmdl (args_to_set (gs, bs, ps))"
+  also have "... = pmdl (args_to_set (gs, bs, sps))" by (simp add: args_to_set_alt image_Un)
+  finally have "fst ` set (fst (f4_red gs bs ps sps data)) \<subseteq> pmdl (args_to_set (gs, bs, sps))"
     by (simp only: fst_set_fst_f4_red)
   moreover {
     fix p q :: "('t, 'b, 'c) pdata"
-    assume "set ps \<subseteq> set bs \<times> (set gs \<union> set bs)"
-    hence "set ps \<subseteq> set (gs @ bs) \<times> set (gs @ bs)" by fastforce
-    moreover assume "(p, q) \<in> set ps"
-    ultimately have "(red (fst ` set (gs @ bs) \<union> set (f4_red_aux (gs @ bs) ps)))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0"
+    assume "set sps \<subseteq> set bs \<times> (set gs \<union> set bs)"
+    hence "set sps \<subseteq> set (gs @ bs) \<times> set (gs @ bs)" by fastforce
+    moreover assume "(p, q) \<in> set sps"
+    ultimately have "(red (fst ` set (gs @ bs) \<union> set (f4_red_aux (gs @ bs) sps)))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0"
       by (rule f4_red_aux_spoly_reducible)
   }
   ultimately show
-    "fst ` set (fst (f4_red gs bs ps data)) \<subseteq> pmdl (args_to_set (gs, bs, ps)) \<and>
-     (\<forall>(p, q)\<in>set ps.
-         set ps \<subseteq> set bs \<times> (set gs \<union> set bs) \<longrightarrow>
-         (red (fst ` (set gs \<union> set bs) \<union> fst ` set (fst (f4_red gs bs ps data))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0)"
+    "fst ` set (fst (f4_red gs bs ps sps data)) \<subseteq> pmdl (args_to_set (gs, bs, sps)) \<and>
+     (\<forall>(p, q)\<in>set sps.
+         set sps \<subseteq> set bs \<times> (set gs \<union> set bs) \<longrightarrow>
+         (red (fst ` (set gs \<union> set bs) \<union> fst ` set (fst (f4_red gs bs ps sps data))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0)"
     by (auto simp add: image_Un fst_set_fst_f4_red)
 qed
+
+lemmas compl_struct_f4_red = compl_struct_rcp[OF rcp_spec_f4_red]
+lemmas compl_pmdl_f4_red = compl_pmdl_rcp[OF rcp_spec_f4_red]
+lemmas compl_conn_f4_red = compl_conn_rcp[OF rcp_spec_f4_red]
 
 subsection \<open>Pair Selection\<close>
 
@@ -1739,63 +1741,46 @@ subsection \<open>The F4 Algorithm\<close>
 text \<open>The F4 algorithm is just @{const gb_schema_direct} with parameters instantiated by suitable
   functions.\<close>
 
-abbreviation "f4_ap \<equiv> add_pairs_sorted canon_pair_order"
-abbreviation "f4_ab \<equiv> add_basis_sorted canon_basis_order"
-abbreviation "f4_compl \<equiv> discard_red_cp chain_crit f4_red"
+lemma struct_spec_f4: "struct_spec f4_sel add_pairs_canon add_basis_canon f4_red"
+  using sel_spec_f4_sel ap_spec_add_pairs_canon ab_spec_add_basis_sorted compl_struct_f4_red
+  by (rule struct_specI)
 
-lemma struct_spec_f4: "struct_spec f4_sel f4_ap f4_ab f4_compl"
-  using sel_spec_f4_sel ap_spec_add_pairs_sorted ab_spec_add_basis_sorted
-proof (rule struct_specI)
-  from rcp_spec_f4_red show "compl_struct f4_compl" by (rule compl_struct_discard_red_cp)
-qed
-
-lemmas compl_conn_f4_compl = compl_conn_discard_red_cp[OF crit_spec_chain_crit rcp_spec_f4_red]
-
-lemmas compl_pmdl_f4_compl = compl_pmdl_discard_red_cp[OF rcp_spec_f4_red]
-
-definition f4_aux :: "nat \<times> nat \<times> 'd \<Rightarrow> ('t, 'b, 'c) pdata list \<Rightarrow> ('t, 'b, 'c) pdata list \<Rightarrow>
+definition f4_aux :: "('t, 'b, 'c) pdata list \<Rightarrow> nat \<times> nat \<times> 'd \<Rightarrow> ('t, 'b, 'c) pdata list \<Rightarrow>
                    ('t, 'b, 'c) pdata_pair list \<Rightarrow> ('t, 'b::field, 'c::default) pdata list"
-  where "f4_aux = gb_schema_aux f4_sel f4_ap f4_ab f4_compl"
+  where "f4_aux = gb_schema_aux f4_sel add_pairs_canon add_basis_canon f4_red"
 
-lemmas f4_aux_simps [code] = gb_schema_aux_simp[OF struct_spec_f4, folded f4_aux_def]
+lemmas f4_aux_simps [code] = gb_schema_aux_simps[OF struct_spec_f4, folded f4_aux_def]
 
 definition f4 :: "('t, 'b, 'c) pdata' list \<Rightarrow> 'd \<Rightarrow> ('t, 'b::field, 'c::default) pdata' list"
-  where "f4 = gb_schema_direct f4_sel f4_ap f4_ab f4_compl"
+  where "f4 = gb_schema_direct f4_sel add_pairs_canon add_basis_canon f4_red"
 
-lemmas f4_simps [code] = gb_schema_direct_def[of "f4_sel" "f4_ap" "f4_ab" "f4_compl", folded f4_def f4_aux_def]
+lemmas f4_simps [code] = gb_schema_direct_def[of f4_sel add_pairs_canon add_basis_canon f4_red, folded f4_def f4_aux_def]
 
-lemmas f4_isGB = gb_schema_direct_isGB[OF struct_spec_f4 compl_conn_f4_compl, folded f4_def]
+lemmas f4_isGB = gb_schema_direct_isGB[OF struct_spec_f4 compl_conn_f4_red, folded f4_def]
 
-lemmas f4_pmdl = gb_schema_direct_pmdl[OF struct_spec_f4 compl_pmdl_f4_compl, folded f4_def]
+lemmas f4_pmdl = gb_schema_direct_pmdl[OF struct_spec_f4 compl_pmdl_f4_red, folded f4_def]
 
 subsubsection \<open>Special Case: \<open>punit\<close>\<close>
 
-abbreviation (in gd_term) "f4_compl_punit \<equiv> punit.discard_red_cp pc_crit punit.f4_red"
+lemma (in gd_term) struct_spec_f4_punit: "punit.struct_spec punit.f4_sel add_pairs_punit_canon punit.add_basis_canon punit.f4_red"
+  using punit.sel_spec_f4_sel ap_spec_add_pairs_punit_canon ab_spec_add_basis_sorted punit.compl_struct_f4_red
+  by (rule punit.struct_specI)
 
-lemma struct_spec_f4_punit: "punit.struct_spec punit.f4_sel punit.f4_ap punit.f4_ab f4_compl_punit"
-  using punit.sel_spec_f4_sel punit.ap_spec_add_pairs_sorted ab_spec_add_basis_sorted
-proof (rule punit.struct_specI)
-  from punit.rcp_spec_f4_red show "punit.compl_struct f4_compl_punit"
-    by (rule punit.compl_struct_discard_red_cp)
-qed
-
-lemmas compl_conn_f4_compl_punit = punit.compl_conn_discard_red_cp[OF crit_spec_pc_crit punit.rcp_spec_f4_red]
-
-definition f4_aux_punit :: "nat \<times> nat \<times> 'd \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+definition f4_aux_punit :: "('a, 'b, 'c) pdata list \<Rightarrow> nat \<times> nat \<times> 'd \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
                    ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b::field, 'c::default) pdata list"
-  where "f4_aux_punit = punit.gb_schema_aux punit.f4_sel punit.f4_ap punit.f4_ab f4_compl_punit"
+  where "f4_aux_punit = punit.gb_schema_aux punit.f4_sel add_pairs_punit_canon punit.add_basis_canon punit.f4_red"
 
-lemmas f4_aux_punit_simps [code] = punit.gb_schema_aux_simp[OF struct_spec_f4_punit, folded f4_aux_punit_def]
+lemmas f4_aux_punit_simps [code] = punit.gb_schema_aux_simps[OF struct_spec_f4_punit, folded f4_aux_punit_def]
 
 definition f4_punit :: "('a, 'b, 'c) pdata' list \<Rightarrow> 'd \<Rightarrow> ('a, 'b::field, 'c::default) pdata' list"
-  where "f4_punit = punit.gb_schema_direct punit.f4_sel punit.f4_ap punit.f4_ab f4_compl_punit"
+  where "f4_punit = punit.gb_schema_direct punit.f4_sel add_pairs_punit_canon punit.add_basis_canon punit.f4_red"
 
-lemmas f4_punit_simps [code] = punit.gb_schema_direct_def[of "punit.f4_sel" "punit.f4_ap"
-                                "punit.f4_ab" "f4_compl_punit", folded f4_punit_def f4_aux_punit_def]
+lemmas f4_punit_simps [code] = punit.gb_schema_direct_def[of "punit.f4_sel" add_pairs_punit_canon
+                                "punit.add_basis_canon" "punit.f4_red", folded f4_punit_def f4_aux_punit_def]
 
-lemmas f4_punit_isGB = punit.gb_schema_direct_isGB[OF struct_spec_f4_punit compl_conn_f4_compl_punit, folded f4_punit_def]
+lemmas f4_punit_isGB = punit.gb_schema_direct_isGB[OF struct_spec_f4_punit punit.compl_conn_f4_red, folded f4_punit_def]
 
-lemmas f4_punit_pmdl = punit.gb_schema_direct_pmdl[OF struct_spec_f4_punit punit.compl_pmdl_f4_compl, folded f4_punit_def]
+lemmas f4_punit_pmdl = punit.gb_schema_direct_pmdl[OF struct_spec_f4_punit punit.compl_pmdl_f4_red, folded f4_punit_def]
 
 end (* gd_term *)
 

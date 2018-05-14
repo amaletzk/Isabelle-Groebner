@@ -214,62 +214,66 @@ proof -
   ultimately show ?thesis by simp
 qed
 
-definition gb_red :: "('t, 'b::field, 'c::default, 'd) rcpT"
-  where "gb_red gs bs ps data = (map (\<lambda>h. (h, default)) (gb_red_aux (gs @ bs) ps), snd data)"
+definition gb_red :: "('t, 'b::field, 'c::default, 'd) complT"
+  where "gb_red gs bs ps sps data = (map (\<lambda>h. (h, default)) (gb_red_aux (gs @ bs) sps), snd data)"
 
-lemma fst_set_fst_gb_red: "fst ` set (fst (gb_red gs bs ps data)) = set (gb_red_aux (gs @ bs) ps)"
+lemma fst_set_fst_gb_red: "fst ` set (fst (gb_red gs bs ps sps data)) = set (gb_red_aux (gs @ bs) sps)"
   by (simp add: gb_red_def, force)
 
 lemma rcp_spec_gb_red: "rcp_spec gb_red"
 proof (rule rcp_specI)
-  fix gs bs::"('t, 'b, 'c) pdata list" and ps and data::"nat \<times> 'd"
-  from gb_red_aux_not_zero show "0 \<notin> fst ` set (fst (gb_red gs bs ps data))"
+  fix gs bs::"('t, 'b, 'c) pdata list" and ps sps and data::"nat \<times> 'd"
+  from gb_red_aux_not_zero show "0 \<notin> fst ` set (fst (gb_red gs bs ps sps data))"
     unfolding fst_set_fst_gb_red .
 next
-  fix gs bs::"('t, 'b, 'c) pdata list" and ps h b and data::"nat \<times> 'd"
-  assume "h \<in> set (fst (gb_red gs bs ps data))" and "b \<in> set gs \<union> set bs"
-  from this(1) have "fst h \<in> fst ` set (fst (gb_red gs bs ps data))" by simp
-  hence "fst h \<in> set (gb_red_aux (gs @ bs) ps)" by (simp only: fst_set_fst_gb_red)
+  fix gs bs::"('t, 'b, 'c) pdata list" and ps sps h b and data::"nat \<times> 'd"
+  assume "h \<in> set (fst (gb_red gs bs ps sps data))" and "b \<in> set gs \<union> set bs"
+  from this(1) have "fst h \<in> fst ` set (fst (gb_red gs bs ps sps data))" by simp
+  hence "fst h \<in> set (gb_red_aux (gs @ bs) sps)" by (simp only: fst_set_fst_gb_red)
   moreover from \<open>b \<in> set gs \<union> set bs\<close> have "b \<in> set (gs @ bs)" by simp
   moreover assume "fst b \<noteq> 0"
   ultimately show "\<not> lt (fst b) adds\<^sub>t lt (fst h)" by (rule gb_red_aux_irredudible)
 next
-  fix gs bs::"('t, 'b, 'c) pdata list" and ps and d::"'a \<Rightarrow> nat" and data::"nat \<times> 'd"
+  fix gs bs::"('t, 'b, 'c) pdata list" and ps sps and d::"'a \<Rightarrow> nat" and data::"nat \<times> 'd"
   assume "dickson_grading (+) d"
-  hence "dgrad_p_set_le d (set (gb_red_aux (gs @ bs) ps)) (args_to_set ([], gs @ bs, ps))"
+  hence "dgrad_p_set_le d (set (gb_red_aux (gs @ bs) sps)) (args_to_set ([], gs @ bs, sps))"
     by (rule gb_red_aux_dgrad_p_set_le)
-  also have "... = args_to_set (gs, bs, ps)" by (simp add: args_to_set_alt image_Un)
-  finally show "dgrad_p_set_le d (fst ` set (fst (gb_red gs bs ps data))) (args_to_set (gs, bs, ps))"
+  also have "... = args_to_set (gs, bs, sps)" by (simp add: args_to_set_alt image_Un)
+  finally show "dgrad_p_set_le d (fst ` set (fst (gb_red gs bs ps sps data))) (args_to_set (gs, bs, sps))"
     by (simp only: fst_set_fst_gb_red)
 next
-  fix gs bs::"('t, 'b, 'c) pdata list" and ps and data::"nat \<times> 'd"
-  have "component_of_term ` Keys (set (gb_red_aux (gs @ bs) ps)) \<subseteq>
-          component_of_term ` Keys (args_to_set ([], gs @ bs, ps))"
+  fix gs bs::"('t, 'b, 'c) pdata list" and ps sps and data::"nat \<times> 'd"
+  have "component_of_term ` Keys (set (gb_red_aux (gs @ bs) sps)) \<subseteq>
+          component_of_term ` Keys (args_to_set ([], gs @ bs, sps))"
     by (rule components_gb_red_aux_subset)
-  also have "... = component_of_term ` Keys (args_to_set (gs, bs, ps))"
+  also have "... = component_of_term ` Keys (args_to_set (gs, bs, sps))"
     by (simp add: args_to_set_alt image_Un)
-  finally show "component_of_term ` Keys (fst ` set (fst (gb_red gs bs ps data))) \<subseteq>
-                component_of_term ` Keys (args_to_set (gs, bs, ps))" by (simp only: fst_set_fst_gb_red)
+  finally show "component_of_term ` Keys (fst ` set (fst (gb_red gs bs ps sps data))) \<subseteq>
+                component_of_term ` Keys (args_to_set (gs, bs, sps))" by (simp only: fst_set_fst_gb_red)
 next
-  fix gs bs::"('t, 'b, 'c) pdata list" and ps and data::"nat \<times> 'd"
-  have "set (gb_red_aux (gs @ bs) ps) \<subseteq> pmdl (args_to_set ([], gs @ bs, ps))"
+  fix gs bs::"('t, 'b, 'c) pdata list" and ps sps and data::"nat \<times> 'd"
+  have "set (gb_red_aux (gs @ bs) sps) \<subseteq> pmdl (args_to_set ([], gs @ bs, sps))"
     by (fact pmdl_gb_red_aux)
-  also have "... = pmdl (args_to_set (gs, bs, ps))" by (simp add: args_to_set_alt image_Un)
-  finally have "fst ` set (fst (gb_red gs bs ps data)) \<subseteq> pmdl (args_to_set (gs, bs, ps))"
+  also have "... = pmdl (args_to_set (gs, bs, sps))" by (simp add: args_to_set_alt image_Un)
+  finally have "fst ` set (fst (gb_red gs bs ps sps data)) \<subseteq> pmdl (args_to_set (gs, bs, sps))"
     by (simp only: fst_set_fst_gb_red)
   moreover {
     fix p q :: "('t, 'b, 'c) pdata"
-    assume "(p, q) \<in> set ps"
-    hence "(red (fst ` set (gs @ bs) \<union> set (gb_red_aux (gs @ bs) ps)))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0"
+    assume "(p, q) \<in> set sps"
+    hence "(red (fst ` set (gs @ bs) \<union> set (gb_red_aux (gs @ bs) sps)))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0"
       by (rule gb_red_aux_spoly_reducible)
   }
   ultimately show
-    "fst ` set (fst (gb_red gs bs ps data)) \<subseteq> pmdl (args_to_set (gs, bs, ps)) \<and>
-     (\<forall>(p, q)\<in>set ps.
-         set ps \<subseteq> set bs \<times> (set gs \<union> set bs) \<longrightarrow>
-         (red (fst ` (set gs \<union> set bs) \<union> fst ` set (fst (gb_red gs bs ps data))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0)"
+    "fst ` set (fst (gb_red gs bs ps sps data)) \<subseteq> pmdl (args_to_set (gs, bs, sps)) \<and>
+     (\<forall>(p, q)\<in>set sps.
+         set sps \<subseteq> set bs \<times> (set gs \<union> set bs) \<longrightarrow>
+         (red (fst ` (set gs \<union> set bs) \<union> fst ` set (fst (gb_red gs bs ps sps data))))\<^sup>*\<^sup>* (spoly (fst p) (fst q)) 0)"
     by (auto simp add: image_Un fst_set_fst_gb_red)
 qed
+
+lemmas compl_struct_gb_red = compl_struct_rcp[OF rcp_spec_gb_red]
+lemmas compl_pmdl_gb_red = compl_pmdl_rcp[OF rcp_spec_gb_red]
+lemmas compl_conn_gb_red = compl_conn_rcp[OF rcp_spec_gb_red]
 
 subsection \<open>Pair Selection\<close>
 
@@ -287,63 +291,46 @@ qed
 
 subsection \<open>Buchberger's Algorithm\<close>
 
-abbreviation "gb_ap \<equiv> add_pairs_sorted canon_pair_order"
-abbreviation "gb_ab \<equiv> add_basis_sorted canon_basis_order"
-abbreviation "gb_compl \<equiv> discard_red_cp chain_crit gb_red"
+lemma struct_spec_gb: "struct_spec gb_sel add_pairs_canon add_basis_canon gb_red"
+  using sel_spec_gb_sel ap_spec_add_pairs_canon ab_spec_add_basis_sorted compl_struct_gb_red
+  by (rule struct_specI)
 
-lemma struct_spec_gb: "struct_spec gb_sel gb_ap gb_ab gb_compl"
-  using sel_spec_gb_sel ap_spec_add_pairs_sorted ab_spec_add_basis_sorted
-proof (rule struct_specI)
-  from rcp_spec_gb_red show "compl_struct gb_compl" by (rule compl_struct_discard_red_cp)
-qed
-
-lemmas compl_conn_gb_compl = compl_conn_discard_red_cp[OF crit_spec_chain_crit rcp_spec_gb_red]
-
-lemmas compl_pmdl_gb_compl = compl_pmdl_discard_red_cp[OF rcp_spec_gb_red]
-
-definition gb_aux :: "nat \<times> nat \<times> 'd \<Rightarrow> ('t, 'b, 'c) pdata list \<Rightarrow> ('t, 'b, 'c) pdata list \<Rightarrow>
+definition gb_aux :: "('t, 'b, 'c) pdata list \<Rightarrow> nat \<times> nat \<times> 'd \<Rightarrow> ('t, 'b, 'c) pdata list \<Rightarrow>
                    ('t, 'b, 'c) pdata_pair list \<Rightarrow> ('t, 'b::field, 'c::default) pdata list"
-  where "gb_aux = gb_schema_aux gb_sel gb_ap gb_ab gb_compl"
+  where "gb_aux = gb_schema_aux gb_sel add_pairs_canon add_basis_canon gb_red"
 
-lemmas gb_aux_simps [code] = gb_schema_aux_simp[OF struct_spec_gb, folded gb_aux_def]
+lemmas gb_aux_simps [code] = gb_schema_aux_simps[OF struct_spec_gb, folded gb_aux_def]
 
 definition gb :: "('t, 'b, 'c) pdata' list \<Rightarrow> 'd \<Rightarrow> ('t, 'b::field, 'c::default) pdata' list"
-  where "gb = gb_schema_direct gb_sel gb_ap gb_ab gb_compl"
+  where "gb = gb_schema_direct gb_sel add_pairs_canon add_basis_canon gb_red"
 
-lemmas gb_simps [code] = gb_schema_direct_def[of "gb_sel" "gb_ap" "gb_ab" "gb_compl", folded gb_def gb_aux_def]
+lemmas gb_simps [code] = gb_schema_direct_def[of gb_sel add_pairs_canon add_basis_canon gb_red, folded gb_def gb_aux_def]
 
-lemmas gb_isGB = gb_schema_direct_isGB[OF struct_spec_gb compl_conn_gb_compl, folded gb_def]
+lemmas gb_isGB = gb_schema_direct_isGB[OF struct_spec_gb compl_conn_gb_red, folded gb_def]
 
-lemmas gb_pmdl = gb_schema_direct_pmdl[OF struct_spec_gb compl_pmdl_gb_compl, folded gb_def]
+lemmas gb_pmdl = gb_schema_direct_pmdl[OF struct_spec_gb compl_pmdl_gb_red, folded gb_def]
 
 subsubsection \<open>Special Case: \<open>punit\<close>\<close>
 
-abbreviation (in gd_term) "gb_compl_punit \<equiv> punit.discard_red_cp pc_crit punit.gb_red"
+lemma (in gd_term) struct_spec_gb_punit: "punit.struct_spec punit.gb_sel add_pairs_punit_canon punit.add_basis_canon punit.gb_red"
+  using punit.sel_spec_gb_sel ap_spec_add_pairs_punit_canon ab_spec_add_basis_sorted punit.compl_struct_gb_red
+  by (rule punit.struct_specI)
 
-lemma struct_spec_gb_punit: "punit.struct_spec punit.gb_sel punit.gb_ap punit.gb_ab gb_compl_punit"
-  using punit.sel_spec_gb_sel punit.ap_spec_add_pairs_sorted ab_spec_add_basis_sorted
-proof (rule punit.struct_specI)
-  from punit.rcp_spec_gb_red show "punit.compl_struct gb_compl_punit"
-    by (rule punit.compl_struct_discard_red_cp)
-qed
-
-lemmas compl_conn_gb_compl_punit = punit.compl_conn_discard_red_cp[OF crit_spec_pc_crit punit.rcp_spec_gb_red]
-
-definition gb_aux_punit :: "nat \<times> nat \<times> 'd \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
+definition gb_aux_punit :: "('a, 'b, 'c) pdata list \<Rightarrow> nat \<times> nat \<times> 'd \<Rightarrow> ('a, 'b, 'c) pdata list \<Rightarrow>
                    ('a, 'b, 'c) pdata_pair list \<Rightarrow> ('a, 'b::field, 'c::default) pdata list"
-  where "gb_aux_punit = punit.gb_schema_aux punit.gb_sel punit.gb_ap punit.gb_ab gb_compl_punit"
+  where "gb_aux_punit = punit.gb_schema_aux punit.gb_sel add_pairs_punit_canon punit.add_basis_canon punit.gb_red"
 
-lemmas gb_aux_punit_simps [code] = punit.gb_schema_aux_simp[OF struct_spec_gb_punit, folded gb_aux_punit_def]
+lemmas gb_aux_punit_simps [code] = punit.gb_schema_aux_simps[OF struct_spec_gb_punit, folded gb_aux_punit_def]
 
 definition gb_punit :: "('a, 'b, 'c) pdata' list \<Rightarrow> 'd \<Rightarrow> ('a, 'b::field, 'c::default) pdata' list"
-  where "gb_punit = punit.gb_schema_direct punit.gb_sel punit.gb_ap punit.gb_ab gb_compl_punit"
+  where "gb_punit = punit.gb_schema_direct punit.gb_sel add_pairs_punit_canon punit.add_basis_canon punit.gb_red"
 
-lemmas gb_punit_simps [code] = punit.gb_schema_direct_def[of "punit.gb_sel" "punit.gb_ap"
-                                "punit.gb_ab" "gb_compl_punit", folded gb_punit_def gb_aux_punit_def]
+lemmas gb_punit_simps [code] = punit.gb_schema_direct_def[of "punit.gb_sel" add_pairs_punit_canon
+                                "punit.add_basis_canon" "punit.gb_red", folded gb_punit_def gb_aux_punit_def]
 
-lemmas gb_punit_isGB = punit.gb_schema_direct_isGB[OF struct_spec_gb_punit compl_conn_gb_compl_punit, folded gb_punit_def]
+lemmas gb_punit_isGB = punit.gb_schema_direct_isGB[OF struct_spec_gb_punit punit.compl_conn_gb_red, folded gb_punit_def]
 
-lemmas gb_punit_pmdl = punit.gb_schema_direct_pmdl[OF struct_spec_gb_punit punit.compl_pmdl_gb_compl, folded gb_punit_def]
+lemmas gb_punit_pmdl = punit.gb_schema_direct_pmdl[OF struct_spec_gb_punit punit.compl_pmdl_gb_red, folded gb_punit_def]
 
 end (* gd_term *)
 

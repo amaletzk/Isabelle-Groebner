@@ -39,19 +39,18 @@ global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
   and count_const_lt_components_scalar_drlex = drlex.punit.count_const_lt_components
   and count_rem_components_scalar_drlex = drlex.punit.count_rem_components
   and const_lt_component_scalar_drlex = drlex.punit.const_lt_component
-  and add_pairs_sorted_scalar_drlex = drlex.punit.add_pairs_sorted
   and full_gb_scalar_drlex = drlex.punit.full_gb
   and add_pairs_single_sorted_scalar_drlex = drlex.punit.add_pairs_single_sorted
-  and add_pairs_single_sorted_aux_scalar_drlex = drlex.punit.add_pairs_single_sorted_aux
-  and canon_pair_order_scalar_drlex = drlex.punit.canon_pair_order
+  and add_pairs_scalar_drlex = drlex.punit.add_pairs
+  and canon_pair_order_aux_scalar_drlex = drlex.punit.canon_pair_order_aux
   and canon_basis_order_scalar_drlex = drlex.punit.canon_basis_order
+  and new_pairs_sorted_scalar_drlex = drlex.punit.new_pairs_sorted
   and product_crit_scalar_drlex = drlex.punit.product_crit
-  and chain_crit_scalar_drlex = drlex.punit.chain_crit
-  and comb_crit_scalar_drlex = drlex.punit.comb_crit
-  and pc_crit_scalar_drlex = drlex.punit.pc_crit
-  and discard_crit_pairs_aux_scalar_drlex = drlex.punit.discard_crit_pairs_aux
-  and discard_crit_pairs_scalar_drlex = drlex.punit.discard_crit_pairs
-  and discard_red_cp_scalar_drlex = drlex.punit.discard_red_cp
+  and chain_ncrit_scalar_drlex = drlex.punit.chain_ncrit
+  and chain_ocrit_scalar_drlex = drlex.punit.chain_ocrit
+  and apply_icrit_scalar_drlex = drlex.punit.apply_icrit
+  and apply_ncrit_scalar_drlex = drlex.punit.apply_ncrit
+  and apply_ocrit_scalar_drlex = drlex.punit.apply_ocrit
   and trdsp_scalar_drlex = drlex.punit.trdsp
   and gb_sel_scalar_drlex = drlex.punit.gb_sel
   and gb_red_aux_scalar_drlex = drlex.punit.gb_red_aux
@@ -84,19 +83,18 @@ global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
   and count_const_lt_components_pot_drlex = drlex.pot.count_const_lt_components
   and count_rem_components_pot_drlex = drlex.pot.count_rem_components
   and const_lt_component_pot_drlex = drlex.pot.const_lt_component
-  and add_pairs_sorted_pot_drlex = drlex.pot.add_pairs_sorted
   and full_gb_pot_drlex = drlex.pot.full_gb
   and add_pairs_single_sorted_pot_drlex = drlex.pot.add_pairs_single_sorted
-  and add_pairs_single_sorted_aux_pot_drlex = drlex.pot.add_pairs_single_sorted_aux
-  and canon_pair_order_pot_drlex = drlex.pot.canon_pair_order
+  and add_pairs_pot_drlex = drlex.pot.add_pairs
+  and canon_pair_order_aux_pot_drlex = drlex.pot.canon_pair_order_aux
   and canon_basis_order_pot_drlex = drlex.pot.canon_basis_order
-  and product_crit_pot_drlex = drlex.pot.product_crit
-  and chain_crit_pot_drlex = drlex.pot.chain_crit
-  and comb_crit_pot_drlex = drlex.pot.comb_crit
-  and pc_crit_pot_drlex = drlex.pot.pc_crit
-  and discard_crit_pairs_aux_pot_drlex = drlex.pot.discard_crit_pairs_aux
-  and discard_crit_pairs_pot_drlex = drlex.pot.discard_crit_pairs
-  and discard_red_cp_pot_drlex = drlex.pot.discard_red_cp
+  and new_pairs_sorted_pot_drlex = drlex.pot.new_pairs_sorted
+  and component_crit_pot_drlex = drlex.pot.component_crit
+  and chain_ncrit_pot_drlex = drlex.pot.chain_ncrit
+  and chain_ocrit_pot_drlex = drlex.pot.chain_ocrit
+  and apply_icrit_pot_drlex = drlex.pot.apply_icrit
+  and apply_ncrit_pot_drlex = drlex.pot.apply_ncrit
+  and apply_ocrit_pot_drlex = drlex.pot.apply_ocrit
   and trdsp_pot_drlex = drlex.pot.trdsp
   and gb_sel_pot_drlex = drlex.pot.gb_sel
   and gb_red_aux_pot_drlex = drlex.pot.gb_red_aux
@@ -276,6 +274,6 @@ end
 
 value [code] "length (gb_scalar_drlex (map (\<lambda>p. (p, ())) ((cyclic 4)::(_ \<Rightarrow>\<^sub>0 rat) list)) ())"
 
-value [code] "length (gb_scalar_drlex (map (\<lambda>p. (p, ())) (Katsura 4)) ())"
+value [code] "length (gb_scalar_drlex (map (\<lambda>p. (p, ())) (Katsura 2)) ())"
 
 end (* theory *)

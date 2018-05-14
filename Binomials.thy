@@ -386,39 +386,87 @@ proof -
   show ?thesis unfolding p_def q_def by (rule spoly_monom, fact+)
 qed
 
-lemma gb_compl_monomial_set:
+lemma gb_red_monomial_set:
   assumes "\<And>p q. (p, q) \<in> set sps \<Longrightarrow> is_monomial (fst p) \<and> is_monomial (fst q)"
-  shows "fst (gb_compl gs bs ps sps data) = []"
+  shows "fst (gb_red gs bs ps sps data) = []"
 proof -
-  have "fst ` set (fst (gb_compl gs bs ps sps data)) = {}"
-  proof (simp only: discard_red_cp_def fst_set_fst_gb_red set_gb_red_aux Diff_eq_empty_iff)
-    have "set (discard_crit_pairs chain_crit gs bs ps sps data) \<subseteq> set sps"
-      by (simp add: set_discard_crit_pairs_partition[of sps chain_crit gs bs ps data])
-    hence "trdsp (map fst (gs @ bs)) ` set (discard_crit_pairs chain_crit gs bs ps sps data) \<subseteq>
-            trdsp (map fst (gs @ bs)) ` set sps" by (rule image_mono)
-    also have "... \<subseteq> {0}"
-    proof
-      fix h
-      assume "h \<in> trdsp (map fst (gs @ bs)) ` set sps"
-      then obtain p q where "(p, q) \<in> set sps" and h: "h = trdsp (map fst (gs @ bs)) (p, q)"
-        by fastforce
-      from this(1) have "is_monomial (fst p)" and "is_monomial (fst q)" by (simp_all add: assms)
-      hence spoly: "spoly (fst p) (fst q) = 0" by (rule spoly_monomial)
-      have "h = 0" unfolding h trdsp_alt spoly using rtrancl_0 trd_red_rtrancl by blast
-      thus "h \<in> {0}" by simp
-    qed
-    finally show "trdsp (map fst (gs @ bs)) ` set (discard_crit_pairs chain_crit gs bs ps sps data) \<subseteq> {0}" .
+  have "fst ` set (fst (gb_red gs bs ps sps data)) = {}"
+  proof (simp only: fst_set_fst_gb_red set_gb_red_aux Diff_eq_empty_iff, rule)
+    fix h
+    assume "h \<in> trdsp (map fst (gs @ bs)) ` set sps"
+    then obtain p q where "(p, q) \<in> set sps" and h: "h = trdsp (map fst (gs @ bs)) (p, q)"
+      by fastforce
+    from this(1) have "is_monomial (fst p)" and "is_monomial (fst q)" by (simp_all add: assms)
+    hence spoly: "spoly (fst p) (fst q) = 0" by (rule spoly_monomial)
+    have "h = 0" unfolding h trdsp_alt spoly using rtrancl_0 trd_red_rtrancl by blast
+    thus "h \<in> {0}" by simp
   qed
   thus ?thesis by simp
 qed
 
+lemma gb_schema_aux_induct [consumes 1, case_names base rec1 rec2]:
+  assumes "struct_spec sel ap ab compl"
+  assumes base: "\<And>bs data. P data bs [] (gs @ bs)"
+    and rec1: "\<And>bs ps sps data. ps \<noteq> [] \<Longrightarrow> sps = sel gs bs ps (snd data) \<Longrightarrow>
+                fst (data) \<le> count_const_lt_components (fst (compl gs bs (ps -- sps) sps (snd data))) \<Longrightarrow>
+                P data bs ps (full_gb (gs @ bs))"
+    and rec2: "\<And>bs ps sps aux hs rc data data'. ps \<noteq> [] \<Longrightarrow> sps = sel gs bs ps (snd data) \<Longrightarrow>
+                aux = compl gs bs (ps -- sps) sps (snd data) \<Longrightarrow> (hs, data') = add_indices aux (snd data) \<Longrightarrow>
+                rc = fst data - count_const_lt_components (fst aux) \<Longrightarrow> 0 < rc \<Longrightarrow>
+                P (rc, data') (ab gs bs hs data') (ap gs bs (ps -- sps) hs data')
+                  (gb_schema_aux sel ap ab compl gs (rc, data') (ab gs bs hs data') (ap gs bs (ps -- sps) hs data')) \<Longrightarrow>
+                P data bs ps (gb_schema_aux sel ap ab compl gs (rc, data') (ab gs bs hs data') (ap gs bs (ps -- sps) hs data'))"
+  shows "P data bs ps (gb_schema_aux sel ap ab compl gs data bs ps)"
+proof -
+  from assms(1) have "gb_schema_aux_dom sel ap ab compl gs (data, bs, ps)" by (rule gb_schema_aux_domI2)
+  thus ?thesis
+  proof (induct data bs ps rule: gb_schema_aux.pinduct)
+    case (1 data bs ps)
+    show ?case
+    proof (cases "ps = []")
+      case True
+      show ?thesis by (simp add: True, rule base)
+    next
+      case False
+      show ?thesis
+      proof (simp add: gb_schema_aux_simps[OF assms(1), of gs data bs ps] False Let_def split: if_split,
+            intro conjI impI)
+        define sps where "sps = sel gs bs ps (snd data)"
+        assume "fst data \<le> count_const_lt_components (fst (compl gs bs (ps -- sps) sps (snd data)))"
+        with False sps_def show "P data bs ps (full_gb (gs @ bs))" by (rule rec1)
+      next
+        define sps where "sps = sel gs bs ps (snd data)"
+        define aux where "aux = compl gs bs (ps -- sps) sps (snd data)"
+        define hs where "hs = fst (add_indices aux (snd data))"
+        define data' where "data' = snd (add_indices aux (snd data))"
+        define rc where "rc = fst data - count_const_lt_components (fst aux)"
+        have eq: "add_indices aux (snd data) = (hs, data')" by (simp add: hs_def data'_def)
+        assume "\<not> fst data \<le> count_const_lt_components (fst aux)"
+        hence "0 < rc" by (simp add: rc_def)
+        hence "rc \<noteq> 0" by simp
+        show "P data bs ps
+           (case add_indices aux (snd data) of
+            (hs, data') \<Rightarrow>
+              gb_schema_aux sel ap ab compl gs (rc, data')
+               (ab gs bs hs data') (ap gs bs (ps -- sps) hs data'))"
+          unfolding eq prod.case using False sps_def aux_def eq[symmetric] rc_def \<open>0 < rc\<close>
+        proof (rule rec2)
+          show "P (rc, data') (ab gs bs hs data') (ap gs bs (ps -- sps) hs data')
+                  (gb_schema_aux sel ap ab compl gs (rc, data') (ab gs bs hs data') (ap gs bs (ps -- sps) hs data'))"
+            using False sps_def refl aux_def rc_def \<open>rc \<noteq> 0\<close> eq[symmetric] refl by (rule 1)
+        qed
+      qed
+    qed
+  qed
+qed
+
 lemma gb_aux_monomial_set:
   assumes "\<And>p q. (p, q) \<in> (set ps) \<Longrightarrow> is_monomial (fst p) \<and> is_monomial (fst q)"
-  assumes "gb_aux data gs bs ps = gs @ bs \<Longrightarrow> thesis"
-    and "gb_aux data gs bs ps = full_gb (gs @ bs) \<Longrightarrow> thesis"
+  assumes "gb_aux gs data bs ps = gs @ bs \<Longrightarrow> thesis"
+    and "gb_aux gs data bs ps = full_gb (gs @ bs) \<Longrightarrow> thesis"
   shows thesis
   using struct_spec_gb assms unfolding gb_aux_def
-proof (induct data gs bs ps arbitrary: thesis rule: gb_schema_aux_induct)
+proof (induct data bs ps arbitrary: thesis rule: gb_schema_aux_induct)
   case (base bs data)
   from refl show ?case by (rule base.prems(2))
 next
@@ -426,23 +474,29 @@ next
   from refl show ?case by (rule rec1.prems(3))
 next
   case (rec2 bs ps sps aux hs rc data data')
-  have *: "fst (gb_compl gs bs (ps -- sps) sps (snd data)) = []"
-  proof (rule gb_compl_monomial_set, rule rec2.prems)
+  have *: "fst (gb_red gs bs (ps -- sps) sps (snd data)) = []"
+  proof (rule gb_red_monomial_set, rule rec2.prems)
     fix p q
     assume "(p, q) \<in> set sps"
     also from sel_spec_gb_sel rec2(1) have "... \<subseteq> set ps" unfolding rec2(2) by (rule sel_specD2)
     finally show "(p, q) \<in> set ps" .
   qed
-  have "hs = fst (add_indices (gb_compl gs bs (ps -- sps) sps (snd data)) (snd data))"
+  have "hs = fst (add_indices (gb_red gs bs (ps -- sps) sps (snd data)) (snd data))"
     by (simp add: rec2(4)[symmetric] rec2(3)[symmetric])
   also have "... = []" by (simp add: add_indices_def *)
   finally have "hs = []" .
-  hence eq: "gb_ab gs bs hs data' = bs" by (simp add: add_basis_sorted_def)
+  hence eq: "add_basis_canon gs bs hs data' = bs" by (simp add: add_basis_sorted_def)
   show ?case
   proof (rule rec2.hyps)
+    define ps1 where "ps1 = apply_ncrit chain_ncrit data' gs bs hs
+        (apply_icrit component_crit data' gs bs hs (new_pairs_sorted canon_pair_order gs bs hs data'))"
+    have "ps1 = []" by (simp add: ps1_def \<open>hs = []\<close> new_pairs_sorted_def apply_icrit_def apply_ncrit_def)
     fix p q
-    assume "(p, q) \<in> set (gb_ap gs bs (ps -- sps) hs data')"
-    hence "(p, q) \<in> set ps" by (simp add: \<open>hs = []\<close> set_add_pairs_sorted set_diff_list)
+    assume "(p, q) \<in> set (add_pairs_canon gs bs (ps -- sps) hs data')"
+    hence "(False, p, q) \<in> set ps1 \<or> ((p, q) \<in> set (ps -- sps) \<and> \<not> chain_ocrit data' hs ps1 p q)"
+      by (simp add: set_add_pairs_iff[of canon_pair_comb ps1 chain_ncrit data' gs bs hs component_crit
+            "new_pairs_sorted canon_pair_order", OF set_merge_wrt ps1_def])
+    hence "(p, q) \<in> set ps" by (simp add: set_diff_list \<open>ps1 = []\<close>)
     thus "is_monomial (fst p) \<and> is_monomial (fst q)" by (rule rec2.prems(1))
   qed (simp_all add: eq rec2.prems(2, 3))
 qed
@@ -452,16 +506,16 @@ lemma gb_is_monomial_set:
   shows "is_monomial_set (fst ` set (gb bs0 ()))"
 proof (simp add: gb_simps Let_def fst_set_drop_indices)
   define data0 where "data0 = (length bs0, ())"
-  define data where "data = (count_rem_components (gb_ab [] [] (fst (add_indices (bs0, ()) (0, ()))) data0), data0)"
+  define data where "data = (count_rem_components (add_basis_canon [] [] (fst (add_indices (bs0, ()) (0, ()))) data0), data0)"
   define bs where "bs = fst (add_indices (bs0, ()) (0, ()))"
-  define bs' where "bs' = gb_ab [] [] bs data0"
-  define ps where "ps = gb_ap [] [] [] bs data0"
+  define bs' where "bs' = add_basis_canon [] [] bs data0"
+  define ps where "ps = add_pairs_canon [] [] [] bs data0"
   have bs: "fst ` set bs = fst ` set bs0" by (simp add: bs_def fst_set_add_indices)
-  show "is_monomial_set (fst ` set (gb_aux data [] bs' ps))"
+  show "is_monomial_set (fst ` set (gb_aux [] data bs' ps))"
   proof (rule gb_aux_monomial_set)
     fix p q
     assume "(p, q) \<in> set ps"
-    also from ap_spec_add_pairs_sorted have "... \<subseteq> set [] \<union> set bs \<times> (set [] \<union> set [] \<union> set bs)"
+    also from ap_spec_add_pairs_canon have "... \<subseteq> set [] \<union> set bs \<times> (set [] \<union> set [] \<union> set bs)"
       unfolding ps_def by (rule ap_specD1)
     also have "... = set bs \<times> set bs" by simp
     finally have "(p, q) \<in> set bs \<times> set bs" .
@@ -470,12 +524,12 @@ proof (simp add: gb_simps Let_def fst_set_drop_indices)
     thus "is_monomial (fst p) \<and> is_monomial (fst q)"
       using assms unfolding is_monomial_set_def by auto
   next
-    assume "gb_aux data [] bs' ps = [] @ bs'"
+    assume "gb_aux [] data bs' ps = [] @ bs'"
     moreover have "fst ` set bs' = fst ` set bs0"
       by (simp add: bs'_def ab_specD1[OF ab_spec_add_basis_sorted] bs)
     ultimately show ?thesis by (simp add: assms)
   next
-    assume eq: "gb_aux data [] bs' ps = full_gb ([] @ bs')"
+    assume eq: "gb_aux [] data bs' ps = full_gb ([] @ bs')"
     show ?thesis
       by (simp add: eq full_gb_def is_monomial_set_def monomial_is_monomial)
   qed
@@ -619,15 +673,14 @@ proof -
   qed
 qed
 
-lemma gb_compl_binomial_set:
+lemma gb_red_binomial_set:
   assumes "\<And>p q. (p, q) \<in> set sps \<Longrightarrow> is_binomial (fst p) \<and> is_binomial (fst q)"
     and "is_binomial_set (fst ` set gs)" and "is_binomial_set (fst ` set bs)"
-  shows "is_binomial_set (fst ` set (fst (gb_compl gs bs ps sps data)))"
-proof (simp only: discard_red_cp_def fst_set_fst_gb_red set_gb_red_aux is_binomial_set_def, rule)
+  shows "is_binomial_set (fst ` set (fst (gb_red gs bs ps sps data)))"
+proof (simp only: fst_set_fst_gb_red set_gb_red_aux is_binomial_set_def, rule)
   fix h
-  assume "h \<in> trdsp (map fst (gs @ bs)) ` set (discard_crit_pairs chain_crit gs bs ps sps data) - {0}"
-  hence "h \<in> trdsp (map fst (gs @ bs)) ` set sps" and "h \<noteq> 0"
-    by (auto simp add: set_discard_crit_pairs_partition[of sps chain_crit gs bs ps data])
+  assume "h \<in> trdsp (map fst (gs @ bs)) ` set sps - {0}"
+  hence "h \<in> trdsp (map fst (gs @ bs)) ` set sps" and "h \<noteq> 0" by simp_all
   from this(1) obtain p q where "(p, q) \<in> set sps" and h: "h = trdsp (map fst (gs @ bs)) (p, q)"
     by fastforce
   from this(1) have "is_binomial (fst p)" and "is_binomial (fst q)" by (simp_all add: assms(1))
@@ -646,9 +699,9 @@ qed
 lemma gb_aux_binomial_set:
   assumes "\<And>p q. (p, q) \<in> (set ps) \<Longrightarrow> is_binomial (fst p) \<and> is_binomial (fst q)"
     and "is_binomial_set (fst ` set gs)" and "is_binomial_set (fst ` set bs)"
-  shows "is_binomial_set (fst ` set (gb_aux data gs bs ps))"
+  shows "is_binomial_set (fst ` set (gb_aux gs data bs ps))"
    unfolding gb_aux_def using struct_spec_gb assms(1, 3)
-proof (induct data gs bs ps rule: gb_schema_aux_induct)
+proof (induct gs data bs ps rule: gb_schema_aux_induct)
   case (base bs data)
   from assms(2) base(2) show ?case by (auto simp add: is_binomial_set_def)
 next
@@ -656,21 +709,21 @@ next
   show ?case by (simp add: is_binomial_set_def is_binomial_def full_gb_def)
 next
   case (rec2 bs ps sps aux hs rc data data')
-  have "is_binomial_set (fst ` set (fst (gb_compl gs bs (ps -- sps) sps (snd data))))"
-  proof (rule gb_compl_binomial_set, rule rec2.prems)
+  have "is_binomial_set (fst ` set (fst (gb_red gs bs (ps -- sps) sps (snd data))))"
+  proof (rule gb_red_binomial_set, rule rec2.prems)
     fix p q
     assume "(p, q) \<in> set sps"
     also from sel_spec_gb_sel rec2(1) have "... \<subseteq> set ps" unfolding rec2(2) by (rule sel_specD2)
     finally show "(p, q) \<in> set ps" .
   qed fact+
-  moreover have "hs = fst (add_indices (gb_compl gs bs (ps -- sps) sps (snd data)) (snd data))"
+  moreover have "hs = fst (add_indices (gb_red gs bs (ps -- sps) sps (snd data)) (snd data))"
     by (simp add: rec2(3, 4)[symmetric])
   ultimately have hs: "is_binomial_set (fst ` set hs)" by (simp add: fst_set_add_indices)
   show ?case
   proof (rule rec2.hyps)
     fix p q
-    assume "(p, q) \<in> set (gb_ap gs bs (ps -- sps) hs data')"
-    also from ap_spec_add_pairs_sorted have "... \<subseteq> set (ps -- sps) \<union> set hs \<times> (set gs \<union> set bs \<union> set hs)"
+    assume "(p, q) \<in> set (add_pairs_canon gs bs (ps -- sps) hs data')"
+    also from ap_spec_add_pairs_canon have "... \<subseteq> set (ps -- sps) \<union> set hs \<times> (set gs \<union> set bs \<union> set hs)"
       by (rule ap_specD1)
     also have "... \<subseteq> set ps \<union> set hs \<times> (set gs \<union> set bs \<union> set hs)" by (auto simp add: set_diff_list)
     finally show "is_binomial (fst p) \<and> is_binomial (fst q)"
@@ -697,7 +750,7 @@ next
       ultimately show ?thesis ..
     qed
   next
-    from rec2.prems(2) hs show "is_binomial_set (fst ` set (gb_ab gs bs hs data'))"
+    from rec2.prems(2) hs show "is_binomial_set (fst ` set (add_basis_canon gs bs hs data'))"
       by (auto simp add: ab_specD1[OF ab_spec_add_basis_sorted] is_binomial_set_def)
   qed
 qed
@@ -707,16 +760,16 @@ lemma gb_is_binomial_set:
   shows "is_binomial_set (fst ` set (gb bs0 ()))"
 proof (simp add: gb_simps Let_def fst_set_drop_indices)
   define data0 where "data0 = (length bs0, ())"
-  define data where "data = (count_rem_components (gb_ab [] [] (fst (add_indices (bs0, ()) (0, ()))) data0), data0)"
+  define data where "data = (count_rem_components (add_basis_canon [] [] (fst (add_indices (bs0, ()) (0, ()))) data0), data0)"
   define bs where "bs = fst (add_indices (bs0, ()) (0, ()))"
-  define bs' where "bs' = gb_ab [] [] bs data0"
-  define ps where "ps = gb_ap [] [] [] bs data0"
+  define bs' where "bs' = add_basis_canon [] [] bs data0"
+  define ps where "ps = add_pairs_canon [] [] [] bs data0"
   have bs: "fst ` set bs = fst ` set bs0" by (simp add: bs_def fst_set_add_indices)
-  show "is_binomial_set (fst ` set (gb_aux data [] bs' ps))"
+  show "is_binomial_set (fst ` set (gb_aux [] data bs' ps))"
   proof (rule gb_aux_binomial_set)
     fix p q
     assume "(p, q) \<in> set ps"
-    also from ap_spec_add_pairs_sorted have "... \<subseteq> set [] \<union> set bs \<times> (set [] \<union> set [] \<union> set bs)"
+    also from ap_spec_add_pairs_canon have "... \<subseteq> set [] \<union> set bs \<times> (set [] \<union> set [] \<union> set bs)"
       unfolding ps_def by (rule ap_specD1)
     also have "... = set bs \<times> set bs" by simp
     finally have "(p, q) \<in> set bs \<times> set bs" .
