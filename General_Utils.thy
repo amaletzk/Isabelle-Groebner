@@ -384,7 +384,7 @@ proof (induct xs arbitrary: i j)
   from Nil(3) show ?case by simp
 next
   case (Cons x xs)
-  from assms(1) Cons(2) have "(\<forall>y\<in>set xs. P x y) \<and> sorted_wrt P xs" by (simp add: sorted_wrt_Cons)
+  from assms(1) Cons(2) have "(\<forall>y\<in>set xs. P x y) \<and> sorted_wrt P xs" by simp
   hence *: "\<And>y. y \<in> set xs \<Longrightarrow> P x y" and "sorted_wrt P xs" by auto
   from \<open>i < j\<close> have "0 < j" by simp
   then obtain j' where "j = Suc j'" using gr0_conv_Suc by blast

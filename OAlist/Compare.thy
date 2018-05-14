@@ -683,10 +683,10 @@ by(cases xs)(auto dest: compare_trans' simp add: compare_eq_GREATER)
 end
 
 lemma dsorted_by_sorted: "c.dsorted_by comparator_of_le xs \<Longrightarrow> sorted xs"
-by(induct xs)(auto simp add: sorted_Cons comparator_on.dsorted_above_conv_dsorted_by[where D=UNIV] comparator_of_le_def split: if_split_asm)
+by(induct xs)(auto simp add: comparator_on.dsorted_above_conv_dsorted_by[where D=UNIV] comparator_of_le_def split: if_split_asm)
 
 lemma sorted_distinct_dsorted_by: "\<lbrakk> sorted xs; distinct xs \<rbrakk> \<Longrightarrow> c.dsorted_by comparator_of_le xs"
-by(induct xs)(auto simp add: sorted_Cons comparator_on.dsorted_above_conv_dsorted_by[where D=UNIV] comparator_of_le_def)
+by(induct xs)(auto simp add: comparator_on.dsorted_above_conv_dsorted_by[where D=UNIV] comparator_of_le_def)
 
 lemma dsorted_by_conv_sorted_distinct:
   "c.dsorted_by comparator_of_le xs \<longleftrightarrow> sorted xs \<and> distinct xs"

@@ -193,28 +193,27 @@ next
   hence 3: "sorted_wrt less_of_comp (map fst (update_by' (k, u) xs))" for u by (rule Cons(1))
   have 4: "sorted_wrt less_of_comp (k' # map fst (update_by' (k, u) xs))"
     if *: "compare_class.compare k k' = GREATER" for u
-  proof (rule sorted_wrt_ConsI)
+  proof (simp, intro conjI ballI)
     fix y
-    assume "y \<in> set (map fst (update_by' (k, u) xs))"
-    also have "... = fst ` set (update_by' (k, u) xs)" by simp
-    also from set_update_by'_subset have "... \<subseteq> fst ` insert (k, u) (set xs)" by (rule image_mono)
-    also have "... = insert k (fst ` set xs)" by simp
-    finally have "y = k \<or> y \<in> fst ` set xs" by simp
-    thus "less_of_comp k' y"
+    assume "y \<in> set (update_by' (k, u) xs)"
+    also from set_update_by'_subset have "... \<subseteq> insert (k, u) (set xs)" .
+    finally have "y = (k, u) \<or> y \<in> set xs" by simp
+    thus "less_of_comp k' (fst y)"
     proof
-      assume "y = k"
-      from * show ?thesis unfolding \<open>y = k\<close>
+      assume "y = (k, u)"
+      hence "fst y = k" by simp
+      from * show ?thesis unfolding \<open>fst y = k\<close>
         by (meson c.less_of_comparator_def compare_greater)
     next
-      from 1 have "\<forall>y \<in> fst ` set xs. less_of_comp k' y"
-        by (simp add: sorted_wrt_Cons[OF transp_less_of_comp])
-      moreover assume "y \<in> fst ` set xs"
-      ultimately show ?thesis ..
+      from 1 have 5: "\<forall>y \<in> fst ` set xs. less_of_comp k' y" by simp
+      assume "y \<in> set xs"
+      hence "fst y \<in> fst ` set xs" by simp
+      with 5 show ?thesis ..
     qed
   qed (fact 3)
   show ?case
-    by (simp add: kv x 1 2 4 split: comparison.split, intro conjI impI,
-        simp add: less_of_comp_alt, simp add: 1 compare_equal)
+    by (simp add: kv x 1 2 4 sorted_wrt2[OF transp_less_of_comp] split: comparison.split del: sorted_wrt.simps, intro conjI impI,
+        simp add: less_of_comp_alt, simp add: 1 compare_equal del: sorted_wrt.simps)
 qed
 
 lemma update_by'_not_zero:
@@ -296,8 +295,7 @@ proof (rule oalist_invI)
   thus "0 \<notin> snd ` set (filter P xs)" by auto
 next
   from assms have "sorted_wrt less_of_comp (map fst xs)" by (rule oalist_invD2)
-  thus "sorted_wrt less_of_comp (map fst (filter P xs))"
-    by (induct xs, simp, simp add: sorted_wrt_Cons[OF transp_less_of_comp])
+  thus "sorted_wrt less_of_comp (map fst (filter P xs))" by (induct xs, simp, simp)
 qed
 
 lemma map_val_raw_dom_subset: "fst ` set (map_val_raw f xs) \<subseteq> fst ` set xs"
@@ -319,17 +317,17 @@ next
     case (2 f kx vx xs)
     from 2(2) have 1: "sorted_wrt less_of_comp (kx # (map fst xs))" by simp
     hence 3: "\<forall>y \<in> fst ` set xs. less_of_comp kx y" and "sorted_wrt less_of_comp (map fst xs)"
-      by (simp_all add: sorted_wrt_Cons[OF transp_less_of_comp])
+      by simp_all
     from refl this(2) have 2: "sorted_wrt less_of_comp (map fst (map_val_raw f xs))" by (rule 2(1))
     show ?case
-    proof (simp add: Let_def 2, intro impI sorted_wrt_ConsI)
+    proof (simp add: Let_def 2, intro impI ballI)
       fix y
-      assume "y \<in> set (map fst (map_val_raw f xs))"
-      also have "... = fst ` set (map_val_raw f xs)" by simp
+      assume "y \<in> set (map_val_raw f xs)"
+      hence "fst y \<in> fst ` set (map_val_raw f xs)" by simp
       also have "... \<subseteq> fst ` set xs" by (fact map_val_raw_dom_subset)
-      finally have "y \<in> fst ` set xs" .
-      with 3 show "less_of_comp kx y" ..
-    qed (simp only: 2)
+      finally have "fst y \<in> fst ` set xs" .
+      with 3 show "less_of_comp kx (fst y)" ..
+    qed
   qed
 qed
 
@@ -380,7 +378,7 @@ proof -
     case (Cons x xs)
     obtain k v where x: "x = (k, v)" by fastforce
     from Cons(2) have *: "oalist_inv ((k, v) # (xs @ ys))" by (simp add: x)
-    hence 1: "oalist_inv (xs @ ys)" by (simp add: oalist_inv_def sorted_wrt_Cons[OF transp_less_of_comp])
+    hence 1: "oalist_inv (xs @ ys)" by (simp add: oalist_inv_def)
     hence 2: "foldr update_by' xs ys = xs @ ys" by (rule Cons(1))
     show ?case
     proof (simp add: 2 x, rule update_by'_eq_Cons)
