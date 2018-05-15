@@ -404,62 +404,6 @@ proof -
   thus ?thesis by simp
 qed
 
-lemma gb_schema_aux_induct [consumes 1, case_names base rec1 rec2]:
-  assumes "struct_spec sel ap ab compl"
-  assumes base: "\<And>bs data. P data bs [] (gs @ bs)"
-    and rec1: "\<And>bs ps sps data. ps \<noteq> [] \<Longrightarrow> sps = sel gs bs ps (snd data) \<Longrightarrow>
-                fst (data) \<le> count_const_lt_components (fst (compl gs bs (ps -- sps) sps (snd data))) \<Longrightarrow>
-                P data bs ps (full_gb (gs @ bs))"
-    and rec2: "\<And>bs ps sps aux hs rc data data'. ps \<noteq> [] \<Longrightarrow> sps = sel gs bs ps (snd data) \<Longrightarrow>
-                aux = compl gs bs (ps -- sps) sps (snd data) \<Longrightarrow> (hs, data') = add_indices aux (snd data) \<Longrightarrow>
-                rc = fst data - count_const_lt_components (fst aux) \<Longrightarrow> 0 < rc \<Longrightarrow>
-                P (rc, data') (ab gs bs hs data') (ap gs bs (ps -- sps) hs data')
-                  (gb_schema_aux sel ap ab compl gs (rc, data') (ab gs bs hs data') (ap gs bs (ps -- sps) hs data')) \<Longrightarrow>
-                P data bs ps (gb_schema_aux sel ap ab compl gs (rc, data') (ab gs bs hs data') (ap gs bs (ps -- sps) hs data'))"
-  shows "P data bs ps (gb_schema_aux sel ap ab compl gs data bs ps)"
-proof -
-  from assms(1) have "gb_schema_aux_dom sel ap ab compl gs (data, bs, ps)" by (rule gb_schema_aux_domI2)
-  thus ?thesis
-  proof (induct data bs ps rule: gb_schema_aux.pinduct)
-    case (1 data bs ps)
-    show ?case
-    proof (cases "ps = []")
-      case True
-      show ?thesis by (simp add: True, rule base)
-    next
-      case False
-      show ?thesis
-      proof (simp add: gb_schema_aux_simps[OF assms(1), of gs data bs ps] False Let_def split: if_split,
-            intro conjI impI)
-        define sps where "sps = sel gs bs ps (snd data)"
-        assume "fst data \<le> count_const_lt_components (fst (compl gs bs (ps -- sps) sps (snd data)))"
-        with False sps_def show "P data bs ps (full_gb (gs @ bs))" by (rule rec1)
-      next
-        define sps where "sps = sel gs bs ps (snd data)"
-        define aux where "aux = compl gs bs (ps -- sps) sps (snd data)"
-        define hs where "hs = fst (add_indices aux (snd data))"
-        define data' where "data' = snd (add_indices aux (snd data))"
-        define rc where "rc = fst data - count_const_lt_components (fst aux)"
-        have eq: "add_indices aux (snd data) = (hs, data')" by (simp add: hs_def data'_def)
-        assume "\<not> fst data \<le> count_const_lt_components (fst aux)"
-        hence "0 < rc" by (simp add: rc_def)
-        hence "rc \<noteq> 0" by simp
-        show "P data bs ps
-           (case add_indices aux (snd data) of
-            (hs, data') \<Rightarrow>
-              gb_schema_aux sel ap ab compl gs (rc, data')
-               (ab gs bs hs data') (ap gs bs (ps -- sps) hs data'))"
-          unfolding eq prod.case using False sps_def aux_def eq[symmetric] rc_def \<open>0 < rc\<close>
-        proof (rule rec2)
-          show "P (rc, data') (ab gs bs hs data') (ap gs bs (ps -- sps) hs data')
-                  (gb_schema_aux sel ap ab compl gs (rc, data') (ab gs bs hs data') (ap gs bs (ps -- sps) hs data'))"
-            using False sps_def refl aux_def rc_def \<open>rc \<noteq> 0\<close> eq[symmetric] refl by (rule 1)
-        qed
-      qed
-    qed
-  qed
-qed
-
 lemma gb_aux_monomial_set:
   assumes "\<And>p q. (p, q) \<in> (set ps) \<Longrightarrow> is_monomial (fst p) \<and> is_monomial (fst q)"
   assumes "gb_aux gs data bs ps = gs @ bs \<Longrightarrow> thesis"
