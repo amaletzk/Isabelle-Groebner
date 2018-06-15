@@ -117,7 +117,16 @@ lemma comparator_converse:
   shows "comparator (\<lambda>x y. cmp y x)"
 proof -
   from assms interpret comp: comparator cmp .
-  show "comparator (\<lambda>x y. cmp y x)" by (unfold_locales, auto simp: comp.eq comp.sym intro: comp.trans)
+  show ?thesis by (unfold_locales, auto simp: comp.eq comp.sym intro: comp.trans)
+qed
+
+lemma comparator_composition:
+  assumes "comparator cmp" and "inj f"
+  shows "comparator (\<lambda>x y. cmp (f x) (f y))"
+proof -
+  from assms(1) interpret comp: comparator cmp .
+  from assms(2) have *: "x = y" if "f x = f y" for x y using that by (rule injD)
+  show ?thesis by (unfold_locales, auto simp: comp.sym comp.eq * intro: comp.trans)
 qed
 
 (*
@@ -678,8 +687,7 @@ qed
 
 lemma lookup_pair_tl:
   assumes "oalist_inv_raw xs"
-  shows "lookup_pair (tl xs) k =
-          (if (\<forall>k'\<in>fst ` set xs. le k k') then 0 else lookup_pair xs k)"
+  shows "lookup_pair (tl xs) k = (if (\<forall>k'\<in>fst ` set xs. le k k') then 0 else lookup_pair xs k)"
 proof -
   from assms have 1: "oalist_inv_raw (tl xs)" by (rule oalist_inv_raw_tl)
   show ?thesis
@@ -717,6 +725,53 @@ proof -
     qed
     hence "comp k k' = Gt" by (simp add: Gt_lt_conv)
     thus "lookup_pair (tl xs) k = lookup_pair xs k" by (simp add: xs lt_of_key_order_alt)
+  qed
+qed
+
+lemma lookup_pair_tl':
+  assumes "oalist_inv_raw xs"
+  shows "lookup_pair (tl xs) k = (if k = fst (hd xs) then 0 else lookup_pair xs k)"
+proof -
+  from assms have 1: "oalist_inv_raw (tl xs)" by (rule oalist_inv_raw_tl)
+  show ?thesis
+  proof (split if_split, intro conjI impI)
+    assume k: "k = fst (hd xs)"
+    show "lookup_pair (tl xs) k = 0"
+    proof (simp add: lookup_pair_eq_0[OF 1], rule)
+      assume k_in: "k \<in> fst ` set (tl xs)"
+      hence "xs \<noteq> []" by auto
+      then obtain k' v' ys where xs: "xs = (k', v') # ys" using prod.exhaust list.exhaust by metis
+      from assms have "oalist_inv_raw ((k', v') # ys)" by (simp only: xs)
+      moreover from k_in have "k' \<in> fst ` set ys" by (simp add: k xs)
+      ultimately have "lt k' k'" by (rule oalist_inv_raw_ConsD3)
+      thus False by simp
+    qed
+  next
+    assume "k \<noteq> fst (hd xs)"
+    show "lookup_pair (tl xs) k = lookup_pair xs k"
+    proof (cases "xs = []")
+      case True
+      show ?thesis by (simp add: True)
+    next
+      case False
+      then obtain k' v' ys where xs: "xs = (k', v') # ys" using prod.exhaust list.exhaust by metis
+      show ?thesis
+      proof (simp add: xs eq Lt_lt_conv split: order.split, intro conjI impI)
+        from \<open>k \<noteq> fst (hd xs)\<close> have "k \<noteq> k'" by (simp add: xs)
+        moreover assume "k = k'"
+        ultimately show "lookup_pair ys k' = v'" ..
+      next
+        assume "lt k k'"
+        from assms have "oalist_inv_raw ys" unfolding xs by (rule oalist_inv_raw_ConsD1)
+        moreover have "k \<notin> fst ` set ys"
+        proof
+          assume "k \<in> fst ` set ys"
+          with assms have "lt k' k" unfolding xs by (rule oalist_inv_raw_ConsD3)
+          with \<open>lt k k'\<close> show False by simp
+        qed
+        ultimately show "lookup_pair ys k = 0" by (simp add: lookup_pair_eq_0)
+      qed
+    qed
   qed
 qed
 
@@ -788,6 +843,9 @@ proof (simp add: eq split: order.split, intro impI)
     with \<open>comp k0 k = Lt\<close> show False by (simp add: Lt_lt_conv)
   qed
 qed
+
+lemma lookup_pair_single: "lookup_pair [(k, v)] k0 = (if k = k0 then v else 0)"
+  by (simp add: eq split: order.split)
 
 subsubsection \<open>@{const update_by_pair}\<close>
 
@@ -1027,6 +1085,20 @@ corollary lookup_pair_update_by_fun_gr_pair:
 
 subsubsection \<open>@{const map_pair}\<close>
 
+lemma map_pair_cong:
+  assumes "\<And>kv. kv \<in> set xs \<Longrightarrow> f kv = g kv"
+  shows "map_pair f xs = map_pair g xs"
+  using assms
+proof (induct xs)
+  case Nil
+  show ?case by simp
+next
+  case (Cons x xs)
+  have "f x = g x" by (rule Cons(2), simp)
+  moreover have "map_pair f xs = map_pair g xs" by (rule Cons(1), rule Cons(2), simp)
+  ultimately show ?case by simp
+qed
+
 lemma map_pair_subset: "set (map_pair f xs) \<subseteq> f ` set xs"
 proof (induct xs rule: map_pair.induct)
   case (1 f)
@@ -1068,8 +1140,7 @@ next
 qed
 
 lemma lookup_pair_map_pair:
-  assumes "oalist_inv_raw xs"
-    and "\<And>k'. snd (f (k', 0)) = 0"
+  assumes "oalist_inv_raw xs" and "snd (f (k, 0)) = 0"
     and "\<And>a b. comp (fst (f a)) (fst (f b)) = comp (fst a) (fst b)"
   shows "lookup_pair (map_pair f xs) (fst (f (k, v))) = snd (f (k, lookup_pair xs k))"
   using assms(1)
@@ -1108,13 +1179,24 @@ next
   qed (simp add: f eq)
 qed
 
+lemma map_val_pair_cong:
+  assumes "\<And>k v. (k, v) \<in> set xs \<Longrightarrow> f k v = g k v"
+  shows "map_val_pair f xs = map_val_pair g xs"
+proof (rule map_pair_cong)
+  fix kv
+  assume "kv \<in> set xs"
+  moreover obtain k v where "kv = (k, v)" by fastforce
+  ultimately show "(case kv of (k, v) \<Rightarrow> (k, f k v)) = (case kv of (k, v) \<Rightarrow> (k, g k v))"
+    by (simp add: assms)
+qed
+
 lemma oalist_inv_raw_map_val_pair:
   assumes "oalist_inv_raw xs"
   shows "oalist_inv_raw (map_val_pair f xs)"
   by (rule oalist_inv_raw_map_pair, fact assms, auto)
 
 lemma lookup_pair_map_val_pair:
-  assumes "oalist_inv_raw xs" and "\<And>k'. f k' 0 = 0"
+  assumes "oalist_inv_raw xs" and "f k 0 = 0"
   shows "lookup_pair (map_val_pair f xs) k = f k (lookup_pair xs k)"
 proof -
   let ?f = "\<lambda>(k', v'). (k', f k' v')"
@@ -1124,6 +1206,18 @@ proof -
     by (rule lookup_pair_map_pair, fact assms(1), auto simp: assms(2))
   also have "... = f k (lookup_pair xs k)" by simp
   finally show ?thesis .
+qed
+
+lemma map_pair_id:
+  assumes "oalist_inv_raw xs"
+  shows "map_pair id xs = xs"
+  using assms
+proof (induct xs rule: oalist_inv_raw_induct)
+  case Nil
+  show ?case by simp
+next
+  case (Cons k v xs')
+  show ?case by (simp add: Let_def Cons(3, 5) id_def[symmetric])
 qed
 
 subsubsection \<open>@{const map2_val_pair}\<close>
@@ -1155,6 +1249,15 @@ proof -
   from assms oalist_inv_raw_Nil have "fst ` set (f []) \<subseteq> fst ` set ([]::('a \<times> 'b) list)"
     by (rule map2_val_compatD2)
   thus ?thesis by simp
+qed
+
+lemma map2_val_compat_id: "map2_val_compat id"
+  by (rule map2_val_compatI, auto)
+
+lemma map2_val_compat_map_val_pair: "map2_val_compat (map_val_pair f)"
+proof (rule map2_val_compatI, erule oalist_inv_raw_map_val_pair)
+  fix zs
+  from map_pair_subset image_iff show "fst ` set (map_val_pair f zs) \<subseteq> fst ` set zs" by fastforce
 qed
 
 lemma fst_map2_val_pair_subset:
@@ -2239,8 +2342,8 @@ fun lookup_raw :: "('a, 'b, 'o) oalist_raw \<Rightarrow> 'a \<Rightarrow> 'b::ze
 definition sorted_domain_raw :: "'o \<Rightarrow> ('a, 'b::zero, 'o) oalist_raw \<Rightarrow> 'a list"
   where "sorted_domain_raw ko xs = map fst (sort_oalist_aux ko xs)"
 
-definition except_min_raw :: "'o \<Rightarrow> ('a, 'b, 'o) oalist_raw \<Rightarrow> ('a, 'b::zero, 'o) oalist_raw"
-  where "except_min_raw ko xs = (List.tl (sort_oalist_aux ko xs), ko)"
+fun tl_raw :: "('a, 'b, 'o) oalist_raw \<Rightarrow> ('a, 'b::zero, 'o) oalist_raw"
+  where "tl_raw (xs, ko) = (List.tl xs, ko)"
 
 fun min_key_val_raw :: "'o \<Rightarrow> ('a, 'b, 'o) oalist_raw \<Rightarrow> ('a \<times> 'b::zero)"
   where "min_key_val_raw ko (xs, ox) =
@@ -2320,6 +2423,25 @@ qed
 
 subsubsection \<open>@{const lookup_raw}\<close>
 
+lemma lookup_raw_eq_value:
+  assumes "oalist_inv xs" and "v \<noteq> 0"
+  shows "lookup_raw xs k = v \<longleftrightarrow> ((k, v) \<in> set (fst xs))"
+proof -
+  obtain xs' ox where xs: "xs = (xs', ox)" by fastforce
+  from assms(1) have "oalist_inv_raw ox xs'" by (simp add: xs oalist_inv_def)
+  show ?thesis by (simp add: xs, rule lookup_pair_eq_value, fact+)
+qed
+
+lemma lookup_raw_eq_valueI:
+  assumes "oalist_inv xs" and "(k, v) \<in> set (fst xs)"
+  shows "lookup_raw xs k = v"
+proof -
+  obtain xs' ox where xs: "xs = (xs', ox)" by fastforce
+  from assms(1) have "oalist_inv_raw ox xs'" by (simp add: xs oalist_inv_def)
+  from assms(2) have "(k, v) \<in> set xs'" by (simp add: xs)
+  show ?thesis by (simp add: xs, rule lookup_pair_eq_valueI, fact+)
+qed
+
 lemma lookup_raw_inj:
   assumes "oalist_inv (xs, ko)" and "oalist_inv (ys, ko)" and "lookup_raw (xs, ko) = lookup_raw (ys, ko)"
   shows "xs = ys"
@@ -2348,22 +2470,83 @@ lemma sorted_sorted_domain_raw:
   unfolding sorted_domain_raw_def oalist_inv_alt lt_of_key_order.rep_eq
   by (rule oalist_inv_rawD2, rule oalist_inv_raw_sort_oalist_aux, fact)
 
-subsubsection \<open>@{const except_min_raw}\<close>
+subsubsection \<open>@{const tl_raw}\<close>
 
-lemma oalist_inv_except_min_raw:
+lemma oalist_inv_tl_raw:
   assumes "oalist_inv xs"
-  shows "oalist_inv (except_min_raw ko xs)"
-  unfolding except_min_raw_def oalist_inv_alt
-  by (rule oalist_inv_raw_tl, rule oalist_inv_raw_sort_oalist_aux, fact)
+  shows "oalist_inv (tl_raw xs)"
+proof -
+  obtain xs' ko where xs: "xs = (xs', ko)" by fastforce
+  from assms show ?thesis unfolding xs tl_raw.simps oalist_inv_alt by (rule oalist_inv_raw_tl)
+qed
 
-lemma lookup_raw_except_min_raw:
+lemma lookup_raw_tl_raw:
   assumes "oalist_inv xs"
-  shows "lookup_raw (except_min_raw ko xs) k =
-          (if (\<forall>k'\<in>fst ` set (fst xs). le ko k k') then 0 else lookup_raw xs k)"
-  using assms by (simp add: except_min_raw_def lookup_pair_tl oalist_inv_raw_sort_oalist_aux
-      lookup_pair_sort_oalist_aux set_sort_oalist_aux split del: if_split cong: if_cong)
+  shows "lookup_raw (tl_raw xs) k =
+          (if (\<forall>k'\<in>fst ` set (fst xs). le (snd xs) k k') then 0 else lookup_raw xs k)"
+proof -
+  obtain xs' ko where xs: "xs = (xs', ko)" by fastforce
+  from assms show ?thesis by (simp add: xs lookup_pair_tl oalist_inv_alt split del: if_split cong: if_cong)
+qed
+
+lemma lookup_raw_tl_raw':
+  assumes "oalist_inv xs"
+  shows "lookup_raw (tl_raw xs) k = (if k = fst (List.hd (fst xs)) then 0 else lookup_raw xs k)"
+proof -
+  obtain xs' ko where xs: "xs = (xs', ko)" by fastforce
+  from assms show ?thesis by (simp add: xs lookup_pair_tl' oalist_inv_alt)
+qed
 
 subsubsection \<open>@{const min_key_val_raw}\<close>
+
+lemma min_key_val_raw_alt:
+  assumes "oalist_inv xs" and "fst xs \<noteq> []"
+  shows "min_key_val_raw ko xs = List.hd (sort_oalist_aux ko xs)"
+proof -
+  obtain xs' ox where xs: "xs = (xs', ox)" by fastforce
+  from assms(2) have "xs' \<noteq> []" by (simp add: xs)
+  interpret ko2: comparator2 "key_compare (rep_key_order ko)" "key_compare (rep_key_order ox)" ..
+  from assms(1) have "oalist_inv_raw ox xs'" by (simp only: xs oalist_inv_alt)
+  hence set_sort: "set (sort_oalist ko xs') = set xs'" by (rule ko2.set_sort_oalist)
+  also from \<open>xs' \<noteq> []\<close> have "... \<noteq> {}" by simp
+  finally have "sort_oalist ko xs' \<noteq> []" by simp
+  then obtain k v xs'' where eq: "sort_oalist ko xs' = (k, v) # xs''"
+    using prod.exhaust list.exhaust by metis
+  hence "(k, v) \<in> set xs'" by (simp add: set_sort[symmetric])
+  have *: "le ko k k'" if "k' \<in> fst ` set xs'" for k'
+  proof -
+    from that have "k' = k \<or> k' \<in> fst ` set xs''" by (simp add: set_sort[symmetric] eq)
+    thus ?thesis
+    proof
+      assume "k' = k"
+      thus ?thesis by simp
+    next
+      have "oalist_inv_raw ko ((k, v) # xs'')" unfolding eq[symmetric] by (fact oalist_inv_raw_sort_oalist)
+      moreover assume "k' \<in> fst ` set xs''"
+      ultimately have "lt ko k k'" by (rule oalist_inv_raw_ConsD3)
+      thus ?thesis by simp
+    qed
+  qed
+  from \<open>xs' \<noteq> []\<close> have "min_list_param (\<lambda>x y. le ko (fst x) (fst y)) xs' \<in> set xs'" by (rule min_list_param_in)
+  with \<open>oalist_inv_raw ox xs'\<close> have "lookup_pair ox xs' (fst (min_list_param (\<lambda>x y. le ko (fst x) (fst y)) xs')) =
+    snd (min_list_param (\<lambda>x y. le ko (fst x) (fst y)) xs')" by (auto intro: lookup_pair_eq_valueI)
+  moreover have 1: "fst (min_list_param (\<lambda>x y. le ko (fst x) (fst y)) xs') = k"
+  proof (rule antisym)
+    from order.trans
+    have "transp (\<lambda>x y. le ko (fst x) (fst y))" by (rule transpI)
+    hence "le ko (fst (min_list_param (\<lambda>x y. le ko (fst x) (fst y)) xs')) (fst (k, v))"
+      using linear \<open>(k, v) \<in> set xs'\<close> by (rule min_list_param_minimal)
+    thus "le ko (fst (min_list_param (\<lambda>x y. le ko (fst x) (fst y)) xs')) k" by simp
+  next
+    show "le ko k (fst (min_list_param (\<lambda>x y. le ko (fst x) (fst y)) xs'))" by (rule *, rule imageI, fact)
+  qed
+  ultimately have "snd (min_list_param (\<lambda>x y. le ko (fst x) (fst y)) xs') = lookup_pair ox xs' k"
+    by simp
+  also from \<open>oalist_inv_raw ox xs'\<close> \<open>(k, v) \<in> set xs'\<close> have "... = v" by (rule lookup_pair_eq_valueI)
+  finally have "snd (min_list_param (\<lambda>x y. le ko (fst x) (fst y)) xs') = v" .
+  with 1 have "min_list_param (\<lambda>x y. le ko (fst x) (fst y)) xs' = (k, v)" by auto
+  thus ?thesis by (simp add: xs eq)
+qed
 
 lemma min_key_val_raw_in:
   assumes "fst xs \<noteq> []"
@@ -2506,6 +2689,21 @@ corollary lookup_raw_update_by_fun_gr_raw:
 
 subsubsection \<open>@{const map_raw} and @{const map_val_raw}\<close>
 
+lemma map_raw_cong:
+  assumes "\<And>kv. kv \<in> set (fst xs) \<Longrightarrow> f kv = g kv"
+  shows "map_raw f xs = map_raw g xs"
+proof -
+  obtain xs' ko where xs: "xs = (xs', ko)" by fastforce
+  from assms have "f kv = g kv" if "kv \<in> set xs'" for kv using that by (simp add: xs)
+  thus ?thesis by (simp add: xs, rule map_pair_cong)
+qed
+
+lemma map_raw_subset: "set (fst (map_raw f xs)) \<subseteq> f ` set (fst xs)"
+proof -
+  obtain xs' ko where xs: "xs = (xs', ko)" by fastforce
+  show ?thesis by (simp add: xs map_pair_subset)
+qed
+
 lemma oalist_inv_map_raw:
   assumes "oalist_inv xs"
     and "\<And>a b. key_compare (rep_key_order (snd xs)) (fst (f a)) (fst (f b)) = key_compare (rep_key_order (snd xs)) (fst a) (fst b)"
@@ -2520,8 +2718,7 @@ proof -
 qed
 
 lemma lookup_raw_map_raw:
-  assumes "oalist_inv xs"
-    and "\<And>k'. snd (f (k', 0)) = 0"
+  assumes "oalist_inv xs" and "snd (f (k, 0)) = 0"
     and "\<And>a b. key_compare (rep_key_order (snd xs)) (fst (f a)) (fst (f b)) = key_compare (rep_key_order (snd xs)) (fst a) (fst b)"
   shows "lookup_raw (map_raw f xs) (fst (f (k, v))) = snd (f (k, lookup_raw xs k))"
 proof -
@@ -2552,6 +2749,17 @@ proof -
   thus ?thesis by (simp add: xs)
 qed
 
+lemma map_val_raw_cong:
+  assumes "\<And>k v. (k, v) \<in> set (fst xs) \<Longrightarrow> f k v = g k v"
+  shows "map_val_raw f xs = map_val_raw g xs"
+proof (rule map_raw_cong)
+  fix kv
+  assume "kv \<in> set (fst xs)"
+  moreover obtain k v where "kv = (k, v)" by fastforce
+  ultimately show "(case kv of (k, v) \<Rightarrow> (k, f k v)) = (case kv of (k, v) \<Rightarrow> (k, g k v))"
+    by (simp add: assms)
+qed
+
 lemma oalist_inv_map_val_raw:
   assumes "oalist_inv xs"
   shows "oalist_inv (map_val_raw f xs)"
@@ -2561,7 +2769,7 @@ proof -
 qed
 
 lemma lookup_raw_map_val_raw:
-  assumes "oalist_inv xs" and "\<And>k'. f k' 0 = 0"
+  assumes "oalist_inv xs" and "f k 0 = 0"
   shows "lookup_raw (map_val_raw f xs) k = f k (lookup_raw xs k)"
 proof -
   obtain xs' ko where xs: "xs = (xs', ko)" by fastforce
@@ -2967,8 +3175,17 @@ definition sorted_domain :: "'o \<Rightarrow> 'x \<Rightarrow> 'a list"
 definition empty :: "'o \<Rightarrow> 'x"
   where "empty ko = oalist_of_list ([], ko)"
 
+definition reorder :: "'o \<Rightarrow> 'x \<Rightarrow> 'x"
+  where "reorder ko xs = oalist_of_list (sort_oalist_aux ko (list_of_oalist xs), ko)"
+
+definition tl :: "'x \<Rightarrow> 'x"
+  where "tl xs = oalist_of_list (tl_raw (list_of_oalist xs))"
+
+definition hd :: "'x \<Rightarrow> ('a \<times> 'b)"
+  where "hd xs = List.hd (fst (list_of_oalist xs))"
+
 definition except_min :: "'o \<Rightarrow> 'x \<Rightarrow> 'x"
-  where "except_min ko xs = oalist_of_list (except_min_raw ko (list_of_oalist xs))"
+  where "except_min ko xs = tl (reorder ko xs)"
 
 definition min_key_val :: "'o \<Rightarrow> 'x \<Rightarrow> ('a \<times> 'b)"
   where "min_key_val ko xs = min_key_val_raw ko (list_of_oalist xs)"
@@ -2991,6 +3208,14 @@ definition map2_val_neutr :: "('a \<Rightarrow> 'b \<Rightarrow> 'b \<Rightarrow
 definition oalist_eq :: "'x \<Rightarrow> 'x \<Rightarrow> bool"
   where "oalist_eq xs ys = oalist_eq_raw (list_of_oalist xs) (list_of_oalist ys)"
 
+subsubsection \<open>@{const lookup}\<close>
+
+lemma lookup_eq_value: "v \<noteq> 0 \<Longrightarrow> lookup xs k = v \<longleftrightarrow> ((k, v) \<in> set (fst (list_of_oalist xs)))"
+  unfolding lookup_def using oalist_inv_list_of_oalist by (rule lookup_raw_eq_value)
+
+lemma lookup_eq_valueI: "(k, v) \<in> set (fst (list_of_oalist xs)) \<Longrightarrow> lookup xs k = v"
+  unfolding lookup_def using oalist_inv_list_of_oalist by (rule lookup_raw_eq_valueI)
+
 subsubsection \<open>@{const sorted_domain}\<close>
 
 lemma set_sorted_domain: "set (sorted_domain ko xs) = fst ` set (fst (list_of_oalist xs))"
@@ -3004,7 +3229,7 @@ lemma sorted_sorted_domain: "sorted_wrt (lt ko) (sorted_domain ko xs)"
   unfolding sorted_domain_def lt_of_key_order.rep_eq[symmetric]
   using oalist_inv_list_of_oalist by (rule sorted_sorted_domain_raw)
 
-subsubsection \<open>@{const empty}\<close>
+subsubsection \<open>@{const empty} and Singletons\<close>
 
 lemma list_of_oalist_empty [simp, code abstract]: "list_of_oalist (empty ko) = ([], ko)"
   by (simp add: empty_def sort_oalist_def list_of_oalist_of_list)
@@ -3012,19 +3237,62 @@ lemma list_of_oalist_empty [simp, code abstract]: "list_of_oalist (empty ko) = (
 lemma lookup_empty: "lookup (empty ko) k = 0"
   by (simp add: lookup_def)
 
-subsubsection \<open>@{const except_min}\<close>
+lemma lookup_oalist_of_list_single:
+  "lookup (oalist_of_list ([(k, v)], ko)) k' = (if k = k' then v else 0)"
+  by (simp add: lookup_def list_of_oalist_of_list sort_oalist_def key_compare_Eq split: order.split)
 
-lemma list_of_oalist_except_min [simp, code abstract]:
-  "list_of_oalist (except_min ko xs) = except_min_raw ko (list_of_oalist xs)"
-  unfolding except_min_def
-  by (rule list_of_oalist_of_list_id, rule oalist_inv_except_min_raw, fact oalist_inv_list_of_oalist)
+subsubsection \<open>@{const reorder}\<close>
 
-lemma lookup_except_min:
-  "lookup (except_min ko xs) k =
-        (if (\<forall>k'\<in>fst ` set (fst (list_of_oalist xs)). le ko k k') then 0 else lookup xs k)"
-  by (simp add: lookup_def lookup_raw_except_min_raw oalist_inv_list_of_oalist split del: if_split cong: if_cong)
+lemma list_of_oalist_reorder [simp, code abstract]:
+  "list_of_oalist (reorder ko xs) = (sort_oalist_aux ko (list_of_oalist xs), ko)"
+  unfolding reorder_def
+  by (rule list_of_oalist_of_list_id, simp add: oalist_inv_def, rule oalist_inv_raw_sort_oalist_aux, fact oalist_inv_list_of_oalist)
+
+lemma lookup_reorder: "lookup (reorder ko xs) k = lookup xs k"
+  by (simp add: lookup_def lookup_pair_sort_oalist_aux oalist_inv_list_of_oalist)
+
+subsubsection \<open>@{const hd} and @{const tl}\<close>
+
+lemma list_of_oalist_tl [simp, code abstract]: "list_of_oalist (tl xs) = tl_raw (list_of_oalist xs)"
+  unfolding tl_def
+  by (rule list_of_oalist_of_list_id, rule oalist_inv_tl_raw, fact oalist_inv_list_of_oalist)
+
+lemma lookup_tl:
+  "lookup (tl xs) k =
+        (if (\<forall>k'\<in>fst ` set (fst (list_of_oalist xs)). le (snd (list_of_oalist xs)) k k') then 0 else lookup xs k)"
+  by (simp add: lookup_def lookup_raw_tl_raw oalist_inv_list_of_oalist)
+
+lemma hd_in:
+  assumes "fst (list_of_oalist xs) \<noteq> []"
+  shows "hd xs \<in> set (fst (list_of_oalist xs))"
+  unfolding hd_def using assms by (rule hd_in_set)
+
+lemma snd_hd:
+  assumes "fst (list_of_oalist xs) \<noteq> []"
+  shows "snd (hd xs) = lookup xs (fst (hd xs))"
+proof -
+  from assms have *: "hd xs \<in> set (fst (list_of_oalist xs))" by (rule hd_in)
+  show ?thesis by (rule HOL.sym, rule lookup_eq_valueI, simp add: *)
+qed
+
+lemma lookup_tl': "lookup (tl xs) k = (if k = fst (hd xs) then 0 else lookup xs k)"
+  by (simp add: lookup_def lookup_raw_tl_raw' oalist_inv_list_of_oalist hd_def)
+
+lemma hd_tl:
+  assumes "fst (list_of_oalist xs) \<noteq> []"
+  shows "list_of_oalist xs = ((hd xs) # (fst (list_of_oalist (tl xs))), snd (list_of_oalist (tl xs)))"
+proof -
+  obtain xs' ko where xs: "list_of_oalist xs = (xs', ko)" by fastforce
+  from assms obtain x xs'' where xs': "xs' = x # xs''" unfolding xs fst_conv using list.exhaust by blast
+  show ?thesis by (simp add: xs xs' hd_def)
+qed
 
 subsubsection \<open>@{const min_key_val}\<close>
+
+lemma min_key_val_alt:
+  assumes "fst (list_of_oalist xs) \<noteq> []"
+  shows "min_key_val ko xs = hd (reorder ko xs)"
+  using assms oalist_inv_list_of_oalist by (simp add: min_key_val_def hd_def min_key_val_raw_alt)
 
 lemma min_key_val_in:
   assumes "fst (list_of_oalist xs) \<noteq> []"
@@ -3041,6 +3309,37 @@ lemma min_key_val_minimal:
   shows "le ko (fst (min_key_val ko xs)) (fst z)"
   unfolding min_key_val_def
   by (rule min_key_val_raw_minimal, fact oalist_inv_list_of_oalist, fact)
+
+subsubsection \<open>@{const except_min}\<close>
+
+lemma list_of_oalist_except_min [simp, code abstract]:
+  "list_of_oalist (except_min ko xs) = (List.tl (sort_oalist_aux ko (list_of_oalist xs)), ko)"
+  by (simp add: except_min_def)
+
+lemma except_min_Nil:
+  assumes "fst (list_of_oalist xs) = []"
+  shows "fst (list_of_oalist (except_min ko xs)) = []"
+proof -
+  obtain xs' ox where eq: "list_of_oalist xs = (xs', ox)" by fastforce
+  from assms have "xs' = []" by (simp add: eq)
+  show ?thesis by (simp add: eq \<open>xs' = []\<close> sort_oalist_def)
+qed
+
+lemma lookup_except_min:
+  "lookup (except_min ko xs) k =
+        (if (\<forall>k'\<in>fst ` set (fst (list_of_oalist xs)). le ko k k') then 0 else lookup xs k)"
+  by (simp add: except_min_def lookup_tl set_sort_oalist_aux oalist_inv_list_of_oalist lookup_reorder)
+
+lemma lookup_except_min':
+  "lookup (except_min ko xs) k = (if k = fst (min_key_val ko xs) then 0 else lookup xs k)"
+proof (cases "fst (list_of_oalist xs) = []")
+  case True
+  hence "lookup xs k = 0" by (metis empty_def lookup_empty oalist_of_list_of_oalist prod.collapse)
+  thus ?thesis by (simp add: lookup_except_min True)
+next
+  case False
+  thus ?thesis by (simp add: except_min_def lookup_tl' min_key_val_alt lookup_reorder)
+qed
 
 subsubsection \<open>@{const insert}\<close>
 
@@ -3147,15 +3446,18 @@ definition prod_ord :: "('a \<Rightarrow> 'b \<Rightarrow> 'c \<Rightarrow> bool
 
 subsubsection \<open>@{const map_val}\<close>
 
+lemma map_val_cong:
+  assumes "\<And>k v. (k, v) \<in> set (fst (list_of_oalistx xs)) \<Longrightarrow> f k v = g k v"
+  shows "map_val f xs = map_val g xs"
+  unfolding map_val_def by (rule arg_cong[where f=oalist_of_listy], rule map_val_raw_cong, elim assms)
+
 lemma list_of_oalist_map_val [simp, code abstract]:
   "list_of_oalisty (map_val f xs) = map_val_raw f (list_of_oalistx xs)"
   unfolding map_val_def
   by (rule oay.list_of_oalist_of_list_id, rule oalist_inv_map_val_raw, fact oalist_inv_list_of_oalist)
 
-lemma lookup_map_val:
-  assumes "\<And>k'. f k' 0 = 0"
-  shows "oay.lookup (map_val f xs) k = f k (lookup xs k)"
-  by (simp add: oay.lookup_def lookup_def lookup_raw_map_val_raw assms oalist_inv_list_of_oalist)
+lemma lookup_map_val: "f k 0 = 0 \<Longrightarrow> oay.lookup (map_val f xs) k = f k (lookup xs k)"
+  by (simp add: oay.lookup_def lookup_def lookup_raw_map_val_raw oalist_inv_list_of_oalist)
 
 subsubsection \<open>@{const map2_val} and @{const map2_val_rneutr}\<close>
 
@@ -3252,7 +3554,7 @@ lemma prod_ord_alt:
 
 end (* oalist_abstract3 *)
 
-subsection \<open>Abstract characterisation\<close>
+subsection \<open>Type \<open>oalist\<close>\<close>
 
 global_interpretation ko: comparator "key_compare ko"
   defines lookup_pair_ko = ko.lookup_pair
@@ -3264,6 +3566,9 @@ global_interpretation ko: comparator "key_compare ko"
   and prod_ord_pair_ko = ko.prod_ord_pair
   and sort_oalist_ko' = ko.sort_oalist
   by (fact comparator_key_compare)
+
+lemma ko_le: "ko.le = le_of_key_order"
+  by (intro ext, simp add: le_of_comp_def le_of_key_order_alt split: order.split)
 
 global_interpretation ko: oalist_raw "\<lambda>x. x"
   rewrites "comparator.lookup_pair (key_compare ko) = lookup_pair_ko ko"
@@ -3277,7 +3582,7 @@ global_interpretation ko: oalist_raw "\<lambda>x. x"
   defines sort_oalist_aux_ko = ko.sort_oalist_aux
   and lookup_ko = ko.lookup_raw
   and sorted_domain_ko = ko.sorted_domain_raw
-  and except_min_ko = ko.except_min_raw
+  and tl_ko = ko.tl_raw
   and min_key_val_ko = ko.min_key_val_raw
   and update_by_ko = ko.update_by_raw
   and update_by_fun_ko = ko.update_by_fun_raw
@@ -3337,6 +3642,9 @@ global_interpretation oa: oalist_abstract "\<lambda>x. x" list_of_oalist OAlist
   defines OAlist_lookup = oa.lookup
   and OAlist_sorted_domain = oa.sorted_domain
   and OAlist_empty = oa.empty
+  and OAlist_reorder = oa.reorder
+  and OAlist_tl = oa.tl
+  and OAlist_hd = oa.hd
   and OAlist_except_min = oa.except_min
   and OAlist_min_key_val = oa.min_key_val
   and OAlist_insert = oa.insert
