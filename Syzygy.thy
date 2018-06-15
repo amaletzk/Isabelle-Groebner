@@ -834,7 +834,7 @@ lemma syz_cofactors:
   using assms
 proof (induct rule: pprod.pmdl_induct)
   case module_0
-  show ?case by (simp add: id_def[symmetric], rule sum_list_zeroI', simp)
+  show ?case by (simp, rule sum_list_zeroI', simp)
 next
   case (module_plus p b c t)
   from this(3) obtain i where i: "i < length bs" and b: "b = (init_syzygy_list bs) ! i"

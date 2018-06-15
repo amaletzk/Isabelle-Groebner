@@ -143,7 +143,7 @@ subsubsection \<open>Unit\<close>
 sublocale punit: ordered_term to_pair_unit fst "(\<preceq>)" "(\<prec>)" "(\<preceq>)" "(\<prec>)"
   apply standard
   subgoal by (simp, fact plus_monotone_left)
-  subgoal by (simp only: punit_pp_of_term punit_component_of_term id_def)
+  subgoal by (simp only: punit_pp_of_term punit_component_of_term)
   done
 
 lemma punit_min_term [simp]: "punit.min_term = 0"
@@ -185,7 +185,7 @@ lemma ord_potI':
   shows "ord_pot u v"
   unfolding ord_pot_def using assms by auto
 
-sublocale pot: ordered_term "id::('a \<times> 'k::{the_min,wellorder}) \<Rightarrow> _" id "(\<preceq>)" "(\<prec>)" ord_pot ord_pot_strict
+sublocale pot: ordered_term "\<lambda>x::'a \<times> 'k::{the_min,wellorder}. x" "\<lambda>x. x" "(\<preceq>)" "(\<prec>)" ord_pot ord_pot_strict
   apply standard
   subgoal unfolding ord_pot_strict_def using ord_pot_lin by blast
   subgoal by (fact ord_pot_refl)
@@ -232,7 +232,7 @@ lemma ord_topI':
   shows "ord_top u v"
   unfolding ord_top_def using assms by auto
 
-sublocale top: ordered_term "id::('a \<times> 'k::{the_min,wellorder}) \<Rightarrow> _" id "(\<preceq>)" "(\<prec>)" ord_top ord_top_strict
+sublocale top: ordered_term "\<lambda>x::'a \<times> 'k::{the_min,wellorder}. x" "\<lambda>x. x" "(\<preceq>)" "(\<prec>)" ord_top ord_top_strict
   apply standard
   subgoal unfolding ord_top_strict_def using ord_top_lin by blast
   subgoal by (fact ord_top_refl)
@@ -3481,9 +3481,9 @@ begin
 
 sublocale punit: gd_term to_pair_unit fst "(\<preceq>)" "(\<prec>)" "(\<preceq>)" "(\<prec>)" ..
 
-sublocale pot: gd_term "id::('a \<times> 'k::{the_min,wellorder}) \<Rightarrow> _" id "(\<preceq>)" "(\<prec>)" ord_pot ord_pot_strict ..
+sublocale pot: gd_term "\<lambda>x::'a \<times> 'k::{the_min,wellorder}. x" "\<lambda>x. x" "(\<preceq>)" "(\<prec>)" ord_pot ord_pot_strict ..
 
-sublocale top: gd_term "id::('a \<times> 'k::{the_min,wellorder}) \<Rightarrow> _" id "(\<preceq>)" "(\<prec>)" ord_top ord_top_strict ..
+sublocale top: gd_term "\<lambda>x::'a \<times> 'k::{the_min,wellorder}. x" "\<lambda>x. x" "(\<preceq>)" "(\<prec>)" ord_top ord_top_strict ..
 
 end
 

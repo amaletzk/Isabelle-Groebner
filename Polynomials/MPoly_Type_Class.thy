@@ -1973,7 +1973,7 @@ interpretation punit: term_powerprod to_pair_unit fst
 text \<open>For technical reasons it seems to be better not to put the following lemmas as rewrite-rules
   of interpretation \<open>punit\<close>.\<close>
 
-lemma punit_pp_of_term [simp]: "punit.pp_of_term = id"
+lemma punit_pp_of_term [simp]: "punit.pp_of_term = (\<lambda>x. x)"
   by (rule, simp add: punit.pp_of_term_def punit.term_pair)
 
 lemma punit_component_of_term [simp]: "punit.component_of_term = (\<lambda>_. ())"
@@ -2013,7 +2013,7 @@ end (* term_powerprod *)
 
 subsubsection \<open>Interpretation of @{locale term_powerprod} by @{typ "'a \<times> 'k"}\<close>
 
-interpretation pprod: term_powerprod "id::('a::comm_powerprod \<times> 'k::linorder) \<Rightarrow> _" id
+interpretation pprod: term_powerprod "(\<lambda>x::'a::comm_powerprod \<times> 'k::linorder. x)" "\<lambda>x. x"
   by (standard, simp)
 
 lemma pprod_pp_of_term [simp]: "pprod.pp_of_term = fst"

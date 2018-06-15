@@ -463,7 +463,7 @@ lemma compute_shift_map_keys_punit [code]:
 
 global_interpretation punit: term_powerprod to_pair_unit fst
   rewrites "punit.adds_term = (adds)"
-  and "punit.pp_of_term = id"
+  and "punit.pp_of_term = (\<lambda>x. x)"
   and "punit.component_of_term = (\<lambda>_. ())"
   defines monom_mult_punit = punit.monom_mult
   and mult_scalar_punit = punit.mult_scalar
@@ -566,7 +566,7 @@ type_synonym 'a vmpoly_tc = "((nat \<Rightarrow>\<^sub>0 nat) \<times> nat) \<Ri
 
 definition "shift_map_keys_pprod = pprod.shift_map_keys"
 
-global_interpretation pprod: term_powerprod id id
+global_interpretation pprod: term_powerprod "\<lambda>x. x" "\<lambda>x. x"
   rewrites "pprod.pp_of_term = fst"
   and "pprod.component_of_term = snd"
   defines splus_pprod = pprod.splus

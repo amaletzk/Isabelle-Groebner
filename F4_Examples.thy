@@ -41,7 +41,7 @@ subsection \<open>Degree-Reverse-Lexicographic Order\<close>
 
 global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
   rewrites "punit.adds_term = (adds)"
-  and "punit.pp_of_term = id"
+  and "punit.pp_of_term = (\<lambda>x. x)"
   and "punit.component_of_term = (\<lambda>_. ())"
   and "punit.monom_mult = monom_mult_punit"
   and "punit.mult_scalar = mult_scalar_punit"
@@ -102,7 +102,7 @@ proof -
     subgoal by (erule drlex_pm_plus_monotone)
     done
   show "punit.adds_term = (adds)" by (fact punit_adds_term)
-  show "punit.pp_of_term = id" by (fact punit_pp_of_term)
+  show "punit.pp_of_term = (\<lambda>x. x)" by (fact punit_pp_of_term)
   show "punit.component_of_term = (\<lambda>_. ())" by (fact punit_component_of_term)
   show "punit.monom_mult = monom_mult_punit" by (simp only: monom_mult_punit_def)
   show "punit.mult_scalar = mult_scalar_punit" by (simp only: mult_scalar_punit_def)
