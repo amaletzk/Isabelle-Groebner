@@ -20,12 +20,18 @@ fun logistic_ml n = logistic' (Rat.make (36, 10)) (Rat.make (5, 10)) n
 *)
 
 context includes integer.lifting begin
-lift_definition rat_of_integer::"integer \<Rightarrow> rat" is Rat.of_int .
-end
 
-lemma includes integer.lifting
-    shows [code]: "Rat.of_int (int_of_integer x) = rat_of_integer x"
+lift_definition rat_of_integer :: "integer \<Rightarrow> rat" is Rat.of_int .
+
+lift_definition quotient_of' :: "rat \<Rightarrow> integer \<times> integer" is quotient_of .
+
+lemma [code]: "Rat.of_int (int_of_integer x) = rat_of_integer x"
   by transfer simp
+
+lemma [code_unfold]: "quotient_of = (\<lambda>x. map_prod int_of_integer int_of_integer (quotient_of' x))"
+  by transfer simp
+
+end
 
 code_printing
   type_constructor rat \<rightharpoonup>
@@ -51,7 +57,9 @@ code_printing
   constant "uminus :: rat \<Rightarrow> rat" \<rightharpoonup>
     (SML) "Rat.neg" |
   constant "HOL.equal :: rat \<Rightarrow> _" \<rightharpoonup>
-    (SML) "!((_ : Rat.rat) = _)"
+    (SML) "!((_ : Rat.rat) = _)" |
+  constant "quotient_of'" \<rightharpoonup>
+    (SML) "Rat.dest"
 
 (* For testing only. *)
 (*
