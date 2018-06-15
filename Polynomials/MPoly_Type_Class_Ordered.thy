@@ -1685,6 +1685,54 @@ definition ord_strict_p :: "('t \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> ('
 definition ord_p :: "('t \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> bool" (infixl "\<preceq>\<^sub>p" 50) where
   "ord_p p q \<equiv> (p \<prec>\<^sub>p q \<or> p = q)"
 
+lemma ord_strict_pI:
+  assumes "lookup p v = 0" and "lookup q v \<noteq> 0" and "\<And>u. v \<prec>\<^sub>t u \<Longrightarrow> lookup p u = lookup q u"
+  shows "p \<prec>\<^sub>p q"
+  unfolding ord_strict_p_def using assms by blast
+
+lemma ord_strict_pE:
+  assumes "p \<prec>\<^sub>p q"
+  obtains v where "lookup p v = 0" and "lookup q v \<noteq> 0" and "\<And>u. v \<prec>\<^sub>t u \<Longrightarrow> lookup p u = lookup q u"
+  using assms unfolding ord_strict_p_def by blast
+
+lemma not_ord_pI:
+  assumes "lookup p v \<noteq> lookup q v" and "lookup p v \<noteq> 0" and "\<And>u. v \<prec>\<^sub>t u \<Longrightarrow> lookup p u = lookup q u"
+  shows "\<not> p \<preceq>\<^sub>p q"
+proof
+  assume "p \<preceq>\<^sub>p q"
+  hence "p \<prec>\<^sub>p q \<or> p = q" by (simp only: ord_p_def)
+  thus False
+  proof
+    assume "p \<prec>\<^sub>p q"
+    then obtain v' where 1: "lookup p v' = 0" and 2: "lookup q v' \<noteq> 0"
+      and 3: "\<And>u. v' \<prec>\<^sub>t u \<Longrightarrow> lookup p u = lookup q u" by (rule ord_strict_pE, blast)
+    from 1 2 have "lookup p v' \<noteq> lookup q v'" by simp
+    hence "\<not> v \<prec>\<^sub>t v'" using assms(3) by blast
+    hence "v' \<prec>\<^sub>t v \<or> v' = v" by auto
+    thus ?thesis
+    proof
+      assume "v' \<prec>\<^sub>t v"
+      hence "lookup p v = lookup q v" by (rule 3)
+      with assms(1) show ?thesis ..
+    next
+      assume "v' = v"
+      with assms(2) 1 show ?thesis by auto
+    qed
+  next
+    assume "p = q"
+    hence "lookup p v = lookup q v" by simp
+    with assms(1) show ?thesis ..
+  qed
+qed
+
+corollary not_ord_strict_pI:
+  assumes "lookup p v \<noteq> lookup q v" and "lookup p v \<noteq> 0" and "\<And>u. v \<prec>\<^sub>t u \<Longrightarrow> lookup p u = lookup q u"
+  shows "\<not> p \<prec>\<^sub>p q"
+proof -
+  from assms have "\<not> p \<preceq>\<^sub>p q" by (rule not_ord_pI)
+  thus ?thesis by (simp add: ord_p_def)
+qed
+
 lemma ord_strict_higher: "p \<prec>\<^sub>p q \<longleftrightarrow> (\<exists>v. lookup p v = 0 \<and> lookup q v \<noteq> 0 \<and> higher p v = higher q v)"
   unfolding ord_strict_p_def higher_eq_iff ..
 
@@ -2183,6 +2231,42 @@ next
       hence "card (keys (tail p)) = card (keys p) - 1" by (simp add: keys_tail)
       also have "... = n" unfolding ind(2)[symmetric] by simp
       finally show "n = card (keys (tail p))" by simp
+    qed
+  qed
+qed
+
+lemma poly_mapping_neqE:
+  assumes "p \<noteq> q"
+  obtains v where "v \<in> keys p \<union> keys q" and "lookup p v \<noteq> lookup q v"
+    and "\<And>u. v \<prec>\<^sub>t u \<Longrightarrow> lookup p u = lookup q u"
+proof -
+  let ?A = "{v. lookup p v \<noteq> lookup q v}"
+  define v where "v = ord_term_lin.Max ?A"
+  have "?A \<subseteq> keys p \<union> keys q" by (rule, rule ccontr, simp)
+  also have "finite ..." by (rule finite_UnI) (fact finite_keys)+
+  finally(finite_subset) have fin: "finite ?A" .
+  moreover have "?A \<noteq> {}"
+  proof
+    assume "?A = {}"
+    hence "lookup p = lookup q" by auto
+    hence "p = q" by (simp add: lookup_inject)
+    with assms show False ..
+  qed
+  ultimately have "v \<in> ?A" unfolding v_def by (rule ord_term_lin.Max_in)
+  show ?thesis
+  proof
+    from \<open>?A \<subseteq> keys p \<union> keys q\<close> \<open>v \<in> ?A\<close> show "v \<in> keys p \<union> keys q" ..
+  next
+    from \<open>v \<in> ?A\<close> show "lookup p v \<noteq> lookup q v" by simp
+  next
+    fix u
+    assume "v \<prec>\<^sub>t u"
+    show "lookup p u = lookup q u"
+    proof (rule ccontr)
+      assume "lookup p u \<noteq> lookup q u"
+      hence "u \<in> ?A" by simp
+      with fin have "u \<preceq>\<^sub>t v" unfolding v_def by (rule ord_term_lin.Max_ge)
+      with \<open>v \<prec>\<^sub>t u\<close> show False by simp
     qed
   qed
 qed
