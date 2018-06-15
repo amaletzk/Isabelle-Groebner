@@ -21,7 +21,7 @@ proof -
   from assms(1) have "p \<noteq> 0" by (rule punit.proper_binomial_not_0)
   hence "tc p \<noteq> 0" by (rule punit.tc_not_0)
   from assms(3) have "v + tp p \<prec> u + tp p" by (rule plus_monotone_strict)
-  have "lp q + lp p = lp (q * p)" by (simp only: lt_times[OF assms(2) \<open>p \<noteq> 0\<close>])
+  have "lp q + lp p = lp (q * p)" by (simp only: lp_times[OF assms(2) \<open>p \<noteq> 0\<close>])
   also from assms(4) have "... = u + tp p"
   proof (rule punit.keys_2_lt)
     from \<open>v + tp p \<prec> u + tp p\<close> show "v + tp p \<preceq> u + tp p" by simp
@@ -34,7 +34,7 @@ proof -
         simp only: punit.keys_monom_mult[OF \<open>?c \<noteq> 0\<close>], simp add: punit.keys_proper_binomial[OF assms(1)], fact, fact)
     from \<open>tp p \<prec> lp p\<close> show "u + tp p \<prec> u + lp p" by (rule plus_monotone_strict_left)
   qed (simp only: punit.lookup_monom_mult_plus[simplified] punit.tc_def[symmetric],
-        simp add: \<open>tc p \<noteq> 0\<close> * lookup_times_lt_lt)
+        simp add: \<open>tc p \<noteq> 0\<close> * lookup_times_lp_lp)
 qed
 
 lemma keys_plus_monomial_times:
@@ -46,7 +46,7 @@ proof -
   from assms(1) have "p \<noteq> 0" by (rule punit.proper_binomial_not_0)
   hence "lc p \<noteq> 0" by (rule punit.lc_not_0)
   from assms(3) have "v + lp p \<prec> u + lp p" by (rule plus_monotone_strict)
-  have "tp q + tp p = tp (q * p)" by (simp only: tt_times[OF assms(2) \<open>p \<noteq> 0\<close>])
+  have "tp q + tp p = tp (q * p)" by (simp only: tp_times[OF assms(2) \<open>p \<noteq> 0\<close>])
   also from assms(4) have "... = v + lp p"
   proof (rule punit.keys_2_tt)
     from \<open>v + lp p \<prec> u + lp p\<close> show "v + lp p \<preceq> u + lp p" by simp
@@ -59,7 +59,7 @@ proof -
         simp only: punit.keys_monom_mult[OF \<open>?c \<noteq> 0\<close>], simp add: punit.keys_proper_binomial[OF assms(1)])
     from \<open>tp p \<prec> lp p\<close> show "v + tp p \<prec> v + lp p" by (rule plus_monotone_strict_left)
   qed (fact, simp only: punit.lookup_monom_mult_plus[simplified] punit.lc_def[symmetric],
-        simp add: \<open>lc p \<noteq> 0\<close> * lookup_times_tt_tt)
+        simp add: \<open>lc p \<noteq> 0\<close> * lookup_times_tp_tp)
 qed
 
 end (* ordered_powerprod *)
@@ -1060,20 +1060,6 @@ proof -
   qed
 qed
 
-lemmas times_tail_rec_left = punit.mult_scalar_tail_rec_left[simplified]
-lemmas lookup_times_lp_lp = punit.lookup_mult_scalar_lt_lt[simplified]
-lemmas lookup_times_tp_tp = punit.lookup_mult_scalar_tt_tt[simplified]
-lemmas in_keys_times_le = punit.in_keys_mult_scalar_le[simplified]
-lemmas in_keys_monom_mult_ge = punit.in_keys_monom_mult_ge[simplified]
-lemmas lp_times = punit.lt_mult_scalar[simplified]
-lemmas tp_times = punit.tt_mult_scalar[simplified]
-lemmas lp_monom_mult = punit.lt_monom_mult[simplified]
-lemmas tp_monom_mult = punit.tt_monom_mult[simplified]
-lemmas monom_mult_monomial = punit.monom_mult_monomial[simplified]
-lemmas lc_times_poly_mapping = punit.lc_mult_scalar[simplified]
-lemmas tc_times_poly_mapping = punit.tc_mult_scalar[simplified]
-lemmas times_not_zero = punit.mult_scalar_not_zero[simplified]
-
 lemma associated_poly_times_binomial_keys:
   assumes "punit.is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)" and "q \<noteq> 0"
     and "associated_poly p q"
@@ -1149,7 +1135,7 @@ next
           proof
             assume "tp q + tp p \<in> keys ?m"
             thm punit.in_keys_monom_mult_ge
-            hence "lp q + tp p \<preceq> tp q + tp p" by (rule in_keys_monom_mult_ge)
+            hence "lp q + tp p \<preceq> tp q + tp p" by (rule punit_in_keys_monom_mult_ge)
             hence "lp q \<preceq> tp q" by (rule ord_canc)
             with \<open>tp q \<prec> lp q\<close> show False by simp
           qed
@@ -1198,11 +1184,11 @@ next
       by (rule lp_monom_mult, rule tp_monom_mult)
     have "punit.tail ?m = punit.monom_mult (lc q) (lp q) (punit.tail p)" by (rule punit.tail_monom_mult)
     also have "... = punit.monom_mult (lc q) (lp q) (monomial (tc p) (tp p))" by (simp only: tail_p)
-    also have "... = monomial (lc q * tc p) (lp q + tp p)" by (rule monom_mult_monomial)
+    also have "... = monomial (lc q * tc p) (lp q + tp p)" by (rule punit_monom_mult_monomial)
     finally have tail_m: "punit.tail ?m = monomial (lc q * tc p) (lp q + tp p)" .
     from \<open>punit.tail q \<noteq> 0\<close> \<open>p \<noteq> 0\<close> have lp_r: "lp ?r = lp (punit.tail q) + lp p" and tp_r: "tp ?r = tp q + tp p"
       by (rule lp_times, simp add: tp_times tp_tail_q)
-    from punit.tc_tail[OF \<open>punit.tail q \<noteq> 0\<close>] have tc_r: "tc ?r = tc q * tc p" by (simp add: tc_times_poly_mapping)
+    from punit.tc_tail[OF \<open>punit.tail q \<noteq> 0\<close>] have tc_r: "tc ?r = tc q * tc p" by (simp add: tc_times)
     from step(3) have "keys (?m + ?r) = {lp ?m, tp ?r}"
       by (simp only: times_tail_rec_left[of q] tp_tail_times lp_monom_mult[OF \<open>lc q \<noteq> 0\<close> \<open>p \<noteq> 0\<close>])
     hence "punit.tail ?m + punit.higher ?r (tp ?r) = 0"
@@ -1242,7 +1228,7 @@ next
     from lp_r obd have lp_tp: "lp q + tp p = lp (punit.tail q) + lp p" by (simp only: r_eq punit.lt_binomial)
     show ?thesis
     proof (rule associated_poly_recI, fact False, simp only: associated_1 lp_tp)
-      from lc_times_poly_mapping[of "punit.tail q" p] obd c show "lc q * tc p + lc (punit.tail q) * lc p = 0"
+      from lc_times[of "punit.tail q" p] obd c show "lc q * tc p + lc (punit.tail q) * lc p = 0"
         by (simp only: r_eq punit.lc_binomial)
     next
       show "associated_poly p (punit.tail q)"
@@ -1265,11 +1251,11 @@ proof -
     by (rule punit.is_proper_binomial_binomial_od)
   from obd have lp_p: "lp p = s" and lc_p: "lc p = c" and tp_p: "tp p = t" and tc_p: "tc p = d"
     unfolding p_eq  by (rule punit.lt_binomial, rule punit.lc_binomial, rule punit.tt_binomial, rule punit.tc_binomial)
-  have eq1: "q * p = punit.monom_mult_right q c s + punit.monom_mult_right q d t"
-    by (simp add: p_eq binomial_def algebra_simps times_monomial_right)
-  have eq2: "lookup (monom_mult_right q d t) (v + lp p) = lookup q u * d"
-    unfolding assms(2)[symmetric] tp_p by (simp add: lookup_monom_mult_right)
-  show ?thesis unfolding eq1 lookup_add eq2 by (simp add: lp_p lc_p tp_p tc_p lookup_monom_mult_right)
+  have eq1: "q * p = q * monomial c s + q * monomial d t"
+    by (simp add: p_eq punit.binomial_def algebra_simps)
+  have eq2: "lookup (q * monomial d t) (v + lp p) = lookup q u * d"
+    by (simp add: assms(2)[symmetric] tp_p lookup_times_monomial_right)
+  show ?thesis unfolding eq1 lookup_add eq2 by (simp add: lp_p lc_p tp_p tc_p lookup_times_monomial_right)
 qed
 
 lemma lookup_times_binomial_2:
@@ -1294,8 +1280,8 @@ next
     by (rule punit.is_proper_binomial_binomial_od)
   from obd have lp_p: "lp p = s" and lc_p: "lc p = c" and tp_p: "tp p = t" and tc_p: "tc p = d"
     unfolding p_eq  by (rule punit.lt_binomial, rule punit.lc_binomial, rule punit.tt_binomial, rule punit.tc_binomial)
-  have eq1: "q * p = monom_mult_right q c s + monom_mult_right q d t"
-    by (simp add: p_eq binomial_def algebra_simps times_monomial_right)
+  have eq1: "q * p = q * monomial c s + q * monomial d t"
+    by (simp add: p_eq punit.binomial_def algebra_simps)
   have "\<not> tp p adds v + lp p"
   proof
     assume "tp p adds v + lp p"
@@ -1304,9 +1290,8 @@ next
     hence "u + tp p \<noteq> v + lp p" ..
     with u show False by (simp add: ac_simps)
   qed
-  hence eq2: "lookup (monom_mult_right q d t) (v + lp p) = 0" unfolding lp_p tp_p
-    by (simp add: lookup_monom_mult_right)
-  show ?thesis unfolding eq1 lookup_add eq2 by (simp add: lp_p lc_p tp_p tc_p lookup_monom_mult_right)
+  hence eq2: "lookup (q * monomial d t) (v + lp p) = 0" by (simp add: lp_p tp_p lookup_times_monomial_right)
+  show ?thesis unfolding eq1 lookup_add eq2 by (simp add: lp_p lc_p tp_p tc_p lookup_times_monomial_right)
 qed
 
 lemma lookup_times_binomial_3:
@@ -1332,8 +1317,8 @@ next
     by (rule punit.is_proper_binomial_binomial_od)
   from obd have lp_p: "lp p = s" and lc_p: "lc p = c" and tp_p: "tp p = t" and tc_p: "tc p = d"
     unfolding p_eq  by (rule punit.lt_binomial, rule punit.lc_binomial, rule punit.tt_binomial, rule punit.tc_binomial)
-  have eq1: "q * p = monom_mult_right q c s + monom_mult_right q d t"
-    by (simp add: p_eq binomial_def algebra_simps times_monomial_right)
+  have eq1: "q * p = q * monomial c s + q * monomial d t"
+    by (simp add: p_eq punit.binomial_def algebra_simps)
   have "\<not> lp p adds u + tp p"
   proof
     assume "lp p adds u + tp p"
@@ -1342,9 +1327,8 @@ next
     hence "v + lp p \<noteq> u + tp p" ..
     with v show False by (simp add: ac_simps)
   qed
-  hence eq2: "lookup (monom_mult_right q c s) (u + tp p) = 0" unfolding lp_p tp_p
-    by (simp add: lookup_monom_mult_right)
-  show ?thesis unfolding eq1 lookup_add eq2 by (simp add: lp_p lc_p tp_p tc_p lookup_monom_mult_right)
+  hence eq2: "lookup (q * monomial c s) (u + tp p) = 0" by (simp add: lp_p tp_p lookup_times_monomial_right)
+  show ?thesis unfolding eq1 lookup_add eq2 by (simp add: lp_p lc_p tp_p tc_p lookup_times_monomial_right)
 qed
 
 lemma times_binomial_lp_not_in_keys:

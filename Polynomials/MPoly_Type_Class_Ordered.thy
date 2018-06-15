@@ -2752,12 +2752,21 @@ begin
 
 lemmas in_keys_times_le = punit.in_keys_mult_scalar_le[simplified]
 lemmas in_keys_times_ge = punit.in_keys_mult_scalar_ge[simplified]
-lemmas lookup_times_lt_lt = punit.lookup_mult_scalar_lt_lt[simplified]
-lemmas lookup_times_tt_tt = punit.lookup_mult_scalar_tt_tt[simplified]
-lemmas lt_times = punit.lt_mult_scalar[simplified]
-lemmas tt_times = punit.tt_mult_scalar[simplified]
+lemmas lookup_times_lp_lp = punit.lookup_mult_scalar_lt_lt[simplified]
+lemmas lookup_times_tp_tp = punit.lookup_mult_scalar_tt_tt[simplified]
+lemmas lookup_times_monomial_right_plus = punit.lookup_mult_scalar_monomial_right_plus[simplified]
+lemmas lookup_times_monomial_right = punit.lookup_mult_scalar_monomial_right[simplified]
+lemmas lp_times = punit.lt_mult_scalar[simplified]
+lemmas tp_times = punit.tt_mult_scalar[simplified]
 lemmas lc_times = punit.lc_mult_scalar[simplified]
 lemmas tc_times = punit.tc_mult_scalar[simplified]
+lemmas times_not_zero = punit.mult_scalar_not_zero[simplified]
+lemmas times_tail_rec_left = punit.mult_scalar_tail_rec_left[simplified]
+lemmas times_tail_rec_right = punit.mult_scalar_tail_rec_right[simplified]
+lemmas punit_in_keys_monom_mult_le = punit.in_keys_monom_mult_le[simplified]
+lemmas punit_in_keys_monom_mult_ge = punit.in_keys_monom_mult_ge[simplified]
+lemmas lp_monom_mult = punit.lt_monom_mult[simplified]
+lemmas tp_monom_mult = punit.tt_monom_mult[simplified]
 
 end
 

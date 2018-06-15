@@ -2033,5 +2033,6 @@ lemmas times_monomial_left = punit.mult_scalar_monomial[simplified]
 lemmas times_rec_left = punit.mult_scalar_rec_left[simplified]
 lemmas times_rec_right = punit.mult_scalar_rec_right[simplified]
 lemmas in_keys_timesE = punit.in_keys_mult_scalarE[simplified]
+lemmas punit_monom_mult_monomial = punit.monom_mult_monomial[simplified]
 
 end (* theory *)
