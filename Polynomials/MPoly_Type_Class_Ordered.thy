@@ -2435,9 +2435,8 @@ next
   case False
   with assms(1) have "j < i" by simp
   let ?ts = "pps_to_list S"
-  have "transp (\<prec>\<^sub>t)\<inverse>\<inverse>" unfolding transp_def by fastforce
-  hence "(\<prec>\<^sub>t)\<inverse>\<inverse> (?ts ! j) (?ts ! i)" using pps_to_list_sorted_wrt \<open>j < i\<close>
-  proof (rule sorted_wrt_nth_mono)
+  from pps_to_list_sorted_wrt \<open>j < i\<close> have "(\<prec>\<^sub>t)\<inverse>\<inverse> (?ts ! j) (?ts ! i)"
+  proof (rule sorted_wrt_nth_less)
     from assms(2) show "i < length ?ts" by (simp only: length_pps_to_list)
   qed
   thus ?thesis by simp

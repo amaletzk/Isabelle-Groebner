@@ -272,11 +272,8 @@ qed
 lemma plus_MP_oalist [code]: "MP_oalist xs + MP_oalist ys = MP_oalist (OAlist_map2_val_neutr_ntm (\<lambda>_. (+)) xs ys)"
   by (rule poly_mapping_eqI, simp add: lookup_plus_fun, rule oa_ntm.lookup_map2_val_neutr[symmetric], simp_all)
 
-lemma lookup_minus_fun': "lookup (s - t) = lookup s - lookup t"
-  by (transfer, rule, simp only: minus_apply)
-
 lemma minus_MP_oalist [code]: "MP_oalist xs - MP_oalist ys = MP_oalist (OAlist_map2_val_rneutr_ntm (\<lambda>_. (-)) xs ys)"
-  by (rule poly_mapping_eqI, simp add: lookup_minus_fun', rule oa_ntm.lookup_map2_val_rneutr[symmetric], simp)
+  by (rule poly_mapping_eqI, simp add: lookup_minus_fun, rule oa_ntm.lookup_map2_val_rneutr[symmetric], simp)
 
 lemma uminus_MP_oalist [code]: "- MP_oalist xs = MP_oalist (OAlist_map_val_ntm (\<lambda>_. uminus) xs)"
   by (rule poly_mapping_eqI, simp, rule oa_ntm.lookup_map_val[symmetric], simp)

@@ -96,7 +96,7 @@ begin
 lift_definition minus_pp :: "('a, 'b) pp \<Rightarrow> ('a, 'b) pp \<Rightarrow> ('a, 'b) pp" is "(-)::('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> _" .
 
 lemma lookup_minus_pp: "lookup_pp (s - t) = lookup_pp s - lookup_pp t"
-  by (transfer, transfer, rule, simp only: minus_apply)
+  by (transfer, simp only: lookup_minus_fun)
 
 instance by intro_classes (transfer, simp add: fun_eq_iff diff_diff_add)+
 
