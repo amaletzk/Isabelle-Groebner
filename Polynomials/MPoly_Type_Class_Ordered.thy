@@ -149,108 +149,12 @@ sublocale punit: ordered_term to_pair_unit fst "(\<preceq>)" "(\<prec>)" "(\<pre
 lemma punit_min_term [simp]: "punit.min_term = 0"
   by (simp add: punit.min_term_def)
 
-subsubsection \<open>Product with POT Order\<close>
-
-definition ord_pot :: "('a \<times> 'k) \<Rightarrow> ('a \<times> 'k::linorder) \<Rightarrow> bool"
-  where "ord_pot x y \<longleftrightarrow> (snd x < snd y \<or> (snd x = snd y \<and> fst x \<preceq> fst y))"
-
-definition ord_pot_strict :: "('a \<times> 'k) \<Rightarrow> ('a \<times> 'k::linorder) \<Rightarrow> bool"
-  where "ord_pot_strict x y \<longleftrightarrow> \<not> ord_pot y x"
-
-lemma ord_pot_refl: "ord_pot v v"
-  by (simp add: ord_pot_def)
-
-lemma ord_pot_antisym:
-  assumes "ord_pot u v" and "ord_pot v u"
-  shows "u = v"
-  using assms unfolding ord_pot_def
-  by (metis le_less not_less ordered_powerprod_lin.antisym prod.collapse)
-
-lemma ord_pot_trans:
-  assumes "ord_pot u v" and "ord_pot v w"
-  shows "ord_pot u w"
-  using assms unfolding ord_pot_def
-  by (metis (no_types, lifting) less_le less_le_trans ordered_powerprod_lin.order_trans)
-
-lemma ord_pot_lin: "ord_pot u v \<or> ord_pot v u"
-  unfolding ord_pot_def using neqE by auto
-
-lemma ord_pot_splus_mono:
-  assumes "ord_pot u v"
-  shows "ord_pot (pprod.splus t u) (pprod.splus t v)"
-  using assms by (auto simp add: pprod.splus_def ord_pot_def intro: plus_monotone_left)
-
-lemma ord_potI':
-  assumes "fst u \<preceq> fst v" and "snd u \<le> snd v"
-  shows "ord_pot u v"
-  unfolding ord_pot_def using assms by auto
-
-sublocale pot: ordered_term "\<lambda>x::'a \<times> 'k::{the_min,wellorder}. x" "\<lambda>x. x" "(\<preceq>)" "(\<prec>)" ord_pot ord_pot_strict
-  apply standard
-  subgoal unfolding ord_pot_strict_def using ord_pot_lin by blast
-  subgoal by (fact ord_pot_refl)
-  subgoal by (rule ord_pot_trans)
-  subgoal by (rule ord_pot_antisym)
-  subgoal by (fact ord_pot_lin)
-  subgoal by (rule ord_pot_splus_mono)
-  subgoal by (simp only: pprod_component_of_term pprod_pp_of_term, rule ord_potI')
-  done
-
-subsubsection \<open>Infinite Vectors with TOP Order\<close>
-
-definition ord_top :: "('a \<times> 'k) \<Rightarrow> ('a \<times> 'k::linorder) \<Rightarrow> bool"
-  where "ord_top x y \<longleftrightarrow> (fst x \<prec> fst y \<or> (fst x = fst y \<and> snd x \<le> snd y))"
-
-definition ord_top_strict :: "('a \<times> 'k) \<Rightarrow> ('a \<times> 'k::linorder) \<Rightarrow> bool"
-  where "ord_top_strict x y \<longleftrightarrow> \<not> ord_top y x"
-
-lemma ord_top_refl: "ord_top v v"
-  by (simp add: ord_top_def)
-
-lemma ord_top_antisym:
-  assumes "ord_top u v" and "ord_top v u"
-  shows "u = v"
-  using assms unfolding ord_top_def
-  by (metis antisym ordered_powerprod_lin.dual_order.asym prod.expand)
-
-lemma ord_top_trans:
-  assumes "ord_top u v" and "ord_top v w"
-  shows "ord_top u w"
-  using assms unfolding ord_top_def by (metis (no_types, hide_lams) le_less less_le_trans
-    ordered_powerprod_lin.dual_order.strict_implies_not_eq ordered_powerprod_lin.order.strict_trans)
-
-lemma ord_top_lin: "ord_top u v \<or> ord_top v u"
-  unfolding ord_top_def by auto
-
-lemma ord_top_splus_mono:
-  assumes "ord_top u v"
-  shows "ord_top (pprod.splus t u) (pprod.splus t v)"
-  using assms by (auto simp add: pprod.splus_def ord_top_def intro: plus_monotone_strict_left)
-
-lemma ord_topI':
-  assumes "fst u \<preceq> fst v" and "snd u \<le> snd v"
-  shows "ord_top u v"
-  unfolding ord_top_def using assms by auto
-
-sublocale top: ordered_term "\<lambda>x::'a \<times> 'k::{the_min,wellorder}. x" "\<lambda>x. x" "(\<preceq>)" "(\<prec>)" ord_top ord_top_strict
-  apply standard
-  subgoal unfolding ord_top_strict_def using ord_top_lin by blast
-  subgoal by (fact ord_top_refl)
-  subgoal by (rule ord_top_trans)
-  subgoal by (rule ord_top_antisym)
-  subgoal by (fact ord_top_lin)
-  subgoal by (rule ord_top_splus_mono)
-  subgoal by (simp only: pprod_component_of_term pprod_pp_of_term, rule ord_topI')
-  done
-
 end
 
 subsection \<open>Definitions\<close>
 
 context ordered_term
 begin
-
-lemmas [term_simps del] = pot.term_pair pot.pair_term
 
 definition higher :: "('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> 't \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::zero)"
   where "higher p t = except p {s. s \<preceq>\<^sub>t t}"
@@ -3572,10 +3476,6 @@ context gd_powerprod
 begin
 
 sublocale punit: gd_term to_pair_unit fst "(\<preceq>)" "(\<prec>)" "(\<preceq>)" "(\<prec>)" ..
-
-sublocale pot: gd_term "\<lambda>x::'a \<times> 'k::{the_min,wellorder}. x" "\<lambda>x. x" "(\<preceq>)" "(\<prec>)" ord_pot ord_pot_strict ..
-
-sublocale top: gd_term "\<lambda>x::'a \<times> 'k::{the_min,wellorder}. x" "\<lambda>x. x" "(\<preceq>)" "(\<prec>)" ord_top ord_top_strict ..
 
 end
 

@@ -59,7 +59,7 @@ global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
   and gb_scalar_drlex = drlex.punit.gb_punit \<comment>\<open>Faster, because incorporates product criterion.\<close>
 
   (* POT *)
-  (*and ord_pot_strict_drlex = drlex.ord_pot_strict*)
+  (*
   and min_term_pot_drlex = drlex.pot.min_term
   and lt_pot_drlex = drlex.pot.lt
   and max_pot_drlex = drlex.pot.ord_term_lin.max
@@ -101,6 +101,7 @@ global_interpretation drlex: gd_powerprod drlex_pm drlex_pm_strict
   and gb_red_pot_drlex = drlex.pot.gb_red
   and gb_aux_pot_drlex = drlex.pot.gb_aux
   and gb_pot_drlex = drlex.pot.gb
+  *)
 proof -
   show "gd_powerprod drlex_pm drlex_pm_strict"
     apply standard
@@ -125,6 +126,7 @@ proof -
   show "pprod.mult_scalar = mult_scalar_pprod" by (simp only: mult_scalar_pprod_def)
 qed
 
+(*
 (* If we define ord_pot_drlex in the global interpretation, no code equations are proved for lp_pot_drlex. *)
 definition [code_abbrev]: "ord_pot_drlex = drlex.ord_pot"
 definition [code_abbrev]: "ord_pot_strict_drlex = drlex.ord_pot_strict"
@@ -183,8 +185,11 @@ lemma
     (Vec\<^sub>0 1 (Y\<^sup>2 * Z) + Vec\<^sub>0 0 (2 * Z ^ 3), ())
   ]"
   by eval
+*)
 
 subsubsection \<open>Computations with Scalar Polynomials\<close>
+
+experiment begin interpretation trivariate\<^sub>0_rat .
 
 lemma
   "lt_scalar_drlex (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y) = sparse\<^sub>0 [(0, 2), (2, 3)]"

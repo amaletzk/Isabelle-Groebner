@@ -213,11 +213,6 @@ lemma idx_pm_of_pm_plus: "idx_pm_of_pm xs (f + g) = idx_pm_of_pm xs f + idx_pm_o
 lemma idx_pm_of_pm_minus: "idx_pm_of_pm xs (f - g) = idx_pm_of_pm xs f - idx_pm_of_pm xs g"
   by (rule poly_mapping_eqI, simp add: lookup_idx_pm_of_pm lookup_minus when_def)
 
-lemma punit_monom_mult_monomial_idx_pm_of_pm:
-  "punit.monom_mult (monomial c t) (0::nat) (idx_pm_of_pm bs s) =
-    idx_pm_of_pm bs (punit.monom_mult (monomial c t) (0::'a \<times> nat \<Rightarrow>\<^sub>0 'b::ring_1) s)"
-  by (rule poly_mapping_eqI, simp add: punit.lookup_monom_mult lookup_idx_pm_of_pm when_def)
-
 lemma idx_pm_of_pm_of_idx_pm:
   assumes "distinct xs" and "keys f \<subseteq> {0..<length xs}"
   shows "idx_pm_of_pm xs (pm_of_idx_pm xs f) = f"
@@ -235,7 +230,125 @@ proof (rule poly_mapping_eqI)
   qed
 qed
 
+subsection \<open>POT Orders\<close>
+
+context ordered_term
+begin
+
+definition is_pot_ord :: bool
+  where "is_pot_ord \<longleftrightarrow> (\<forall>u v. component_of_term u < component_of_term v \<longrightarrow> u \<prec>\<^sub>t v)"
+
+lemma is_pot_ordI:
+  assumes "\<And>u v. component_of_term u < component_of_term v \<Longrightarrow> u \<prec>\<^sub>t v"
+  shows "is_pot_ord"
+  unfolding is_pot_ord_def using assms by blast
+
+lemma is_pot_ordD:
+  assumes "is_pot_ord" and "component_of_term u < component_of_term v"
+  shows "u \<prec>\<^sub>t v"
+  using assms unfolding is_pot_ord_def by blast
+
+lemma is_pot_ordD2:
+  assumes "is_pot_ord" and "u \<preceq>\<^sub>t v"
+  shows "component_of_term u \<le> component_of_term v"
+proof (rule ccontr)
+  assume "\<not> component_of_term u \<le> component_of_term v"
+  hence "component_of_term v < component_of_term u" by simp
+  with assms(1) have "v \<prec>\<^sub>t u" by (rule is_pot_ordD)
+  with assms(2) show False by simp
+qed
+
+lemma is_pot_ord:
+  assumes "is_pot_ord"
+  shows "u \<preceq>\<^sub>t v \<longleftrightarrow> (component_of_term u < component_of_term v \<or>
+                    (component_of_term u = component_of_term v \<and> pp_of_term u \<preceq> pp_of_term v))" (is "?l \<longleftrightarrow> ?r")
+proof
+  assume ?l
+  with assms have "component_of_term u \<le> component_of_term v" by (rule is_pot_ordD2)
+  hence "component_of_term u < component_of_term v \<or> component_of_term u = component_of_term v"
+    by (simp add: order_class.le_less)
+  thus ?r
+  proof
+    assume "component_of_term u < component_of_term v"
+    thus ?r ..
+  next
+    assume 1: "component_of_term u = component_of_term v"
+    moreover have "pp_of_term u \<preceq> pp_of_term v"
+    proof (rule ccontr)
+      assume "\<not> pp_of_term u \<preceq> pp_of_term v"
+      hence 2: "pp_of_term v \<preceq> pp_of_term u" and 3: "pp_of_term u \<noteq> pp_of_term v" by simp_all
+      from 1 have "component_of_term v \<le> component_of_term u" by simp
+      with 2 have "v \<preceq>\<^sub>t u" by (rule ord_termI)
+      with \<open>?l\<close> have "u = v" by simp
+      with 3 show False by simp
+    qed
+    ultimately show ?r by simp
+  qed
+next
+  assume ?r
+  thus ?l
+  proof
+    assume "component_of_term u < component_of_term v"
+    with assms have "u \<prec>\<^sub>t v" by (rule is_pot_ordD)
+    thus ?l by simp
+  next
+    assume "component_of_term u = component_of_term v \<and> pp_of_term u \<preceq> pp_of_term v"
+    hence "pp_of_term u \<preceq> pp_of_term v" and "component_of_term u \<le> component_of_term v" by simp_all
+    thus ?l by (rule ord_termI)
+  qed
+qed
+
+definition map_component :: "('k \<Rightarrow> 'k) \<Rightarrow> 't \<Rightarrow> 't"
+  where "map_component f v = term_of_pair (pp_of_term v, f (component_of_term v))"
+
+lemma pair_of_map_component [term_simps]:
+  "pair_of_term (map_component f v) = (pp_of_term v, f (component_of_term v))"
+  by (simp add: map_component_def pair_term)
+
+lemma pp_of_map_component [term_simps]: "pp_of_term (map_component f v) = pp_of_term v"
+  by (simp add: pp_of_term_def pair_of_map_component)
+
+lemma component_of_map_component [term_simps]:
+  "component_of_term (map_component f v) = f (component_of_term v)"
+  by (simp add: component_of_term_def pair_of_map_component)
+
+lemma map_component_term_of_pair [term_simps]:
+  "map_component f (term_of_pair (t, k)) = term_of_pair (t, f k)"
+  by (simp add: map_component_def term_simps)
+
+lemma map_component_comp: "map_component f (map_component g x) = map_component (\<lambda>k. f (g k)) x"
+  by (simp add: map_component_def term_simps)
+
+lemma map_component_id [term_simps]: "map_component (\<lambda>k. k) x = x"
+  by (simp add: map_component_def term_simps)
+
+lemma map_component_inj:
+  assumes "inj f" and "map_component f u = map_component f v"
+  shows "u = v"
+proof -
+  from assms(2) have "term_of_pair (pp_of_term u, f (component_of_term u)) =
+                      term_of_pair (pp_of_term v, f (component_of_term v))"
+    by (simp only: map_component_def)
+  hence "(pp_of_term u, f (component_of_term u)) = (pp_of_term v, f (component_of_term v))"
+    by (rule term_of_pair_injective)
+  hence 1: "pp_of_term u = pp_of_term v" and "f (component_of_term u) = f (component_of_term v)" by simp_all
+  from assms(1) this(2) have "component_of_term u = component_of_term v" by (rule injD)
+  with 1 show ?thesis by (metis term_of_pair_pair)
+qed
+
+end (* ordered_term *)
+
 subsection \<open>Gr\"obner Bases of Syzygy Modules\<close>
+
+locale gd_inf_term =
+    gd_term pair_of_term term_of_pair ord ord_strict ord_term ord_term_strict
+      for pair_of_term::"'t \<Rightarrow> ('a::graded_dickson_powerprod \<times> nat)"
+      and term_of_pair::"('a \<times> nat) \<Rightarrow> 't"
+      and ord::"'a \<Rightarrow> 'a \<Rightarrow> bool" (infixl "\<preceq>" 50)
+      and ord_strict (infixl "\<prec>" 50)
+      and ord_term::"'t \<Rightarrow> 't \<Rightarrow> bool" (infixl "\<preceq>\<^sub>t" 50)
+      and ord_term_strict::"'t \<Rightarrow> 't \<Rightarrow> bool" (infixl "\<prec>\<^sub>t" 50)
+begin
 
 text \<open>In order to compute a Gr\"obner basis of the syzygy module of a list \<open>bs\<close> of polynomials, one
   first needs to ``lift'' \<open>bs\<close> to a new list \<open>bs'\<close> by adding further components, compute a Gr\"obner
@@ -245,124 +358,143 @@ text \<open>In order to compute a Gr\"obner basis of the syzygy module of a list
   does the filtering. Function \<open>proj_orig_basis\<close>, finally, projects the Gr\"obner basis \<open>gs\<close> of \<open>bs'\<close>
   to a Gr\"obner basis of the original list \<open>bs\<close>.\<close>
 
-definition lift_poly_syz :: "nat \<Rightarrow> (('a \<times> nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> nat \<Rightarrow> (('a::comm_powerprod \<times> nat) \<Rightarrow>\<^sub>0 'b::semiring_1)"
+definition lift_poly_syz :: "nat \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> nat \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::semiring_1)"
   where "lift_poly_syz n b i = Abs_poly_mapping
-              (\<lambda>x. if x = (0, i) then 1 else if n \<le> snd x then lookup b (fst x, snd x - n) else 0)"
+              (\<lambda>x. if pair_of_term x = (0, i) then 1
+                   else if n \<le> component_of_term x then lookup b (map_component (\<lambda>k. k - n) x)
+                   else 0)"
 
-definition proj_poly_syz :: "nat \<Rightarrow> (('a \<times> nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> (('a \<times> nat) \<Rightarrow>\<^sub>0 'b::semiring_1)"
-  where "proj_poly_syz n b = Poly_Mapping.map_key (\<lambda>x. (fst x, snd x + n)) b"
+definition proj_poly_syz :: "nat \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::semiring_1)"
+  where "proj_poly_syz n b = Poly_Mapping.map_key (\<lambda>x. map_component (\<lambda>k. k + n) x) b"
 
-definition cofactor_list_syz :: "nat \<Rightarrow> (('a \<times> nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a::comm_powerprod \<Rightarrow>\<^sub>0 'b::semiring_1) list"
-  where "cofactor_list_syz n b = map (\<lambda>i. pprod.proj_poly i b) [0..<n]"
+definition cofactor_list_syz :: "nat \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::semiring_1) list"
+  where "cofactor_list_syz n b = map (\<lambda>i. proj_poly i b) [0..<n]"
 
-definition init_syzygy_list :: "(('a \<times> nat) \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> (('a::comm_powerprod \<times> nat) \<Rightarrow>\<^sub>0 'b::semiring_1) list"
+definition init_syzygy_list :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::semiring_1) list"
   where "init_syzygy_list bs = map_idx (lift_poly_syz (length bs)) bs 0"
 
-definition proj_orig_basis :: "nat \<Rightarrow> (('a \<times> nat) \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> (('a \<times> nat) \<Rightarrow>\<^sub>0 'b::semiring_1) list"
+definition proj_orig_basis :: "nat \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::semiring_1) list"
   where "proj_orig_basis n bs = map (proj_poly_syz n) bs"
 
-definition filter_syzygy_basis :: "nat \<Rightarrow> (('a \<times> nat) \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> (('a \<times> nat) \<Rightarrow>\<^sub>0 'b::semiring_1) list"
-  where "filter_syzygy_basis n bs = [b\<leftarrow>bs. snd ` keys b \<subseteq> {0..<n}]"
+definition filter_syzygy_basis :: "nat \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::semiring_1) list"
+  where "filter_syzygy_basis n bs = [b\<leftarrow>bs. component_of_term ` keys b \<subseteq> {0..<n}]"
 
-definition syzygy_module_list :: "(('a \<times> nat) \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> (('a::comm_powerprod \<times> nat) \<Rightarrow>\<^sub>0 'b::ring_1) set"
-  where "syzygy_module_list bs = pprod.atomize_poly ` idx_pm_of_pm bs ` pprod.pmdl.syzygy_module (set bs)"
+definition syzygy_module_list :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::ring_1) set"
+  where "syzygy_module_list bs = atomize_poly ` idx_pm_of_pm bs ` pmdl.syzygy_module (set bs)"
 
 subsubsection \<open>@{const lift_poly_syz}\<close>
 
 lemma keys_lift_poly_syz_aux:
-  "{x. (if x = (0::'a::comm_powerprod, i::nat) then 1 else if n \<le> snd x then lookup b (fst x, snd x - n) else 0) \<noteq> 0} \<subseteq>
-    insert (0, i) ((\<lambda>x. (fst x, snd x + n)) ` keys b)" (is "?l \<subseteq> ?r")
+  "{x. (if pair_of_term x = (0, i) then 1
+        else if n \<le> component_of_term x then lookup b (map_component (\<lambda>k. k - n) x)
+        else 0) \<noteq> 0} \<subseteq> insert (term_of_pair (0, i)) (map_component (\<lambda>k. k + n) ` keys b)"
+  (is "?l \<subseteq> ?r") for b::"'t \<Rightarrow>\<^sub>0 'b::semiring_1"
 proof
-  fix x::"'a \<times> nat"
+  fix x::'t
   assume "x \<in> ?l"
-  hence "(if x = (0, i) then 1 else if n \<le> snd x then lookup b (fst x, snd x - n) else 0) \<noteq> 0"
+  hence "(if pair_of_term x = (0, i) then 1 else if n \<le> component_of_term x then lookup b (map_component (\<lambda>k. k - n) x) else 0) \<noteq> 0"
     by simp
-  hence "x = (0, i) \<or> (if n \<le> snd x then lookup b (fst x, snd x - n) else 0) \<noteq> 0"
+  hence "pair_of_term x = (0, i) \<or> (n \<le> component_of_term x \<and> lookup b (map_component (\<lambda>k. k - n) x) \<noteq> 0)"
     by (simp split: if_split_asm)
   thus "x \<in> ?r"
   proof
-    assume "x = (0, i)"
+    assume "pair_of_term x = (0, i)"
+    hence "(0, i) = pair_of_term x" by (rule sym)
+    hence "x = term_of_pair (0, i)" by (simp add: term_pair)
     thus ?thesis by simp
   next
-    assume "(if n \<le> snd x then lookup b (fst x, snd x - n) else 0) \<noteq> 0"
-    hence "n \<le> snd x" and "(fst x, snd x - n) \<in> keys b" by (simp_all split: if_split_asm)
-    from this(2) have "(fst (fst x, snd x - n), snd (fst x, snd x - n) + n) \<in> (\<lambda>x. (fst x, snd x + n)) ` keys b"
-      by fastforce
-    with \<open>n \<le> snd x\<close> have "x \<in> (\<lambda>x. (fst x, snd x + n)) ` keys b" by simp
+    assume "n \<le> component_of_term x \<and> lookup b (map_component (\<lambda>k. k - n) x) \<noteq> 0"
+    hence "n \<le> component_of_term x" and 2: "map_component (\<lambda>k. k - n) x \<in> keys b"
+      by (simp_all split: if_split_asm)
+    from this(1) have 3: "map_component (\<lambda>k. k - n + n) x = x" by (simp add: map_component_def term_simps)
+    from 2 have "map_component (\<lambda>k. k + n) (map_component (\<lambda>k. k - n) x) \<in> map_component (\<lambda>k. k + n) ` keys b"
+      by (rule imageI)
+    with 3 have "x \<in> map_component (\<lambda>k. k + n) ` keys b" by (simp add: map_component_comp)
     thus ?thesis by simp
   qed
 qed
 
 lemma lookup_lift_poly_syz:
-  "lookup (lift_poly_syz n b i) x = (if x = (0, i) then 1 else if n \<le> snd x then lookup b (fst x, snd x - n) else 0)"
-proof -
-  have "lookup (lift_poly_syz n b i) = (\<lambda>x. if x = (0, i) then 1 else if n \<le> snd x then lookup b (fst x, snd x - n) else 0)"
-    unfolding lift_poly_syz_def
-  proof (rule Abs_poly_mapping_inverse)
-    from finite_keys have "finite ((\<lambda>x. (fst x, snd x + n)) ` keys b)" ..
-    hence "finite (insert (0, i) ((\<lambda>x. (fst x, snd x + n)) ` keys b))" by (rule finite.insertI)
-    with keys_lift_poly_syz_aux
-    have "finite {x. (if x = (0, i) then 1 else if n \<le> snd x then lookup b (fst x, snd x - n) else 0) \<noteq> 0}"
-      by (rule finite_subset)
-    thus "(\<lambda>x. if x = (0, i) then 1 else if n \<le> snd x then lookup b (fst x, snd x - n) else 0) \<in>
-            {f. finite {x. f x \<noteq> 0}}" by simp
-  qed
-  thus ?thesis by simp
+  "lookup (lift_poly_syz n b i) =
+    (\<lambda>x. if pair_of_term x = (0, i) then 1 else if n \<le> component_of_term x then lookup b (map_component (\<lambda>k. k - n) x) else 0)"
+  unfolding lift_poly_syz_def
+proof (rule Abs_poly_mapping_inverse)
+  from finite_keys have "finite (map_component (\<lambda>k. k + n) ` keys b)" ..
+  hence "finite (insert (term_of_pair (0, i)) (map_component (\<lambda>k. k + n) ` keys b))" by (rule finite.insertI)
+  with keys_lift_poly_syz_aux
+  have "finite {x. (if pair_of_term x = (0, i) then 1
+                    else if n \<le> component_of_term x then lookup b (map_component (\<lambda>k. k - n) x)
+                    else 0) \<noteq> 0}"
+    by (rule finite_subset)
+  thus "(\<lambda>x. if pair_of_term x = (0, i) then 1
+              else if n \<le> component_of_term x then lookup b (map_component (\<lambda>k. k - n) x)
+              else 0) \<in>
+          {f. finite {x. f x \<noteq> 0}}" by simp
 qed
 
 corollary lookup_lift_poly_syz_alt:
-  "lookup (lift_poly_syz n b i) (t, j) = (if (t, j) = (0, i) then 1 else if n \<le> j then lookup b (t, j - n) else 0)"
-  by (simp add: lookup_lift_poly_syz)
+  "lookup (lift_poly_syz n b i) (term_of_pair (t, j)) =
+          (if (t, j) = (0, i) then 1 else if n \<le> j then lookup b (term_of_pair (t, j - n)) else 0)"
+  by (simp only: lookup_lift_poly_syz term_simps)
 
 lemma keys_lift_poly_syz:
-  "keys (lift_poly_syz n b i) = insert (0, i) ((\<lambda>p. (fst p, snd p + n)) ` keys b)"
+  "keys (lift_poly_syz n b i) = insert (term_of_pair (0, i)) (map_component (\<lambda>k. k + n) ` keys b)"
 proof
   have "keys (lift_poly_syz n b i) \<subseteq>
-          {x. (if x = (0, i) then 1 else if n \<le> snd x then lookup b (fst x, snd x - n) else 0) \<noteq> 0}"
+          {x. (if pair_of_term x = (0, i) then 1
+              else if n \<le> component_of_term x then lookup b (map_component (\<lambda>k. k - n) x)
+              else 0) \<noteq> 0}"
     (is "_ \<subseteq> ?A")
   proof
-    fix t j
-    assume "(t, j) \<in> keys (lift_poly_syz n b i)"
-    hence "lookup (lift_poly_syz n b i) (t, j) \<noteq> 0" by simp
-    thus "(t, j) \<in> ?A" unfolding lookup_lift_poly_syz by simp
+    fix x
+    assume "x \<in> keys (lift_poly_syz n b i)"
+    hence "lookup (lift_poly_syz n b i) x \<noteq> 0" by simp
+    thus "x \<in> ?A" by (simp add: lookup_lift_poly_syz)
   qed
   also note keys_lift_poly_syz_aux
-  finally show "keys (lift_poly_syz n b i) \<subseteq> insert (0, i) ((\<lambda>p. (fst p, snd p + n)) ` keys b)" .
+  finally show "keys (lift_poly_syz n b i) \<subseteq> insert (term_of_pair (0, i)) (map_component (\<lambda>k. k + n) ` keys b)" .
 next
-  show "insert (0, i) ((\<lambda>p. (fst p, snd p + n)) ` keys b) \<subseteq> keys (lift_poly_syz n b i)"
+  show "insert (term_of_pair (0, i)) (map_component (\<lambda>k. k + n) ` keys b) \<subseteq> keys (lift_poly_syz n b i)"
   proof (simp, rule)
-    have "lookup (lift_poly_syz n b i) (0, i) \<noteq> 0" by (simp add: lookup_lift_poly_syz_alt)
-    thus "(0, i) \<in> keys (lift_poly_syz n b i)" by simp
+    have "lookup (lift_poly_syz n b i) (term_of_pair (0, i)) \<noteq> 0" by (simp add: lookup_lift_poly_syz_alt)
+    thus "term_of_pair (0, i) \<in> keys (lift_poly_syz n b i)" by simp
   next
-    show "(\<lambda>p. (fst p, snd p + n)) ` keys b \<subseteq> keys (lift_poly_syz n b i)"
+    show "map_component (\<lambda>k. k + n) ` keys b \<subseteq> keys (lift_poly_syz n b i)"
     proof (rule, elim imageE, simp)
       fix x
       assume "x \<in> keys b"
-      hence "lookup (lift_poly_syz n b i) (fst x, snd x + n) \<noteq> 0" by (simp add: lookup_lift_poly_syz_alt)
-      thus "(fst x, snd x + n) \<in> keys (lift_poly_syz n b i)" by simp
+      hence "lookup (lift_poly_syz n b i) (map_component (\<lambda>k. k + n) x) \<noteq> 0"
+        by (simp add: lookup_lift_poly_syz_alt map_component_def term_simps)
+      thus "map_component (\<lambda>k. k + n) x \<in> keys (lift_poly_syz n b i)" by simp
     qed
   qed
 qed
 
 subsubsection \<open>@{const proj_poly_syz}\<close>
 
-lemma inj_proj_poly_syz: "inj (\<lambda>x. (fst x, snd x + (n::nat)))"
-  by (meson Pair_inject add_right_imp_eq injI prod_eqI)
+lemma inj_map_component_plus: "inj (map_component (\<lambda>k. k + n))"
+proof (rule injI)
+  fix x y
+  have "inj (\<lambda>k::nat. k + n)" by (simp add: inj_def)
+  moreover assume "map_component (\<lambda>k. k + n) x = map_component (\<lambda>k. k + n) y"
+  ultimately show "x = y" by (rule map_component_inj)
+qed
 
-lemma lookup_proj_poly_syz: "lookup (proj_poly_syz n p) x = lookup p (fst x, snd x + n)"
- by (simp add: proj_poly_syz_def map_key.rep_eq[OF inj_proj_poly_syz])
+lemma lookup_proj_poly_syz: "lookup (proj_poly_syz n p) x = lookup p (map_component (\<lambda>k. k + n) x)"
+ by (simp add: proj_poly_syz_def map_key.rep_eq[OF inj_map_component_plus])
 
-lemma lookup_proj_poly_syz_alt: "lookup (proj_poly_syz n p) (t, i) = lookup p (t, i + n)"
-  by (simp add: lookup_proj_poly_syz)
+lemma lookup_proj_poly_syz_alt:
+  "lookup (proj_poly_syz n p) (term_of_pair (t, i)) = lookup p (term_of_pair (t, i + n))"
+  by (simp add: lookup_proj_poly_syz map_component_term_of_pair)
 
-lemma keys_proj_poly_syz: "keys (proj_poly_syz n p) = (\<lambda>x. (fst x, snd x + n)) -` keys p"
-  by (simp add: proj_poly_syz_def keys_map_key[OF inj_proj_poly_syz])
+lemma keys_proj_poly_syz: "keys (proj_poly_syz n p) = map_component (\<lambda>k. k + n) -` keys p"
+  by (simp add: proj_poly_syz_def keys_map_key[OF inj_map_component_plus])
 
 lemma proj_poly_syz_zero [simp]: "proj_poly_syz n 0 = 0"
   by (rule poly_mapping_eqI, simp add: lookup_proj_poly_syz)
 
 lemma proj_poly_syz_plus: "proj_poly_syz n (p + q) = proj_poly_syz n p + proj_poly_syz n q"
-  by (simp add: proj_poly_syz_def map_key_plus[OF inj_proj_poly_syz])
+  by (simp add: proj_poly_syz_def map_key_plus[OF inj_map_component_plus])
 
 lemma proj_poly_syz_sum: "proj_poly_syz n (sum f A) = (\<Sum>a\<in>A. proj_poly_syz n (f a))"
   by (rule fun_sum_commute, simp_all add: proj_poly_syz_plus)
@@ -371,104 +503,107 @@ lemma proj_poly_syz_sum_list: "proj_poly_syz n (sum_list xs) = sum_list (map (pr
   by (rule fun_sum_list_commute, simp_all add: proj_poly_syz_plus)
 
 lemma proj_poly_syz_monom_mult:
-  "proj_poly_syz n (pprod.monom_mult c t p) = pprod.monom_mult c t (proj_poly_syz n p)"
+  "proj_poly_syz n (monom_mult c t p) = monom_mult c t (proj_poly_syz n p)"
   by (rule poly_mapping_eqI,
-      simp add: lookup_proj_poly_syz pprod.lookup_monom_mult pprod.adds_pp_def pprod.sminus_def)
+      simp add: lookup_proj_poly_syz lookup_monom_mult term_simps adds_pp_def sminus_def)
 
 lemma proj_poly_syz_mult_scalar:
-  "proj_poly_syz n (pprod.mult_scalar q p) = pprod.mult_scalar q (proj_poly_syz n p)"
-  by (rule pprod.fun_mult_scalar_commute, simp_all add: proj_poly_syz_plus proj_poly_syz_monom_mult)
+  "proj_poly_syz n (mult_scalar q p) = mult_scalar q (proj_poly_syz n p)"
+  by (rule fun_mult_scalar_commute, simp_all add: proj_poly_syz_plus proj_poly_syz_monom_mult)
 
 lemma proj_poly_syz_lift_poly_syz:
   assumes "i < n"
   shows "proj_poly_syz n (lift_poly_syz n p i) = p"
-proof (rule poly_mapping_eqI, simp add: lookup_proj_poly_syz lookup_lift_poly_syz_alt, rule, elim conjE)
-  fix x::"'a \<times> nat"
-  assume "snd x + n = i"
+proof (rule poly_mapping_eqI, simp add: lookup_proj_poly_syz lookup_lift_poly_syz term_simps map_component_comp,
+      rule, elim conjE)
+  fix x::'t
+  assume "component_of_term x + n = i"
   hence "n \<le> i" by simp
   with assms show "lookup p x = 1" by simp
 qed
 
-lemma proj_poly_syz_eq_zero_iff: "proj_poly_syz n p = 0 \<longleftrightarrow> (snd ` keys p \<subseteq> {0..<n})"
+lemma proj_poly_syz_eq_zero_iff: "proj_poly_syz n p = 0 \<longleftrightarrow> (component_of_term ` keys p \<subseteq> {0..<n})"
   unfolding keys_eq_empty_iff[symmetric] keys_proj_poly_syz
 proof
-  assume "(\<lambda>x. (fst x, snd x + n)) -` keys p = {}" (is "?A = {}")
-  show "snd ` keys p \<subseteq> {0..<n}"
+  assume "map_component (\<lambda>k. k + n) -` keys p = {}" (is "?A = {}")
+  show "component_of_term ` keys p \<subseteq> {0..<n}"
   proof (rule, rule ccontr)
     fix i
-    assume "i \<in> snd ` keys p"
-    then obtain x where "x \<in> keys p" and i: "i = snd x" ..
+    assume "i \<in> component_of_term ` keys p"
+    then obtain x where x: "x \<in> keys p" and i: "i = component_of_term x" ..
     assume "i \<notin> {0..<n}"
     hence "i - n + n = i" by simp
-    have "(fst x, i - n) \<in> ?A" by (rule vimageI2, simp add: \<open>i - n + n = i\<close>, simp add: i \<open>x \<in> keys p\<close>)
+    hence 1: "map_component (\<lambda>k. k - n + n) x = x" by (simp add: map_component_def i term_simps)
+    have "map_component (\<lambda>k. k - n) x \<in> ?A" by (rule vimageI2, simp add: map_component_comp x 1)
     thus False by (simp add: \<open>?A = {}\<close>)
   qed
 next
-  assume a: "snd ` keys p \<subseteq> {0..<n}"
-  show "(\<lambda>x. (fst x, snd x + n)) -` keys p = {}" (is "?A = {}")
+  assume a: "component_of_term ` keys p \<subseteq> {0..<n}"
+  show "map_component (\<lambda>k. k + n) -` keys p = {}" (is "?A = {}")
   proof (rule ccontr)
     assume "?A \<noteq> {}"
     then obtain x where "x \<in> ?A" by blast
-    hence "(fst x, snd x + n) \<in> keys p" by (rule vimageD)
-    with a have "snd (fst x, snd x + n) \<in> {0..<n}" by blast
-    thus False by simp
+    hence "map_component (\<lambda>k. k + n) x \<in> keys p" by (rule vimageD)
+    with a have "component_of_term (map_component (\<lambda>k. k + n) x) \<in> {0..<n}" by blast
+    thus False by (simp add: term_simps)
   qed
 qed
 
-lemma (in ordered_powerprod) snd_pot_lt_ge:
-  assumes "proj_poly_syz n p \<noteq> 0"
-  shows "n \<le> snd (pot.lt p)"
+lemma component_of_lt_ge:
+  assumes "is_pot_ord" and "proj_poly_syz n p \<noteq> 0"
+  shows "n \<le> component_of_term (lt p)"
 proof -
-  from assms have "\<not> snd ` keys p \<subseteq> {0..<n}" by (simp add: proj_poly_syz_eq_zero_iff)
-  then obtain i where "i \<in> snd ` keys p" and "i \<notin> {0..<n}" by fastforce
-  from this(1) obtain x where "x \<in> keys p" and i: "i = snd x" ..
-  from this(1) have "ord_pot x (pot.lt p)" by (rule pot.lt_max_keys)
-  hence "snd x \<le> snd (pot.lt p)" by (auto simp add: ord_pot_def)
+  from assms(2) have "\<not> component_of_term ` keys p \<subseteq> {0..<n}" by (simp add: proj_poly_syz_eq_zero_iff)
+  then obtain i where "i \<in> component_of_term ` keys p" and "i \<notin> {0..<n}" by fastforce
+  from this(1) obtain x where "x \<in> keys p" and i: "i = component_of_term x" ..
+  from this(1) have "x \<preceq>\<^sub>t lt p" by (rule lt_max_keys)
+  with assms(1) have "component_of_term x \<le> component_of_term (lt p)" by (rule is_pot_ordD2)
   with \<open>i \<notin> {0..<n}\<close> show ?thesis by (simp add: i)
 qed
 
-lemma (in ordered_powerprod) pot_lt_proj_poly_syz:
-  assumes "proj_poly_syz n p \<noteq> 0"
-  shows "pot.lt (proj_poly_syz n p) = (fst (pot.lt p), snd (pot.lt p) - n)"
+lemma lt_proj_poly_syz:
+  assumes "is_pot_ord" and "proj_poly_syz n p \<noteq> 0"
+  shows "lt (proj_poly_syz n p) = map_component (\<lambda>k. k - n) (lt p)" (is "_ = ?l")
 proof -
-  let ?l = "(fst (pot.lt p), snd (pot.lt p) - n)"
-  from snd_pot_lt_ge[OF assms] have eq: "snd (pot.lt p) - n + n = snd (pot.lt p)" by simp
+  from component_of_lt_ge[OF assms]
+  have "component_of_term (lt p) - n + n = component_of_term (lt p)" by simp
+  hence eq: "map_component (\<lambda>k. k - n + n) (lt p) = lt p" by (simp add: map_component_def term_simps)
   show ?thesis
-  proof (rule pot.lt_eqI)
-    have "lookup (proj_poly_syz n p) ?l = pot.lc p"
-      by (simp add: pot.lc_def lookup_proj_poly_syz_alt eq)
+  proof (rule lt_eqI)
+    have "lookup (proj_poly_syz n p) ?l = lc p"
+      by (simp add: lc_def lookup_proj_poly_syz term_simps map_component_comp eq)
     also have "... \<noteq> 0"
-    proof (rule pot.lc_not_0, rule)
+    proof (rule lc_not_0, rule)
       assume "p = 0"
       hence "proj_poly_syz n p = 0" by simp
-      with assms show False ..
+      with assms(2) show False ..
     qed
     finally show "lookup (proj_poly_syz n p) ?l \<noteq> 0" .
   next
     fix x
     assume "lookup (proj_poly_syz n p) x \<noteq> 0"
-    hence "(fst x, snd x + n) \<in> keys p" by (simp add: lookup_proj_poly_syz)
-    hence "ord_pot (fst x, snd x + n) (pot.lt p)" by (rule pot.lt_max_keys)
-    thus "ord_pot x ?l" by (auto simp add: ord_pot_def)
+    hence "map_component (\<lambda>k. k + n) x \<in> keys p" by (simp add: lookup_proj_poly_syz)
+    hence "map_component (\<lambda>k. k + n) x \<preceq>\<^sub>t lt p" by (rule lt_max_keys)
+    with assms(1) show "x \<preceq>\<^sub>t ?l" by (auto simp add: is_pot_ord term_simps)
   qed
 qed
 
-lemma proj_proj_poly_syz: "pprod.proj_poly k (proj_poly_syz n p) = pprod.proj_poly (k + n) p"
-  by (rule poly_mapping_eqI, simp add: pprod.lookup_proj_poly lookup_proj_poly_syz_alt)
+lemma proj_proj_poly_syz: "proj_poly k (proj_poly_syz n p) = proj_poly (k + n) p"
+  by (rule poly_mapping_eqI, simp add: lookup_proj_poly lookup_proj_poly_syz_alt)
 
 lemma poly_mapping_eqI_proj_syz:
   assumes "proj_poly_syz n p = proj_poly_syz n q"
-    and "\<And>k. k < n \<Longrightarrow> pprod.proj_poly k p = pprod.proj_poly k q"
+    and "\<And>k. k < n \<Longrightarrow> proj_poly k p = proj_poly k q"
   shows "p = q"
-proof (rule pprod.poly_mapping_eqI_proj)
+proof (rule poly_mapping_eqI_proj)
   fix k
-  show "pprod.proj_poly k p = pprod.proj_poly k q"
+  show "proj_poly k p = proj_poly k q"
   proof (cases "k < n")
     case True
     thus ?thesis by (rule assms(2))
   next
     case False
-    have "pprod.proj_poly (k - n + n) p = pprod.proj_poly (k - n + n) q"
+    have "proj_poly (k - n + n) p = proj_poly (k - n + n) q"
       by (simp only: proj_proj_poly_syz[symmetric] assms(1))
     with False show ?thesis by simp
   qed
@@ -481,15 +616,15 @@ lemma length_cofactor_list_syz [simp]: "length (cofactor_list_syz n p) = n"
 
 lemma cofactor_list_syz_nth:
   assumes "i < n"
-  shows "(cofactor_list_syz n p) ! i = pprod.proj_poly i p"
+  shows "(cofactor_list_syz n p) ! i = proj_poly i p"
   by (simp add: cofactor_list_syz_def map_idx_nth assms)
 
 lemma cofactor_list_syz_zero [simp]: "cofactor_list_syz n 0 = replicate n 0"
-  by (rule nth_equalityI, simp_all add: cofactor_list_syz_nth pprod.proj_zero)
+  by (rule nth_equalityI, simp_all add: cofactor_list_syz_nth proj_zero)
 
 lemma cofactor_list_syz_plus:
   "cofactor_list_syz n (p + q) = map2 (+) (cofactor_list_syz n p) (cofactor_list_syz n q)"
-  by (rule nth_equalityI, simp_all add: cofactor_list_syz_nth pprod.proj_plus)
+  by (rule nth_equalityI, simp_all add: cofactor_list_syz_nth proj_plus)
 
 subsubsection \<open>@{const init_syzygy_list}\<close>
 
@@ -502,63 +637,62 @@ lemma init_syzygy_list_nth:
   by (simp add: init_syzygy_list_def map_idx_nth[OF assms])
 
 lemma Keys_init_syzygy_list:
-  "Keys (set (init_syzygy_list bs)) = (\<lambda>p. (fst p, snd p + length bs)) ` Keys (set bs) \<union> Pair 0 ` {0..<length bs}"
+  "Keys (set (init_syzygy_list bs)) =
+      map_component (\<lambda>k. k + length bs) ` Keys (set bs) \<union> (\<lambda>i. term_of_pair (0, i)) ` {0..<length bs}"
 proof -
-  have eq1: "(\<Union>b\<in>set bs. (\<lambda>p. (fst p, snd p + length bs)) ` keys b) =
-              (\<Union>i\<in>{0..<length bs}. (\<lambda>p. (fst p, snd p + length bs)) ` keys (bs ! i))"
+  have eq1: "(\<Union>b\<in>set bs. map_component (\<lambda>k. k + length bs) ` keys b) =
+              (\<Union>i\<in>{0..<length bs}. map_component (\<lambda>k. k + length bs) ` keys (bs ! i))"
     by (fact UN_upt[symmetric])
-  have eq2: "Pair 0 ` {0..<length bs} = (\<Union>i\<in>{0..<length bs}. {Pair 0 i})" (is "?l = ?r")
-  proof
-    show "?l \<subseteq> ?r" by (rule, elim imageE, simp)
-  next
-    show "?r \<subseteq> ?l" by (simp add: UN_subset_iff)
-  qed
+  have eq2: "(\<lambda>i. term_of_pair (0, i)) ` {0..<length bs} = (\<Union>i\<in>{0..<length bs}. {term_of_pair (0, i)})"
+    by auto
   show ?thesis
     by (simp add: init_syzygy_list_def set_map_idx Keys_def keys_lift_poly_syz image_UN
         eq1 eq2 UN_Un_distrib[symmetric])
 qed
 
-lemma fst_Keys_init_syzygy_list_subset:
-  "fst ` Keys (set (init_syzygy_list bs)) \<subseteq> insert 0 (fst ` Keys (set bs))"
-  by (auto simp add: Keys_init_syzygy_list image_Un rev_image_eqI)
+lemma pp_of_Keys_init_syzygy_list_subset:
+  "pp_of_term ` Keys (set (init_syzygy_list bs)) \<subseteq> insert 0 (pp_of_term ` Keys (set bs))"
+  by (auto simp add: Keys_init_syzygy_list image_Un rev_image_eqI term_simps)
 
-lemma fst_Keys_init_syzygy_list_superset:
-  "fst ` Keys (set bs) \<subseteq> fst ` Keys (set (init_syzygy_list bs))"
-  apply (simp add: Keys_init_syzygy_list image_Un) using image_iff by fastforce
+lemma pp_of_Keys_init_syzygy_list_superset:
+  "pp_of_term ` Keys (set bs) \<subseteq> pp_of_term ` Keys (set (init_syzygy_list bs))"
+  by (simp add: Keys_init_syzygy_list image_Un term_simps image_image)
 
-lemma fst_Keys_init_syzygy_list:
+lemma pp_of_Keys_init_syzygy_list:
   assumes "bs \<noteq> []"
-  shows "fst ` Keys (set (init_syzygy_list bs)) = insert 0 (fst ` Keys (set bs))"
+  shows "pp_of_term ` Keys (set (init_syzygy_list bs)) = insert 0 (pp_of_term ` Keys (set bs))"
 proof
-  show "insert 0 (fst ` Keys (set bs)) \<subseteq> fst ` Keys (set (init_syzygy_list bs))"
-  proof (simp add: fst_Keys_init_syzygy_list_superset)
+  show "insert 0 (pp_of_term ` Keys (set bs)) \<subseteq> pp_of_term ` Keys (set (init_syzygy_list bs))"
+  proof (simp add: pp_of_Keys_init_syzygy_list_superset)
     from assms have "{0..<length bs} \<noteq> {}" by auto
     hence "Pair 0 ` {0..<length bs} \<noteq> {}" by blast
-    then obtain x::"'a \<times> nat" where x: "x \<in> Pair 0 ` {0..<length bs}" by blast
-    hence "fst ` Pair 0 ` {0..<length bs} = {fst x}" using image_subset_iff by auto
-    also from x have "... = {0}" by force
-    finally show "0 \<in> fst ` Keys (set (init_syzygy_list bs))"
+    then obtain x::'t where x: "x \<in> (\<lambda>i. term_of_pair (0, i)) ` {0..<length bs}" by blast
+    hence "pp_of_term ` (\<lambda>i. term_of_pair (0, i)) ` {0..<length bs} = {pp_of_term x}"
+      using image_subset_iff by (auto simp: term_simps)
+    also from x have "... = {0}" using pp_of_term_of_pair by auto
+    finally show "0 \<in> pp_of_term ` Keys (set (init_syzygy_list bs))"
       by (simp add: Keys_init_syzygy_list image_Un)
   qed
-qed (fact fst_Keys_init_syzygy_list_subset)
+qed (fact pp_of_Keys_init_syzygy_list_subset)
 
-lemma snd_Keys_init_syzygy_list:
-  "snd ` Keys (set (init_syzygy_list bs)) = (+) (length bs) ` snd ` Keys (set bs) \<union> {0..<length bs}"
-  by (simp add: Keys_init_syzygy_list image_Un image_comp o_def ac_simps)
+lemma component_of_Keys_init_syzygy_list:
+  "component_of_term ` Keys (set (init_syzygy_list bs)) =
+            (+) (length bs) ` component_of_term ` Keys (set bs) \<union> {0..<length bs}"
+  by (simp add: Keys_init_syzygy_list image_Un image_comp o_def ac_simps term_simps)
 
 lemma proj_lift_poly_syz:
   assumes "j < n"
-  shows "pprod.proj_poly j (lift_poly_syz n p i) = (1 when j = i)"
+  shows "proj_poly j (lift_poly_syz n p i) = (1 when j = i)"
 proof (simp add: when_def, intro conjI impI)
   assume "j = i"
   with assms have "\<not> n \<le> i" by simp
-  show "pprod.proj_poly i (lift_poly_syz n p i) = 1"
-    by (rule poly_mapping_eqI, simp add: pprod.lookup_proj_poly lookup_lift_poly_syz_alt \<open>\<not> n \<le> i\<close> lookup_one)
+  show "proj_poly i (lift_poly_syz n p i) = 1"
+    by (rule poly_mapping_eqI, simp add: lookup_proj_poly lookup_lift_poly_syz_alt \<open>\<not> n \<le> i\<close> lookup_one)
 next
   assume "j \<noteq> i"
   from assms have "\<not> n \<le> j" by simp
-  show "pprod.proj_poly j (lift_poly_syz n p i) = 0"
-    by (rule poly_mapping_eqI, simp add: pprod.lookup_proj_poly lookup_lift_poly_syz_alt \<open>\<not> n \<le> j\<close> \<open>j \<noteq> i\<close>)
+  show "proj_poly j (lift_poly_syz n p i) = 0"
+    by (rule poly_mapping_eqI, simp add: lookup_proj_poly lookup_lift_poly_syz_alt \<open>\<not> n \<le> j\<close> \<open>j \<noteq> i\<close>)
 qed
 
 subsubsection \<open>@{const proj_orig_basis}\<close>
@@ -581,30 +715,30 @@ lemma set_proj_orig_basis: "set (proj_orig_basis n bs) = proj_poly_syz n ` set b
 text \<open>The following lemma could be generalized from @{const proj_poly_syz} to arbitrary module homomorphisms,
   i.\,e. functions respecting \<open>0\<close>, addition and scalar multiplication.\<close>
 lemma pmdl_proj_orig_basis':
-  "pprod.pmdl (set (proj_orig_basis n bs)) = proj_poly_syz n ` pprod.pmdl (set bs)" (is "?A = ?B")
+  "pmdl (set (proj_orig_basis n bs)) = proj_poly_syz n ` pmdl (set bs)" (is "?A = ?B")
 proof
   show "?A \<subseteq> ?B"
   proof
     fix p
-    assume "p \<in> pprod.pmdl (set (proj_orig_basis n bs))"
-    thus "p \<in> proj_poly_syz n ` pprod.pmdl (set bs)"
-    proof (induct rule: pprod.pmdl_induct)
+    assume "p \<in> pmdl (set (proj_orig_basis n bs))"
+    thus "p \<in> proj_poly_syz n ` pmdl (set bs)"
+    proof (induct rule: pmdl_induct)
       case module_0
       have "0 = proj_poly_syz n 0" by simp
-      also from pprod.pmdl.module_0 have "... \<in> proj_poly_syz n ` pprod.pmdl (set bs)"
+      also from pmdl.module_0 have "... \<in> proj_poly_syz n ` pmdl (set bs)"
         by (rule imageI)
       finally show ?case .
     next
       case (module_plus p b c t)
-      from module_plus(2) obtain q where "q \<in> pprod.pmdl (set bs)" and p: "p = proj_poly_syz n q" ..
+      from module_plus(2) obtain q where "q \<in> pmdl (set bs)" and p: "p = proj_poly_syz n q" ..
       from module_plus(3) obtain a where "a \<in> set bs" and b: "b = proj_poly_syz n a"
         unfolding set_proj_orig_basis ..
-      have "p + pprod.monom_mult c t b = proj_poly_syz n (q + pprod.monom_mult c t a)"
+      have "p + monom_mult c t b = proj_poly_syz n (q + monom_mult c t a)"
         by (simp add: p b proj_poly_syz_monom_mult proj_poly_syz_plus)
-      also have "... \<in> proj_poly_syz n ` pprod.pmdl (set bs)"
-      proof (rule imageI, rule pprod.pmdl.module_closed_plus)
-        show "pprod.monom_mult c t a \<in> pprod.pmdl (set bs)"
-          by (rule pprod.pmdl_closed_monom_mult, rule pprod.pmdl.generator_in_module, fact)
+      also have "... \<in> proj_poly_syz n ` pmdl (set bs)"
+      proof (rule imageI, rule pmdl.module_closed_plus)
+        show "monom_mult c t a \<in> pmdl (set bs)"
+          by (rule pmdl_closed_monom_mult, rule pmdl.generator_in_module, fact)
       qed fact
       finally show ?case .
     qed
@@ -613,23 +747,23 @@ next
   show "?B \<subseteq> ?A"
   proof
     fix p
-    assume "p \<in> proj_poly_syz n ` pprod.pmdl (set bs)"
-    then obtain q where "q \<in> pprod.pmdl (set bs)" and p: "p = proj_poly_syz n q" ..
-    from this(1) show "p \<in> pprod.pmdl (set (proj_orig_basis n bs))" unfolding p
-    proof (induct rule: pprod.pmdl_induct)
+    assume "p \<in> proj_poly_syz n ` pmdl (set bs)"
+    then obtain q where "q \<in> pmdl (set bs)" and p: "p = proj_poly_syz n q" ..
+    from this(1) show "p \<in> pmdl (set (proj_orig_basis n bs))" unfolding p
+    proof (induct rule: pmdl_induct)
       case module_0
       have "proj_poly_syz n 0 = 0" by simp
-      also have "... \<in> pprod.pmdl (set (proj_orig_basis n bs))" by (fact pprod.pmdl.module_0)
+      also have "... \<in> pmdl (set (proj_orig_basis n bs))" by (fact pmdl.module_0)
       finally show ?case .
     next
       case (module_plus q b c t)
-      have "proj_poly_syz n (q + pprod.monom_mult c t b) =
-            proj_poly_syz n q + pprod.monom_mult c t (proj_poly_syz n b)"
+      have "proj_poly_syz n (q + monom_mult c t b) =
+            proj_poly_syz n q + monom_mult c t (proj_poly_syz n b)"
         by (simp add: proj_poly_syz_plus proj_poly_syz_monom_mult)
-      also have "... \<in> pprod.pmdl (set (proj_orig_basis n bs))"
-      proof (rule pprod.pmdl.module_closed_plus)
-        show "pprod.monom_mult c t (proj_poly_syz n b) \<in> pprod.pmdl (set (proj_orig_basis n bs))"
-        proof (rule pprod.pmdl_closed_monom_mult, rule pprod.pmdl.generator_in_module)
+      also have "... \<in> pmdl (set (proj_orig_basis n bs))"
+      proof (rule pmdl.module_closed_plus)
+        show "monom_mult c t (proj_poly_syz n b) \<in> pmdl (set (proj_orig_basis n bs))"
+        proof (rule pmdl_closed_monom_mult, rule pmdl.generator_in_module)
           show "proj_poly_syz n b \<in> set (proj_orig_basis n bs)"
             by (simp add: set_proj_orig_basis, rule imageI, fact)
         qed
@@ -651,216 +785,219 @@ lemma set_filter_syzygy_basis:
 subsubsection \<open>@{const syzygy_module_list}\<close>
 
 lemma syzygy_module_listI:
-  assumes "s' \<in> pprod.pmdl.syzygy_module (set bs)" and "s = pprod.atomize_poly (idx_pm_of_pm bs s')"
+  assumes "s' \<in> pmdl.syzygy_module (set bs)" and "s = atomize_poly (idx_pm_of_pm bs s')"
   shows "s \<in> syzygy_module_list bs"
   unfolding assms(2) syzygy_module_list_def by (intro imageI, fact assms(1))
 
 lemma syzygy_module_listE:
   assumes "s \<in> syzygy_module_list bs"
-  obtains s' where "s' \<in> pprod.pmdl.syzygy_module (set bs)" and "s = pprod.atomize_poly (idx_pm_of_pm bs s')"
+  obtains s' where "s' \<in> pmdl.syzygy_module (set bs)" and "s = atomize_poly (idx_pm_of_pm bs s')"
   using assms unfolding syzygy_module_list_def by (elim imageE, simp)
 
-lemma pprod_monom_mult_atomize:
-  "pprod.monom_mult c t (pprod.atomize_poly p) =
-    pprod.atomize_poly (punit.monom_mult (monomial c t) (0::nat) p)"
-  by (rule pprod.poly_mapping_eqI_proj, simp add: pprod.proj_monom_mult pprod.proj_atomize_poly
-      punit.lookup_monom_mult times_monomial_left)
+lemma monom_mult_atomize:
+  "monom_mult c t (atomize_poly p) = atomize_poly (MPoly_Type_Class.punit.monom_mult (monomial c t) 0 p)"
+  by (rule poly_mapping_eqI_proj, simp add: proj_monom_mult proj_atomize_poly
+      MPoly_Type_Class.punit.lookup_monom_mult times_monomial_left)
+
+lemma punit_monom_mult_monomial_idx_pm_of_pm:
+  "MPoly_Type_Class.punit.monom_mult (monomial c t) (0::nat) (idx_pm_of_pm bs s) =
+    idx_pm_of_pm bs (MPoly_Type_Class.punit.monom_mult (monomial c t) (0::'t \<Rightarrow>\<^sub>0 'b::ring_1) s)"
+  by (rule poly_mapping_eqI, simp add: MPoly_Type_Class.punit.lookup_monom_mult lookup_idx_pm_of_pm when_def)
 
 lemma syzygy_module_list_closed_monom_mult:
   assumes "s \<in> syzygy_module_list bs"
-  shows "pprod.monom_mult c t s \<in> syzygy_module_list bs"
+  shows "monom_mult c t s \<in> syzygy_module_list bs"
 proof -
-  from assms obtain s' where s': "s' \<in> pprod.pmdl.syzygy_module (set bs)"
-    and s: "s = pprod.atomize_poly (idx_pm_of_pm bs s')" by (rule syzygy_module_listE)
+  from assms obtain s' where s': "s' \<in> pmdl.syzygy_module (set bs)"
+    and s: "s = atomize_poly (idx_pm_of_pm bs s')" by (rule syzygy_module_listE)
   show ?thesis unfolding s
   proof (rule syzygy_module_listI)
-    from s' show "punit.monom_mult (monomial c t) 0 s' \<in> pprod.pmdl.syzygy_module (set bs)"
-      by (rule pprod.syzygy_module_closed_monom_mult)
+    from s' show "(MPoly_Type_Class.punit.monom_mult (monomial c t) 0) s' \<in> pmdl.syzygy_module (set bs)"
+      by (rule syzygy_module_closed_monom_mult)
   next
-    show "pprod.monom_mult c t (pprod.atomize_poly (idx_pm_of_pm bs s')) =
-          pprod.atomize_poly (idx_pm_of_pm bs (punit.monom_mult (monomial c t) 0 s'))"
-      by (simp add: pprod_monom_mult_atomize punit_monom_mult_monomial_idx_pm_of_pm)
+    show "monom_mult c t (atomize_poly (idx_pm_of_pm bs s')) =
+          atomize_poly (idx_pm_of_pm bs (MPoly_Type_Class.punit.monom_mult (monomial c t) 0 s'))"
+      by (simp add: monom_mult_atomize punit_monom_mult_monomial_idx_pm_of_pm)
   qed
 qed
 
-lemma pmdl_syzygy_module_list [simp]: "pprod.pmdl (syzygy_module_list bs) = syzygy_module_list bs"
-proof (rule pprod.pmdl_idI)
+lemma pmdl_syzygy_module_list [simp]: "pmdl (syzygy_module_list bs) = syzygy_module_list bs"
+proof (rule pmdl_idI)
   show "0 \<in> syzygy_module_list bs"
-    by (rule syzygy_module_listI, fact pprod.pmdl.zero_in_syzygy_module, simp add: pprod.atomize_zero)
+    by (rule syzygy_module_listI, fact pmdl.zero_in_syzygy_module, simp add: atomize_zero)
 next
   fix s1 s2
   assume "s1 \<in> syzygy_module_list bs"
-  then obtain s1' where s1': "s1' \<in> pprod.pmdl.syzygy_module (set bs)"
-    and s1: "s1 = pprod.atomize_poly (idx_pm_of_pm bs s1')" by (rule syzygy_module_listE)
+  then obtain s1' where s1': "s1' \<in> pmdl.syzygy_module (set bs)"
+    and s1: "s1 = atomize_poly (idx_pm_of_pm bs s1')" by (rule syzygy_module_listE)
   assume "s2 \<in> syzygy_module_list bs"
-  then obtain s2' where s2': "s2' \<in> pprod.pmdl.syzygy_module (set bs)"
-    and s2: "s2 = pprod.atomize_poly (idx_pm_of_pm bs s2')" by (rule syzygy_module_listE)
+  then obtain s2' where s2': "s2' \<in> pmdl.syzygy_module (set bs)"
+    and s2: "s2 = atomize_poly (idx_pm_of_pm bs s2')" by (rule syzygy_module_listE)
   show "s1 + s2 \<in> syzygy_module_list bs"
   proof (rule syzygy_module_listI)
-    from s1' s2' show "s1' + s2' \<in> pprod.pmdl.syzygy_module (set bs)"
-      by (rule pprod.pmdl.syzygy_module_closed_plus)
+    from s1' s2' show "s1' + s2' \<in> pmdl.syzygy_module (set bs)"
+      by (rule pmdl.syzygy_module_closed_plus)
   next
-    show "s1 + s2 = pprod.atomize_poly (idx_pm_of_pm bs (s1' + s2'))"
-      by (simp add: idx_pm_of_pm_plus pprod.atomize_plus s1 s2)
+    show "s1 + s2 = atomize_poly (idx_pm_of_pm bs (s1' + s2'))"
+      by (simp add: idx_pm_of_pm_plus atomize_plus s1 s2)
   qed
 qed (fact syzygy_module_list_closed_monom_mult)
 
 text \<open>The following lemma also holds without the distinctness constraint on \<open>bs\<close>, but then the
   proof becomes more difficult.\<close>
 lemma syzygy_module_listI':
-  assumes "distinct bs" and "sum_list (map2 pprod.mult_scalar (cofactor_list_syz (length bs) s) bs) = 0"
-    and "snd ` keys s \<subseteq> {0..<length bs}"
+  assumes "distinct bs" and "sum_list (map2 mult_scalar (cofactor_list_syz (length bs) s) bs) = 0"
+    and "component_of_term ` keys s \<subseteq> {0..<length bs}"
   shows "s \<in> syzygy_module_list bs"
 proof (rule syzygy_module_listI)
   from keys_pm_of_idx_pm_subset
-  show "pm_of_idx_pm bs (pprod.vectorize_poly s) \<in> pprod.pmdl.syzygy_module (set bs)"
-  proof (rule pprod.pmdl.syzygy_moduleI)
-    have "(\<Sum>v\<in>keys (pm_of_idx_pm bs (pprod.vectorize_poly s)).
-              pprod.mult_scalar (lookup (pm_of_idx_pm bs (pprod.vectorize_poly s)) v) v) =
-          (\<Sum>b\<in>set bs. pprod.mult_scalar (lookup (pm_of_idx_pm bs (pprod.vectorize_poly s)) b) b)"
+  show "pm_of_idx_pm bs (vectorize_poly s) \<in> pmdl.syzygy_module (set bs)"
+  proof (rule pmdl.syzygy_moduleI)
+    have "(\<Sum>v\<in>keys (pm_of_idx_pm bs (vectorize_poly s)).
+              mult_scalar (lookup (pm_of_idx_pm bs (vectorize_poly s)) v) v) =
+          (\<Sum>b\<in>set bs. mult_scalar (lookup (pm_of_idx_pm bs (vectorize_poly s)) b) b)"
       by (rule sum.mono_neutral_left, fact finite_set, fact keys_pm_of_idx_pm_subset, simp)
-    also have "... = sum_list (map (\<lambda>b. pprod.mult_scalar (lookup (pm_of_idx_pm bs (pprod.vectorize_poly s)) b) b) bs)"
+    also have "... = sum_list (map (\<lambda>b. mult_scalar (lookup (pm_of_idx_pm bs (vectorize_poly s)) b) b) bs)"
       by (simp only: sum_code distinct_remdups_id[OF assms(1)])
-    also have "... = sum_list (map2 pprod.mult_scalar (cofactor_list_syz (length bs) s) bs)"
+    also have "... = sum_list (map2 mult_scalar (cofactor_list_syz (length bs) s) bs)"
     proof (rule arg_cong[of _ _ sum_list], rule nth_equalityI, simp_all, intro allI impI)
       fix i
       assume "i < length bs"
-      with assms(1) have "lookup (pm_of_idx_pm bs (pprod.vectorize_poly s)) (bs ! i) =
+      with assms(1) have "lookup (pm_of_idx_pm bs (vectorize_poly s)) (bs ! i) =
                           cofactor_list_syz (length bs) s ! i"
-        by (simp add: lookup_pm_of_idx_pm_distinct[OF assms(1)] cofactor_list_syz_nth pprod.lookup_vectorize_poly)
-      thus "pprod.mult_scalar (lookup (pm_of_idx_pm bs (pprod.vectorize_poly s)) (bs ! i)) (bs ! i) =
-            pprod.mult_scalar (cofactor_list_syz (length bs) s ! i) (bs ! i)" by (simp only:)
+        by (simp add: lookup_pm_of_idx_pm_distinct[OF assms(1)] cofactor_list_syz_nth lookup_vectorize_poly)
+      thus "mult_scalar (lookup (pm_of_idx_pm bs (vectorize_poly s)) (bs ! i)) (bs ! i) =
+            mult_scalar (cofactor_list_syz (length bs) s ! i) (bs ! i)" by (simp only:)
     qed
     also have "... = 0" by (fact assms(2))
-    finally show "(\<Sum>v\<in>keys (pm_of_idx_pm bs (pprod.vectorize_poly s)).
-                      pprod.mult_scalar (lookup (pm_of_idx_pm bs (pprod.vectorize_poly s)) v) v) =
+    finally show "(\<Sum>v\<in>keys (pm_of_idx_pm bs (vectorize_poly s)).
+                      mult_scalar (lookup (pm_of_idx_pm bs (vectorize_poly s)) v) v) =
                     0" .
   qed
 next
-  from assms(3) have "keys (pprod.vectorize_poly s) \<subseteq> {0..<length bs}"
-    by (simp add: pprod.keys_vectorize_poly)
-  with assms(1) have "idx_pm_of_pm bs (pm_of_idx_pm bs (pprod.vectorize_poly s)) = pprod.vectorize_poly s"
+  from assms(3) have "keys (vectorize_poly s) \<subseteq> {0..<length bs}" by (simp add: keys_vectorize_poly)
+  with assms(1) have "idx_pm_of_pm bs (pm_of_idx_pm bs (vectorize_poly s)) = vectorize_poly s"
     by (rule idx_pm_of_pm_of_idx_pm)
-  thus "s = pprod.atomize_poly (idx_pm_of_pm bs (pm_of_idx_pm bs (pprod.vectorize_poly s)))"
-    by (simp add: pprod.atomize_vectorize_poly)
+  thus "s = atomize_poly (idx_pm_of_pm bs (pm_of_idx_pm bs (vectorize_poly s)))"
+    by (simp add: atomize_vectorize_poly)
 qed
 
-lemma snd_syzygy_module_list:
+lemma component_of_syzygy_module_list:
   assumes "s \<in> syzygy_module_list bs"
-  shows "snd ` keys s \<subseteq> {0..<length bs}"
+  shows "component_of_term ` keys s \<subseteq> {0..<length bs}"
 proof -
-  from assms obtain s' where s: "s = pprod.atomize_poly (idx_pm_of_pm bs s')"
+  from assms obtain s' where s: "s = atomize_poly (idx_pm_of_pm bs s')"
     by (rule syzygy_module_listE)
-  have "snd ` keys s \<subseteq> (\<Union>x\<in>{0..<length bs}. {x})"
-    by (simp only: s pprod.keys_atomize_poly image_UN, rule UN_mono, fact keys_idx_pm_of_pm_subset, auto)
+  have "component_of_term ` keys s \<subseteq> (\<Union>x\<in>{0..<length bs}. {x})"
+    by (simp only: s keys_atomize_poly image_UN, rule UN_mono, fact keys_idx_pm_of_pm_subset, auto simp: term_simps)
   also have "... = {0..<length bs}" by simp
   finally show ?thesis .
 qed
 
 lemma map2_mult_scalar_proj_poly_syz:
-  "map2 pprod.mult_scalar xs (map (proj_poly_syz n) ys) =
-    map (proj_poly_syz n \<circ> (\<lambda>(x, y). pprod.mult_scalar x y)) (zip xs ys)"
+  "map2 mult_scalar xs (map (proj_poly_syz n) ys) =
+    map (proj_poly_syz n \<circ> (\<lambda>(x, y). mult_scalar x y)) (zip xs ys)"
   by (rule nth_equalityI, simp_all add: proj_poly_syz_mult_scalar)
 
-lemma (in term_powerprod) map2_times_proj:
+lemma map2_times_proj:
   "map2 ( * ) xs (map (proj_poly k) ys) = map (proj_poly k \<circ> (\<lambda>(x, y). x \<odot> y)) (zip xs ys)"
   by (rule nth_equalityI, simp_all add: proj_mult_scalar)
 
 text \<open>Probably the following lemma also holds without the distinctness constraint on \<open>bs\<close>.\<close>
 lemma syzygy_module_list_subset:
   assumes "distinct bs"
-  shows "syzygy_module_list bs \<subseteq> pprod.pmdl (set (init_syzygy_list bs))"
+  shows "syzygy_module_list bs \<subseteq> pmdl (set (init_syzygy_list bs))"
 proof
   let ?as = "init_syzygy_list bs"
   fix s
   assume "s \<in> syzygy_module_list bs"
-  then obtain s' where s': "s' \<in> pprod.pmdl.syzygy_module (set bs)"
-    and s: "s = pprod.atomize_poly (idx_pm_of_pm bs s')" by (rule syzygy_module_listE)
-  from s' have "keys s' \<subseteq> set bs" and "(\<Sum>v\<in>keys s'. pprod.mult_scalar (lookup s' v) v) = 0"
-    by (rule pprod.pmdl.syzygy_moduleD1, rule pprod.pmdl.syzygy_moduleD2)
-  have "s = sum_list (map2 pprod.mult_scalar (cofactor_list_syz (length bs) s) (init_syzygy_list bs))"
+  then obtain s' where s': "s' \<in> pmdl.syzygy_module (set bs)"
+    and s: "s = atomize_poly (idx_pm_of_pm bs s')" by (rule syzygy_module_listE)
+  from s' have "keys s' \<subseteq> set bs" and "(\<Sum>v\<in>keys s'. mult_scalar (lookup s' v) v) = 0"
+    by (rule pmdl.syzygy_moduleD1, rule pmdl.syzygy_moduleD2)
+  have "s = sum_list (map2 mult_scalar (cofactor_list_syz (length bs) s) (init_syzygy_list bs))"
     (is "_ = ?r")
   proof (rule poly_mapping_eqI_proj_syz)
     have "proj_poly_syz (length bs) ?r =
-            sum_list (map2 pprod.mult_scalar (cofactor_list_syz (length bs) s)
+            sum_list (map2 mult_scalar (cofactor_list_syz (length bs) s)
                                             (map (proj_poly_syz (length bs)) (init_syzygy_list bs)))"
       by (simp add: proj_poly_syz_sum_list map2_mult_scalar_proj_poly_syz)
-    also have "... = sum_list (map2 pprod.mult_scalar (cofactor_list_syz (length bs) s) bs)"
+    also have "... = sum_list (map2 mult_scalar (cofactor_list_syz (length bs) s) bs)"
       by (simp add: proj_orig_basis_def[symmetric])
-    also have "... = sum_list (map (\<lambda>b. pprod.mult_scalar (lookup s' b) b) bs)"
+    also have "... = sum_list (map (\<lambda>b. mult_scalar (lookup s' b) b) bs)"
     proof (rule arg_cong[of _ _ sum_list], rule nth_equalityI, simp_all, intro allI impI)
       fix i
       assume "i < length bs"
       with assms(1) have "lookup s' (bs ! i) = cofactor_list_syz (length bs) s ! i"
-        by (simp add: s cofactor_list_syz_nth lookup_idx_pm_of_pm pprod.proj_atomize_poly)
-      thus "pprod.mult_scalar (cofactor_list_syz (length bs) s ! i) (bs ! i) =
-            pprod.mult_scalar (lookup s' (bs ! i)) (bs ! i)" by (simp only:)
+        by (simp add: s cofactor_list_syz_nth lookup_idx_pm_of_pm proj_atomize_poly)
+      thus "mult_scalar (cofactor_list_syz (length bs) s ! i) (bs ! i) =
+            mult_scalar (lookup s' (bs ! i)) (bs ! i)" by (simp only:)
     qed
-    also have "... = (\<Sum>b\<in>set bs. pprod.mult_scalar (lookup s' b) b)"
+    also have "... = (\<Sum>b\<in>set bs. mult_scalar (lookup s' b) b)"
       by (simp only: sum_code distinct_remdups_id[OF assms])
-    also have "... = (\<Sum>v\<in>keys s'. pprod.mult_scalar (lookup s' v) v)"
+    also have "... = (\<Sum>v\<in>keys s'. mult_scalar (lookup s' v) v)"
       by (rule sum.mono_neutral_right, fact finite_set, fact, simp)
     also have "... = 0" by fact
     finally have eq: "proj_poly_syz (length bs) ?r = 0" .
     show "proj_poly_syz (length bs) s = proj_poly_syz (length bs) ?r"
-      by (simp add: eq \<open>s \<in> syzygy_module_list bs\<close> proj_poly_syz_eq_zero_iff snd_syzygy_module_list)
+      by (simp add: eq \<open>s \<in> syzygy_module_list bs\<close> proj_poly_syz_eq_zero_iff component_of_syzygy_module_list)
   next
     fix k
     assume "k < length bs"
-    have "pprod.proj_poly k s = map2 ( * ) (cofactor_list_syz (length bs) s) (map (pprod.proj_poly k)
+    have "proj_poly k s = map2 ( * ) (cofactor_list_syz (length bs) s) (map (proj_poly k)
                                             (init_syzygy_list bs)) ! k"
       by (simp add: \<open>k < length bs\<close> init_syzygy_list_nth proj_lift_poly_syz cofactor_list_syz_nth)
     also have "... = sum_list (map2 ( * ) (cofactor_list_syz (length bs) s)
-                                            (map (pprod.proj_poly k) (init_syzygy_list bs)))"
+                                            (map (proj_poly k) (init_syzygy_list bs)))"
       by (rule sum_list_eq_nthI[symmetric],
           simp_all add: \<open>k < length bs\<close> init_syzygy_list_nth proj_lift_poly_syz)
-    also have "... = pprod.proj_poly k ?r"
-      by (simp add: pprod.proj_sum_list pprod.map2_times_proj)
-    finally show "pprod.proj_poly k s = pprod.proj_poly k ?r" .
+    also have "... = proj_poly k ?r"
+      by (simp add: proj_sum_list map2_times_proj)
+    finally show "proj_poly k s = proj_poly k ?r" .
   qed
-  also have "... \<in> pprod.pmdl (set (init_syzygy_list bs))" by (fact pprod.in_pmdl_listI)
-  finally show "s \<in> pprod.pmdl (set (init_syzygy_list bs))" .
+  also have "... \<in> pmdl (set (init_syzygy_list bs))" by (fact in_pmdl_listI)
+  finally show "s \<in> pmdl (set (init_syzygy_list bs))" .
 qed
 
 subsubsection \<open>Cofactors\<close>
 
-lemma (in term_powerprod) map2_mult_scalar_plus:
+lemma map2_mult_scalar_plus:
   "map2 (\<odot>) (map2 (+) xs ys) zs = map2 (+) (map2 (\<odot>) xs zs) (map2 (\<odot>) ys zs)"
   by (rule nth_equalityI, simp_all add: mult_scalar_distrib_right)
 
 lemma syz_cofactors:
-  assumes "p \<in> pprod.pmdl (set (init_syzygy_list bs))"
-  shows "proj_poly_syz (length bs) p = sum_list (map2 pprod.mult_scalar (cofactor_list_syz (length bs) p) bs)"
+  assumes "p \<in> pmdl (set (init_syzygy_list bs))"
+  shows "proj_poly_syz (length bs) p = sum_list (map2 mult_scalar (cofactor_list_syz (length bs) p) bs)"
   using assms
-proof (induct rule: pprod.pmdl_induct)
+proof (induct rule: pmdl_induct)
   case module_0
   show ?case by (simp, rule sum_list_zeroI', simp)
 next
   case (module_plus p b c t)
   from this(3) obtain i where i: "i < length bs" and b: "b = (init_syzygy_list bs) ! i"
     unfolding length_init_syzygy_list[symmetric, of bs] by (metis in_set_conv_nth)
-  have "proj_poly_syz (length bs) (p + pprod.monom_mult c t b) =
-        proj_poly_syz (length bs) p + pprod.monom_mult c t (bs ! i)"
+  have "proj_poly_syz (length bs) (p + monom_mult c t b) =
+        proj_poly_syz (length bs) p + monom_mult c t (bs ! i)"
     by (simp only: proj_poly_syz_plus proj_poly_syz_monom_mult b init_syzygy_list_nth[OF i]
         proj_poly_syz_lift_poly_syz[OF i])
-  also have "... = sum_list (map2 pprod.mult_scalar (cofactor_list_syz (length bs) p) bs) +
-                    pprod.monom_mult c t (bs ! i)" by (simp only: module_plus(2))
-  also have "... = sum_list (map2 pprod.mult_scalar (cofactor_list_syz (length bs) (p + pprod.monom_mult c t b)) bs)"
-  proof (simp add: cofactor_list_syz_plus pprod.map2_mult_scalar_plus sum_list_map2_plus)
-    have proj_b: "j < length bs \<Longrightarrow> pprod.proj_poly j b = (1 when j = i)" for j
+  also have "... = sum_list (map2 mult_scalar (cofactor_list_syz (length bs) p) bs) +
+                    monom_mult c t (bs ! i)" by (simp only: module_plus(2))
+  also have "... = sum_list (map2 mult_scalar (cofactor_list_syz (length bs) (p + monom_mult c t b)) bs)"
+  proof (simp add: cofactor_list_syz_plus map2_mult_scalar_plus sum_list_map2_plus)
+    have proj_b: "j < length bs \<Longrightarrow> proj_poly j b = (1 when j = i)" for j
       by (simp add: b init_syzygy_list_nth i proj_lift_poly_syz)
-    have eq: "j < length bs \<Longrightarrow> (map2 pprod.mult_scalar (cofactor_list_syz (length bs) (pprod.monom_mult c t b)) bs) ! j =
-              (pprod.monom_mult c t (bs ! i) when j = i)" for j
-      by (simp add: cofactor_list_syz_nth pprod.proj_monom_mult proj_b pprod.mult_scalar_monom_mult when_def)
-    have "sum_list (map2 pprod.mult_scalar (cofactor_list_syz (length bs) (pprod.monom_mult c t b)) bs) =
-          (map2 pprod.mult_scalar (cofactor_list_syz (length bs) (pprod.monom_mult c t b)) bs) ! i"
+    have eq: "j < length bs \<Longrightarrow> (map2 mult_scalar (cofactor_list_syz (length bs) (monom_mult c t b)) bs) ! j =
+              (monom_mult c t (bs ! i) when j = i)" for j
+      by (simp add: cofactor_list_syz_nth proj_monom_mult proj_b mult_scalar_monom_mult when_def)
+    have "sum_list (map2 mult_scalar (cofactor_list_syz (length bs) (monom_mult c t b)) bs) =
+          (map2 mult_scalar (cofactor_list_syz (length bs) (monom_mult c t b)) bs) ! i"
       by (rule sum_list_eq_nthI, simp add: i, simp add: eq del: nth_zip nth_map)
-    also have "... = pprod.mult_scalar (punit.monom_mult c t (pprod.proj_poly i b)) (bs ! i)"
-      by (simp add: i cofactor_list_syz_nth pprod.proj_monom_mult)
-    also have "... = pprod.monom_mult c t (bs ! i)"
-      by (simp add: proj_b i pprod.mult_scalar_monomial times_monomial_left[symmetric])
-    finally show "pprod.monom_mult c t (bs ! i) =
-          sum_list (map2 pprod.mult_scalar (cofactor_list_syz (length bs) (pprod.monom_mult c t b)) bs)"
+    also have "... = mult_scalar (punit.monom_mult c t (proj_poly i b)) (bs ! i)"
+      by (simp add: i cofactor_list_syz_nth proj_monom_mult)
+    also have "... = monom_mult c t (bs ! i)"
+      by (simp add: proj_b i mult_scalar_monomial times_monomial_left[symmetric])
+    finally show "monom_mult c t (bs ! i) =
+          sum_list (map2 mult_scalar (cofactor_list_syz (length bs) (monom_mult c t b)) bs)"
       by (simp only:)
   qed
   finally show ?case .
@@ -869,46 +1006,43 @@ qed
 subsubsection \<open>Modules\<close>
 
 lemma pmdl_proj_orig_basis:
-  assumes "pprod.pmdl (set gs) = pprod.pmdl (set (init_syzygy_list bs))"
-  shows "pprod.pmdl (set (proj_orig_basis (length bs) gs)) = pprod.pmdl (set bs)"
+  assumes "pmdl (set gs) = pmdl (set (init_syzygy_list bs))"
+  shows "pmdl (set (proj_orig_basis (length bs) gs)) = pmdl (set bs)"
   by (simp add: pmdl_proj_orig_basis' assms,
       simp only: pmdl_proj_orig_basis'[symmetric] proj_orig_basis_init_syzygy_list)
 
 lemma pmdl_filter_syzygy_basis_subset:
-  assumes "distinct bs" and "pprod.pmdl (set gs) = pprod.pmdl (set (init_syzygy_list bs))"
-  shows "pprod.pmdl (set (filter_syzygy_basis (length bs) gs)) \<subseteq> pprod.pmdl (syzygy_module_list bs)"
-proof (rule pprod.pmdl.module_mono, rule)
+  assumes "distinct bs" and "pmdl (set gs) = pmdl (set (init_syzygy_list bs))"
+  shows "pmdl (set (filter_syzygy_basis (length bs) gs)) \<subseteq> pmdl (syzygy_module_list bs)"
+proof (rule pmdl.module_mono, rule)
   fix s
   assume "s \<in> set (filter_syzygy_basis (length bs) gs)"
   hence "s \<in> set gs" and eq: "proj_poly_syz (length bs) s = 0"
     by (simp_all add: set_filter_syzygy_basis)
-  from this(1) have "s \<in> pprod.pmdl (set gs)" by (rule pprod.pmdl.generator_in_module)
-  hence "s \<in> pprod.pmdl (set (init_syzygy_list bs))" by (simp only: assms)
+  from this(1) have "s \<in> pmdl (set gs)" by (rule pmdl.generator_in_module)
+  hence "s \<in> pmdl (set (init_syzygy_list bs))" by (simp only: assms)
   hence "proj_poly_syz (length bs) s =
-          sum_list (map2 pprod.mult_scalar (cofactor_list_syz (length bs) s) bs)"
+          sum_list (map2 mult_scalar (cofactor_list_syz (length bs) s) bs)"
     by (rule syz_cofactors)
-  hence "distinct bs" and "sum_list (map2 pprod.mult_scalar (cofactor_list_syz (length bs) s) bs) = 0"
+  hence "distinct bs" and "sum_list (map2 mult_scalar (cofactor_list_syz (length bs) s) bs) = 0"
     by (simp_all only: eq assms(1))
-  moreover from eq have "snd ` keys s \<subseteq> {0..<length bs}" by (simp only: proj_poly_syz_eq_zero_iff)
+  moreover from eq have "component_of_term ` keys s \<subseteq> {0..<length bs}" by (simp only: proj_poly_syz_eq_zero_iff)
   ultimately show "s \<in> syzygy_module_list bs" by (rule syzygy_module_listI')
 qed
 
-context gd_powerprod
-begin
-
 lemma ex_filter_syzygy_basis_adds_lt:
-  assumes "distinct bs" and "pot.is_Groebner_basis (set gs)"
-    and "pprod.pmdl (set gs) = pprod.pmdl (set (init_syzygy_list bs))"
-    and "f \<in> pprod.pmdl (syzygy_module_list bs)" and "f \<noteq> 0"
-  shows "\<exists>g\<in>set (filter_syzygy_basis (length bs) gs). g \<noteq> 0 \<and> pot.adds_term (pot.lt g) (pot.lt f)"
+  assumes "is_pot_ord" and "distinct bs" and "is_Groebner_basis (set gs)"
+    and "pmdl (set gs) = pmdl (set (init_syzygy_list bs))"
+    and "f \<in> pmdl (syzygy_module_list bs)" and "f \<noteq> 0"
+  shows "\<exists>g\<in>set (filter_syzygy_basis (length bs) gs). g \<noteq> 0 \<and> lt g adds\<^sub>t lt f"
 proof -
-  from assms(4) have "f \<in> syzygy_module_list bs" by simp
-  also from assms(1) have "... \<subseteq> pprod.pmdl (set (init_syzygy_list bs))"
+  from assms(5) have "f \<in> syzygy_module_list bs" by simp
+  also from assms(2) have "... \<subseteq> pmdl (set (init_syzygy_list bs))"
     by (rule syzygy_module_list_subset)
-  also have "... = pprod.pmdl (set gs)" by (simp only: assms(3))
-  finally have "f \<in> pprod.pmdl (set gs)" .
-  with assms(2, 5) obtain g where "g \<in> set gs" and "g \<noteq> 0"
-    and adds: "pot.adds_term (pot.lt g) (pot.lt f)" unfolding pot.GB_alt_3_finite[OF finite_set] by blast
+  also have "... = pmdl (set gs)" by (simp only: assms(4))
+  finally have "f \<in> pmdl (set gs)" .
+  with assms(3, 6) obtain g where "g \<in> set gs" and "g \<noteq> 0"
+    and adds: "lt g adds\<^sub>t lt f" unfolding GB_alt_3_finite[OF finite_set] by blast
   show ?thesis
   proof (intro bexI conjI)
     show "g \<in> set (filter_syzygy_basis (length bs) gs)"
@@ -916,15 +1050,15 @@ proof -
       show "proj_poly_syz (length bs) g = 0"
       proof (rule ccontr)
         assume "proj_poly_syz (length bs) g \<noteq> 0"
-        hence "length bs \<le> snd (pot.lt g)" by (rule snd_pot_lt_ge)
-        also from adds have "... = snd (pot.lt f)" by (simp add: pprod.adds_term_def)
+        with assms(1) have "length bs \<le> component_of_term (lt g)" by (rule component_of_lt_ge)
+        also from adds have "... = component_of_term (lt f)" by (simp add: adds_term_def)
         also have "... < length bs"
         proof -
-          from \<open>f \<noteq> 0\<close> have "pot.lt f \<in> keys f" by (rule pot.lt_in_keys)
-          hence "snd (pot.lt f) \<in> snd ` keys f" by (rule imageI)
+          from \<open>f \<noteq> 0\<close> have "lt f \<in> keys f" by (rule lt_in_keys)
+          hence "component_of_term (lt f) \<in> component_of_term ` keys f" by (rule imageI)
           also from \<open>f \<in> syzygy_module_list bs\<close> have "... \<subseteq> {0..<length bs}"
-            by (rule snd_syzygy_module_list)
-          finally show "snd (pot.lt f) < length bs" by simp
+            by (rule component_of_syzygy_module_list)
+          finally show "component_of_term (lt f) < length bs" by simp
         qed
         finally show False ..
       qed
@@ -933,22 +1067,21 @@ proof -
 qed
 
 lemma pmdl_filter_syzygy_basis:
-  fixes bs::"(('a \<times> nat) \<Rightarrow>\<^sub>0 'b::field) list"
-  assumes "distinct bs" and "pot.is_Groebner_basis (set gs)" and
-    "pprod.pmdl (set gs) = pprod.pmdl (set (init_syzygy_list bs))"
-  shows "pprod.pmdl (set (filter_syzygy_basis (length bs) gs)) = syzygy_module_list bs"
+  fixes bs::"('t \<Rightarrow>\<^sub>0 'b::field) list"
+  assumes "is_pot_ord" and "distinct bs" and "is_Groebner_basis (set gs)" and
+    "pmdl (set gs) = pmdl (set (init_syzygy_list bs))"
+  shows "pmdl (set (filter_syzygy_basis (length bs) gs)) = syzygy_module_list bs"
 proof -
   from finite_set
-  have "pprod.pmdl (set (filter_syzygy_basis (length bs) gs)) = pprod.pmdl (syzygy_module_list bs)"
-  proof (rule pot.pmdl_eqI_adds_lt_finite)
-    from assms(1, 3)
-    show "pprod.pmdl (set (filter_syzygy_basis (length bs) gs)) \<subseteq> pprod.pmdl (syzygy_module_list bs)"
+  have "pmdl (set (filter_syzygy_basis (length bs) gs)) = pmdl (syzygy_module_list bs)"
+  proof (rule pmdl_eqI_adds_lt_finite)
+    from assms(2, 4)
+    show "pmdl (set (filter_syzygy_basis (length bs) gs)) \<subseteq> pmdl (syzygy_module_list bs)"
       by (rule pmdl_filter_syzygy_basis_subset)
   next
     fix f
-    assume "f \<in> pprod.pmdl (syzygy_module_list bs)" and "f \<noteq> 0"
-    with assms(1, 2, 3)
-    show "\<exists>g\<in>set (filter_syzygy_basis (length bs) gs). g \<noteq> 0 \<and> pot.adds_term (pot.lt g) (pot.lt f)"
+    assume "f \<in> pmdl (syzygy_module_list bs)" and "f \<noteq> 0"
+    with assms show "\<exists>g\<in>set (filter_syzygy_basis (length bs) gs). g \<noteq> 0 \<and> lt g adds\<^sub>t lt f"
       by (rule ex_filter_syzygy_basis_adds_lt)
   qed
   thus ?thesis by simp
@@ -957,35 +1090,36 @@ qed
 subsubsection \<open>Gr\"obner Bases\<close>
 
 lemma proj_orig_basis_isGB:
-  assumes "pot.is_Groebner_basis (set gs)" and "pprod.pmdl (set gs) = pprod.pmdl (set (init_syzygy_list bs))"
-  shows "pot.is_Groebner_basis (set (proj_orig_basis (length bs) gs))"
-  unfolding pot.GB_alt_3_finite[OF finite_set]
+  assumes "is_pot_ord" and "is_Groebner_basis (set gs)" and "pmdl (set gs) = pmdl (set (init_syzygy_list bs))"
+  shows "is_Groebner_basis (set (proj_orig_basis (length bs) gs))"
+  unfolding GB_alt_3_finite[OF finite_set]
 proof (intro ballI impI)
   fix f
-  assume "f \<in> pprod.pmdl (set (proj_orig_basis (length bs) gs))"
-  also have "... = proj_poly_syz (length bs) ` pprod.pmdl (set gs)" by (fact pmdl_proj_orig_basis')
-  finally obtain h where "h \<in> pprod.pmdl (set gs)" and f: "f = proj_poly_syz (length bs) h" ..
+  assume "f \<in> pmdl (set (proj_orig_basis (length bs) gs))"
+  also have "... = proj_poly_syz (length bs) ` pmdl (set gs)" by (fact pmdl_proj_orig_basis')
+  finally obtain h where "h \<in> pmdl (set gs)" and f: "f = proj_poly_syz (length bs) h" ..
   assume "f \<noteq> 0"
-  hence ltf: "pot.lt f = (fst (pot.lt h), snd (pot.lt h) - (length bs))" unfolding f
-    by (rule pot_lt_proj_poly_syz)
+  with assms(1) have ltf: "lt f = map_component (\<lambda>k. k - length bs) (lt h)" unfolding f
+    by (rule lt_proj_poly_syz)
   from \<open>f \<noteq> 0\<close> have "h \<noteq> 0" by (auto simp add: f)
-  with assms(1) \<open>h \<in> pprod.pmdl (set gs)\<close> obtain g where "g \<in> set gs" and "g \<noteq> 0"
-    and "pot.adds_term (pot.lt g) (pot.lt h)" unfolding pot.GB_alt_3_finite[OF finite_set] by blast
-  from this(3) have 1: "snd (pot.lt g) = snd (pot.lt h)" and 2: "fst (pot.lt g) adds fst (pot.lt h)"
-    by (simp_all add: pot.adds_term_def)
+  with assms(2) \<open>h \<in> pmdl (set gs)\<close> obtain g where "g \<in> set gs" and "g \<noteq> 0"
+    and "lt g adds\<^sub>t lt h" unfolding GB_alt_3_finite[OF finite_set] by blast
+  from this(3) have 1: "component_of_term (lt g) = component_of_term (lt h)"
+    and 2: "pp_of_term (lt g) adds pp_of_term (lt h)" by (simp_all add: adds_term_def)
   let ?g = "proj_poly_syz (length bs) g"
   have "?g \<noteq> 0"
   proof (simp add: proj_poly_syz_eq_zero_iff, rule)
-    assume "snd ` keys g \<subseteq> {0..<length bs}"
-    from \<open>f \<noteq> 0\<close> have "length bs \<le> snd (pot.lt h)" unfolding f by (rule snd_pot_lt_ge)
-    hence "snd (pot.lt g) \<notin> {0..<length bs}" by (simp add: 1)
-    moreover from \<open>g \<noteq> 0\<close> have "pot.lt g \<in> keys g" by (rule pot.lt_in_keys)
-    ultimately show False using \<open>snd ` keys g \<subseteq> {0..<length bs}\<close> by blast
+    assume "component_of_term ` keys g \<subseteq> {0..<length bs}"
+    from assms(1) \<open>f \<noteq> 0\<close> have "length bs \<le> component_of_term (lt h)"
+      unfolding f by (rule component_of_lt_ge)
+    hence "component_of_term (lt g) \<notin> {0..<length bs}" by (simp add: 1)
+    moreover from \<open>g \<noteq> 0\<close> have "lt g \<in> keys g" by (rule lt_in_keys)
+    ultimately show False using \<open>component_of_term ` keys g \<subseteq> {0..<length bs}\<close> by blast
   qed
-  hence ltg: "pot.lt ?g = (fst (pot.lt g), snd (pot.lt g) - (length bs))" by (rule pot_lt_proj_poly_syz)
-  show "\<exists>g\<in>set (proj_orig_basis (length bs) gs). g \<noteq> 0 \<and> pot.adds_term (pot.lt g) (pot.lt f)"
+  with assms(1) have ltg: "lt ?g = map_component (\<lambda>k. k - length bs) (lt g)" by (rule lt_proj_poly_syz)
+  show "\<exists>g\<in>set (proj_orig_basis (length bs) gs). g \<noteq> 0 \<and> lt g adds\<^sub>t lt f"
   proof (intro bexI conjI)
-    show "pot.adds_term (pot.lt ?g) (pot.lt f)" by (simp add: ltf ltg pot.adds_term_def 1 2)
+    show "lt ?g adds\<^sub>t lt f" by (simp add: ltf ltg adds_term_def 1 2 term_simps)
   next
     show "?g \<in> set (proj_orig_basis (length bs) gs)"
       unfolding set_proj_orig_basis using \<open>g \<in> set gs\<close> by (rule imageI)
@@ -993,21 +1127,21 @@ proof (intro ballI impI)
 qed
 
 lemma filter_syzygy_basis_isGB:
-  assumes "distinct bs" and "pot.is_Groebner_basis (set gs)"
-    and "pprod.pmdl (set gs) = pprod.pmdl (set (init_syzygy_list bs))"
-  shows "pot.is_Groebner_basis (set (filter_syzygy_basis (length bs) gs))"
-  unfolding pot.GB_alt_3_finite[OF finite_set]
+  assumes "is_pot_ord" and "distinct bs" and "is_Groebner_basis (set gs)"
+    and "pmdl (set gs) = pmdl (set (init_syzygy_list bs))"
+  shows "is_Groebner_basis (set (filter_syzygy_basis (length bs) gs))"
+  unfolding GB_alt_3_finite[OF finite_set]
 proof (intro ballI impI)
-  fix f::"('a \<times> nat) \<Rightarrow>\<^sub>0 'b"
+  fix f::"'t \<Rightarrow>\<^sub>0 'b"
   assume "f \<noteq> 0"
-  assume "f \<in> pprod.pmdl (set (filter_syzygy_basis (length bs) gs))"
+  assume "f \<in> pmdl (set (filter_syzygy_basis (length bs) gs))"
   also from assms have "... = syzygy_module_list bs" by (rule pmdl_filter_syzygy_basis)
-  finally have "f \<in> pprod.pmdl (syzygy_module_list bs)" by simp
+  finally have "f \<in> pmdl (syzygy_module_list bs)" by simp
   from assms this \<open>f \<noteq> 0\<close>
-  show "\<exists>g\<in>set (filter_syzygy_basis (length bs) gs). g \<noteq> 0 \<and> pot.adds_term (pot.lt g) (pot.lt f)"
+  show "\<exists>g\<in>set (filter_syzygy_basis (length bs) gs). g \<noteq> 0 \<and> lt g adds\<^sub>t lt f"
     by (rule ex_filter_syzygy_basis_adds_lt)
 qed
 
-end (* gd_powerprod *)
+end (* gd_inf_term *)
 
 end (* theory *)
