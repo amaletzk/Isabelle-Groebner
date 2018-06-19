@@ -432,6 +432,11 @@ subsection \<open>Operations on Lists of Pairs in Context @{locale comparator}\<
 
 type_synonym (in -) ('a, 'b) comp_opt = "'a \<Rightarrow> 'b \<Rightarrow> (order option)"
 
+definition lookup_dflt :: "('a \<times> 'b) list \<Rightarrow> 'a \<Rightarrow> 'b::zero"
+  where "lookup_dflt xs k = (case map_of xs k of Some v \<Rightarrow> v | None \<Rightarrow> 0)"
+
+text \<open>@{const lookup_dflt} is only an auxiliary function needed for proving some lemmas.\<close>
+
 fun lookup_pair :: "('a \<times> 'b) list \<Rightarrow> 'a \<Rightarrow> 'b::zero"
 where
   "lookup_pair [] x = 0"|
@@ -591,6 +596,21 @@ proof -
   moreover from assms(1) have "0 \<notin> snd ` set xs" by (rule oalist_inv_rawD1)
   ultimately have "v \<noteq> 0" by blast
   with assms show ?thesis by (simp add: lookup_pair_eq_value)
+qed
+
+lemma lookup_dflt_eq_lookup_pair:
+  assumes "oalist_inv_raw xs"
+  shows "lookup_dflt xs = lookup_pair xs"
+proof (rule, simp add: lookup_dflt_def split: option.split, intro conjI impI allI)
+  fix k
+  assume "map_of xs k = None"
+  with assms show "lookup_pair xs k = 0" by (simp add: lookup_pair_eq_0 map_of_eq_None_iff)
+next
+  fix k v
+  assume "map_of xs k = Some v"
+  hence "(k, v) \<in> set xs" by (rule map_of_SomeD)
+  with assms have "lookup_pair xs k = v" by (rule lookup_pair_eq_valueI)
+  thus "v = lookup_pair xs k" by (rule HOL.sym)
 qed
 
 lemma lookup_pair_inj:
@@ -1018,6 +1038,30 @@ proof (rule set_eqI)
   qed
 qed
 
+lemma set_update_by_pair_zero:
+  assumes "oalist_inv_raw xs"
+  shows "set (update_by_pair (k, 0) xs) = set xs - range (Pair k)" (is "?A = ?B")
+proof (rule set_eqI)
+  fix x::"'a \<times> 'b"
+  obtain k' v' where x: "x = (k', v')" by fastforce
+  from assms(1) have inv: "oalist_inv_raw (update_by_pair (k, 0) xs)"
+    by (rule oalist_inv_raw_update_by_pair)
+  show "(x \<in> ?A) \<longleftrightarrow> (x \<in> ?B)"
+  proof (cases "v' = 0")
+    case True
+    have "0 \<notin> snd ` set (update_by_pair (k, 0) xs)" and "0 \<notin> snd ` set xs"
+      by (rule oalist_inv_rawD1, fact)+
+    hence "(k', 0) \<notin> set (update_by_pair (k, 0) xs)" and "(k', 0) \<notin> set xs"
+      using image_iff by fastforce+
+    thus ?thesis by (simp add: x True)
+  next
+    case False
+    show ?thesis
+      by (auto simp: x lookup_pair_eq_value[OF inv False, symmetric] lookup_pair_eq_value[OF assms False]
+          lookup_pair_update_by_pair[OF assms] False)
+  qed
+qed
+
 subsubsection \<open>@{const update_by_fun_pair} and @{const update_by_fun_gr_pair}\<close>
 
 lemma update_by_fun_pair_eq_update_by_pair:
@@ -1177,6 +1221,73 @@ next
     also have "... = snd (f (k, v'))" by (simp add: \<open>k = k'\<close> f \<open>v'' = 0\<close>)
     finally show "snd (f (k, lookup_pair xs k)) = snd (f (k, v'))" .
   qed (simp add: f eq)
+qed
+
+lemma lookup_dflt_map_pair:
+  assumes "distinct (map fst xs)" and "snd (f (k, 0)) = 0"
+    and "\<And>a b. (fst (f a) = fst (f b)) \<longleftrightarrow> (fst a = fst b)"
+  shows "lookup_dflt (map_pair f xs) (fst (f (k, v))) = snd (f (k, lookup_dflt xs k))"
+  using assms(1)
+proof (induct xs)
+  case Nil
+  show ?case by (simp add: lookup_dflt_def assms(2))
+next
+  case (Cons x xs)
+  obtain k' v' where x: "x = (k', v')" by fastforce
+  obtain k'' v'' where f: "f (k', v') = (k'', v'')" by fastforce
+  from Cons(2) have "distinct (map fst xs)" and "k' \<notin> fst ` set xs" by (simp_all add: x)
+  from this(1) have eq1: "lookup_dflt (map_pair f xs) (fst (f (k, v))) = snd (f (k, lookup_dflt xs k))"
+    by (rule Cons(1))
+  have eq2: "lookup_dflt ((a, b) # ys) c = (if c = a then b else lookup_dflt ys c)"
+    for a b c and ys::"('a \<times> 'd::zero) list" by (simp add: lookup_dflt_def map_of_Cons_code)
+  from \<open>k' \<notin> fst ` set xs\<close> have "map_of xs k' = None" by (simp add: map_of_eq_None_iff)
+  hence eq3: "lookup_dflt xs k' = 0" by (simp add: lookup_dflt_def)
+  show ?case
+  proof (simp add: f Let_def x eq1 eq2 eq3, intro conjI impI)
+    assume "k = k'"
+    hence "snd (f (k', 0)) = snd (f (k, 0))" by simp
+    also have "... = 0" by (fact assms(2))
+    finally show "snd (f (k', 0)) = 0" .
+  next
+    assume "fst (f (k', v)) \<noteq> k''"
+    hence "fst (f (k', v)) \<noteq> fst (f (k', v'))" by (simp add: f)
+    thus "snd (f (k', 0)) = v''" by (simp add: assms(3))
+  next
+    assume "k \<noteq> k'"
+    assume "fst (f (k, v)) = k''"
+    also have "... = fst (f (k', v'))" by (simp add: f)
+    finally have "k = k'" by (simp add: assms(3))
+    with \<open>k \<noteq> k'\<close> show "v'' = snd (f (k, lookup_dflt xs k))" ..
+  qed
+qed
+
+lemma distinct_map_pair:
+  assumes "distinct (map fst xs)" and "\<And>a b. fst (f a) = fst (f b) \<Longrightarrow> fst a = fst b"
+  shows "distinct (map fst (map_pair f xs))"
+  using assms(1)
+proof (induct xs)
+  case Nil
+  show ?case by simp
+next
+  case (Cons x xs)
+  obtain k v where x: "x = (k, v)" by fastforce
+  obtain k' v' where f: "f (k, v) = (k', v')" by fastforce
+  from Cons(2) have "distinct (map fst xs)" and "k \<notin> fst ` set xs" by (simp_all add: x)
+  from this(1) have 1: "distinct (map fst (map_pair f xs))" by (rule Cons(1))
+  show ?case
+  proof (simp add: x f Let_def 1, intro impI notI)
+    assume "v' \<noteq> 0"
+    assume "k' \<in> fst ` set (map_pair f xs)"
+    then obtain y where "y \<in> set (map_pair f xs)" and "k' = fst y" ..
+    from this(1) map_pair_subset have "y \<in> f ` set xs" ..
+    then obtain z where "z \<in> set xs" and "y = f z" ..
+    from this(2) have "fst (f z) = k'" by (simp add: \<open>k' = fst y\<close>)
+    also have "... = fst (f (k, v))" by (simp add: f)
+    finally have "fst z = fst (k, v)" by (rule assms(2))
+    also have "... = k" by simp
+    finally have "k \<in> fst ` set xs" using \<open>z \<in> set xs\<close> by blast
+    with \<open>k \<notin> fst ` set xs\<close> show False ..
+  qed
 qed
 
 lemma map_val_pair_cong:
@@ -2250,6 +2361,63 @@ proof -
   with assms show ?thesis by (simp add: sort_oalist_def)
 qed
 
+lemma set_sort_oalist:
+  assumes "distinct (map fst xs)"
+  shows "set (sort_oalist xs) = {kv. kv \<in> set xs \<and> snd kv \<noteq> 0}"
+  using assms
+proof (induct xs)
+  case Nil
+  show ?case by (simp add: sort_oalist_def)
+next
+  case (Cons x xs)
+  obtain k v where x: "x = (k, v)" by fastforce
+  from Cons(2) have "distinct (map fst xs)" and "k \<notin> fst ` set xs" by (simp_all add: x)
+  from this(1) have "set (sort_oalist xs) = {kv \<in> set xs. snd kv \<noteq> 0}" by (rule Cons(1))
+  with \<open>k \<notin> fst ` set xs\<close> have eq: "set (sort_oalist xs) - range (Pair k) = {kv \<in> set xs. snd kv \<noteq> 0}"
+    by (auto simp: image_iff)
+  have "set (sort_oalist (x # xs)) = set (update_by_pair (k, v) (sort_oalist xs))"
+    by (simp add: sort_oalist_def x)
+  also have "... = {kv \<in> set (x # xs). snd kv \<noteq> 0}"
+  proof (cases "v = 0")
+    case True
+    have "set (update_by_pair (k, v) (sort_oalist xs)) = set (sort_oalist xs) - range (Pair k)"
+      unfolding True using oalist_inv_raw_sort_oalist by (rule set_update_by_pair_zero)
+    also have "... = {kv \<in> set (x # xs). snd kv \<noteq> 0}" by (auto simp: eq x True)
+    finally show ?thesis .
+  next
+    case False
+    with oalist_inv_raw_sort_oalist
+    have "set (update_by_pair (k, v) (sort_oalist xs)) = insert (k, v) (set (sort_oalist xs) - range (Pair k))"
+      by (rule set_update_by_pair)
+    also have "... = {kv \<in> set (x # xs). snd kv \<noteq> 0}" by (auto simp: eq x False)
+    finally show ?thesis .
+  qed
+  finally show ?case .
+qed
+
+lemma lookup_pair_sort_oalist':
+  assumes "distinct (map fst xs)"
+  shows "lookup_pair (sort_oalist xs) = lookup_dflt xs"
+  using assms
+proof (induct xs)
+  case Nil
+  show ?case by (simp add: sort_oalist_def lookup_dflt_def)
+next
+  case (Cons x xs)
+  obtain k v where x: "x = (k, v)" by fastforce
+  from Cons(2) have "distinct (map fst xs)" and "k \<notin> fst ` set xs" by (simp_all add: x)
+  from this(1) have eq1: "lookup_pair (sort_oalist xs) = lookup_dflt xs" by (rule Cons(1))
+  have eq2: "sort_oalist (x # xs) = update_by_pair (k, v) (sort_oalist xs)" by (simp add: x sort_oalist_def)
+  show ?case
+  proof
+    fix k'
+    have "lookup_pair (sort_oalist (x # xs)) k' = (if k = k' then v else lookup_dflt xs k')"
+      by (simp add: eq1 eq2 lookup_pair_update_by_pair[OF oalist_inv_raw_sort_oalist])
+    also have "... = lookup_dflt (x # xs) k'" by (simp add: x lookup_dflt_def)
+    finally show "lookup_pair (sort_oalist (x # xs)) k' = lookup_dflt (x # xs) k'" .
+  qed
+qed
+
 end
 
 locale comparator2 = comparator comp1 + cmp2: comparator comp2 for comp1 comp2 :: "'a comparator"
@@ -3146,6 +3314,16 @@ proof -
   thus ?thesis by (simp add: xs)
 qed
 
+lemma set_sort_oalist_raw:
+  assumes "distinct (map fst (fst xs))"
+  shows "set (fst (sort_oalist_raw xs)) = {kv. kv \<in> set (fst xs) \<and> snd kv \<noteq> 0}"
+proof -
+  obtain xs' ko where xs: "xs = (xs', ko)" by fastforce
+  from assms have "distinct (map fst xs')" by (simp add: xs)
+  hence "set (sort_oalist ko xs') = {kv \<in> set xs'. snd kv \<noteq> 0}" by (rule set_sort_oalist)
+  thus ?thesis by (simp add: xs)
+qed
+
 end (* oalist_raw *)
 
 subsection \<open>Fundamental Operations on One List\<close>
@@ -3207,6 +3385,22 @@ definition map2_val_neutr :: "('a \<Rightarrow> 'b \<Rightarrow> 'b \<Rightarrow
 
 definition oalist_eq :: "'x \<Rightarrow> 'x \<Rightarrow> bool"
   where "oalist_eq xs ys = oalist_eq_raw (list_of_oalist xs) (list_of_oalist ys)"
+
+subsubsection \<open>Invariant\<close>
+
+lemma zero_notin_list_of_oalist: "0 \<notin> snd ` set (fst (list_of_oalist xs))"
+proof -
+  from oalist_inv_list_of_oalist have "oalist_inv_raw (snd (list_of_oalist xs)) (fst (list_of_oalist xs))"
+    by (simp only: oalist_inv_def)
+  thus ?thesis by (rule oalist_inv_rawD1)
+qed
+
+lemma list_of_oalist_sorted: "sorted_wrt (lt (snd (list_of_oalist xs))) (map fst (fst (list_of_oalist xs)))"
+proof -
+  from oalist_inv_list_of_oalist have "oalist_inv_raw (snd (list_of_oalist xs)) (fst (list_of_oalist xs))"
+    by (simp only: oalist_inv_def)
+  thus ?thesis by (rule oalist_inv_rawD2)
+qed
 
 subsubsection \<open>@{const lookup}\<close>
 
