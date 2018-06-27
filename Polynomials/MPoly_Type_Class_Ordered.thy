@@ -394,10 +394,10 @@ proof (rule ccontr)
     from lt_plus_eqI_2[OF this] assms show False by simp
   qed
 qed
-  
-lemma lt_plus_lessI:
-  fixes p q :: "'t \<Rightarrow>\<^sub>0 'b::ring"
-  assumes "p + q \<noteq> 0" and lt_eq: "lt q = lt p" and lc_eq: "lc q = - lc p"
+
+lemma lt_plus_lessI':
+  fixes p q :: "'t \<Rightarrow>\<^sub>0 'b::monoid_add"
+  assumes "p + q \<noteq> 0" and lt_eq: "lt q = lt p" and lc_eq: "lc p + lc q = 0"
   shows "lt (p + q) \<prec>\<^sub>t lt p"
 proof (rule ccontr)
   assume "\<not> lt (p + q) \<prec>\<^sub>t lt p"
@@ -417,6 +417,15 @@ proof (rule ccontr)
     hence "lt p \<noteq> lt q" by simp
     with lt_eq show False by simp
   qed
+qed
+
+corollary lt_plus_lessI:
+  fixes p q :: "'t \<Rightarrow>\<^sub>0 'b::ring"
+  assumes "p + q \<noteq> 0" and "lt q = lt p" and "lc q = - lc p"
+  shows "lt (p + q) \<prec>\<^sub>t lt p"
+  using assms(1, 2)
+proof (rule lt_plus_lessI')
+  from assms(3) show "lc p + lc q = 0" by simp
 qed
 
 lemma lt_plus_distinct_eq_max:
@@ -474,6 +483,28 @@ lemma lt_gr_keys:
 proof (rule lt_gr)
   from assms(1) show "lookup p u \<noteq> 0" by simp
 qed fact
+
+lemma lt_plus_eq_maxI:
+  assumes "lt p = lt q \<Longrightarrow> lc p + lc q \<noteq> 0"
+  shows "lt (p + q) = ord_term_lin.max (lt p) (lt q)"
+proof (cases "lt p = lt q")
+  case True
+  show ?thesis
+  proof (rule lt_eqI_keys)
+    from True have "lc p + lc q \<noteq> 0" by (rule assms)
+    thus "ord_term_lin.max (lt p) (lt q) \<in> keys (p + q)"
+      by (simp add: in_keys_iff lc_def lookup_add True del: lookup_not_eq_zero_eq_in_keys)
+  next
+    fix u
+    assume "u \<in> keys (p + q)"
+    hence "u \<preceq>\<^sub>t lt (p + q)" by (rule lt_max_keys)
+    also have "... \<preceq>\<^sub>t ord_term_lin.max (lt p) (lt q)" by (fact lt_plus_le_max)
+    finally show "u \<preceq>\<^sub>t ord_term_lin.max (lt p) (lt q)" .
+  qed
+next
+  case False
+  thus ?thesis by (rule lt_plus_distinct_eq_max)
+qed
 
 lemma lt_uminus [simp]: "lt (- p) = lt p"
   by (simp add: lt_def keys_uminus)
