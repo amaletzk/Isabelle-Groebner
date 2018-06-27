@@ -1,7 +1,7 @@
 section \<open>Reduced Gr\"obner Bases\<close>
 
 theory Reduced_GB
-  imports "Groebner_Bases/Groebner_Bases" Auto_Reduction
+  imports Groebner_Bases.Groebner_Bases Auto_Reduction
 begin
 
 lemma (in gd_term) monic_set_GB: "is_Groebner_basis (monic_set G) \<longleftrightarrow> is_Groebner_basis G"

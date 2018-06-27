@@ -3,7 +3,7 @@
 section \<open>Sample Computations with Buchberger's Algorithm\<close>
 
 theory Buchberger_Examples
-  imports "../Groebner_Bases/Buchberger" "Algorithm_Schema_Impl" "../Print" "../Groebner_Bases/Code_Target_Rat"
+  imports Groebner_Bases.Buchberger Algorithm_Schema_Impl "../Print" "../Groebner_Bases/Code_Target_Rat"
 begin
 
 subsection \<open>Scalar Polynomials\<close>

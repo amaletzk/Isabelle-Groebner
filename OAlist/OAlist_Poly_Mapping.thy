@@ -3,7 +3,7 @@
 section \<open>Ordered Associative Lists for Polynomials\<close>
 
 theory OAlist_Poly_Mapping
-  imports PP_Type "../Polynomials/MPoly_Type_Class_Ordered" OAlist
+  imports PP_Type Polynomials.MPoly_Type_Class_Ordered OAlist
 begin
 
 text \<open>We introduce a dedicated type for ordered associative lists (oalists) representing polynomials.

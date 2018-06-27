@@ -1,11 +1,11 @@
 (* Author: Alexander Maletzky *)
 
 theory Poly_Utils
-  imports "Polynomials/MPoly_Type_Class_Ordered" General_Utils
+  imports Polynomials.MPoly_Type_Class_Ordered General_Utils
 begin
 
 text \<open>Some further general properties of (ordered) multivariate polynomials. This theory is an
-  extension of @{theory MPoly_Type_Class}.\<close>
+  extension of @{theory Polynomials.MPoly_Type_Class}.\<close>
   
 section \<open>Further Properties of Multivariate Polynomials\<close>
 

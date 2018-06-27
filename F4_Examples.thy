@@ -3,7 +3,7 @@
 section \<open>Sample Computations with the F4 Algorithm\<close>
 
 theory F4_Examples
-  imports F4 "Groebner_Bases/Algorithm_Schema_Impl" Jordan_Normal_Form.Gauss_Jordan_IArray_Impl
+  imports F4 Groebner_Bases.Algorithm_Schema_Impl Jordan_Normal_Form.Gauss_Jordan_IArray_Impl
           "Groebner_Bases/Code_Target_Rat"
 begin
 
@@ -163,6 +163,6 @@ end
 
 value [code] "length (f4_scalar_drlex (map (\<lambda>p. (p, ())) ((cyclic 4)::(_ \<Rightarrow>\<^sub>0 rat) list)) ())"
 
-value [code] "length (f4_scalar_drlex (map (\<lambda>p. (p, ())) (Katsura 3)) ())"
+value [code] "length (f4_scalar_drlex (map (\<lambda>p. (p, ())) (Katsura 2)) ())"
 
 end (* theory *)

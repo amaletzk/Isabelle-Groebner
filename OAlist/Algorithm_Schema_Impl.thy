@@ -3,7 +3,7 @@
 section \<open>Code Equations and Useful Functions related to the Computation of Gr\"obner Bases\<close>
 
 theory Algorithm_Schema_Impl
-  imports "../Groebner_Bases/Algorithm_Schema" MPoly_Type_Class_OAlist
+  imports Groebner_Bases.Algorithm_Schema MPoly_Type_Class_OAlist
 begin
 
 lemma card_keys_MP_oalist [code]: "card_keys (MP_oalist xs) = length (fst (list_of_oalist_ntm xs))"

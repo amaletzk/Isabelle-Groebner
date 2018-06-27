@@ -1,11 +1,11 @@
 section \<open>Multivariate Polynomials with Power-Products Represented by Polynomial Mappings\<close>
 
 theory MPoly_PM
-  imports "Polynomials/MPoly_Type_Class"
+  imports Polynomials.MPoly_Type_Class
 begin
 
 text \<open>Many notions introduced in this theory for type @{typ "('n \<Rightarrow>\<^sub>0 'a) \<Rightarrow>\<^sub>0 'b"} closely resemble
-  those introduced in @{theory MPoly_Type} for type @{typ "'a mpoly"}.\<close>
+  those introduced in @{theory Polynomials.MPoly_Type} for type @{typ "'a mpoly"}.\<close>
 
 lemma monomial_single_power:
   "(monomial c (Poly_Mapping.single x k)) ^ n = monomial (c ^ n) (Poly_Mapping.single x (k * n))"

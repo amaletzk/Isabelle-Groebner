@@ -3,7 +3,7 @@
 section \<open>Faug\`ere's F4 Algorithm\<close>
 
 theory F4
-  imports Macaulay_Matrix "Groebner_Bases/Algorithm_Schema"
+  imports Macaulay_Matrix Groebner_Bases.Algorithm_Schema
 begin
 
 text \<open>This theory implements Faug\`ere's F4 algorithm based on @{const gd_term.gb_schema_direct}.\<close>
@@ -1360,7 +1360,7 @@ definition f4_red_aux :: "('t, 'b::field, 'c) pdata list \<Rightarrow> ('t, 'b, 
 
 text \<open>@{const f4_red_aux} only takes two arguments, since it does not distinguish between those
   elements of the current basis that are known to be a Gr\"obner basis (called \<open>gs\<close> in
-  @{theory Algorithm_Schema}) and the remaining ones.\<close>
+  @{theory Groebner_Bases.Algorithm_Schema}) and the remaining ones.\<close>
 
 lemma f4_red_aux_not_zero: "0 \<notin> set (f4_red_aux bs ps)"
   by (simp add: f4_red_aux_def Let_def fst_sym_preproc set_Macaulay_red set_Macaulay_list)

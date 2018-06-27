@@ -3,7 +3,7 @@
 section \<open>Auto-reducing Lists of Polynomials\<close>
 
 theory Auto_Reduction
-  imports "Groebner_Bases/Reduction" Poly_Utils
+  imports Groebner_Bases.Reduction Poly_Utils
 begin
 
 subsection \<open>Reduction and Monic Sets\<close>

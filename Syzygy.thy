@@ -3,7 +3,7 @@
 section \<open>Syzygies of Multivariate Polynomials\<close>
 
 theory Syzygy
-  imports "Groebner_Bases/Groebner_Bases" Poly_Utils "Groebner_Bases.General"
+  imports Groebner_Bases.Groebner_Bases Poly_Utils Groebner_Bases.General
 begin
 
 text \<open>In this theory we first introduce the general concept of @{emph \<open>syzygies\<close>} in modules, and

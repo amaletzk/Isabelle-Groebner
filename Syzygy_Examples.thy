@@ -3,7 +3,7 @@
 section \<open>Sample Computations of Syzygies\<close>
 
 theory Syzygy_Examples
-  imports "Groebner_Bases/Buchberger" "OAlist/Algorithm_Schema_Impl" Syzygy
+  imports Groebner_Bases.Buchberger "OAlist/Algorithm_Schema_Impl" Syzygy
 begin
 
 text \<open>We must define the following four constants outside the global interpretation, since otherwise

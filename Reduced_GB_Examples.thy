@@ -1,5 +1,5 @@
 theory Reduced_GB_Examples
-  imports "Groebner_Bases/Buchberger" Reduced_GB "Polynomials/MPoly_Type_Class_FMap"
+  imports Groebner_Bases.Buchberger Reduced_GB Polynomials.MPoly_Type_Class_FMap
           "Groebner_Bases/Code_Target_Rat"
 begin
 

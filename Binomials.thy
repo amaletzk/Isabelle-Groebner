@@ -1,7 +1,7 @@
 (* Author: Alexander Maletzky *)
 
 theory Binomials
-  imports Reduced_GB "Groebner_Bases/Buchberger"
+  imports Reduced_GB Groebner_Bases.Buchberger
 begin
 
 context ordered_term
