@@ -336,6 +336,71 @@ proof
   thus "t \<in> set xs" by (simp add: lookup_pm_of_idx_pm)
 qed
 
+lemma pm_of_idx_pm_zero [simp]: "pm_of_idx_pm xs 0 = 0"
+  by (rule poly_mapping_eqI, simp add: lookup_pm_of_idx_pm)
+
+lemma pm_of_idx_pm_plus: "pm_of_idx_pm xs (f + g) = pm_of_idx_pm xs f + pm_of_idx_pm xs g"
+  by (rule poly_mapping_eqI, simp add: lookup_pm_of_idx_pm lookup_add when_def)
+
+lemma pm_of_idx_pm_uminus: "pm_of_idx_pm xs (- f) = - pm_of_idx_pm xs f"
+  by (rule poly_mapping_eqI, simp add: lookup_pm_of_idx_pm when_def)
+
+lemma pm_of_idx_pm_minus: "pm_of_idx_pm xs (f - g) = pm_of_idx_pm xs f - pm_of_idx_pm xs g"
+  by (rule poly_mapping_eqI, simp add: lookup_pm_of_idx_pm lookup_minus when_def)
+
+lemma pm_of_idx_pm_monom_mult: "pm_of_idx_pm xs (punit.monom_mult c 0 f) = punit.monom_mult c 0 (pm_of_idx_pm xs f)"
+  by (rule poly_mapping_eqI, simp add: lookup_pm_of_idx_pm punit.lookup_monom_mult_zero when_def)
+
+lemma pm_of_idx_pm_monomial:
+  assumes "distinct xs"
+  shows "pm_of_idx_pm xs (monomial c i) = (monomial c (xs ! i) when i < length xs)"
+proof -
+  from assms have *: "{i. i < length xs \<and> xs ! i = xs ! j} = {j}" if "j < length xs" for j
+    using distinct_Ex1 nth_mem that by fastforce
+  show ?thesis
+  proof (cases "i < length xs")
+    case True
+    have "pm_of_idx_pm xs (monomial c i) = monomial c (xs ! i)"
+    proof (rule poly_mapping_eqI)
+      fix k
+      show "lookup (pm_of_idx_pm xs (monomial c i)) k = lookup (monomial c (xs ! i)) k"
+      proof (cases "xs ! i = k")
+        case True
+        with \<open>i < length xs\<close> have "k \<in> set xs" by auto
+        thus ?thesis by (simp add: lookup_pm_of_idx_pm lookup_single *[OF \<open>i < length xs\<close>] True[symmetric])
+      next
+        case False
+        have "lookup (pm_of_idx_pm xs (monomial c i)) k = 0"
+        proof (cases "k \<in> set xs")
+          case True
+          then obtain j where "j < length xs" and "k = xs ! j" by (metis in_set_conv_nth)
+          with False have "i \<noteq> Min {i. i < length xs \<and> xs ! i = k}"
+            by (auto simp: \<open>k = xs ! j\<close> *[OF \<open>j < length xs\<close>])
+          thus ?thesis by (simp add: lookup_pm_of_idx_pm True lookup_single)
+        next
+          case False
+          thus ?thesis by (simp add: lookup_pm_of_idx_pm)
+        qed
+        with False show ?thesis by (simp add: lookup_single)
+      qed
+    qed
+    with True show ?thesis by simp
+  next
+    case False
+    have "pm_of_idx_pm xs (monomial c i) = 0"
+    proof (rule poly_mapping_eqI, simp add: lookup_pm_of_idx_pm when_def, rule)
+      fix k
+      assume "k \<in> set xs"
+      then obtain j where "j < length xs" and "k = xs ! j" by (metis in_set_conv_nth)
+      with False have "i \<noteq> Min {i. i < length xs \<and> xs ! i = k}"
+        by (auto simp: \<open>k = xs ! j\<close> *[OF \<open>j < length xs\<close>])
+      thus "lookup (monomial c i) (Min {i. i < length xs \<and> xs ! i = k}) = 0"
+        by (simp add: lookup_single)
+    qed
+    with False show ?thesis by simp
+  qed
+qed
+
 lemma lookup_idx_pm_of_pm: "lookup (idx_pm_of_pm xs f) = (\<lambda>i. lookup f (xs ! i) when i < length xs)"
   unfolding idx_pm_of_pm_def by (rule Abs_poly_mapping_inverse, simp)
 
@@ -355,6 +420,25 @@ lemma idx_pm_of_pm_plus: "idx_pm_of_pm xs (f + g) = idx_pm_of_pm xs f + idx_pm_o
 
 lemma idx_pm_of_pm_minus: "idx_pm_of_pm xs (f - g) = idx_pm_of_pm xs f - idx_pm_of_pm xs g"
   by (rule poly_mapping_eqI, simp add: lookup_idx_pm_of_pm lookup_minus when_def)
+
+lemma pm_of_idx_pm_of_pm:
+  assumes "keys f \<subseteq> set xs"
+  shows "pm_of_idx_pm xs (idx_pm_of_pm xs f) = f"
+proof (rule poly_mapping_eqI, simp add: lookup_pm_of_idx_pm when_def, intro conjI impI)
+  fix k
+  assume "k \<in> set xs"
+  define i where "i = Min {i. i < length xs \<and> xs ! i = k}"
+  have "finite {i. i < length xs \<and> xs ! i = k}" by simp
+  moreover from \<open>k \<in> set xs\<close> have "{i. i < length xs \<and> xs ! i = k} \<noteq> {}"
+    by (simp add: in_set_conv_nth)
+  ultimately have "i \<in> {i. i < length xs \<and> xs ! i = k}" unfolding i_def by (rule Min_in)
+  hence "i < length xs" and "xs ! i = k" by simp_all
+  thus "lookup (idx_pm_of_pm xs f) i = lookup f k" by (simp add: lookup_idx_pm_of_pm)
+next
+  fix k
+  assume "k \<notin> set xs"
+  with assms show "lookup f k = 0" by auto
+qed
 
 lemma idx_pm_of_pm_of_idx_pm:
   assumes "distinct xs" and "keys f \<subseteq> {0..<length xs}"
