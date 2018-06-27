@@ -1,7 +1,7 @@
 (* Author: Alexander Maletzky *)
 
 theory Groebner_Macaulay
-  imports MPoly_PM Groebner_Bases.Reduced_GB Macaulay_Matrix
+  imports MPoly_PM Groebner_Bases.Reduced_GB Groebner_Bases.Macaulay_Matrix
 begin
 
 text \<open>Relationship between Gr\"obner bases and Macaulay matrices, following
