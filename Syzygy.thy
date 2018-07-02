@@ -114,7 +114,6 @@ proof -
   show ?thesis
   proof
     have "x = (\<Sum>a\<in>A. lookup r a \<odot> a)" unfolding x by (rule sum.cong, simp_all add: 1)
-    thm sum.mono_neutral_right
     also from \<open>finite A\<close> 2 have "... = (\<Sum>a\<in>keys r. lookup r a \<odot> a)"
     proof (rule sum.mono_neutral_right)
       show "\<forall>a\<in>A - keys r. lookup r a \<odot> a = 0" by simp
@@ -282,6 +281,25 @@ end (* module_struct *)
 context term_powerprod
 begin
 
+lemma keys_rep_subset:
+  assumes "u \<in> keys (pmdl.rep r)"
+  obtains t v where "t \<in> Keys (Poly_Mapping.range r)" and "v \<in> Keys (keys r)" and "u = t \<oplus> v"
+proof -
+  note assms
+  also have "keys (pmdl.rep r) \<subseteq> (\<Union>v\<in>keys r. keys (lookup r v \<odot> v))"
+    by (simp add: pmdl.rep_def keys_sum_subset)
+  finally obtain v0 where "v0 \<in> keys r" and "u \<in> keys (lookup r v0 \<odot> v0)" ..
+  from this(2) obtain t v where "t \<in> keys (lookup r v0)" and "v \<in> keys v0" and "u = t \<oplus> v"
+    by (rule in_keys_mult_scalarE)
+  show ?thesis
+  proof
+    from \<open>v0 \<in> keys r\<close> have "lookup r v0 \<in> Poly_Mapping.range r" by (rule in_keys_lookup_in_range)
+    with \<open>t \<in> keys (lookup r v0)\<close> show "t \<in> Keys (Poly_Mapping.range r)" by (rule in_KeysI)
+  next
+    from \<open>v \<in> keys v0\<close> \<open>v0 \<in> keys r\<close> show "v \<in> Keys (keys r)" by (rule in_KeysI)
+  qed fact
+qed
+
 lemma rep_mult_scalar: "pmdl.rep (punit.monom_mult c 0 r) = c \<odot> pmdl.rep r"
   unfolding punit.mult_scalar_monomial[symmetric] punit_mult_scalar by (fact pmdl.rep_smult)
 
@@ -334,6 +352,33 @@ proof
   assume "t \<in> keys (pm_of_idx_pm xs f)"
   hence "lookup (pm_of_idx_pm xs f) t \<noteq> 0" by simp
   thus "t \<in> set xs" by (simp add: lookup_pm_of_idx_pm)
+qed
+
+lemma range_pm_of_idx_pm_subset: "Poly_Mapping.range (pm_of_idx_pm xs f) \<subseteq> lookup f ` {0..<length xs} - {0}"
+proof
+  fix c
+  assume "c \<in> Poly_Mapping.range (pm_of_idx_pm xs f)"
+  then obtain t where t: "t \<in> keys (pm_of_idx_pm xs f)" and c: "c = lookup (pm_of_idx_pm xs f) t"
+    by (metis DiffE imageE insertCI not_in_keys_iff_lookup_eq_zero range.rep_eq)
+  from t keys_pm_of_idx_pm_subset have "t \<in> set xs" ..
+  hence c1: "c = lookup f (Min {i. i < length xs \<and> xs ! i = t})" by (simp add: lookup_pm_of_idx_pm c)
+  show "c \<in> lookup f ` {0..<length xs} - {0}"
+  proof (intro DiffI image_eqI)
+    from \<open>t \<in> set xs\<close> obtain i where "i < length xs" and "t = xs ! i" by (metis in_set_conv_nth)
+    have "finite {i. i < length xs \<and> xs ! i = t}" by simp
+    moreover from \<open>i < length xs\<close> \<open>t = xs ! i\<close> have "{i. i < length xs \<and> xs ! i = t} \<noteq> {}" by auto
+    ultimately have "Min {i. i < length xs \<and> xs ! i = t} \<in> {i. i < length xs \<and> xs ! i = t}"
+      by (rule Min_in)
+    thus "Min {i. i < length xs \<and> xs ! i = t} \<in> {0..<length xs}" by simp
+  next
+    from t show "c \<notin> {0}" by (simp add: c)
+  qed (fact c1)
+qed
+
+corollary range_pm_of_idx_pm_subset': "Poly_Mapping.range (pm_of_idx_pm xs f) \<subseteq> Poly_Mapping.range f"
+  using range_pm_of_idx_pm_subset
+proof (rule subset_trans)
+  show "lookup f ` {0..<length xs} - {0} \<subseteq> Poly_Mapping.range f" by (transfer, auto)
 qed
 
 lemma pm_of_idx_pm_zero [simp]: "pm_of_idx_pm xs 0 = 0"
