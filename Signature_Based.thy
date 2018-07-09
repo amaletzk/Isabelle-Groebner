@@ -3289,6 +3289,536 @@ proof -
   qed
 qed
 
+subsubsection \<open>Termination\<close>
+
+definition term_pp_rel :: "('t \<Rightarrow> 't \<Rightarrow> bool) \<Rightarrow> ('t \<times> 'a) \<Rightarrow> ('t \<times> 'a) \<Rightarrow> bool"
+  where "term_pp_rel r a b \<longleftrightarrow> r (snd b \<oplus> fst a) (snd a \<oplus> fst b)"
+
+definition canon_term_pp_pair :: "('t \<times> 'a) \<Rightarrow> bool"
+  where "canon_term_pp_pair a \<longleftrightarrow> (gcs (pp_of_term (fst a)) (snd a) = 0)"
+
+definition cancel_term_pp_pair :: "('t \<times> 'a) \<Rightarrow> ('t \<times> 'a)"
+  where "cancel_term_pp_pair a = (fst a \<ominus> (gcs (pp_of_term (fst a)) (snd a)), snd a - (gcs (pp_of_term (fst a)) (snd a)))"
+
+lemma term_pp_rel_refl: "reflp r \<Longrightarrow> term_pp_rel r a a"
+  by (simp add: term_pp_rel_def reflp_def)
+
+lemma term_pp_rel_irrefl: "irreflp r \<Longrightarrow> \<not> term_pp_rel r a a"
+  by (simp add: term_pp_rel_def irreflp_def)
+
+lemma term_pp_rel_sym: "symp r \<Longrightarrow> term_pp_rel r a b \<Longrightarrow> term_pp_rel r b a"
+  by (auto simp: term_pp_rel_def symp_def)
+
+lemma term_pp_rel_trans:
+  assumes "ord_term_lin.is_le_rel r" and "term_pp_rel r a b" and "term_pp_rel r b c"
+  shows "term_pp_rel r a c"
+proof -
+  from assms(1) have "transp r" by (rule ord_term_lin.is_le_relE, auto)
+  from assms(2) have 1: "r (snd b \<oplus> fst a) (snd a \<oplus> fst b)" by (simp only: term_pp_rel_def)
+  from assms(3) have 2: "r (snd c \<oplus> fst b) (snd b \<oplus> fst c)" by (simp only: term_pp_rel_def)
+  have "snd b \<oplus> (snd c \<oplus> fst a) = snd c \<oplus> (snd b \<oplus> fst a)" by (rule splus_left_commute)
+  also from assms(1) 1 have "r ... (snd a \<oplus> (snd c \<oplus> fst b))"
+    by (simp add: splus_left_commute[of "snd a"] term_is_le_rel_canc_left)
+  also from assms(1) 2 have "r ... (snd b \<oplus> (snd a \<oplus> fst c))"
+    by (simp add: splus_left_commute[of "snd b"] term_is_le_rel_canc_left)
+  finally(transpD[OF \<open>transp r\<close>]) show ?thesis using assms(1)
+    by (simp only: term_pp_rel_def term_is_le_rel_canc_left)
+qed
+
+lemma term_pp_rel_trans_eq_left:
+  assumes "ord_term_lin.is_le_rel r" and "term_pp_rel (=) a b" and "term_pp_rel r b c"
+  shows "term_pp_rel r a c"
+proof -
+  from assms(1) have "transp r" by (rule ord_term_lin.is_le_relE, auto)
+  from assms(2) have 1: "snd b \<oplus> fst a = snd a \<oplus> fst b" by (simp only: term_pp_rel_def)
+  from assms(3) have 2: "r (snd c \<oplus> fst b) (snd b \<oplus> fst c)" by (simp only: term_pp_rel_def)
+  have "snd b \<oplus> (snd c \<oplus> fst a) = snd c \<oplus> (snd b \<oplus> fst a)" by (rule splus_left_commute)
+  also from assms(1) 1 have "... = (snd a \<oplus> (snd c \<oplus> fst b))"
+    by (simp add: splus_left_commute[of "snd a"])
+  finally have eq: "snd b \<oplus> (snd c \<oplus> fst a) = snd a \<oplus> (snd c \<oplus> fst b)" .
+  from assms(1) 2 have "r (snd b \<oplus> (snd c \<oplus> fst a)) (snd b \<oplus> (snd a \<oplus> fst c))"
+    unfolding eq by (simp add: splus_left_commute[of "snd b"] term_is_le_rel_canc_left)
+  thus ?thesis using assms(1) by (simp only: term_pp_rel_def term_is_le_rel_canc_left)
+qed
+
+lemma term_pp_rel_trans_eq_right:
+  assumes "ord_term_lin.is_le_rel r" and "term_pp_rel r a b" and "term_pp_rel (=) b c"
+  shows "term_pp_rel r a c"
+proof -
+  from assms(1) have "transp r" by (rule ord_term_lin.is_le_relE, auto)
+  from assms(2) have 1: "r (snd b \<oplus> fst a) (snd a \<oplus> fst b)" by (simp only: term_pp_rel_def)
+  from assms(3) have 2: "snd c \<oplus> fst b = snd b \<oplus> fst c" by (simp only: term_pp_rel_def)
+  have "snd b \<oplus> (snd a \<oplus> fst c) = snd a \<oplus> (snd b \<oplus> fst c)" by (rule splus_left_commute)
+  also from assms(1) 2 have "... = (snd a \<oplus> (snd c \<oplus> fst b))"
+    by (simp add: splus_left_commute[of "snd a"])
+  finally have eq: "snd b \<oplus> (snd a \<oplus> fst c) = snd a \<oplus> (snd c \<oplus> fst b)" .
+  from assms(1) 1 have "r (snd b \<oplus> (snd c \<oplus> fst a)) (snd b \<oplus> (snd a \<oplus> fst c))"
+    unfolding eq by (simp add: splus_left_commute[of _ "snd c"] term_is_le_rel_canc_left)
+  thus ?thesis using assms(1) by (simp only: term_pp_rel_def term_is_le_rel_canc_left)
+qed
+
+lemma canon_term_pp_cancel: "canon_term_pp_pair (cancel_term_pp_pair a)"
+  by (simp add: cancel_term_pp_pair_def canon_term_pp_pair_def gcs_minus_gcs term_simps)
+
+lemma term_pp_rel_cancel:
+  assumes "reflp r"
+  shows "term_pp_rel r a (cancel_term_pp_pair a)"
+proof -
+  obtain u s where a: "a = (u, s)" by (rule prod.exhaust)
+  show ?thesis
+  proof (simp add: a cancel_term_pp_pair_def)
+    let ?g = "gcs (pp_of_term u) s"
+    have "?g adds s" by (fact gcs_adds_2)
+    hence "(s - ?g) \<oplus> (u \<ominus> 0) = s \<oplus> u \<ominus> (?g + 0)" using zero_adds_pp
+      by (rule minus_splus_sminus)
+    also have "... = s \<oplus> (u \<ominus> ?g)"
+      by (metis add.left_neutral add.right_neutral adds_pp_def diff_zero gcs_adds_2 gcs_comm
+          minus_splus_sminus zero_adds)
+    finally have "r ((s - ?g) \<oplus> u) (s \<oplus> (u \<ominus> ?g))" using assms by (simp add: term_simps reflp_def)
+    thus "term_pp_rel r (u, s) (u \<ominus> ?g, s - ?g)" by (simp add: a term_pp_rel_def)
+  qed
+qed
+
+lemma canon_term_pp_rel_id:
+  assumes "term_pp_rel (=) a b" and "canon_term_pp_pair a" and "canon_term_pp_pair b"
+  shows "a = b"
+proof -
+  obtain u s where a: "a = (u, s)" by (rule prod.exhaust)
+  obtain v t where b: "b = (v, t)" by (rule prod.exhaust)
+  from assms(1) have "t \<oplus> u = s \<oplus> v" by (simp add: term_pp_rel_def a b)
+  hence 1: "t + pp_of_term u = s + pp_of_term v" by (metis pp_of_term_splus)
+  from assms(2) have 2: "gcs (pp_of_term u) s = 0" by (simp add: canon_term_pp_pair_def a)
+  from assms(3) have 3: "gcs (pp_of_term v) t = 0" by (simp add: canon_term_pp_pair_def b)
+  have "t = t + gcs (pp_of_term u) s" by (simp add: 2)
+  also have "... = gcs (t + pp_of_term u) (t + s)" by (simp only: gcs_plus_left)
+  also have "... = gcs (s + pp_of_term v) (s + t)" by (simp only: 1 add.commute)
+  also have "... = s + gcs (pp_of_term v) t" by (simp only: gcs_plus_left)
+  also have "... = s" by (simp add: 3)
+  finally have "t = s" .
+  moreover from \<open>t \<oplus> u = s \<oplus> v\<close> have "u = v" by (simp only: \<open>t = s\<close> splus_left_canc)
+  ultimately show ?thesis by (simp add: a b)
+qed
+
+lemma min_set_finite:
+  fixes seq :: "nat \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::field)"
+  assumes "dickson_grading d" and "range seq \<subseteq> dgrad_sig_set d" and "0 \<notin> rep_list ` range seq"
+    and "\<And>i j. i < j \<Longrightarrow> lt (seq i) \<prec>\<^sub>t lt (seq j)"
+  shows "finite {i. \<not> (\<exists>j<i. lt (seq j) adds\<^sub>t lt (seq i) \<and>
+                             punit.lt (rep_list (seq j)) adds punit.lt (rep_list (seq i)))}"
+proof -
+  have "inj (\<lambda>i. lt (seq i))"
+  proof
+    fix i j
+    assume eq: "lt (seq i) = lt (seq j)"
+    show "i = j"
+    proof (rule linorder_cases)
+      assume "i < j"
+      hence "lt (seq i) \<prec>\<^sub>t lt (seq j)" by (rule assms(4))
+      thus ?thesis by (simp add: eq)
+    next
+      assume "j < i"
+      hence "lt (seq j) \<prec>\<^sub>t lt (seq i)" by (rule assms(4))
+      thus ?thesis by (simp add: eq)
+    qed
+  qed
+  hence "inj seq" unfolding comp_def[symmetric] by (rule inj_on_imageI2)
+
+  let ?P1 = "\<lambda>p q. lt p adds\<^sub>t lt q"
+  let ?P2 = "\<lambda>p q. punit.lt (rep_list p) adds punit.lt (rep_list q)"
+  let ?P = "\<lambda>p q. ?P1 p q \<and> ?P2 p q"
+  have "reflp ?P" by (simp add: reflp_def adds_term_refl)
+  have "almost_full_on ?P1 (range seq)"
+  proof (rule almost_full_on_map)
+    let ?B = "{t. pp_of_term t \<in> dgrad_set d (dgrad_max d) \<and> component_of_term t \<in> {0..<length fs}}"
+    from assms(1) finite_atLeastLessThan show "almost_full_on (adds\<^sub>t) ?B" by (rule Dickson_term)
+    show "lt ` range seq \<subseteq> ?B"
+    proof
+      fix v
+      assume "v \<in> lt ` range seq"
+      then obtain p where "p \<in> range seq" and v: "v = lt p" ..
+      from this(1) assms(3) have "rep_list p \<noteq> 0" by auto
+      hence "p \<noteq> 0" by (auto simp: rep_list_zero)
+      from \<open>p \<in> range seq\<close> assms(2) have "p \<in> dgrad_sig_set d" ..
+      hence "p \<in> dgrad_max_set d" and "p \<in> sig_inv_set" by (simp_all add: dgrad_sig_set_def)
+      from this(1) \<open>p \<noteq> 0\<close> have "d (lp p) \<le> dgrad_max d" by (rule dgrad_p_setD_lt)
+      hence "lp p \<in> dgrad_set d (dgrad_max d)" by (simp add: dgrad_set_def)
+      moreover from \<open>p \<in> sig_inv_set\<close> \<open>p \<noteq> 0\<close> have "component_of_term (lt p) < length fs"
+        by (rule sig_inv_setD_lt)
+      ultimately show "v \<in> ?B" by (simp add: v)
+    qed
+  qed
+  moreover have "almost_full_on ?P2 (range seq)"
+  proof (rule almost_full_on_map)
+    let ?B = "dgrad_set d (dgrad_max d)"
+    from assms(1) show "almost_full_on (adds) ?B" by (rule dickson_gradingD_dgrad_set)
+    show "(\<lambda>p. punit.lt (rep_list p)) ` range seq \<subseteq> ?B"
+    proof
+      fix t
+      assume "t \<in> (\<lambda>p. punit.lt (rep_list p)) ` range seq"
+      then obtain p where "p \<in> range seq" and t: "t = punit.lt (rep_list p)" ..
+      from this(1) assms(3) have "rep_list p \<noteq> 0" by auto
+      from \<open>p \<in> range seq\<close> assms(2) have "p \<in> dgrad_sig_set d" ..
+      hence "p \<in> dgrad_max_set d" by (simp add: dgrad_sig_set_def)
+      with assms(1) have "rep_list p \<in> punit_dgrad_max_set d" by (rule dgrad_max_2)
+      from this \<open>rep_list p \<noteq> 0\<close> have "d (punit.lt (rep_list p)) \<le> dgrad_max d"
+        by (rule punit.dgrad_p_setD_lt[simplified])
+      thus "t \<in> ?B" by (simp add: t dgrad_set_def)
+    qed
+  qed
+  ultimately have "almost_full_on ?P (range seq)" by (rule almost_full_on_same)
+  with \<open>reflp ?P\<close> obtain T where "finite T" and "T \<subseteq> range seq" and *: "\<And>p. p \<in> range seq \<Longrightarrow> (\<exists>q\<in>T. ?P q p)"
+    by (rule almost_full_on_finite_subsetE, blast)
+  from \<open>T \<subseteq> range seq\<close> obtain I where T: "T = seq ` I" by (meson subset_image_iff)
+  have "{i. \<not> (\<exists>j<i. ?P (seq j) (seq i))} \<subseteq> I"
+  proof
+    fix i
+    assume "i \<in> {i. \<not> (\<exists>j<i. ?P (seq j) (seq i))}"
+    hence x: "\<not> (\<exists>j<i. ?P (seq j) (seq i))" by simp
+    obtain j where "j \<in> I" and "?P (seq j) (seq i)"
+    proof -
+      have "seq i \<in> range seq" by simp
+      hence "\<exists>q\<in>T. ?P q (seq i)" by (rule *)
+      then obtain q where "q \<in> T" and "?P q (seq i)" ..
+      from this(1) obtain j where "j \<in> I" and "q = seq j" unfolding T ..
+      from this(1) \<open>?P q (seq i)\<close> show ?thesis unfolding \<open>q = seq j\<close> ..
+    qed
+    from this(2) x have "i \<le> j" by auto
+    moreover have "\<not> i < j"
+    proof
+      assume "i < j"
+      hence "lt (seq i) \<prec>\<^sub>t lt (seq j)" by (rule assms(4))
+      hence "\<not> ?P1 (seq j) (seq i)" using ord_adds_term ord_term_lin.leD by blast
+      with \<open>?P (seq j) (seq i)\<close> show False by simp
+    qed
+    ultimately show "i \<in> I" using \<open>j \<in> I\<close> by simp
+  qed
+  moreover from \<open>inj seq\<close> \<open>finite T\<close> have "finite I" by (simp add: finite_image_iff inj_on_subset T)
+  ultimately show ?thesis by (rule finite_subset)
+qed
+
+lemma theorem_20:
+  fixes seq :: "nat \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::field)"
+  assumes "dickson_grading d" and "range seq \<subseteq> dgrad_sig_set d" and "0 \<notin> rep_list ` range seq"
+    and "\<And>i j. i < j \<Longrightarrow> lt (seq i) \<prec>\<^sub>t lt (seq j)"
+    and "\<And>i. \<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (seq ` {0..<i}) (seq i)"
+    and "\<And>i. (\<exists>j<length fs. (sig_red (\<prec>\<^sub>t) (\<preceq>) (seq ` {0..<i}))\<^sup>*\<^sup>* (monomial 1 (term_of_pair (0, j))) (seq i)) \<or>
+              (\<exists>j k. is_regular_spair (seq j) (seq k) \<and> (sig_red (\<prec>\<^sub>t) (\<preceq>) (seq ` {0..<i}))\<^sup>*\<^sup>* (spair (seq j) (seq k)) (seq i))"
+    and "\<And>i. is_sig_GB_upt d (seq ` {0..<i}) (lt (seq i))"
+  shows thesis
+proof -
+  from assms(3) have "0 \<notin> range seq" using rep_list_zero by auto
+  have "ord_term_lin.is_le_rel (=)" and "ord_term_lin.is_le_rel (\<prec>\<^sub>t)" by (rule ord_term_lin.is_le_relI)+
+  have "reflp (=)" and "symp (=)" by (simp_all add: symp_def)
+  have "irreflp (\<prec>\<^sub>t)" by (simp add: irreflp_def)
+  have "inj (\<lambda>i. lt (seq i))"
+  proof
+    fix i j
+    assume eq: "lt (seq i) = lt (seq j)"
+    show "i = j"
+    proof (rule linorder_cases)
+      assume "i < j"
+      hence "lt (seq i) \<prec>\<^sub>t lt (seq j)" by (rule assms(4))
+      thus ?thesis by (simp add: eq)
+    next
+      assume "j < i"
+      hence "lt (seq j) \<prec>\<^sub>t lt (seq i)" by (rule assms(4))
+      thus ?thesis by (simp add: eq)
+    qed
+  qed
+  hence "inj seq" unfolding comp_def[symmetric] by (rule inj_on_imageI2)
+
+  define R where "R = (\<lambda>x. {i. term_pp_rel (=) (lt (seq i), punit.lt (rep_list (seq i))) x})"
+  let ?A = "{x. canon_term_pp_pair x \<and> R x \<noteq> {}}"
+
+  have "finite ?A"
+  proof -
+    define min_set where "min_set = {i. \<not> (\<exists>j<i. lt (seq j) adds\<^sub>t lt (seq i) \<and>
+                                      punit.lt (rep_list (seq j)) adds punit.lt (rep_list (seq i)))}"
+    have "?A \<subseteq> (\<lambda>i. cancel_term_pp_pair (lt (seq i), punit.lt (rep_list (seq i)))) ` min_set"
+    proof
+      fix u t
+      assume "(u, t) \<in> ?A"
+      hence "canon_term_pp_pair (u, t)" and "R (u, t) \<noteq> {}" by simp_all
+      from this(2) obtain i where x: "term_pp_rel (=) (lt (seq i), punit.lt (rep_list (seq i))) (u, t)"
+        by (auto simp: R_def)
+      let ?equiv = "(\<lambda>i j. term_pp_rel (=) (lt (seq i), punit.lt (rep_list (seq i))) (lt (seq j), punit.lt (rep_list (seq j))))"
+      obtain j where "j \<in> min_set" and "?equiv j i"
+      proof (cases "i \<in> min_set")
+        case True
+        moreover have "?equiv i i" by (simp add: term_pp_rel_refl)
+        ultimately show ?thesis ..
+      next
+        case False
+        let ?Q = "{seq j | j. j < i \<and> is_sig_red (=) (=) {seq j} (seq i)}"
+        have "?Q \<subseteq> range seq" by blast
+        also have "... \<subseteq> dgrad_sig_set d" by (fact assms(2))
+        finally have "?Q \<subseteq> dgrad_max_set d" by (simp add: dgrad_sig_set_def)
+        moreover from \<open>?Q \<subseteq> range seq\<close> \<open>0 \<notin> range seq\<close> have "0 \<notin> ?Q" by blast
+        ultimately have Q_sub: "pp_of_term ` lt ` ?Q \<subseteq> dgrad_set d (dgrad_max d)"
+          unfolding image_image by (smt CollectI dgrad_p_setD_lt dgrad_set_def image_subset_iff subsetCE)
+        have *: "\<exists>g\<in>seq ` {0..<k}. is_sig_red (=) (=) {g} (seq k)" if "k \<notin> min_set" for k
+          proof -
+          from that obtain j where "j < k" and a: "lt (seq j) adds\<^sub>t lt (seq k)"
+            and b: "punit.lt (rep_list (seq j)) adds punit.lt (rep_list (seq k))" by (auto simp: min_set_def)
+          note assms(1, 7)
+          moreover from assms(2) have "seq k \<in> dgrad_sig_set d" by fastforce
+          moreover from \<open>j < k\<close> have "seq j \<in> seq ` {0..<k}" by simp
+          moreover from assms(3) have "rep_list (seq k) \<noteq> 0" and "rep_list (seq j) \<noteq> 0" by fastforce+
+          ultimately have "is_sig_red (\<preceq>\<^sub>t) (=) (seq ` {0..<k}) (seq k)" using a b by (rule lemma_21)
+          moreover from assms(5)[of k] have "\<not> is_sig_red (\<prec>\<^sub>t) (=) (seq ` {0..<k}) (seq k)"
+            by (simp add: is_sig_red_top_tail_cases)
+          ultimately have "is_sig_red (=) (=) (seq ` {0..<k}) (seq k)"
+            by (simp add: is_sig_red_sing_reg_cases)
+          then obtain g0 where "g0 \<in> seq ` {0..<k}" and "is_sig_red (=) (=) {g0} (seq k)"
+            by (rule is_sig_red_singletonI)
+          thus ?thesis ..
+        qed
+
+        from this[OF False] obtain g0 where "g0 \<in> seq ` {0..<i}" and "is_sig_red (=) (=) {g0} (seq i)" ..
+        hence "g0 \<in> ?Q" by fastforce
+        hence "lt g0 \<in> lt ` ?Q" by (rule imageI)
+        with assms(1) obtain v where "v \<in> lt ` ?Q" and min: "\<And>v'. v' \<prec>\<^sub>t v \<Longrightarrow> v' \<notin> lt ` ?Q"
+          using Q_sub by (rule ord_term_minimum_dgrad_set, blast)
+        from this(1) obtain j where "j < i" and "is_sig_red (=) (=) {seq j} (seq i)"
+          and v: "v = lt (seq j)" by fastforce
+        hence 1: "punit.lt (rep_list (seq j)) adds punit.lt (rep_list (seq i))"
+          and 2: "punit.lt (rep_list (seq i)) \<oplus> lt (seq j) = punit.lt (rep_list (seq j)) \<oplus> lt (seq i)"
+          by (auto elim: is_sig_red_top_addsE)
+        show ?thesis
+        proof
+          show "?equiv j i" by (simp add: term_pp_rel_def 2)
+        next
+          show "j \<in> min_set"
+          proof (rule ccontr)
+            assume "j \<notin> min_set"
+            from *[OF this] obtain g1 where "g1 \<in> seq ` {0..<j}" and red: "is_sig_red (=) (=) {g1} (seq j)" ..
+            from this(1) obtain j0 where "j0 < j" and "g1 = seq j0" by fastforce+
+
+            from red have 3: "punit.lt (rep_list (seq j0)) adds punit.lt (rep_list (seq j))"
+              and 4: "punit.lt (rep_list (seq j)) \<oplus> lt (seq j0) = punit.lt (rep_list (seq j0)) \<oplus> lt (seq j)"
+              by (auto simp: \<open>g1 = seq j0\<close> elim: is_sig_red_top_addsE)
+
+            from \<open>j0 < j\<close> \<open>j < i\<close> have "j0 < i" by simp
+            from \<open>j0 < j\<close> have "lt (seq j0) \<prec>\<^sub>t v" unfolding v by (rule assms(4))
+            hence "lt (seq j0) \<notin> lt `?Q" by (rule min)
+            with \<open>j0 < i\<close> have "\<not> is_sig_red (=) (=) {seq j0} (seq i)" by blast
+            moreover have "is_sig_red (=) (=) {seq j0} (seq i)"
+            proof (rule is_sig_red_top_addsI)
+              from assms(3) show "rep_list (seq j0) \<noteq> 0" by fastforce
+            next
+              from assms(3) show "rep_list (seq i) \<noteq> 0" by fastforce
+            next
+              from 3 1 show "punit.lt (rep_list (seq j0)) adds punit.lt (rep_list (seq i))"
+                by (rule adds_trans)
+            next
+              from 4 have "?equiv j0 j" by (simp add: term_pp_rel_def)
+              also from 2 have "?equiv j i" by (simp add: term_pp_rel_def)
+              finally(term_pp_rel_trans[OF \<open>ord_term_lin.is_le_rel (=)\<close>])
+              show "punit.lt (rep_list (seq i)) \<oplus> lt (seq j0) = punit.lt (rep_list (seq j0)) \<oplus> lt (seq i)"
+                by (simp add: term_pp_rel_def)
+            next
+              show "ord_term_lin.is_le_rel (=)" by simp
+            qed simp_all
+            ultimately show False ..
+          qed
+        qed
+      qed
+      have "term_pp_rel (=) (cancel_term_pp_pair (lt (seq j), punit.lt (rep_list (seq j)))) (lt (seq j), punit.lt (rep_list (seq j)))"
+        by (rule term_pp_rel_sym, fact \<open>symp (=)\<close>, rule term_pp_rel_cancel, fact \<open>reflp (=)\<close>)
+      also note \<open>?equiv j i\<close>
+      also(term_pp_rel_trans[OF \<open>ord_term_lin.is_le_rel (=)\<close>]) note x
+      finally(term_pp_rel_trans[OF \<open>ord_term_lin.is_le_rel (=)\<close>])
+      have "term_pp_rel (=) (cancel_term_pp_pair (lt (seq j), punit.lt (rep_list (seq j)))) (u, t)" .
+      with \<open>symp (=)\<close> have "term_pp_rel (=) (u, t) (cancel_term_pp_pair (lt (seq j), punit.lt (rep_list (seq j))))"
+        by (rule term_pp_rel_sym)
+      hence "(u, t) = cancel_term_pp_pair (lt (seq j), punit.lt (rep_list (seq j)))"
+        using \<open>canon_term_pp_pair (u, t)\<close> canon_term_pp_cancel by (rule canon_term_pp_rel_id)
+      with \<open>j \<in> min_set\<close> show "(u, t) \<in> (\<lambda>i. cancel_term_pp_pair (lt (seq i), punit.lt (rep_list (seq i)))) ` min_set"
+        by fastforce
+    qed
+    moreover have "finite ((\<lambda>i. cancel_term_pp_pair (lt (seq i), punit.lt (rep_list (seq i)))) ` min_set)"
+    proof (rule finite_imageI)
+      show "finite min_set" unfolding min_set_def using assms(1-4) by (rule min_set_finite)
+    qed
+    ultimately show ?thesis by (rule finite_subset)
+  qed
+
+  have "range seq \<subseteq> seq ` (UNION ?A R)"
+  proof (rule image_mono, rule)
+    fix i
+    show "i \<in> UNION ?A R"
+    proof
+      show "i \<in> R (cancel_term_pp_pair (lt (seq i), punit.lt (rep_list (seq i))))"
+        by (simp add: R_def term_pp_rel_cancel)
+      thus "cancel_term_pp_pair (lt (seq i), punit.lt (rep_list (seq i))) \<in> ?A"
+        using canon_term_pp_cancel by blast
+    qed
+  qed
+  moreover from \<open>inj seq\<close> have "infinite (range seq)" by (rule range_inj_infinite)
+  ultimately have "infinite (seq ` UNION ?A R)" by (rule infinite_super)
+  moreover have "finite (seq ` UNION ?A R)"
+  proof (rule finite_imageI, rule finite_UN_I)
+    fix x
+    assume "x \<in> ?A"
+    let ?rel = "term_pp_rel (\<prec>\<^sub>t)"
+    have "irreflp ?rel" by (rule irreflpI, rule term_pp_rel_irrefl, fact)
+    moreover have "transp ?rel" by (rule transpI, drule term_pp_rel_trans[OF \<open>ord_term_lin.is_le_rel (\<prec>\<^sub>t)\<close>])
+    ultimately have "wfP_on ?A ?rel" using \<open>finite ?A\<close> by (rule wfP_on_finite)
+    thus "finite (R x)" using \<open>x \<in> ?A\<close>
+    proof (induct rule: wfP_on_induct)
+      case (step x)
+      from step(1) have "canon_term_pp_pair x" by simp
+      define R' where "R' = UNION (?A \<inter> {z. term_pp_rel (\<prec>\<^sub>t) z x}) R"
+      define red_set where "red_set = (\<lambda>p. {k. (sig_red (\<prec>\<^sub>t) (\<preceq>) (seq ` {0..<k}))\<^sup>*\<^sup>* p (seq k)})"
+      have finite_red_set: "finite (red_set p)" for p
+      proof (cases "red_set p = {}")
+        case True
+        thus ?thesis by simp
+      next
+        case False
+        then obtain k where "(sig_red (\<prec>\<^sub>t) (\<preceq>) (seq ` {0..<k}))\<^sup>*\<^sup>* p (seq k)"
+          by (auto simp: red_set_def)
+        hence lt_k: "lt (seq k) = lt p" by (rule sig_red_regular_rtrancl_lt)
+        have "red_set p \<subseteq> {k}"
+        proof
+          fix k'
+          assume "k' \<in> red_set p"
+          hence "(sig_red (\<prec>\<^sub>t) (\<preceq>) (seq ` {0..<k'}))\<^sup>*\<^sup>* p (seq k')"
+            by (simp add: red_set_def)
+          hence "lt (seq k') = lt (seq k)" unfolding lt_k by (rule sig_red_regular_rtrancl_lt)
+          with \<open>inj (\<lambda>i. lt (seq i))\<close> have "k' = k" by (rule injD)
+          thus "k' \<in> {k}" by simp
+        qed
+        thus ?thesis using infinite_super by auto
+      qed
+
+      have "R x \<subseteq> (\<Union>i\<in>R'. \<Union>j\<in>R'. red_set (spair (seq i) (seq j))) \<union>
+                   (UNION {0..<length fs} (\<lambda>j. red_set (monomial 1 (term_of_pair (0, j)))))"
+        (is "_ \<subseteq> ?B \<union> ?C")
+      proof
+        fix i
+        assume "i \<in> R x"
+        hence i_x: "term_pp_rel (=) (lt (seq i), punit.lt (rep_list (seq i))) x"
+          by (simp add: R_def term_pp_rel_def)
+        from assms(6)[of i] show "i \<in> ?B \<union> ?C"
+        proof (elim disjE exE conjE)
+          fix j
+          assume "j < length fs"
+          hence "j \<in> {0..<length fs}" by simp
+          assume "(sig_red (\<prec>\<^sub>t) (\<preceq>) (seq ` {0..<i}))\<^sup>*\<^sup>* (monomial 1 (term_of_pair (0, j))) (seq i)"
+          hence "i \<in> red_set (monomial 1 (term_of_pair (0, j)))" by (simp add: red_set_def)
+          with \<open>j \<in> {0..<length fs}\<close> have "i \<in> ?C" ..
+          thus ?thesis ..
+        next
+          fix j k
+          let ?li = "punit.lt (rep_list (seq i))"
+          let ?lj = "punit.lt (rep_list (seq j))"
+          let ?lk = "punit.lt (rep_list (seq k))"
+          assume spair_red: "(sig_red (\<prec>\<^sub>t) (\<preceq>) (seq ` {0..<i}))\<^sup>*\<^sup>* (spair (seq j) (seq k)) (seq i)"
+          hence "i \<in> red_set (spair (seq j) (seq k))" by (simp add: red_set_def)
+          from spair_red have lt_i: "lt (seq i) = lt (spair (seq j) (seq k))"
+            by (rule sig_red_regular_rtrancl_lt)
+          from spair_red have lt_i': "?li \<preceq> punit.lt (rep_list (spair (seq j) (seq k)))"
+            by (rule sig_red_rtrancl_lt_rep_list)
+          from assms(3) have i_0: "rep_list (seq i) \<noteq> 0" and j_0: "rep_list (seq j) \<noteq> 0"
+            and k_0: "rep_list (seq k) \<noteq> 0" by fastforce+
+          from spair_red this(1) have spair_0: "rep_list (spair (seq j) (seq k)) \<noteq> 0"
+            using punit.rtrancl_0 sig_red_red_rtrancl by force
+
+          have R'I: "a \<in> R'" if "term_pp_rel (\<prec>\<^sub>t) (lt (seq a), punit.lt (rep_list (seq a))) x" for a
+          proof -
+            let ?x = "cancel_term_pp_pair (lt (seq a), punit.lt (rep_list (seq a)))"
+            show ?thesis unfolding R'_def
+            proof (rule UN_I, simp, intro conjI)
+              show "a \<in> R ?x" by (simp add: R_def term_pp_rel_cancel)
+              thus "R ?x \<noteq> {}" by blast
+            next
+              note \<open>ord_term_lin.is_le_rel (\<prec>\<^sub>t)\<close>
+              moreover have "term_pp_rel (=) ?x (lt (seq a), punit.lt (rep_list (seq a)))"
+                by (rule term_pp_rel_sym, fact, rule term_pp_rel_cancel, fact)
+              ultimately show "term_pp_rel (\<prec>\<^sub>t) ?x x" using that by (rule term_pp_rel_trans_eq_left)
+            qed (fact canon_term_pp_cancel)
+          qed
+
+          assume "is_regular_spair (seq j) (seq k)"
+          hence "?lk \<oplus> lt (seq j) \<noteq> ?lj \<oplus> lt (seq k)" by (rule is_regular_spairD3)
+          hence "term_pp_rel (\<prec>\<^sub>t) (lt (seq j), ?lj) x \<and> term_pp_rel (\<prec>\<^sub>t) (lt (seq k), ?lk) x"
+          proof (rule ord_term_lin.neqE)
+            assume c: "?lk \<oplus> lt (seq j) \<prec>\<^sub>t ?lj \<oplus> lt (seq k)"
+            hence j_k: "term_pp_rel (\<prec>\<^sub>t) (lt (seq j), ?lj) (lt (seq k), ?lk)"
+              by (simp add: term_pp_rel_def)
+            note \<open>ord_term_lin.is_le_rel (\<prec>\<^sub>t)\<close>
+            moreover have "term_pp_rel (\<prec>\<^sub>t) (lt (seq k), ?lk) (lt (seq i), ?li)"
+            proof (simp add: term_pp_rel_def)
+              from lt_i' have "?li \<oplus> lt (seq k) \<preceq>\<^sub>t
+                                punit.lt (rep_list (spair (seq j) (seq k))) \<oplus> lt (seq k)"
+                by (rule splus_mono_left)
+              also have "... \<prec>\<^sub>t (?lk - gcs ?lk ?lj + ?lj) \<oplus> lt (seq k)"
+                by (rule splus_mono_strict_left, rule lt_rep_list_spair, fact+, simp only: add.commute)
+              also have "... = ((?lk + ?lj) - gcs ?lj ?lk) \<oplus> lt (seq k)"
+                by (simp add: minus_plus gcs_adds_2 gcs_comm)
+              also have "... = ?lk \<oplus> ((?lj - gcs ?lj ?lk) \<oplus> lt (seq k))"
+                by (simp add: minus_plus' gcs_adds splus_assoc[symmetric])
+              also have "... = ?lk \<oplus> lt (seq i)"
+                by (simp add: lt_spair'[OF k_0 _ c] add.commute spair_comm[of "seq j"] lt_i)
+              finally show "?li \<oplus> lt (seq k) \<prec>\<^sub>t ?lk \<oplus> lt (seq i)" .
+            qed
+            ultimately have "term_pp_rel (\<prec>\<^sub>t) (lt (seq k), ?lk) x" using i_x
+              by (rule term_pp_rel_trans_eq_right)
+            moreover from \<open>ord_term_lin.is_le_rel (\<prec>\<^sub>t)\<close> j_k this
+            have "term_pp_rel (\<prec>\<^sub>t) (lt (seq j), ?lj) x" by (rule term_pp_rel_trans)
+            ultimately show ?thesis by simp
+          next
+            assume c: "?lj \<oplus> lt (seq k) \<prec>\<^sub>t ?lk \<oplus> lt (seq j)"
+            hence j_k: "term_pp_rel (\<prec>\<^sub>t) (lt (seq k), ?lk) (lt (seq j), ?lj)"
+              by (simp add: term_pp_rel_def)
+            note \<open>ord_term_lin.is_le_rel (\<prec>\<^sub>t)\<close>
+            moreover have "term_pp_rel (\<prec>\<^sub>t) (lt (seq j), ?lj) (lt (seq i), ?li)"
+            proof (simp add: term_pp_rel_def)
+              from lt_i' have "?li \<oplus> lt (seq j) \<preceq>\<^sub>t
+                                punit.lt (rep_list (spair (seq j) (seq k))) \<oplus> lt (seq j)"
+                by (rule splus_mono_left)
+              thm lt_rep_list_spair
+              also have "... \<prec>\<^sub>t (?lk - gcs ?lk ?lj + ?lj) \<oplus> lt (seq j)"
+                by (rule splus_mono_strict_left, rule lt_rep_list_spair, fact+, simp only: add.commute)
+              also have "... = ((?lk + ?lj) - gcs ?lk ?lj) \<oplus> lt (seq j)"
+                by (simp add: minus_plus gcs_adds_2 gcs_comm)
+              also have "... = ?lj \<oplus> ((?lk - gcs ?lk ?lj) \<oplus> lt (seq j))"
+                by (simp add: minus_plus' gcs_adds splus_assoc[symmetric] add.commute)
+              also have "... = ?lj \<oplus> lt (seq i)" by (simp add: lt_spair'[OF j_0 _ c] lt_i add.commute)
+              finally show "?li \<oplus> lt (seq j) \<prec>\<^sub>t ?lj \<oplus> lt (seq i)" .
+            qed
+            ultimately have "term_pp_rel (\<prec>\<^sub>t) (lt (seq j), ?lj) x" using i_x
+              by (rule term_pp_rel_trans_eq_right)
+            moreover from \<open>ord_term_lin.is_le_rel (\<prec>\<^sub>t)\<close> j_k this
+            have "term_pp_rel (\<prec>\<^sub>t) (lt (seq k), ?lk) x" by (rule term_pp_rel_trans)
+            ultimately show ?thesis by simp
+          qed
+          with \<open>i \<in> red_set (spair (seq j) (seq k))\<close> have "i \<in> ?B" using R'I by blast
+          thus ?thesis ..
+        qed
+      qed
+      moreover have "finite (?B \<union> ?C)"
+      proof (rule finite_UnI)
+        have "finite R'" unfolding R'_def
+        proof (rule finite_UN_I)
+          from \<open>finite ?A\<close> show "finite (?A \<inter> {z. term_pp_rel (\<prec>\<^sub>t) z x})" by simp
+        next
+          fix y
+          assume "y \<in> ?A \<inter> {z. term_pp_rel (\<prec>\<^sub>t) z x}"
+          hence "y \<in> ?A" and "term_pp_rel (\<prec>\<^sub>t) y x" by simp_all
+          thus "finite (R y)" by (rule step(2))
+        qed
+        show "finite ?B" by (intro finite_UN_I \<open>finite R'\<close> finite_red_set)
+      next
+        show "finite ?C" by (intro finite_UN_I finite_atLeastLessThan finite_red_set)
+      qed
+      ultimately show ?case by (rule finite_subset)
+    qed
+  qed fact
+  ultimately show ?thesis ..
+qed
+
 (* Obsolete? *)
 lemma lemma_10:
   assumes "is_sig_GB_upt G u" and "p \<in> G" and "q \<in> G" and "is_regular_spair p q" and "lt (spair p q) adds\<^sub>t u"
