@@ -9,20 +9,6 @@ begin
 text \<open>In this theory we introduce a subclass of @{class graded_dickson_powerprod} that approximates
   polynomial mappings even closer. We need this class for signature-based Gr\"obner basis algorithms.\<close>
 
-(* TODO: Move to "Power_Products". *)
-lemma adds_antisym:
-  assumes "s adds t" "t adds (s::'a::{cancel_comm_monoid_add, ninv_comm_monoid_add})"
-  shows "s = t"
-proof -
-  from \<open>s adds t\<close> obtain u where u_def: "t = s + u" unfolding adds_def ..
-  from \<open>t adds s\<close> obtain v where v_def: "s = t + v" unfolding adds_def ..
-  from u_def v_def have "s = (s + u) + v" by (simp add: ac_simps)
-  hence "s + 0 = s + (u + v)" by (simp add: ac_simps)
-  hence "u + v = 0" by simp
-  hence "u = 0" using plus_eq_zero[of u v] by simp
-  thus ?thesis using u_def by simp
-qed
-
 definition (in monoid_add) hom_grading_fun :: "('a \<Rightarrow> nat) \<Rightarrow> (nat \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> bool"
   where "hom_grading_fun d f \<longleftrightarrow> (\<forall>n. (\<forall>s t. f n (s + t) = f n s + f n t) \<and>
           (\<forall>t. d (f n t) \<le> n \<and> (d t \<le> n \<longrightarrow> f n t = t)))"
@@ -61,12 +47,12 @@ lemma decr_grading_idI: "hom_grading d \<Longrightarrow> d t \<le> n \<Longright
   using decr_grading unfolding hom_grading_fun_def by blast
 
 class quasi_pm_powerprod = ulcs_powerprod +
-  assumes ex_igrad: "\<exists>d::'a \<Rightarrow> nat. dickson_grading (+) d \<and> hom_grading d"
+  assumes ex_igrad: "\<exists>d::'a \<Rightarrow> nat. dickson_grading d \<and> hom_grading d"
 begin
 
 subclass graded_dickson_powerprod
 proof
-  from ex_igrad show "\<exists>d. dickson_grading (+) d" by blast
+  from ex_igrad show "\<exists>d. dickson_grading d" by blast
 qed
 
 end (* quasi_pm_powerprod *)

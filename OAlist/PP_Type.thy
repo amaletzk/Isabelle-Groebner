@@ -146,23 +146,37 @@ instance pp :: (type, add_linorder_min) ulcs_powerprod by intro_classes (transfe
 
 subsection \<open>Dickson's lemma for power-products in finitely many indeterminates\<close>
 
+lemma almost_full_on_pp_iff:
+  "almost_full_on (adds) A \<longleftrightarrow> almost_full_on (adds) (mapping_of ` A)" (is "?l \<longleftrightarrow> ?r")
+proof
+  assume ?l
+  with _ show ?r
+  proof (rule almost_full_on_hom)
+    fix x y :: "('a, 'b) pp"
+    assume "x adds y"
+    thus "mapping_of x adds mapping_of y" by (simp only: adds_pp_iff)
+  qed
+next
+  assume ?r
+  hence "almost_full_on (\<lambda>x y. mapping_of x adds mapping_of y) A"
+    using subset_refl by (rule almost_full_on_map)
+  thus ?l by (simp only: adds_pp_iff[symmetric])
+qed
+
 lift_definition varnum_pp :: "('a::countable, 'b::zero) pp \<Rightarrow> nat" is varnum .
 
 lemma dickson_grading_varnum_pp:
-  "dickson_grading (+) (varnum_pp::('a::countable, 'b::add_wellorder) pp \<Rightarrow> nat)"
+  "dickson_grading (varnum_pp::('a::countable, 'b::add_wellorder) pp \<Rightarrow> nat)"
 proof (rule dickson_gradingI)
   fix s t :: "('a, 'b) pp"
   show "varnum_pp (s + t) = max (varnum_pp s) (varnum_pp t)" by (transfer, rule varnum_plus)
 next
-  fix seq :: "nat \<Rightarrow> ('a, 'b) pp"
-  assume "\<And>i. varnum_pp (seq i) \<le> varnum_pp (seq 0)"
-  thus "\<exists>i j. i < j \<and> seq i adds seq j" unfolding adds_pp_iff
-  proof transfer
-    fix seq :: "nat \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b)"
-    assume "\<And>i. varnum (seq i) \<le> varnum (seq 0)"
-    with dickson_grading_varnum obtain i j where "i < j" and "seq i adds seq j"
-      by (rule dickson_gradingE1)
-    thus "\<exists>i j. i < j \<and> seq i adds seq j" by blast
+  fix m::nat
+  show "almost_full_on (adds) {x::('a, 'b) pp. varnum_pp x \<le> m}" unfolding almost_full_on_pp_iff
+  proof (transfer, simp)
+    fix m::nat
+    from dickson_grading_varnum show "almost_full_on (adds) {x::'a \<Rightarrow>\<^sub>0 'b. varnum x \<le> m}"
+      by (rule dickson_gradingD2)
   qed
 qed
 
@@ -170,7 +184,10 @@ instance pp :: (countable, add_wellorder) graded_dickson_powerprod
   by (standard, rule, fact dickson_grading_varnum_pp)
 
 instance pp :: (finite, add_wellorder) dickson_powerprod
-  by intro_classes (simp only: adds_pp_iff, transfer, fact dickson)
+proof
+  have eq: "range mapping_of = UNIV" by (rule surjI, rule PP_inverse, rule UNIV_I)
+  show "almost_full_on (adds) (UNIV::('a, 'b) pp set)" by (simp add: almost_full_on_pp_iff eq dickson)
+qed
 
 subsection \<open>Lexicographic Term Order\<close>
 

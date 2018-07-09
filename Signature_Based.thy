@@ -63,6 +63,28 @@ proof (rule wfP_onI_min)
   qed
 qed
 
+lemma almost_full_on_Int:
+  assumes "almost_full_on P1 A1" and "almost_full_on P2 A2"
+  shows "almost_full_on (\<lambda>x y. P1 x y \<and> P2 x y) (A1 \<inter> A2)" (is "almost_full_on ?P ?A")
+proof (rule almost_full_onI)
+  fix f :: "nat \<Rightarrow> 'a"
+  assume a: "\<forall>i. f i \<in> ?A"
+  define g where "g = (\<lambda>i. (f i, f i))"
+  from assms have "almost_full_on (prod_le P1 P2) (A1 \<times> A2)" by (rule almost_full_on_Sigma)
+  moreover from a have "\<And>i. g i \<in> A1 \<times> A2" by (simp add: g_def)
+  ultimately obtain i j where "i < j" and "prod_le P1 P2 (g i) (g j)" by (rule almost_full_onD)
+  from this(2) have "?P (f i) (f j)" by (simp add: g_def prod_le_def)
+  with \<open>i < j\<close> show "good ?P f" by (rule goodI)
+qed
+
+corollary almost_full_on_same:
+  assumes "almost_full_on P1 A" and "almost_full_on P2 A"
+  shows "almost_full_on (\<lambda>x y. P1 x y \<and> P2 x y) A"
+proof -
+  from assms have "almost_full_on (\<lambda>x y. P1 x y \<and> P2 x y) (A \<inter> A)" by (rule almost_full_on_Int)
+  thus ?thesis by simp
+qed
+
 lemma (in comm_powerprod) minus_plus': "s adds t \<Longrightarrow> u + (t - s) = (u + t) - s"
   using add_commute minus_plus by auto
 
@@ -283,7 +305,7 @@ proof (rule dgrad_p_setI)
 qed
 
 corollary ord_term_minimum_dgrad_set:
-  assumes "dickson_grading (+) d" and "x \<in> Q" and "pp_of_term ` Q \<subseteq> dgrad_set d m"
+  assumes "dickson_grading d" and "x \<in> Q" and "pp_of_term ` Q \<subseteq> dgrad_set d m"
   obtains q where "q \<in> Q" and "\<And>y. y \<prec>\<^sub>t q \<Longrightarrow> y \<notin> Q"
 proof -
   from assms(1) have "wfP (dickson_less_v d m)" by (rule wf_dickson_less_v)
@@ -521,7 +543,7 @@ proof -
 qed
 
 lemma dgrad_p_set_le_rep_list:
-  assumes "dickson_grading (+) d" and "dgrad_set_le d (pp_of_term ` keys r) (Keys (set fs))"
+  assumes "dickson_grading d" and "dgrad_set_le d (pp_of_term ` keys r) (Keys (set fs))"
   shows "punit.dgrad_p_set_le d {rep_list r} (set fs)"
 proof (simp add: punit.dgrad_p_set_le_def Keys_insert, rule dgrad_set_leI)
   fix t
@@ -547,7 +569,7 @@ proof (simp add: punit.dgrad_p_set_le_def Keys_insert, rule dgrad_set_leI)
 qed
 
 corollary dgrad_p_set_le_rep_list_image:
-  assumes "dickson_grading (+) d" and "dgrad_set_le d (pp_of_term ` Keys F) (Keys (set fs))"
+  assumes "dickson_grading d" and "dgrad_set_le d (pp_of_term ` Keys F) (Keys (set fs))"
   shows "punit.dgrad_p_set_le d (rep_list ` F) (set fs)"
 proof (rule punit.dgrad_p_set_leI, elim imageE, simp)
   fix f
@@ -568,7 +590,7 @@ lemma dgrad_max_1: "set fs \<subseteq> punit_dgrad_max_set d"
   unfolding dgrad_max_def using finite_set by (rule punit.dgrad_p_set_exhaust_expl[simplified])
 
 lemma dgrad_max_2:
-  assumes "dickson_grading (+) d" and "r \<in> dgrad_max_set d"
+  assumes "dickson_grading d" and "r \<in> dgrad_max_set d"
   shows "rep_list r \<in> punit_dgrad_max_set d"
 proof (rule punit.dgrad_p_setI[simplified])
   fix t
@@ -581,7 +603,7 @@ proof (rule punit.dgrad_p_setI[simplified])
 qed
 
 corollary dgrad_max_3:
-  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_max_set d"
+  assumes "dickson_grading d" and "F \<subseteq> dgrad_max_set d"
   shows "rep_list ` F \<subseteq> punit_dgrad_max_set d"
 proof (rule, elim imageE, simp)
   fix f
@@ -603,7 +625,7 @@ lemma dgrad_sig_set_closed_minus: "r \<in> dgrad_sig_set d \<Longrightarrow> s \
   unfolding dgrad_sig_set_def by (auto intro: dgrad_p_set_closed_minus sig_inv_set_closed_minus)
 
 lemma dgrad_sig_set_closed_monom_mult:
-  assumes "dickson_grading (+) d" and "d t \<le> dgrad_max d"
+  assumes "dickson_grading d" and "d t \<le> dgrad_max d"
   shows "p \<in> dgrad_sig_set d \<Longrightarrow> monom_mult c t p \<in> dgrad_sig_set d"
   unfolding dgrad_sig_set_def by (auto intro: assms dgrad_p_set_closed_monom_mult sig_inv_set_closed_monom_mult)
 
@@ -1007,7 +1029,7 @@ proof -
 qed
 
 lemma dgrad_max_set_closed_sig_red_single:
-  assumes "dickson_grading (+) d" and "p \<in> dgrad_max_set d" and "f \<in> dgrad_max_set d"
+  assumes "dickson_grading d" and "p \<in> dgrad_max_set d" and "f \<in> dgrad_max_set d"
     and "sig_red_single sing_red top_tail p q f t"
   shows "q \<in> dgrad_max_set d"
 proof -
@@ -1041,7 +1063,7 @@ proof -
 qed
 
 corollary dgrad_sig_set_closed_sig_red_single:
-  assumes "dickson_grading (+) d" and "p \<in> dgrad_sig_set d" and "f \<in> dgrad_sig_set d"
+  assumes "dickson_grading d" and "p \<in> dgrad_sig_set d" and "f \<in> dgrad_sig_set d"
     and "sig_red_single sing_red top_tail p q f t"
   shows "q \<in> dgrad_sig_set d"
   using assms unfolding dgrad_sig_set_def
@@ -1091,7 +1113,7 @@ corollary sig_red_top_tailI: "sig_red sing_reg top_tail F p q \<Longrightarrow> 
   by (auto simp: sig_red_def intro: sig_red_single_top_tailI)
 
 lemma sig_red_wf_dgrad_max_set:
-  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_max_set d"
+  assumes "dickson_grading d" and "F \<subseteq> dgrad_max_set d"
   shows "wfP (sig_red sing_reg top_tail F)\<inverse>\<inverse>"
 proof -
   from assms have "rep_list ` F \<subseteq> punit_dgrad_max_set d" by (rule dgrad_max_3)
@@ -1112,7 +1134,7 @@ proof -
 qed
 
 lemma dgrad_sig_set_closed_sig_red:
-  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_sig_set d" and "p \<in> dgrad_sig_set d"
+  assumes "dickson_grading d" and "F \<subseteq> dgrad_sig_set d" and "p \<in> dgrad_sig_set d"
     and "sig_red sing_red top_tail F p q"
   shows "q \<in> dgrad_sig_set d"
   using assms by (auto simp: sig_red_def intro: dgrad_sig_set_closed_sig_red_single)
@@ -1179,7 +1201,7 @@ lemma sig_red_rtrancl_top_tailI: "(sig_red sing_reg top_tail F)\<^sup>*\<^sup>* 
   by (induct rule: rtranclp_induct, auto dest: sig_red_top_tailI)
 
 lemma dgrad_sig_set_closed_sig_red_rtrancl:
-  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_sig_set d" and "p \<in> dgrad_sig_set d"
+  assumes "dickson_grading d" and "F \<subseteq> dgrad_sig_set d" and "p \<in> dgrad_sig_set d"
     and "(sig_red sing_red top_tail F)\<^sup>*\<^sup>* p q"
   shows "q \<in> dgrad_sig_set d"
   using assms(4, 1, 2, 3) by (induct, auto intro: dgrad_sig_set_closed_sig_red)
@@ -1500,7 +1522,7 @@ proof -
 qed
 
 lemma sig_irredE_dgrad_max_set:
-  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_max_set d"
+  assumes "dickson_grading d" and "F \<subseteq> dgrad_max_set d"
   obtains q where "(sig_red sing_reg top_tail F)\<^sup>*\<^sup>* p q" and "\<not> is_sig_red sing_reg top_tail F q"
 proof -
   let ?Q = "{q. (sig_red sing_reg top_tail F)\<^sup>*\<^sup>* p q}"
@@ -1794,7 +1816,7 @@ next
 qed
 
 lemma is_sig_GB_is_Groebner_basis:
-  assumes "dickson_grading (+) d" and "hom_grading d" and "G \<subseteq> dgrad_max_set d" and "\<And>u. is_sig_GB_in d G u"
+  assumes "dickson_grading d" and "hom_grading d" and "G \<subseteq> dgrad_max_set d" and "\<And>u. is_sig_GB_in d G u"
   shows "punit.is_Groebner_basis (rep_list ` G)"
   using assms(1)
 proof (rule punit.weak_GB_is_strong_GB_dgrad_p_set[simplified])
@@ -1907,7 +1929,7 @@ next
 qed
 
 lemma sig_regular_top_reduced_lt_lc_unique:
-  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_sig_set d" and "q \<in> dgrad_sig_set d"
+  assumes "dickson_grading d" and "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_sig_set d" and "q \<in> dgrad_sig_set d"
     and "lt p = lt q" and "(p = 0) \<longleftrightarrow> (q = 0)" and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G p" and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G q"
   shows "punit.lt (rep_list p) = punit.lt (rep_list q) \<and> lc q * punit.lc (rep_list p) = lc p * punit.lc (rep_list q)"
 proof (cases "p = 0")
@@ -1980,7 +2002,7 @@ next
 qed
 
 corollary sig_regular_top_reduced_lt_unique:
-  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_sig_set d"
+  assumes "dickson_grading d" and "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_sig_set d"
     and "q \<in> dgrad_sig_set d" and "lt p = lt q" and "p \<noteq> 0" and "q \<noteq> 0"
     and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G p" and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G q"
   shows "punit.lt (rep_list p) = punit.lt (rep_list q)"
@@ -1993,7 +2015,7 @@ proof -
 qed
 
 corollary sig_regular_top_reduced_lc_unique:
-  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_sig_set d" and "q \<in> dgrad_sig_set d"
+  assumes "dickson_grading d" and "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_sig_set d" and "q \<in> dgrad_sig_set d"
     and "lt p = lt q" and "lc p = lc q" and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G p" and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G q"
   shows "punit.lc (rep_list p) = punit.lc (rep_list q)"
 proof (cases "p = 0")
@@ -2015,7 +2037,7 @@ next
 qed
 
 lemma sig_red_zero_regularI_adds:
-  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt q)"
+  assumes "dickson_grading d" and "is_sig_GB_upt d G (lt q)"
     and "p \<in> dgrad_sig_set d" and "q \<in> dgrad_sig_set d" and "p \<noteq> 0" and "sig_red_zero (\<prec>\<^sub>t) G p"
     and "lt p adds\<^sub>t lt q"
   shows "sig_red_zero (\<prec>\<^sub>t) G q"
@@ -2087,7 +2109,7 @@ lemma is_syz_sigE:
   using assms unfolding is_syz_sig_def by blast
 
 lemma is_syz_sig_dgrad_sig_setE:
-  assumes "dickson_grading (+) d" and "G \<subseteq> dgrad_sig_set d" and "is_syz_sig d G u"
+  assumes "dickson_grading d" and "G \<subseteq> dgrad_sig_set d" and "is_syz_sig d G u"
   obtains s where "s \<noteq> 0" and "lt s = u" and "s \<in> dgrad_sig_set d" and "rep_list s = 0"
 proof -
   from assms(3) obtain r where "r \<noteq> 0" and "lt r = u" and "r \<in> dgrad_sig_set d" and "sig_red_zero (\<prec>\<^sub>t) G r"
@@ -2110,7 +2132,7 @@ proof -
 qed
 
 lemma is_syz_sig_adds:
-  assumes "dickson_grading (+) d" and "is_syz_sig d G u" and "u adds\<^sub>t v"
+  assumes "dickson_grading d" and "is_syz_sig d G u" and "u adds\<^sub>t v"
     and "d (pp_of_term v) \<le> dgrad_max d"
   shows "is_syz_sig d G v"
 proof -
@@ -2134,7 +2156,7 @@ proof -
 qed
 
 lemma is_sig_GB_upt_is_syz_sigD:
-  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G u" and "is_syz_sig d G u"
+  assumes "dickson_grading d" and "is_sig_GB_upt d G u" and "is_syz_sig d G u"
     and "p \<in> dgrad_sig_set d" and "lt p = u"
   shows "sig_red_zero (\<prec>\<^sub>t) G p"
 proof -
@@ -2148,7 +2170,7 @@ proof -
 qed
 
 lemma syzygy_crit:
-  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt p)" and "u \<in> dgrad_sig_set d"
+  assumes "dickson_grading d" and "is_sig_GB_upt d G (lt p)" and "u \<in> dgrad_sig_set d"
     and "p \<in> dgrad_sig_set d" and "lt u adds\<^sub>t lt p" and "u \<noteq> 0" and "rep_list u = 0"
   shows "sig_red_zero (\<prec>\<^sub>t) G p"
 proof (cases "p = 0")
@@ -2170,7 +2192,7 @@ next
 qed
 
 lemma lemma_21:
-  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt p)" and "p \<in> dgrad_sig_set d" and "g \<in> G"
+  assumes "dickson_grading d" and "is_sig_GB_upt d G (lt p)" and "p \<in> dgrad_sig_set d" and "g \<in> G"
     and "rep_list p \<noteq> 0" and "rep_list g \<noteq> 0" and "lt g adds\<^sub>t lt p"
     and "punit.lt (rep_list g) adds punit.lt (rep_list p)"
   shows "is_sig_red (\<preceq>\<^sub>t) (=) G p"
@@ -2326,7 +2348,7 @@ qed
 lemmas is_RB_inD = is_RB_inD1 is_RB_inD2 is_RB_inD3 is_RB_inD4
 
 lemma is_RB_inD5:
-  assumes "dickson_grading (+) d" and "is_canon_rewriter_fun canon G" and "G \<subseteq> dgrad_sig_set d"
+  assumes "dickson_grading d" and "is_canon_rewriter_fun canon G" and "G \<subseteq> dgrad_sig_set d"
     and "is_RB_in d canon G u" and "\<not> is_syz_sig d G u" and "d (pp_of_term u) \<le> dgrad_max d"
   shows "rep_list (canon u) \<noteq> 0"
 proof
@@ -2385,7 +2407,7 @@ lemma is_RB_uptD2:
   using assms unfolding is_RB_upt_def by blast
 
 lemma is_RB_upt_is_sig_GB_upt:
-  assumes "dickson_grading (+) d" and "is_canon_rewriter_fun canon G" and "is_RB_upt d canon G u"
+  assumes "dickson_grading d" and "is_canon_rewriter_fun canon G" and "is_RB_upt d canon G u"
   shows "is_sig_GB_upt d G u"
 proof (rule ccontr)
   let ?Q = "{v. v \<prec>\<^sub>t u \<and> d (pp_of_term v) \<le> dgrad_max d \<and> component_of_term v < length fs \<and> \<not> is_sig_GB_in d G v}"
@@ -2520,7 +2542,7 @@ proof (rule ccontr)
 qed
 
 corollary is_RB_upt_is_syz_sigD:
-  assumes "dickson_grading (+) d" and "is_canon_rewriter_fun canon G" and "is_RB_upt d canon G u"
+  assumes "dickson_grading d" and "is_canon_rewriter_fun canon G" and "is_RB_upt d canon G u"
     and "is_syz_sig d G u" and "p \<in> dgrad_sig_set d" and "lt p = u"
   shows "sig_red_zero (\<prec>\<^sub>t) G p"
 proof -
@@ -2611,7 +2633,7 @@ next
 qed
 
 lemma singular_crit:
-  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt p)" and "p \<in> dgrad_sig_set d"
+  assumes "dickson_grading d" and "is_sig_GB_upt d G (lt p)" and "p \<in> dgrad_sig_set d"
     and "q \<in> dgrad_sig_set d" and "p \<noteq> 0" and "sig_red_zero_or_sing_top_red (\<prec>\<^sub>t) G p" and "lt q = lt p"
   shows "sig_red_zero_or_sing_top_red (\<prec>\<^sub>t) G q"
 proof (cases "q = 0")
@@ -2812,7 +2834,7 @@ proof
 qed
 
 lemma lemma_9:
-  assumes "dickson_grading (+) d" and "is_canon_rewriter_fun canon G" and "is_RB_upt d canon G u"
+  assumes "dickson_grading d" and "is_canon_rewriter_fun canon G" and "is_RB_upt d canon G u"
     and "\<not> is_syz_sig d G u" and "h \<in> G"
     and "is_sig_red (\<prec>\<^sub>t) (=) {h} (monom_mult 1 (pp_of_term u - lp (canon u)) (canon u))"
     and "d (pp_of_term u) \<le> dgrad_max d"
@@ -2950,7 +2972,7 @@ proof -
 qed
 
 lemma lemma_10:
-  assumes "dickson_grading (+) d" and "is_canon_rewriter_fun canon G" and "G \<subseteq> dgrad_sig_set d"
+  assumes "dickson_grading d" and "is_canon_rewriter_fun canon G" and "G \<subseteq> dgrad_sig_set d"
     and "\<And>g1 g2. g1 \<in> G \<Longrightarrow> g2 \<in> G \<Longrightarrow> is_regular_spair g1 g2 \<Longrightarrow> lt (spair g1 g2) \<prec>\<^sub>t u \<Longrightarrow>
               is_RB_in d canon G (lt (spair g1 g2))"
     and "\<And>i. i < length fs \<Longrightarrow> term_of_pair (0, i) \<prec>\<^sub>t u \<Longrightarrow> is_RB_in d canon G (term_of_pair (0, i))"
@@ -3028,7 +3050,7 @@ text \<open>Note that the following lemma actually holds for @{emph \<open>all\<
   in @{term "rep_list p"}, not just for the leading power-product.\<close>
 
 lemma lemma_11:
-  assumes "dickson_grading (+) d" and "is_canon_rewriter_fun canon G" and "is_RB_upt d canon G (lt p)"
+  assumes "dickson_grading d" and "is_canon_rewriter_fun canon G" and "is_RB_upt d canon G (lt p)"
     and "p \<in> dgrad_sig_set d" and "is_sig_red (\<prec>\<^sub>t) (=) G p"
   obtains u where "u \<prec>\<^sub>t lt p" and "d (pp_of_term u) \<le> dgrad_max d" and "component_of_term u < length fs"
     and "\<not> is_syz_sig d G u" and "canon u \<in> G" and "is_sig_red (\<prec>\<^sub>t) (=) {canon u} p"
