@@ -12,6 +12,57 @@ text \<open>This formalization closely follows Sections 4 to 7 of the excellent 
 
 subsection \<open>Preliminaries\<close>
 
+lemma wfP_on_finite:
+  assumes "irreflp rel" and "transp rel" and "finite A"
+  shows "wfP_on A rel"
+proof (rule wfP_onI_min)
+  fix x Q
+  assume "x \<in> Q" and "Q \<subseteq> A"
+  from this(2) assms(3) have "finite Q" by (rule finite_subset)
+  moreover from \<open>x \<in> Q\<close> have "Q \<noteq> {}" by blast
+  ultimately show "\<exists>z\<in>Q. \<forall>y\<in>A. rel y z \<longrightarrow> y \<notin> Q"
+  proof induct
+    case empty
+    thus ?case by simp
+  next
+    case (insert q Q)
+    show ?case
+    proof (cases "Q = {}")
+      case True
+      from assms(1) show ?thesis by (auto simp: True irreflp_def)
+    next
+      case False
+      from insert(3)[OF this] obtain z where "z \<in> Q" and *: "\<forall>y\<in>A. rel y z \<longrightarrow> y \<notin> Q" ..
+      show ?thesis
+      proof (cases "rel q z")
+        case True
+        show ?thesis
+        proof (intro bexI impI ballI)
+          fix y
+          assume "rel y q"
+          with assms(2) have "rel y z" using \<open>rel q z\<close> by (rule transpD)
+          moreover assume "y \<in> A"
+          ultimately have "y \<notin> Q" using * by blast
+          moreover from \<open>rel y q\<close> assms(1) have "y \<noteq> q" by (auto simp: irreflp_def)
+          ultimately show "y \<notin> insert q Q" by simp
+        qed simp
+      next
+        case False
+        show ?thesis
+        proof (intro bexI impI ballI)
+          fix y
+          assume "y \<in> A" and "rel y z"
+          with * have "y \<notin> Q" by blast
+          moreover from \<open>rel y z\<close> False have "y \<noteq> q" by blast
+          ultimately show "y \<notin> insert q Q" by simp
+        next
+          from \<open>z \<in> Q\<close> show "z \<in> insert q Q" by simp
+        qed
+      qed
+    qed
+  qed
+qed
+
 lemma (in comm_powerprod) minus_plus': "s adds t \<Longrightarrow> u + (t - s) = (u + t) - s"
   using add_commute minus_plus by auto
 
@@ -50,6 +101,18 @@ corollary lcs_minus_2:
   assumes "a + x = b + y"
   shows "lcs x y - y = b - gcs a b"
   by (simp add: lcs_alt_2[OF assms] diff_right_commute)
+
+lemma gcs_minus:
+  assumes "u adds s" and "u adds t"
+  shows "gcs (s - u) (t - u) = gcs s t - u"
+proof -
+  from assms have "gcs s t = gcs ((s - u) + u) ((t - u) + u)" by (simp add: minus_plus)
+  also have "... = gcs (s - u) (t - u) + u" by (simp only: gcs_plus_right)
+  finally show ?thesis by simp
+qed
+
+corollary gcs_minus_gcs: "gcs (s - (gcs s t)) (t - (gcs s t)) = 0"
+  by (simp add: gcs_minus gcs_adds gcs_adds_2)
 
 end (* ulcs_powerprod *)
 
@@ -290,13 +353,95 @@ qed
 context fixes fs :: "('a \<Rightarrow>\<^sub>0 'b::field) list"
 begin
 
+definition sig_inv_set :: "('t \<Rightarrow>\<^sub>0 'b) set"
+  where "sig_inv_set = {r. keys (vectorize_poly r) \<subseteq> {0..<length fs}}"
+
 definition rep_list :: "('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b)"
   where "rep_list r = ideal.rep (pm_of_idx_pm fs (vectorize_poly r))"
 
-(*
-definition sig_inv :: "('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> bool"
-  where "sig_inv r = (keys (vectorize_poly r) \<subseteq> {0..<length fs})"
-*)
+lemma sig_inv_setI: "keys (vectorize_poly r) \<subseteq> {0..<length fs} \<Longrightarrow> r \<in> sig_inv_set"
+  by (simp add: sig_inv_set_def)
+
+lemma sig_inv_setD: "r \<in> sig_inv_set \<Longrightarrow> keys (vectorize_poly r) \<subseteq> {0..<length fs}"
+  by (simp add: sig_inv_set_def)
+
+lemma sig_inv_setI':
+  assumes "\<And>v. v \<in> keys r \<Longrightarrow> component_of_term v < length fs"
+  shows "r \<in> sig_inv_set"
+proof (rule sig_inv_setI, rule)
+  fix k
+  assume "k \<in> keys (vectorize_poly r)"
+  then obtain v where "v \<in> keys r" and k: "k = component_of_term v" unfolding keys_vectorize_poly ..
+  from this(1) have "k < length fs" unfolding k by (rule assms)
+  thus "k \<in> {0..<length fs}" by simp
+qed
+
+lemma sig_inv_setD':
+  assumes "r \<in> sig_inv_set" and "v \<in> keys r"
+  shows "component_of_term v < length fs"
+proof -
+  from assms(2) have "component_of_term v \<in> component_of_term ` keys r" by (rule imageI)
+  also have "... = keys (vectorize_poly r)" by (simp only: keys_vectorize_poly)
+  also from assms(1) have "... \<subseteq> {0..<length fs}" by (rule sig_inv_setD)
+  finally show ?thesis by simp
+qed
+
+corollary sig_inv_setD_lt:
+  assumes "r \<in> sig_inv_set" and "r \<noteq> 0"
+  shows "component_of_term (lt r) < length fs"
+  by (rule sig_inv_setD', fact, rule lt_in_keys, fact)
+
+lemma sig_inv_set_zero: "0 \<in> sig_inv_set"
+  by (rule sig_inv_setI', simp)
+
+lemma sig_inv_set_closed_uminus: "r \<in> sig_inv_set \<Longrightarrow> - r \<in> sig_inv_set"
+  by (auto dest!: sig_inv_setD' intro!: sig_inv_setI' simp: keys_uminus)
+
+lemma sig_inv_set_closed_plus:
+  assumes "r \<in> sig_inv_set" and "s \<in> sig_inv_set"
+  shows "r + s \<in> sig_inv_set"
+proof (rule sig_inv_setI')
+  fix v
+  assume "v \<in> keys (r + s)"
+  hence "v \<in> keys r \<union> keys s" using keys_add_subset ..
+  thus "component_of_term v < length fs"
+  proof
+    assume "v \<in> keys r"
+    with assms(1) show ?thesis by (rule sig_inv_setD')
+  next
+    assume "v \<in> keys s"
+    with assms(2) show ?thesis by (rule sig_inv_setD')
+  qed
+qed
+
+lemma sig_inv_set_closed_minus:
+  assumes "r \<in> sig_inv_set" and "s \<in> sig_inv_set"
+  shows "r - s \<in> sig_inv_set"
+proof (rule sig_inv_setI')
+  fix v
+  assume "v \<in> keys (r - s)"
+  hence "v \<in> keys r \<union> keys s" using keys_minus ..
+  thus "component_of_term v < length fs"
+  proof
+    assume "v \<in> keys r"
+    with assms(1) show ?thesis by (rule sig_inv_setD')
+  next
+    assume "v \<in> keys s"
+    with assms(2) show ?thesis by (rule sig_inv_setD')
+  qed
+qed
+
+lemma sig_inv_set_closed_monom_mult:
+  assumes "r \<in> sig_inv_set"
+  shows "monom_mult c t r \<in> sig_inv_set"
+proof (rule sig_inv_setI')
+  fix v
+  assume "v \<in> keys (monom_mult c t r)"
+  hence "v \<in> (\<oplus>) t ` keys r" using keys_monom_mult_subset ..
+  then obtain u where "u \<in> keys r" and v: "v = t \<oplus> u" ..
+  from assms this(1) have "component_of_term u < length fs" by (rule sig_inv_setD')
+  thus "component_of_term v < length fs" by (simp add: v term_simps)
+qed
 
 lemma rep_list_zero: "rep_list 0 = 0"
   by (simp add: rep_list_def vectorize_zero)
@@ -340,13 +485,18 @@ corollary rep_list_subset_ideal: "rep_list ` B \<subseteq> ideal (set fs)"
 
 lemma in_idealE_rep_list:
   assumes "p \<in> ideal (set fs)"
-  obtains r where "p = rep_list r"  (*and "sig_inv r"*)
+  obtains r where "p = rep_list r" and "r \<in> sig_inv_set"
 proof -
   from assms obtain r0 where r0: "keys r0 \<subseteq> set fs" and p: "p = ideal.rep r0"
     by (rule ideal.in_moduleE_rep)
-  have "p = rep_list (atomize_poly (idx_pm_of_pm fs r0))"
-    by (simp add: rep_list_def vectorize_atomize_poly pm_of_idx_pm_of_pm[OF r0] p)
-  thus ?thesis ..
+  show ?thesis
+  proof
+    show "p = rep_list (atomize_poly (idx_pm_of_pm fs r0))"
+      by (simp add: rep_list_def vectorize_atomize_poly pm_of_idx_pm_of_pm[OF r0] p)
+  next
+    show "atomize_poly (idx_pm_of_pm fs r0) \<in> sig_inv_set"
+      by (rule sig_inv_setI, simp add: vectorize_atomize_poly keys_idx_pm_of_pm_subset)
+  qed
 qed
 
 lemma keys_rep_list_subset:
@@ -440,30 +590,56 @@ proof (rule, elim imageE, simp)
   with assms(1) show "rep_list f \<in> punit.dgrad_p_set d (dgrad_max d)" by (rule dgrad_max_2)
 qed
 
+definition dgrad_sig_set :: "('a \<Rightarrow> nat) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) set"
+  where "dgrad_sig_set d = dgrad_max_set d \<inter> sig_inv_set"
+
+lemma dgrad_sig_set_closed_uminus: "r \<in> dgrad_sig_set d \<Longrightarrow> - r \<in> dgrad_sig_set d"
+  unfolding dgrad_sig_set_def by (auto intro: dgrad_p_set_closed_uminus sig_inv_set_closed_uminus)
+
+lemma dgrad_sig_set_closed_plus: "r \<in> dgrad_sig_set d \<Longrightarrow> s \<in> dgrad_sig_set d \<Longrightarrow> r + s \<in> dgrad_sig_set d"
+  unfolding dgrad_sig_set_def by (auto intro: dgrad_p_set_closed_plus sig_inv_set_closed_plus)
+
+lemma dgrad_sig_set_closed_minus: "r \<in> dgrad_sig_set d \<Longrightarrow> s \<in> dgrad_sig_set d \<Longrightarrow> r - s \<in> dgrad_sig_set d"
+  unfolding dgrad_sig_set_def by (auto intro: dgrad_p_set_closed_minus sig_inv_set_closed_minus)
+
+lemma dgrad_sig_set_closed_monom_mult:
+  assumes "dickson_grading (+) d" and "d t \<le> dgrad_max d"
+  shows "p \<in> dgrad_sig_set d \<Longrightarrow> monom_mult c t p \<in> dgrad_sig_set d"
+  unfolding dgrad_sig_set_def by (auto intro: assms dgrad_p_set_closed_monom_mult sig_inv_set_closed_monom_mult)
+
+lemma dgrad_sig_set_closed_monom_mult_zero: "p \<in> dgrad_sig_set d \<Longrightarrow> monom_mult c 0 p \<in> dgrad_sig_set d"
+  unfolding dgrad_sig_set_def by (auto intro: dgrad_p_set_closed_monom_mult_zero sig_inv_set_closed_monom_mult)
+
 lemma in_idealE_rep_list_dgrad_max_set:
   assumes "hom_grading d" and "p \<in> punit_dgrad_max_set d" and "p \<in> ideal (set fs)"
-  obtains r where "r \<in> dgrad_max_set d" and "p = rep_list r"  (*and "sig_inv r"*)
+  obtains r where "r \<in> dgrad_sig_set d" and "p = rep_list r"
 proof -
   from assms(1) dgrad_max_1 assms(2, 3) obtain r0 where r0: "keys r0 \<subseteq> set fs"
     and 1: "Poly_Mapping.range r0 \<subseteq> punit_dgrad_max_set d" and p: "p = ideal.rep r0"
     by (rule in_idealE_rep_dgrad_p_set)
   show ?thesis
   proof
-    show "atomize_poly (idx_pm_of_pm fs r0) \<in> dgrad_max_set d"
+    show "atomize_poly (idx_pm_of_pm fs r0) \<in> dgrad_sig_set d" unfolding dgrad_sig_set_def
     proof
-      fix v
-      assume "v \<in> keys (atomize_poly (idx_pm_of_pm fs r0))"
-      then obtain i where i: "i \<in> keys (idx_pm_of_pm fs r0)"
-        and v_in: "v \<in> (\<lambda>t. term_of_pair (t, i)) ` keys (lookup (idx_pm_of_pm fs r0) i)"
-        unfolding keys_atomize_poly ..
-      from i keys_idx_pm_of_pm_subset[of fs r0] have "i < length fs" by auto
-      from v_in obtain t where "t \<in> keys (lookup (idx_pm_of_pm fs r0) i)" and v: "v = term_of_pair (t, i)" ..
-      from this(1) \<open>i < length fs\<close> have t: "t \<in> keys (lookup r0 (fs ! i))" by (simp add: lookup_idx_pm_of_pm)
-      hence "lookup r0 (fs ! i) \<noteq> 0" by fastforce
-      hence "lookup r0 (fs ! i) \<in> Poly_Mapping.range r0" by simp
-      hence "lookup r0 (fs ! i) \<in> punit_dgrad_max_set d" using 1 ..
-      hence "d t \<le> dgrad_max d" using t by (rule punit.dgrad_p_setD[simplified])
-      thus "d (pp_of_term v) \<le> dgrad_max d" by (simp add: v pp_of_term_of_pair)
+      show "atomize_poly (idx_pm_of_pm fs r0) \<in> dgrad_max_set d"
+      proof
+        fix v
+        assume "v \<in> keys (atomize_poly (idx_pm_of_pm fs r0))"
+        then obtain i where i: "i \<in> keys (idx_pm_of_pm fs r0)"
+          and v_in: "v \<in> (\<lambda>t. term_of_pair (t, i)) ` keys (lookup (idx_pm_of_pm fs r0) i)"
+          unfolding keys_atomize_poly ..
+        from i keys_idx_pm_of_pm_subset[of fs r0] have "i < length fs" by auto
+        from v_in obtain t where "t \<in> keys (lookup (idx_pm_of_pm fs r0) i)" and v: "v = term_of_pair (t, i)" ..
+        from this(1) \<open>i < length fs\<close> have t: "t \<in> keys (lookup r0 (fs ! i))" by (simp add: lookup_idx_pm_of_pm)
+        hence "lookup r0 (fs ! i) \<noteq> 0" by fastforce
+        hence "lookup r0 (fs ! i) \<in> Poly_Mapping.range r0" by simp
+        hence "lookup r0 (fs ! i) \<in> punit_dgrad_max_set d" using 1 ..
+        hence "d t \<le> dgrad_max d" using t by (rule punit.dgrad_p_setD[simplified])
+        thus "d (pp_of_term v) \<le> dgrad_max d" by (simp add: v pp_of_term_of_pair)
+      qed
+    next
+      show "atomize_poly (idx_pm_of_pm fs r0) \<in> sig_inv_set"
+        by (rule sig_inv_setI, simp add: vectorize_atomize_poly keys_idx_pm_of_pm_subset)
     qed
   next
     show "p = rep_list (atomize_poly (idx_pm_of_pm fs r0))"
@@ -851,6 +1027,26 @@ proof -
   qed
 qed
 
+lemma sig_inv_set_closed_sig_red_single:
+  assumes "p \<in> sig_inv_set" and "f \<in> sig_inv_set" and "sig_red_single sing_red top_tail p q f t"
+  shows "q \<in> sig_inv_set"
+proof -
+  let ?f = "monom_mult (lookup (rep_list p) (t + punit.lt (rep_list f)) / punit.lc (rep_list f)) t f"
+  from assms(3) have t: "t + punit.lt (rep_list f) \<in> keys (rep_list p)" and q: "q = p - ?f"
+    by (rule sig_red_singleD2, rule sig_red_singleD3)
+  show ?thesis unfolding q using assms(1)
+  proof (rule sig_inv_set_closed_minus)
+    from assms(2) show "?f \<in> sig_inv_set" by (rule sig_inv_set_closed_monom_mult)
+  qed
+qed
+
+corollary dgrad_sig_set_closed_sig_red_single:
+  assumes "dickson_grading (+) d" and "p \<in> dgrad_sig_set d" and "f \<in> dgrad_sig_set d"
+    and "sig_red_single sing_red top_tail p q f t"
+  shows "q \<in> dgrad_sig_set d"
+  using assms unfolding dgrad_sig_set_def
+  by (auto intro: dgrad_max_set_closed_sig_red_single sig_inv_set_closed_sig_red_single)
+
 lemma sig_red_regular_lt: "sig_red (\<prec>\<^sub>t) top_tail F p q \<Longrightarrow> lt q = lt p"
   by (auto simp: sig_red_def intro: sig_red_single_regular_lt)
 
@@ -915,11 +1111,11 @@ proof -
   qed
 qed
 
-lemma dgrad_max_set_closed_sig_red:
-  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_max_set d" and "p \<in> dgrad_max_set d"
+lemma dgrad_sig_set_closed_sig_red:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_sig_set d" and "p \<in> dgrad_sig_set d"
     and "sig_red sing_red top_tail F p q"
-  shows "q \<in> dgrad_max_set d"
-  using assms by (auto simp: sig_red_def intro: dgrad_max_set_closed_sig_red_single)
+  shows "q \<in> dgrad_sig_set d"
+  using assms by (auto simp: sig_red_def intro: dgrad_sig_set_closed_sig_red_single)
 
 lemma sig_red_regular_rtrancl_lt:
   assumes "(sig_red (\<prec>\<^sub>t) top_tail F)\<^sup>*\<^sup>* p q"
@@ -982,11 +1178,11 @@ lemma sig_red_rtrancl_sing_regI: "(sig_red sing_reg top_tail F)\<^sup>*\<^sup>* 
 lemma sig_red_rtrancl_top_tailI: "(sig_red sing_reg top_tail F)\<^sup>*\<^sup>* p q \<Longrightarrow> (sig_red sing_reg (\<preceq>) F)\<^sup>*\<^sup>* p q"
   by (induct rule: rtranclp_induct, auto dest: sig_red_top_tailI)
 
-lemma dgrad_max_set_closed_sig_red_rtrancl:
-  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_max_set d" and "p \<in> dgrad_max_set d"
+lemma dgrad_sig_set_closed_sig_red_rtrancl:
+  assumes "dickson_grading (+) d" and "F \<subseteq> dgrad_sig_set d" and "p \<in> dgrad_sig_set d"
     and "(sig_red sing_red top_tail F)\<^sup>*\<^sup>* p q"
-  shows "q \<in> dgrad_max_set d"
-  using assms(4, 1, 2, 3) by (induct, auto intro: dgrad_max_set_closed_sig_red)
+  shows "q \<in> dgrad_sig_set d"
+  using assms(4, 1, 2, 3) by (induct, auto intro: dgrad_sig_set_closed_sig_red)
 
 lemma is_sig_red_is_red: "is_sig_red sing_reg top_tail F p \<Longrightarrow> punit.is_red (rep_list ` F) (rep_list p)"
   by (auto simp: is_sig_red_def punit.is_red_alt dest: sig_red_red)
@@ -1014,6 +1210,29 @@ lemma is_sig_red_top_tail_cases:
 
 corollary is_sig_red_top_tailI: "is_sig_red sing_reg top_tail F p \<Longrightarrow> is_sig_red sing_reg (\<preceq>) F p"
   by (auto simp: is_sig_red_def intro: sig_red_top_tailI)
+
+lemma is_sig_red_singletonI:
+  assumes "is_sig_red sing_reg top_tail F r"
+  obtains f where "f \<in> F" and "is_sig_red sing_reg top_tail {f} r"
+proof -
+  from assms obtain r' where "sig_red sing_reg top_tail F r r'" unfolding is_sig_red_def ..
+  then obtain f t where "f \<in> F" and t: "sig_red_single sing_reg top_tail r r' f t"
+    by (auto simp: sig_red_def)
+  have "is_sig_red sing_reg top_tail {f} r" unfolding is_sig_red_def sig_red_def
+  proof (intro exI bexI)
+    show "f \<in> {f}" by simp
+  qed fact
+  with \<open>f \<in> F\<close> show ?thesis ..
+qed
+
+lemma is_sig_red_singletonD:
+  assumes "is_sig_red sing_reg top_tail {f} r" and "f \<in> F"
+  shows "is_sig_red sing_reg top_tail F r"
+proof -
+  from assms(1) obtain r' where "sig_red sing_reg top_tail {f} r r'" unfolding is_sig_red_def ..
+  then obtain t where "sig_red_single sing_reg top_tail r r' f t" by (auto simp: sig_red_def)
+  show ?thesis unfolding is_sig_red_def sig_red_def by (intro exI bexI, fact+)
+qed
 
 lemma is_sig_redD1:
   assumes "is_sig_red sing_reg top_tail F p"
@@ -1181,6 +1400,73 @@ proof -
   qed
 qed
 
+lemma is_sig_red_singleton_monom_multD:
+  assumes "is_sig_red sing_reg top_tail {monom_mult c t f} p"
+  shows "is_sig_red sing_reg top_tail {f} p"
+proof -
+  let ?f = "monom_mult c t f"
+  from assms obtain s where "s \<in> keys (rep_list p)" and 2: "rep_list ?f \<noteq> 0"
+    and 3: "punit.lt (rep_list ?f) adds s"
+    and 4: "sing_reg (s \<oplus> lt ?f) (punit.lt (rep_list ?f) \<oplus> lt p)"
+    and "top_tail s (punit.lt (rep_list p))"
+    by (auto elim: is_sig_red_addsE)
+  from 2 have "c \<noteq> 0" and "rep_list f \<noteq> 0"
+    by (simp_all add: rep_list_monom_mult punit.monom_mult_eq_zero_iff)
+  hence "f \<noteq> 0" by (auto simp: rep_list_zero)
+  with \<open>c \<noteq> 0\<close> have eq1: "lt ?f = t \<oplus> lt f" by (simp add: lt_monom_mult)
+  from \<open>c \<noteq> 0\<close> \<open>rep_list f \<noteq> 0\<close> have eq2: "punit.lt (rep_list ?f) = t + punit.lt (rep_list f)"
+    by (simp add: rep_list_monom_mult punit.lt_monom_mult)
+  from assms have *: "ord_term_lin.is_le_rel sing_reg" by (rule is_sig_redD1)
+  show ?thesis
+  proof (rule is_sig_red_addsI)
+    show "f \<in> {f}" by simp
+  next
+    have "punit.lt (rep_list f) adds t + punit.lt (rep_list f)" by (rule adds_triv_right)
+    also from 3 have "... adds s" by (simp only: eq2)
+    finally show "punit.lt (rep_list f) adds s" .
+  next
+    from 4 have "sing_reg (t \<oplus> (s \<oplus> lt f)) (t \<oplus> (punit.lt (rep_list f) \<oplus> lt p))"
+      by (simp add: eq1 eq2 splus_assoc splus_left_commute)
+    with * show "sing_reg (s \<oplus> lt f) (punit.lt (rep_list f) \<oplus> lt p)"
+      by (simp add: term_is_le_rel_canc_left)
+  next
+    from assms show "ordered_powerprod_lin.is_le_rel top_tail" by (rule is_sig_redD2)
+  qed fact+
+qed
+
+lemma is_sig_red_top_singleton_monom_multI:
+  assumes "is_sig_red sing_reg (=) {f} p" and "c \<noteq> 0"
+    and "t adds punit.lt (rep_list p) - punit.lt (rep_list f)"
+  shows "is_sig_red sing_reg (=) {monom_mult c t f} p"
+proof -
+  let ?f = "monom_mult c t f"
+  from assms have 2: "rep_list f \<noteq> 0" and "rep_list p \<noteq> 0"
+    and 3: "punit.lt (rep_list f) adds punit.lt (rep_list p)"
+    and 4: "sing_reg (punit.lt (rep_list p) \<oplus> lt f) (punit.lt (rep_list f) \<oplus> lt p)"
+    by (auto elim: is_sig_red_top_addsE)
+  hence "f \<noteq> 0" by (auto simp: rep_list_zero)
+  with \<open>c \<noteq> 0\<close> have eq1: "lt ?f = t \<oplus> lt f" by (simp add: lt_monom_mult)
+  from \<open>c \<noteq> 0\<close> \<open>rep_list f \<noteq> 0\<close> have eq2: "punit.lt (rep_list ?f) = t + punit.lt (rep_list f)"
+    by (simp add: rep_list_monom_mult punit.lt_monom_mult)
+  from assms(1) have *: "ord_term_lin.is_le_rel sing_reg" by (rule is_sig_redD1)
+  show ?thesis
+  proof (rule is_sig_red_top_addsI)
+    show "?f \<in> {?f}" by simp
+  next
+    from \<open>c \<noteq> 0\<close> \<open>rep_list f \<noteq> 0\<close> show "rep_list ?f \<noteq> 0"
+      by (simp add: rep_list_monom_mult punit.monom_mult_eq_zero_iff)
+  next
+    from assms(3) have "t + punit.lt (rep_list f) adds
+                        (punit.lt (rep_list p) - punit.lt (rep_list f)) + punit.lt (rep_list f)"
+      by (simp only: adds_canc)
+    also from 3 have "... = punit.lt (rep_list p)" by (rule adds_minus)
+    finally show "punit.lt (rep_list ?f) adds punit.lt (rep_list p)" by (simp only: eq2)
+  next
+    from 4 * show "sing_reg (punit.lt (rep_list p) \<oplus> lt ?f) (punit.lt (rep_list ?f) \<oplus> lt p)"
+      by (simp add: eq1 eq2 term_is_le_rel_canc_left splus_assoc splus_left_commute)
+  qed fact+
+qed
+
 lemma is_sig_red_cong':
   assumes "is_sig_red sing_reg top_tail F p" and "lt p = lt q" and "rep_list p = rep_list q"
   shows "is_sig_red sing_reg top_tail F q"
@@ -1244,11 +1530,15 @@ definition sig_red_zero :: "('t \<Rightarrow>'t \<Rightarrow> bool) \<Rightarrow
   where "sig_red_zero sing_reg F r \<longleftrightarrow> (\<exists>s. (sig_red sing_reg (\<preceq>) F)\<^sup>*\<^sup>* r s \<and> rep_list s = 0)"
 
 definition is_sig_GB_in :: "('a \<Rightarrow> nat) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> 't \<Rightarrow> bool"
-  where "is_sig_GB_in d G u \<longleftrightarrow> (\<forall>r. lt r = u \<longrightarrow> r \<in> dgrad_max_set d \<longrightarrow> sig_red_zero (\<preceq>\<^sub>t) G r)"
+  where "is_sig_GB_in d G u \<longleftrightarrow> (\<forall>r. lt r = u \<longrightarrow> r \<in> dgrad_sig_set d \<longrightarrow> sig_red_zero (\<preceq>\<^sub>t) G r)"
 
 definition is_sig_GB_upt :: "('a \<Rightarrow> nat) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> 't \<Rightarrow> bool"
   where "is_sig_GB_upt d G u \<longleftrightarrow>
-            (G \<subseteq> dgrad_max_set d \<and> (\<forall>v. v \<prec>\<^sub>t u \<longrightarrow> d (pp_of_term v) \<le> dgrad_max d \<longrightarrow> is_sig_GB_in d G v))"
+            (G \<subseteq> dgrad_sig_set d \<and> (\<forall>v. v \<prec>\<^sub>t u \<longrightarrow> d (pp_of_term v) \<le> dgrad_max d \<longrightarrow>
+                                          component_of_term v < length fs \<longrightarrow> is_sig_GB_in d G v))"
+
+definition is_syz_sig :: "('a \<Rightarrow> nat) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> 't \<Rightarrow> bool"
+  where "is_syz_sig d G u \<longleftrightarrow> (\<exists>r. r \<noteq> 0 \<and> lt r = u \<and> r \<in> dgrad_sig_set d \<and> sig_red_zero (\<prec>\<^sub>t) G r)"
 
 lemma sig_red_zeroI:
   assumes "(sig_red sing_reg (\<preceq>) F)\<^sup>*\<^sup>* r s" and "rep_list s = 0"
@@ -1259,6 +1549,18 @@ lemma sig_red_zeroE:
   assumes "sig_red_zero sing_reg F r"
   obtains s where "(sig_red sing_reg (\<preceq>) F)\<^sup>*\<^sup>* r s" and "rep_list s = 0"
   using assms unfolding sig_red_zero_def by blast
+
+lemma sig_red_zero_monom_mult:
+  assumes "sig_red_zero sing_reg F r"
+  shows "sig_red_zero sing_reg F (monom_mult c t r)"
+proof -
+  from assms obtain s where "(sig_red sing_reg (\<preceq>) F)\<^sup>*\<^sup>* r s" and "rep_list s = 0"
+    by (rule sig_red_zeroE)
+  from this(1) have "(sig_red sing_reg (\<preceq>) F)\<^sup>*\<^sup>* (monom_mult c t r) (monom_mult c t s)"
+    by (rule sig_red_rtrancl_monom_mult)
+  moreover have "rep_list (monom_mult c t s) = 0" by (simp add: rep_list_monom_mult \<open>rep_list s = 0\<close>)
+  ultimately show ?thesis by (rule sig_red_zeroI)
+qed
 
 lemma sig_red_zero_sing_regI:
   assumes "sig_red_zero sing_reg G p"
@@ -1426,21 +1728,21 @@ proof -
 qed
 
 lemma is_sig_GB_inI:
-  assumes "\<And>r. lt r = u \<Longrightarrow> r \<in> dgrad_max_set d \<Longrightarrow> sig_red_zero (\<preceq>\<^sub>t) G r"
+  assumes "\<And>r. lt r = u \<Longrightarrow> r \<in> dgrad_sig_set d \<Longrightarrow> sig_red_zero (\<preceq>\<^sub>t) G r"
   shows "is_sig_GB_in d G u"
   unfolding is_sig_GB_in_def using assms by blast
 
 lemma is_sig_GB_inD:
-  assumes "is_sig_GB_in d G u" and "r \<in> dgrad_max_set d" and "lt r = u"
+  assumes "is_sig_GB_in d G u" and "r \<in> dgrad_sig_set d" and "lt r = u"
   shows "sig_red_zero (\<preceq>\<^sub>t) G r"
   using assms unfolding is_sig_GB_in_def by blast
 
 lemma is_sig_GB_inI_triv:
-  assumes "\<not> d (pp_of_term u) \<le> dgrad_max d"
+  assumes "\<not> d (pp_of_term u) \<le> dgrad_max d \<or> \<not> component_of_term u < length fs"
   shows "is_sig_GB_in d G u"
 proof (rule is_sig_GB_inI)
   fix r::"'t \<Rightarrow>\<^sub>0 'b"
-  assume "lt r = u" and "r \<in> dgrad_max_set d"
+  assume "lt r = u" and "r \<in> dgrad_sig_set d"
   show "sig_red_zero (\<preceq>\<^sub>t) G r"
   proof (cases "r = 0")
     case True
@@ -1448,19 +1750,25 @@ proof (rule is_sig_GB_inI)
     with rtrancl_refl[to_pred] show ?thesis by (rule sig_red_zeroI)
   next
     case False
-    with \<open>r \<in> dgrad_max_set d\<close> have "d (lp r) \<le> dgrad_max d" by (rule dgrad_p_setD_lt)
-    with assms show ?thesis unfolding \<open>lt r = u\<close> ..
+    from \<open>r \<in> dgrad_sig_set d\<close> have "r \<in> dgrad_max_set d" and "r \<in> sig_inv_set"
+      by (simp_all add: dgrad_sig_set_def)
+    from \<open>r \<in> dgrad_max_set d\<close> False have "d (lp r) \<le> dgrad_max d" by (rule dgrad_p_setD_lt)
+    moreover from \<open>r \<in> sig_inv_set\<close> False have "component_of_term (lt r) < length fs"
+      by (rule sig_inv_setD_lt)
+    ultimately show ?thesis using assms by (simp add: \<open>lt r = u\<close>)
   qed
 qed
 
 lemma is_sig_GB_uptI:
-  assumes "G \<subseteq> dgrad_max_set d" and "\<And>v. v \<prec>\<^sub>t u \<Longrightarrow> d (pp_of_term v) \<le> dgrad_max d \<Longrightarrow> is_sig_GB_in d G v"
+  assumes "G \<subseteq> dgrad_sig_set d"
+    and "\<And>v. v \<prec>\<^sub>t u \<Longrightarrow> d (pp_of_term v) \<le> dgrad_max d \<Longrightarrow> component_of_term v < length fs \<Longrightarrow>
+          is_sig_GB_in d G v"
   shows "is_sig_GB_upt d G u"
   unfolding is_sig_GB_upt_def using assms by blast
 
 lemma is_sig_GB_uptD1:
   assumes "is_sig_GB_upt d G u"
-  shows "G \<subseteq> dgrad_max_set d"
+  shows "G \<subseteq> dgrad_sig_set d"
   using assms unfolding is_sig_GB_upt_def by blast
 
 lemma is_sig_GB_uptD2:
@@ -1469,11 +1777,23 @@ lemma is_sig_GB_uptD2:
   using assms is_sig_GB_inI_triv unfolding is_sig_GB_upt_def by blast
 
 lemma is_sig_GB_uptD3:
-  assumes "is_sig_GB_upt d G u" and "r \<in> dgrad_max_set d" and "lt r \<prec>\<^sub>t u"
+  assumes "is_sig_GB_upt d G u" and "r \<in> dgrad_sig_set d" and "lt r \<prec>\<^sub>t u"
   shows "sig_red_zero (\<preceq>\<^sub>t) G r"
   by (rule is_sig_GB_inD, rule is_sig_GB_uptD2, fact+, fact refl)
 
-lemma is_sig_GB_imp_is_Groebner_basis:
+lemma is_sig_GB_upt_le:
+  assumes "is_sig_GB_upt d G u" and "v \<preceq>\<^sub>t u"
+  shows "is_sig_GB_upt d G v"
+proof (rule is_sig_GB_uptI)
+  from assms(1) show "G \<subseteq> dgrad_sig_set d" by (rule is_sig_GB_uptD1)
+next
+  fix w
+  assume "w \<prec>\<^sub>t v"
+  hence "w \<prec>\<^sub>t u" using assms(2) by (rule ord_term_lin.less_le_trans)
+  with assms(1) show "is_sig_GB_in d G w" by (rule is_sig_GB_uptD2)
+qed
+
+lemma is_sig_GB_is_Groebner_basis:
   assumes "dickson_grading (+) d" and "hom_grading d" and "G \<subseteq> dgrad_max_set d" and "\<And>u. is_sig_GB_in d G u"
   shows "punit.is_Groebner_basis (rep_list ` G)"
   using assms(1)
@@ -1485,7 +1805,7 @@ next
   assume "f \<in> ideal (rep_list ` G)"
   also from rep_list_subset_ideal have "... \<subseteq> ideal (set fs)" by (rule ideal.module_subset_moduleI)
   finally have "f \<in> ideal (set fs)" .
-  with assms(2) \<open>f \<in> punit_dgrad_max_set d\<close> obtain r where "r \<in> dgrad_max_set d" and f: "f = rep_list r"
+  with assms(2) \<open>f \<in> punit_dgrad_max_set d\<close> obtain r where "r \<in> dgrad_sig_set d" and f: "f = rep_list r"
     by (rule in_idealE_rep_list_dgrad_max_set)
   from assms(4) this(1) refl have "sig_red_zero (\<preceq>\<^sub>t) G r" by (rule is_sig_GB_inD)
   then obtain s where "(sig_red (\<preceq>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* r s" and s: "rep_list s = 0" by (rule sig_red_zeroE)
@@ -1505,7 +1825,7 @@ proof -
 qed
 
 lemma sig_regular_reduced_unique:
-  assumes "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_max_set d" and "q \<in> dgrad_max_set d"
+  assumes "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_sig_set d" and "q \<in> dgrad_sig_set d"
     and "lt p = lt q" and "lc p = lc q" and "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) G p" and "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) G q"
   shows "rep_list p = rep_list q"
 proof (rule ccontr)
@@ -1518,7 +1838,7 @@ proof (rule ccontr)
   ultimately have "lt (p + (- q)) \<prec>\<^sub>t lt p" by (rule lt_plus_lessI)
   hence "lt (p - q) \<prec>\<^sub>t lt q" using assms(4) by simp
   with assms(1) have "is_sig_GB_in d G (lt (p - q))" by (rule is_sig_GB_uptD2)
-  moreover from assms(2, 3) have "p - q \<in> dgrad_max_set d" by (rule dgrad_p_set_closed_minus)
+  moreover from assms(2, 3) have "p - q \<in> dgrad_sig_set d" by (rule dgrad_sig_set_closed_minus)
   ultimately have "sig_red_zero (\<preceq>\<^sub>t) G (p - q)" using refl by (rule is_sig_GB_inD)
   hence "is_sig_red (\<preceq>\<^sub>t) (\<preceq>) G (p - q)" using \<open>rep_list (p - q) \<noteq> 0\<close> by (rule sig_red_zero_is_red)
   then obtain g t where "g \<in> G" and t: "t \<in> keys (rep_list (p - q))" and "rep_list g \<noteq> 0"
@@ -1547,7 +1867,7 @@ proof (rule ccontr)
 qed
 
 corollary sig_regular_reduced_unique':
-  assumes "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_max_set d" and "q \<in> dgrad_max_set d"
+  assumes "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_sig_set d" and "q \<in> dgrad_sig_set d"
     and "lt p = lt q" and "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) G p" and "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) G q"
   shows "punit.monom_mult (lc q) 0 (rep_list p) = punit.monom_mult (lc p) 0 (rep_list q)"
 proof (cases "p = 0 \<or> q = 0")
@@ -1561,8 +1881,8 @@ next
   let ?q = "monom_mult (lc p) 0 q"
   have "lt ?q = lt q" by (simp add: lt_monom_mult[OF \<open>lc p \<noteq> 0\<close> \<open>q \<noteq> 0\<close>] splus_zero)
   with assms(1) have "is_sig_GB_upt d G (lt ?q)" by simp
-  moreover from assms(2) have "?p \<in> dgrad_max_set d" by (rule dgrad_p_set_closed_monom_mult_zero)
-  moreover from assms(3) have "?q \<in> dgrad_max_set d" by (rule dgrad_p_set_closed_monom_mult_zero)
+  moreover from assms(2) have "?p \<in> dgrad_sig_set d" by (rule dgrad_sig_set_closed_monom_mult_zero)
+  moreover from assms(3) have "?q \<in> dgrad_sig_set d" by (rule dgrad_sig_set_closed_monom_mult_zero)
   moreover from \<open>lt ?q = lt q\<close> have "lt ?p = lt ?q"
     by (simp add: lt_monom_mult[OF \<open>lc q \<noteq> 0\<close> \<open>p \<noteq> 0\<close>] splus_zero assms(4))
   moreover have "lc ?p = lc ?q" by simp
@@ -1587,7 +1907,7 @@ next
 qed
 
 lemma sig_regular_top_reduced_lt_lc_unique:
-  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_max_set d" and "q \<in> dgrad_max_set d"
+  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_sig_set d" and "q \<in> dgrad_sig_set d"
     and "lt p = lt q" and "(p = 0) \<longleftrightarrow> (q = 0)" and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G p" and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G q"
   shows "punit.lt (rep_list p) = punit.lt (rep_list q) \<and> lc q * punit.lc (rep_list p) = lc p * punit.lc (rep_list q)"
 proof (cases "p = 0")
@@ -1599,7 +1919,8 @@ next
   with assms(6) have "q \<noteq> 0" by simp
   from False have "lc p \<noteq> 0" by (rule lc_not_0)
   from \<open>q \<noteq> 0\<close> have "lc q \<noteq> 0" by (rule lc_not_0)
-  from assms(2) have G_sub: "G \<subseteq> dgrad_max_set d" by (rule is_sig_GB_uptD1)
+  from assms(2) have G_sub: "G \<subseteq> dgrad_sig_set d" by (rule is_sig_GB_uptD1)
+  hence "G \<subseteq> dgrad_max_set d" by (simp add: dgrad_sig_set_def)
   with assms(1) obtain p' where p'_red: "(sig_red (\<prec>\<^sub>t) (\<prec>) G)\<^sup>*\<^sup>* p p'" and "\<not> is_sig_red (\<prec>\<^sub>t) (\<prec>) G p'"
     by (rule sig_irredE_dgrad_max_set)
   from this(1) have lt_p': "lt p' = lt p" and lt_p'': "punit.lt (rep_list p') = punit.lt (rep_list p)"
@@ -1616,8 +1937,8 @@ next
     with assms(7) show False ..
   qed
   with \<open>\<not> is_sig_red (\<prec>\<^sub>t) (\<prec>) G p'\<close> have 1: "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) G p'" by (simp add: is_sig_red_top_tail_cases)
-  from assms(1) G_sub obtain q' where q'_red: "(sig_red (\<prec>\<^sub>t) (\<prec>) G)\<^sup>*\<^sup>* q q'" and "\<not> is_sig_red (\<prec>\<^sub>t) (\<prec>) G q'"
-    by (rule sig_irredE_dgrad_max_set)
+  from assms(1) \<open>G \<subseteq> dgrad_max_set d\<close> obtain q' where q'_red: "(sig_red (\<prec>\<^sub>t) (\<prec>) G)\<^sup>*\<^sup>* q q'"
+    and "\<not> is_sig_red (\<prec>\<^sub>t) (\<prec>) G q'" by (rule sig_irredE_dgrad_max_set)
   from this(1) have lt_q': "lt q' = lt q" and lt_q'': "punit.lt (rep_list q') = punit.lt (rep_list q)"
     and lc_q': "lc q' = lc q" and lc_q'': "punit.lc (rep_list q') = punit.lc (rep_list q)"
     by (rule sig_red_regular_rtrancl_lt, rule sig_red_tail_rtrancl_lt_rep_list,
@@ -1633,10 +1954,10 @@ next
   qed
   with \<open>\<not> is_sig_red (\<prec>\<^sub>t) (\<prec>) G q'\<close> have 2: "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) G q'" by (simp add: is_sig_red_top_tail_cases)
   from assms(2) have "is_sig_GB_upt d G (lt q')" by (simp only: lt_q')
-  moreover from assms(1) G_sub assms(3) p'_red have "p' \<in> dgrad_max_set d"
-    by (rule dgrad_max_set_closed_sig_red_rtrancl)
-  moreover from assms(1) G_sub assms(4) q'_red have "q' \<in> dgrad_max_set d"
-    by (rule dgrad_max_set_closed_sig_red_rtrancl)
+  moreover from assms(1) G_sub assms(3) p'_red have "p' \<in> dgrad_sig_set d"
+    by (rule dgrad_sig_set_closed_sig_red_rtrancl)
+  moreover from assms(1) G_sub assms(4) q'_red have "q' \<in> dgrad_sig_set d"
+    by (rule dgrad_sig_set_closed_sig_red_rtrancl)
   moreover have "lt p' = lt q'" by (simp only: lt_p' lt_q' assms(5))
   ultimately have eq: "punit.monom_mult (lc q') 0 (rep_list p') = punit.monom_mult (lc p') 0 (rep_list q')"
     using 1 2 by (rule sig_regular_reduced_unique')
@@ -1659,8 +1980,8 @@ next
 qed
 
 corollary sig_regular_top_reduced_lt_unique:
-  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_max_set d"
-    and "q \<in> dgrad_max_set d" and "lt p = lt q" and "p \<noteq> 0" and "q \<noteq> 0"
+  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_sig_set d"
+    and "q \<in> dgrad_sig_set d" and "lt p = lt q" and "p \<noteq> 0" and "q \<noteq> 0"
     and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G p" and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G q"
   shows "punit.lt (rep_list p) = punit.lt (rep_list q)"
 proof -
@@ -1672,7 +1993,7 @@ proof -
 qed
 
 corollary sig_regular_top_reduced_lc_unique:
-  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_max_set d" and "q \<in> dgrad_max_set d"
+  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt q)" and "p \<in> dgrad_sig_set d" and "q \<in> dgrad_sig_set d"
     and "lt p = lt q" and "lc p = lc q" and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G p" and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G q"
   shows "punit.lc (rep_list p) = punit.lc (rep_list q)"
 proof (cases "p = 0")
@@ -1693,46 +2014,520 @@ next
   finally show ?thesis using \<open>lc q \<noteq> 0\<close> by simp
 qed
 
-lemma syzygy_crit:
-  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt p)" and "u \<in> dgrad_max_set d"
-    and "p \<in> dgrad_max_set d" and "lt u adds\<^sub>t lt p" and "u \<noteq> 0" and "rep_list u = 0"
-  shows "sig_red_zero (\<preceq>\<^sub>t) G p"
-proof (cases "rep_list p = 0")
+lemma sig_red_zero_regularI_adds:
+  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt q)"
+    and "p \<in> dgrad_sig_set d" and "q \<in> dgrad_sig_set d" and "p \<noteq> 0" and "sig_red_zero (\<prec>\<^sub>t) G p"
+    and "lt p adds\<^sub>t lt q"
+  shows "sig_red_zero (\<prec>\<^sub>t) G q"
+proof (cases "q = 0")
   case True
-  show ?thesis
-  proof (rule sig_red_zeroI)
-    show "(sig_red (\<preceq>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* p p" ..
-  qed (fact True)
+  hence "rep_list q = 0" by (simp only: rep_list_zero)
+  with rtrancl_refl[to_pred] show ?thesis by (rule sig_red_zeroI)
 next
   case False
-  hence "p \<noteq> 0" by (auto simp: rep_list_zero)
-  hence "lc p \<noteq> 0" by (rule lc_not_0)
-  moreover from assms(6) have "lc u \<noteq> 0" by (rule lc_not_0)
-  ultimately have 1: "- lc p / lc u \<noteq> 0" by simp
-  from assms(5) obtain s where lt_p: "lt p = s \<oplus> lt u" by (rule adds_termE)
-  let ?u = "monom_mult (- (lc p / lc u)) s u"
-  from assms(1) _ assms(3) have "?u \<in> dgrad_max_set d"
-  proof (rule dgrad_p_set_closed_monom_mult)
-    from assms(4) \<open>p \<noteq> 0\<close> have "d (lp p) \<le> dgrad_max d" by (rule dgrad_p_setD_lt)
-    hence "d (s + lp u) \<le> dgrad_max d" by (simp only: lt_p term_simps)
-    with assms(1) show "d s \<le> dgrad_max d" by (simp add: dickson_gradingD1)
+  hence "lc q \<noteq> 0" by (rule lc_not_0)
+  moreover from assms(5) have "lc p \<noteq> 0" by (rule lc_not_0)
+  ultimately have "lc q / lc p \<noteq> 0" by simp
+  from assms(7) have eq1: "(lp q - lp p) \<oplus> lt p = lt q"
+    by (metis add_diff_cancel_right' adds_termE pp_of_term_splus)
+  from assms(4) have "q \<in> dgrad_max_set d" by (simp add: dgrad_sig_set_def)
+  from assms(7) have "lp p adds lp q" by (simp add: adds_term_def)
+  with assms(1) have "d (lp q - lp p) \<le> d (lp q)" by (rule dickson_grading_minus)
+  also from \<open>q \<in> dgrad_max_set d\<close> False have "... \<le> dgrad_max d" by (rule dgrad_p_setD_lt)
+  finally have "d (lp q - lp p) \<le> dgrad_max d" .
+  from assms(2) have G_sub: "G \<subseteq> dgrad_sig_set d" by (rule is_sig_GB_uptD1)
+  hence "G \<subseteq> dgrad_max_set d" by (simp add: dgrad_sig_set_def)
+
+  let ?mult = "\<lambda>r. monom_mult (lc q / lc p) (lp q - lp p) r"
+  from assms(6) obtain p' where p_red: "(sig_red (\<prec>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* p p'" and "rep_list p' = 0"
+    by (rule sig_red_zeroE)
+  from p_red have "lt p' = lt p" and "lc p' = lc p"
+    by (rule sig_red_regular_rtrancl_lt, rule sig_red_regular_rtrancl_lc)
+  hence "p' \<noteq> 0" using \<open>lc p \<noteq> 0\<close> by auto
+  with \<open>lc q / lc p \<noteq> 0\<close> have "?mult p' \<noteq> 0" by (simp add: monom_mult_eq_zero_iff)
+  from \<open>lc q / lc p \<noteq> 0\<close> \<open>p' \<noteq> 0\<close> have "lt (?mult p') = lt q"
+    by (simp add: lt_monom_mult \<open>lt p' = lt p\<close> eq1)
+  from \<open>lc p \<noteq> 0\<close> have "lc (?mult p') = lc q" by (simp add: \<open>lc p' = lc p\<close>)
+  from p_red have mult_p_red: "(sig_red (\<prec>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* (?mult p) (?mult p')"
+    by (rule sig_red_rtrancl_monom_mult)
+  have "rep_list (?mult p') = 0" by (simp add: rep_list_monom_mult \<open>rep_list p' = 0\<close>)
+  hence mult_p'_irred: "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) G (?mult p')"
+    using is_sig_red_addsE by fastforce
+  from assms(1) G_sub assms(3) p_red have "p' \<in> dgrad_sig_set d"
+    by (rule dgrad_sig_set_closed_sig_red_rtrancl)
+  with assms(1) \<open>d (lp q - lp p) \<le> dgrad_max d\<close> have "?mult p' \<in> dgrad_sig_set d"
+    by (rule dgrad_sig_set_closed_monom_mult)
+
+  from assms(1) \<open>G \<subseteq> dgrad_max_set d\<close> obtain q' where q_red: "(sig_red (\<prec>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* q q'"
+    and q'_irred: "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) G q'" by (rule sig_irredE_dgrad_max_set)
+  from q_red have "lt q' = lt q" and "lc q' = lc q"
+    by (rule sig_red_regular_rtrancl_lt, rule sig_red_regular_rtrancl_lc)
+  hence "q' \<noteq> 0" using \<open>lc q \<noteq> 0\<close> by auto
+
+  from assms(2) have "is_sig_GB_upt d G (lt (?mult p'))" by (simp only: \<open>lt (?mult p') = lt q\<close>)
+  moreover from assms(1) G_sub assms(4) q_red have "q' \<in> dgrad_sig_set d"
+    by (rule dgrad_sig_set_closed_sig_red_rtrancl)
+  moreover note \<open>?mult p' \<in> dgrad_sig_set d\<close>
+  moreover have "lt q' = lt (?mult p')" by (simp only: \<open>lt (?mult p') = lt q\<close> \<open>lt q' = lt q\<close>)
+  moreover have "lc q' = lc (?mult p')" by (simp only: \<open>lc (?mult p') = lc q\<close> \<open>lc q' = lc q\<close>)
+  ultimately have "rep_list q' = rep_list (?mult p')" using q'_irred mult_p'_irred
+    by (rule sig_regular_reduced_unique)
+  with \<open>rep_list (?mult p') = 0\<close> have "rep_list q' = 0" by simp
+  with q_red show ?thesis by (rule sig_red_zeroI)
+qed
+
+lemma is_syz_sigI:
+  assumes "r \<noteq> 0" and "lt r = u" and "r \<in> dgrad_sig_set d" and "sig_red_zero (\<prec>\<^sub>t) G r"
+  shows "is_syz_sig d G u"
+  unfolding is_syz_sig_def using assms by blast
+
+lemma is_syz_sigE:
+  assumes "is_syz_sig d G u"
+  obtains r where "r \<noteq> 0" and "lt r = u" and "r \<in> dgrad_sig_set d" and "sig_red_zero (\<prec>\<^sub>t) G r"
+  using assms unfolding is_syz_sig_def by blast
+
+lemma is_syz_sig_dgrad_sig_setE:
+  assumes "dickson_grading (+) d" and "G \<subseteq> dgrad_sig_set d" and "is_syz_sig d G u"
+  obtains s where "s \<noteq> 0" and "lt s = u" and "s \<in> dgrad_sig_set d" and "rep_list s = 0"
+proof -
+  from assms(3) obtain r where "r \<noteq> 0" and "lt r = u" and "r \<in> dgrad_sig_set d" and "sig_red_zero (\<prec>\<^sub>t) G r"
+    by (rule is_syz_sigE)
+  from this(4) obtain s where r_red: "(sig_red (\<prec>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* r s" and "rep_list s = 0"
+    by (rule sig_red_zeroE)
+  show ?thesis
+  proof
+    from r_red have "lc s = lc r" by (rule sig_red_regular_rtrancl_lc)
+    also from \<open>r \<noteq> 0\<close> have "... \<noteq> 0" by (rule lc_not_0)
+    finally show "s \<noteq> 0" by (simp add: lc_eq_zero_iff)
+  next
+    from r_red have "lt s = lt r" by (rule sig_red_regular_rtrancl_lt)
+    also have "... = u" by fact
+    finally show "lt s = u" .
+  next
+    from assms(1, 2) \<open>r \<in> dgrad_sig_set d\<close> r_red show "s \<in> dgrad_sig_set d"
+      by (rule dgrad_sig_set_closed_sig_red_rtrancl)
+  qed fact
+qed
+
+lemma is_syz_sig_adds:
+  assumes "dickson_grading (+) d" and "is_syz_sig d G u" and "u adds\<^sub>t v"
+    and "d (pp_of_term v) \<le> dgrad_max d"
+  shows "is_syz_sig d G v"
+proof -
+  from assms(2) obtain r where "r \<noteq> 0" and "lt r = u" and "r \<in> dgrad_sig_set d"
+    and "sig_red_zero (\<prec>\<^sub>t) G r" by (rule is_syz_sigE)
+  from assms(3) obtain t where v: "v = t \<oplus> u" by (rule adds_termE)
+  show ?thesis
+  proof (rule is_syz_sigI)
+    from \<open>r \<noteq> 0\<close> show "monom_mult 1 t r \<noteq> 0" by (simp add: monom_mult_eq_zero_iff)
+  next
+    from \<open>r \<noteq> 0\<close> show "lt (monom_mult 1 t r) = v" by (simp add: lt_monom_mult v \<open>lt r = u\<close>)
+  next
+    from assms(4) have "d (t + pp_of_term u) \<le> dgrad_max d" by (simp add: v term_simps)
+    with assms(1) have "d t \<le> dgrad_max d" by (simp add: dickson_gradingD1)
+    with assms(1) show "monom_mult 1 t r \<in> dgrad_sig_set d" using \<open>r \<in> dgrad_sig_set d\<close>
+      by (rule dgrad_sig_set_closed_monom_mult)
+  next
+    from \<open>sig_red_zero (\<prec>\<^sub>t) G r\<close> show "sig_red_zero (\<prec>\<^sub>t) G (monom_mult 1 t r)"
+      by (rule sig_red_zero_monom_mult)
   qed
-  with assms(4) have "p + ?u \<in> dgrad_max_set d" by (rule dgrad_p_set_closed_plus)
-  have "rep_list ?u = 0" by (simp add: rep_list_monom_mult assms(7))
-  hence "rep_list p = rep_list (p + ?u)" by (simp add: rep_list_plus)
-  with False have "rep_list (p + ?u) \<noteq> 0" by simp
-  hence "p + ?u \<noteq> 0" by (auto simp: rep_list_zero)
-  moreover from 1 assms(6) have "lt ?u = lt p" by (simp add: lt_monom_mult lt_p)
-  moreover from \<open>lc u \<noteq> 0\<close> have "lc p + lc ?u = 0" by simp
-  ultimately have "lt (p + ?u) \<prec>\<^sub>t lt p" by (rule lt_plus_lessI')
-  with assms(2) \<open>p + ?u \<in> dgrad_max_set d\<close> have "sig_red_zero (\<preceq>\<^sub>t) G (p + ?u)" by (rule is_sig_GB_uptD3)
-  moreover note \<open>lt (p + ?u) \<prec>\<^sub>t lt p\<close> \<open>rep_list p = rep_list (p + ?u)\<close>
-  moreover have "(\<preceq>\<^sub>t) = (\<preceq>\<^sub>t) \<or> (\<preceq>\<^sub>t) = (\<prec>\<^sub>t)" by simp
-  ultimately show ?thesis by (rule sig_red_zero_weak_cong)
+qed
+
+lemma is_sig_GB_upt_is_syz_sigD:
+  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G u" and "is_syz_sig d G u"
+    and "p \<in> dgrad_sig_set d" and "lt p = u"
+  shows "sig_red_zero (\<prec>\<^sub>t) G p"
+proof -
+  from assms(3) obtain r where "r \<noteq> 0" and "lt r = u" and "r \<in> dgrad_sig_set d"
+    and "sig_red_zero (\<prec>\<^sub>t) G r" by (rule is_syz_sigE)
+  note assms(1)
+  moreover from assms(2) have "is_sig_GB_upt d G (lt p)" by (simp only: assms(5))
+  moreover note \<open>r \<in> dgrad_sig_set d\<close> assms(4) \<open>r \<noteq> 0\<close> \<open>sig_red_zero (\<prec>\<^sub>t) G r\<close>
+  moreover have "lt r adds\<^sub>t lt p" by (simp only: assms(5) \<open>lt r = u\<close> adds_term_refl)
+  ultimately show ?thesis by (rule sig_red_zero_regularI_adds)
+qed
+
+lemma syzygy_crit:
+  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt p)" and "u \<in> dgrad_sig_set d"
+    and "p \<in> dgrad_sig_set d" and "lt u adds\<^sub>t lt p" and "u \<noteq> 0" and "rep_list u = 0"
+  shows "sig_red_zero (\<prec>\<^sub>t) G p"
+proof (cases "p = 0")
+  case True
+  hence "rep_list p = 0" by (simp only: rep_list_zero)
+  with rtrancl_refl[to_pred] show ?thesis by (rule sig_red_zeroI)
+next
+  case False
+  from assms(4) have "p \<in> dgrad_max_set d" by (simp add: dgrad_sig_set_def)
+  note assms(1)
+  moreover from assms(6) refl assms(3) have "is_syz_sig d G (lt u)"
+  proof (rule is_syz_sigI)
+    from rtrancl_refl[to_pred] assms(7) show "sig_red_zero (\<prec>\<^sub>t) G u" by (rule sig_red_zeroI)
+  qed
+  moreover note assms(5)
+  moreover from \<open>p \<in> dgrad_max_set d\<close> False have "d (lp p) \<le> dgrad_max d" by (rule dgrad_p_setD_lt)
+  ultimately have "is_syz_sig d G (lt p)" by (rule is_syz_sig_adds)
+  with assms(1, 2) show ?thesis using assms(4) refl by (rule is_sig_GB_upt_is_syz_sigD)
+qed
+
+lemma lemma_21:
+  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt p)" and "p \<in> dgrad_sig_set d" and "g \<in> G"
+    and "rep_list p \<noteq> 0" and "rep_list g \<noteq> 0" and "lt g adds\<^sub>t lt p"
+    and "punit.lt (rep_list g) adds punit.lt (rep_list p)"
+  shows "is_sig_red (\<preceq>\<^sub>t) (=) G p"
+proof -
+  let ?lp = "punit.lt (rep_list p)"
+  define s where "s = ?lp - punit.lt (rep_list g)"
+  from assms(8) have s: "?lp = s + punit.lt (rep_list g)" by (simp add: s_def minus_plus)
+  from assms(7) obtain t where lt_p: "lt p = t \<oplus> lt g" by (rule adds_termE)
+  show ?thesis
+  proof (cases "s \<oplus> lt g \<preceq>\<^sub>t lt p")
+    case True
+    hence "?lp \<oplus> lt g \<preceq>\<^sub>t punit.lt (rep_list g) \<oplus> lt p"
+      by (simp add: s splus_assoc splus_left_commute[of s] splus_mono)
+    with assms(4, 6, 5, 8) ord_term_lin.is_le_relI(2) show ?thesis
+      by (rule is_sig_red_top_addsI)
+  next
+    case False
+    hence "lt p \<prec>\<^sub>t s \<oplus> lt g" by simp
+    hence "t \<prec> s" by (simp add: lt_p ord_term_strict_canc_left)
+    hence "t + punit.lt (rep_list g) \<prec> s + punit.lt (rep_list g)" by (rule plus_monotone_strict)
+    hence "t + punit.lt (rep_list g) \<prec> ?lp" by (simp only: s)
+    from assms(5) have "p \<noteq> 0" by (auto simp: rep_list_zero)
+    hence "lc p \<noteq> 0" by (rule lc_not_0)
+    from assms(6) have "g \<noteq> 0" by (auto simp: rep_list_zero)
+    hence "lc g \<noteq> 0" by (rule lc_not_0)
+    with \<open>lc p \<noteq> 0\<close> have 1: "lc p / lc g \<noteq> 0" by simp
+
+    let ?g = "monom_mult (lc p / lc g) t g"
+    from 1 \<open>g \<noteq> 0\<close> have "lt ?g = lt p" unfolding lt_p by (rule lt_monom_mult)
+    from \<open>lc g \<noteq> 0\<close> have "lc ?g = lc p" by simp
+    have "punit.lt (rep_list ?g) = t + punit.lt (rep_list g)"
+      unfolding rep_list_monom_mult using 1 assms(6) by (rule punit.lt_monom_mult[simplified])
+    also have "... \<prec> ?lp" by fact
+    finally have "punit.lt (rep_list ?g) \<prec> ?lp" .
+    hence lt_pg: "punit.lt (rep_list (p - ?g)) = ?lp" and "rep_list p \<noteq> rep_list ?g"
+      by (auto simp: rep_list_minus punit.lt_minus_eqI_2)
+    from this(2) have "rep_list (p - ?g) \<noteq> 0" and "p - ?g \<noteq> 0"
+      by (auto simp: rep_list_minus rep_list_zero)
+
+    from assms(2) have "G \<subseteq> dgrad_sig_set d" by (rule is_sig_GB_uptD1)
+    note assms(1)
+    moreover have "d t \<le> dgrad_max d"
+    proof (rule le_trans)
+      have "lp p = t + lp g" by (simp add: lt_p term_simps)
+      with assms(1) show "d t \<le> d (lp p)" by (simp add: dickson_grading_adds_imp_le)
+    next
+      from assms(3) have "p \<in> dgrad_max_set d" by (simp add: dgrad_sig_set_def)
+      thus "d (lp p) \<le> dgrad_max d" using \<open>p \<noteq> 0\<close> by (rule dgrad_p_setD_lt)
+    qed
+    moreover from assms(4) \<open>G \<subseteq> dgrad_sig_set d\<close> have "g \<in> dgrad_sig_set d" ..
+    ultimately have "?g \<in> dgrad_sig_set d" by (rule dgrad_sig_set_closed_monom_mult)
+
+    note assms(2)
+    moreover from assms(3) \<open>?g \<in> dgrad_sig_set d\<close> have "p - ?g \<in> dgrad_sig_set d"
+      by (rule dgrad_sig_set_closed_minus)
+    moreover from \<open>p - ?g \<noteq> 0\<close> \<open>lt ?g = lt p\<close> \<open>lc ?g = lc p\<close> have "lt (p - ?g) \<prec>\<^sub>t lt p"
+      by (rule lt_minus_lessI)
+    ultimately have "sig_red_zero (\<preceq>\<^sub>t) G (p - ?g)"
+      by (rule is_sig_GB_uptD3)
+    moreover note \<open>rep_list (p - ?g) \<noteq> 0\<close>
+    moreover have "(\<preceq>\<^sub>t) = (\<preceq>\<^sub>t) \<or> (\<preceq>\<^sub>t) = (\<prec>\<^sub>t)" by simp
+    ultimately have "is_sig_red (\<preceq>\<^sub>t) (=) G (p - ?g)" by (rule sig_red_zero_nonzero)
+    then obtain g1 where "g1 \<in> G" and "rep_list g1 \<noteq> 0"
+      and 2: "punit.lt (rep_list g1) adds punit.lt (rep_list (p - ?g))"
+      and 3: "punit.lt (rep_list (p - ?g)) \<oplus> lt g1 \<preceq>\<^sub>t punit.lt (rep_list g1) \<oplus> lt (p - ?g)"
+      by (rule is_sig_red_top_addsE)
+    from \<open>g1 \<in> G\<close> \<open>rep_list g1 \<noteq> 0\<close> assms(5) show ?thesis
+    proof (rule is_sig_red_top_addsI)
+      from 2 show "punit.lt (rep_list g1) adds punit.lt (rep_list p)" by (simp only: lt_pg)
+    next
+      have "?lp \<oplus> lt g1 = punit.lt (rep_list (p - ?g)) \<oplus> lt g1" by (simp only: lt_pg)
+      also have "... \<preceq>\<^sub>t punit.lt (rep_list g1) \<oplus> lt (p - ?g)" by (fact 3)
+      also from \<open>lt (p - ?g) \<prec>\<^sub>t lt p\<close> have "... \<prec>\<^sub>t punit.lt (rep_list g1) \<oplus> lt p"
+        by (rule splus_mono_strict)
+      finally show "?lp \<oplus> lt g1 \<preceq>\<^sub>t punit.lt (rep_list g1) \<oplus> lt p" by (rule ord_term_lin.less_imp_le)
+    qed simp
+  qed
 qed
 
 subsubsection \<open>Rewrite Bases\<close>
 
+definition is_canon_rewriter_fun :: "('t \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> bool"
+  where "is_canon_rewriter_fun f A \<longleftrightarrow> (\<forall>u. ((\<forall>a\<in>A. a = 0 \<or> \<not> lt a adds\<^sub>t u) \<longrightarrow> f u = 0) \<and>
+                                     ((\<exists>a\<in>A. a \<noteq> 0 \<and> lt a adds\<^sub>t u) \<longrightarrow> (f u \<in> A \<and> f u \<noteq> 0 \<and> lt (f u) adds\<^sub>t u)) \<and>
+                                     (\<forall>v. f u \<noteq> 0 \<longrightarrow> lt (f u) adds\<^sub>t v \<longrightarrow> lt (f v) adds\<^sub>t u \<longrightarrow> f v = f u))"
+
+definition is_RB_in :: "('a \<Rightarrow> nat) \<Rightarrow> ('t \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> 't \<Rightarrow> bool"
+  where "is_RB_in d canon G u \<longleftrightarrow>
+            ((let g = canon u in g \<noteq> 0 \<and> \<not> is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term u - lp g) g)) \<or> is_syz_sig d G u)"
+
+definition is_RB_upt :: "('a \<Rightarrow> nat) \<Rightarrow> ('t \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> 't \<Rightarrow> bool"
+  where "is_RB_upt d canon G u \<longleftrightarrow>
+            (G \<subseteq> dgrad_sig_set d \<and> (\<forall>v. v \<prec>\<^sub>t u \<longrightarrow> d (pp_of_term v) \<le> dgrad_max d \<longrightarrow>
+                                      component_of_term v < length fs \<longrightarrow> is_RB_in d canon G v))"
+
+text \<open>The non-zeroness condition in @{thm is_RB_in_def} might look strange at first glance, but it is
+  certainly satisfied if \<open>G\<close> contains the first @{term "length fs"} canonical basis vectors and the
+  component of \<open>u\<close> is less than @{term "length fs"}; both are quite natural assumptions.
+  Even if \<open>G\<close> does not contain some basis vector \<open>e_i\<close>, it typically contains another element with
+  the same signature, resulting from regularly reducing \<open>e_i\<close>.\<close>
+
+lemma is_canon_rewriter_funD1:
+  assumes "is_canon_rewriter_fun f A" and "\<And>a. a \<in> A \<Longrightarrow> lt a adds\<^sub>t u \<Longrightarrow> a = 0"
+  shows "f u = 0"
+  using assms unfolding is_canon_rewriter_fun_def by blast
+
+lemma is_canon_rewriter_funD2:
+  assumes "is_canon_rewriter_fun f A" and "a \<in> A" and "a \<noteq> 0" and "lt a adds\<^sub>t u"
+  shows "f u \<in> A" and "f u \<noteq> 0" and "lt (f u) adds\<^sub>t u"
+  using assms unfolding is_canon_rewriter_fun_def by blast+
+
+lemma is_canon_rewriter_funD3:
+  assumes "is_canon_rewriter_fun f A" and "f u \<noteq> 0" and "lt (f u) adds\<^sub>t v" and "lt (f v) adds\<^sub>t u"
+  shows "f v = f u"
+  using assms unfolding is_canon_rewriter_fun_def by blast
+
+lemma is_RB_inI1:
+  assumes "canon u \<noteq> 0" and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term u - lp (canon u)) (canon u))"
+  shows "is_RB_in d canon G u"
+  unfolding is_RB_in_def Let_def using assms by blast
+
+lemma is_RB_inI2:
+  assumes "is_syz_sig d G u"
+  shows "is_RB_in d canon G u"
+  unfolding is_RB_in_def Let_def using assms by blast
+
+lemma is_RB_inD1:
+  assumes "is_RB_in d canon G u" and "\<not> is_syz_sig d G u"
+  shows "canon u \<noteq> 0"
+  using assms unfolding is_RB_in_def Let_def by blast
+
+lemma is_RB_inD2:
+  assumes "is_RB_in d canon G u" and "\<not> is_syz_sig d G u"
+  shows "\<not> is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term u - lp (canon u)) (canon u))"
+  using assms unfolding is_RB_in_def Let_def by blast
+
+lemma is_RB_inD3:
+  assumes "is_canon_rewriter_fun canon G" and "is_RB_in d canon G u" and "\<not> is_syz_sig d G u"
+  shows "canon u \<in> G"
+proof -
+  from assms(2, 3) have "canon u \<noteq> 0" by (rule is_RB_inD1)
+  with assms(1) show ?thesis by (auto simp: is_canon_rewriter_fun_def)
+qed
+
+lemma is_RB_inD4:
+  assumes "is_canon_rewriter_fun canon G" and "is_RB_in d canon G u" and "\<not> is_syz_sig d G u"
+  shows "lt (canon u) adds\<^sub>t u"
+proof -
+  from assms(2, 3) have "canon u \<noteq> 0" by (rule is_RB_inD1)
+  with assms(1) show ?thesis by (auto simp: is_canon_rewriter_fun_def)
+qed
+
+lemmas is_RB_inD = is_RB_inD1 is_RB_inD2 is_RB_inD3 is_RB_inD4
+
+lemma is_RB_inD5:
+  assumes "dickson_grading (+) d" and "is_canon_rewriter_fun canon G" and "G \<subseteq> dgrad_sig_set d"
+    and "is_RB_in d canon G u" and "\<not> is_syz_sig d G u" and "d (pp_of_term u) \<le> dgrad_max d"
+  shows "rep_list (canon u) \<noteq> 0"
+proof
+  assume a: "rep_list (canon u) = 0"
+  from assms(1) have "is_syz_sig d G u"
+  proof (rule is_syz_sig_adds)
+    show "is_syz_sig d G (lt (canon u))"
+    proof (rule is_syz_sigI)
+      from assms(4, 5) show "canon u \<noteq> 0" by (rule is_RB_inD1)
+    next
+      from assms(2, 4, 5) have "canon u \<in> G" by (rule is_RB_inD3)
+      thus "canon u \<in> dgrad_sig_set d" using assms(3) ..
+    next
+      from rtrancl_refl[to_pred] a show "sig_red_zero (\<prec>\<^sub>t) G (canon u)" by (rule sig_red_zeroI)
+    qed (fact refl)
+  next
+    from assms(2, 4, 5) show "lt (canon u) adds\<^sub>t u" by (rule is_RB_inD4)
+  qed fact
+  with assms(5) show False ..
+qed
+
+lemma is_RB_inE:
+  assumes "is_canon_rewriter_fun canon G" and "is_RB_in d canon G u"
+    and "is_syz_sig d G u \<Longrightarrow> thesis"
+    and "\<not> is_syz_sig d G u \<Longrightarrow> canon u \<noteq> 0 \<Longrightarrow> canon u \<in> G \<Longrightarrow> lt (canon u) adds\<^sub>t u \<Longrightarrow>
+            \<not> is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term u - lp (canon u)) (canon u)) \<Longrightarrow> thesis"
+  shows thesis
+proof (cases "is_syz_sig d G u")
+  case True
+  thus ?thesis by (rule assms(3))
+next
+  case False
+  moreover from assms(2) False have "canon u \<noteq> 0" by (rule is_RB_inD1)
+  moreover from assms(1, 2) False have "canon u \<in> G" and "lt (canon u) adds\<^sub>t u" by (rule is_RB_inD)+
+  moreover from assms(2) False have "\<not> is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term u - lp (canon u)) (canon u))"
+    by (rule is_RB_inD2)
+  ultimately show ?thesis by (rule assms(4))
+qed
+
+lemma is_RB_uptI:
+  assumes "G \<subseteq> dgrad_sig_set d"
+    and "\<And>v. v \<prec>\<^sub>t u \<Longrightarrow> d (pp_of_term v) \<le> dgrad_max d \<Longrightarrow> component_of_term v < length fs \<Longrightarrow>
+            is_RB_in d canon G v"
+  shows "is_RB_upt d canon G u"
+  unfolding is_RB_upt_def using assms by blast
+
+lemma is_RB_uptD1:
+  assumes "is_RB_upt d canon G u"
+  shows "G \<subseteq> dgrad_sig_set d"
+  using assms unfolding is_RB_upt_def by blast
+
+lemma is_RB_uptD2:
+  assumes "is_RB_upt d canon G u" and "v \<prec>\<^sub>t u" and "d (pp_of_term v) \<le> dgrad_max d"
+    and "component_of_term v < length fs"
+  shows "is_RB_in d canon G v"
+  using assms unfolding is_RB_upt_def by blast
+
+lemma is_RB_upt_is_sig_GB_upt:
+  assumes "dickson_grading (+) d" and "is_canon_rewriter_fun canon G" and "is_RB_upt d canon G u"
+  shows "is_sig_GB_upt d G u"
+proof (rule ccontr)
+  let ?Q = "{v. v \<prec>\<^sub>t u \<and> d (pp_of_term v) \<le> dgrad_max d \<and> component_of_term v < length fs \<and> \<not> is_sig_GB_in d G v}"
+  have Q_sub: "pp_of_term ` ?Q \<subseteq> dgrad_set d (dgrad_max d)" by blast
+  from assms(3) have G_sub: "G \<subseteq> dgrad_sig_set d" by (rule is_RB_uptD1)
+  hence "G \<subseteq> dgrad_max_set d" by (simp add: dgrad_sig_set_def)
+  assume "\<not> is_sig_GB_upt d G u"
+  with G_sub obtain v' where "v' \<in> ?Q" unfolding is_sig_GB_upt_def by blast
+  with assms(1) obtain v where "v \<in> ?Q" and min: "\<And>y. y \<prec>\<^sub>t v \<Longrightarrow> y \<notin> ?Q" using Q_sub
+    by (rule ord_term_minimum_dgrad_set, blast)
+  from \<open>v \<in> ?Q\<close> have "v \<prec>\<^sub>t u" and "d (pp_of_term v) \<le> dgrad_max d" and "component_of_term v < length fs"
+    and "\<not> is_sig_GB_in d G v" by simp_all
+  from assms(3) this(1, 2, 3) have "is_RB_in d canon G v" by (rule is_RB_uptD2)
+  from \<open>\<not> is_sig_GB_in d G v\<close> obtain r where "lt r = v" and "r \<in> dgrad_sig_set d" and "\<not> sig_red_zero (\<preceq>\<^sub>t) G r"
+    unfolding is_sig_GB_in_def by blast
+  from this(3) have "rep_list r \<noteq> 0" by (auto simp: sig_red_zero_def)
+  hence "r \<noteq> 0" by (auto simp: rep_list_zero)
+  hence "lc r \<noteq> 0" by (rule lc_not_0)
+
+  from G_sub have "is_sig_GB_upt d G v"
+  proof (rule is_sig_GB_uptI)
+    fix w
+    assume dw: "d (pp_of_term w) \<le> dgrad_max d" and cp: "component_of_term w < length fs"
+    assume "w \<prec>\<^sub>t v"
+    hence "w \<notin> ?Q" by (rule min)
+    hence "\<not> w \<prec>\<^sub>t u \<or> is_sig_GB_in d G w" by (simp add: dw cp)
+    thus "is_sig_GB_in d G w"
+    proof
+      assume "\<not> w \<prec>\<^sub>t u"
+      moreover from \<open>w \<prec>\<^sub>t v\<close> \<open>v \<prec>\<^sub>t u\<close> have "w \<prec>\<^sub>t u" by (rule ord_term_lin.less_trans)
+      ultimately show ?thesis ..
+    qed
+  qed
+
+  from assms(2) \<open>is_RB_in d canon G v\<close> have "sig_red_zero (\<preceq>\<^sub>t) G r"
+  proof (rule is_RB_inE)
+    assume "is_syz_sig d G v"
+    have "sig_red_zero (\<prec>\<^sub>t) G r" by (rule is_sig_GB_upt_is_syz_sigD, fact+)
+    thus ?thesis by (rule sig_red_zero_sing_regI)
+  next
+    define g where "g = canon v"
+    assume "g \<in> G" and "g \<noteq> 0" and "lt g adds\<^sub>t v"
+      and a: "\<not> is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term v - lp g) g)"
+    assume "\<not> is_syz_sig d G v"
+    from \<open>g \<in> G\<close> G_sub have "g \<in> dgrad_sig_set d" ..
+    from \<open>g \<noteq> 0\<close> have "lc g \<noteq> 0" by (rule lc_not_0)
+    with \<open>lc r \<noteq> 0\<close> have "lc r / lc g \<noteq> 0" by simp
+    from \<open>lt g adds\<^sub>t v\<close> have "lt g adds\<^sub>t lt r" by (simp only: \<open>lt r = v\<close>)
+    hence eq1: "(lp r - lp g) \<oplus> lt g = lt r" by (metis add_implies_diff adds_termE pp_of_term_splus)
+
+    let ?h = "monom_mult (lc r / lc g) (lp r - lp g) g"
+    from \<open>lc g \<noteq> 0\<close> \<open>lc r \<noteq> 0\<close> \<open>g \<noteq> 0\<close> have "?h \<noteq> 0" by (simp add: monom_mult_eq_zero_iff)
+    have h_irred: "\<not> is_sig_red (\<prec>\<^sub>t) (=) G ?h"
+    proof
+      assume "is_sig_red (\<prec>\<^sub>t) (=) G ?h"
+      moreover from \<open>lc g \<noteq> 0\<close> \<open>lc r \<noteq> 0\<close> have "lc g / lc r \<noteq> 0" by simp
+      ultimately have "is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult (lc g / lc r) 0 ?h)" by (rule is_sig_red_monom_mult)
+      with \<open>lc g \<noteq> 0\<close> \<open>lc r \<noteq> 0\<close> have "is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term v - lp g) g)"
+        by (simp add: monom_mult_assoc \<open>lt r = v\<close>)
+      with a show False ..
+    qed
+    from \<open>lc r / lc g \<noteq> 0\<close> \<open>g \<noteq> 0\<close> have "lt ?h = lt r" by (simp add: lt_monom_mult eq1)
+    hence "lt ?h = v" by (simp only: \<open>lt r = v\<close>)
+    from \<open>lc g \<noteq> 0\<close> have "lc ?h = lc r" by simp
+    from assms(1) _ \<open>g \<in> dgrad_sig_set d\<close> have "?h \<in> dgrad_sig_set d"
+    proof (rule dgrad_sig_set_closed_monom_mult)
+      from \<open>r \<in> dgrad_sig_set d\<close> have "r \<in> dgrad_max_set d" by (simp add: dgrad_sig_set_def)
+      from \<open>lt g adds\<^sub>t lt r\<close> have "lp g adds lp r" by (simp add: adds_term_def)
+      with assms(1) have "d (lp r - lp g) \<le> d (lp r)" by (rule dickson_grading_minus)
+      also from \<open>r \<in> dgrad_max_set d\<close> \<open>r \<noteq> 0\<close> have "... \<le> dgrad_max d" by (rule dgrad_p_setD_lt)
+      finally show "d (lp r - lp g) \<le> dgrad_max d" .
+    qed
+    have "rep_list ?h \<noteq> 0"
+    proof
+      assume "rep_list ?h = 0"
+      with rtrancl_refl[to_pred] have "sig_red_zero (\<prec>\<^sub>t) G ?h" by (rule sig_red_zeroI)
+      with \<open>?h \<noteq> 0\<close> \<open>lt ?h = v\<close> \<open>?h \<in> dgrad_sig_set d\<close> have "is_syz_sig d G v" by (rule is_syz_sigI)
+      with \<open>\<not> is_syz_sig d G v\<close> show False ..
+    qed
+    hence "rep_list g \<noteq> 0" by (simp add: rep_list_monom_mult punit.monom_mult_eq_zero_iff)
+    hence "punit.lc (rep_list g) \<noteq> 0" by (rule punit.lc_not_0)
+    from assms(1) \<open>G \<subseteq> dgrad_max_set d\<close> obtain s where s_red: "(sig_red (\<prec>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* r s"
+      and s_irred: "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) G s" by (rule sig_irredE_dgrad_max_set)
+    from s_red have s_red': "(sig_red (\<preceq>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* r s" by (rule sig_red_rtrancl_sing_regI)
+    have "rep_list s \<noteq> 0"
+    proof
+      assume "rep_list s = 0"
+      with s_red' have "sig_red_zero (\<preceq>\<^sub>t) G r" by (rule sig_red_zeroI)
+      with \<open>\<not> sig_red_zero (\<preceq>\<^sub>t) G r\<close> show False ..
+    qed
+    from assms(1) G_sub \<open>r \<in> dgrad_sig_set d\<close> s_red have "s \<in> dgrad_sig_set d"
+      by (rule dgrad_sig_set_closed_sig_red_rtrancl)
+    from s_red have "lt s = lt r" and "lc s = lc r"
+      by (rule sig_red_regular_rtrancl_lt, rule sig_red_regular_rtrancl_lc)
+    hence "lt ?h = lt s" and "lc ?h = lc s" and "s \<noteq> 0"
+      using \<open>lc r \<noteq> 0\<close> by (auto simp: \<open>lt ?h = lt r\<close> \<open>lc ?h = lc r\<close> simp del: lc_monom_mult)
+    from s_irred have "\<not> is_sig_red (\<prec>\<^sub>t) (=) G s" by (simp add: is_sig_red_top_tail_cases)
+    from \<open>is_sig_GB_upt d G v\<close> have "is_sig_GB_upt d G (lt s)" by (simp only: \<open>lt s = lt r\<close> \<open>lt r = v\<close>)
+    have "punit.lt (rep_list ?h) = punit.lt (rep_list s)"
+      by (rule sig_regular_top_reduced_lt_unique, fact+)
+    hence eq2: "lp r - lp g + punit.lt (rep_list g) = punit.lt (rep_list s)"
+      using \<open>lc r / lc g \<noteq> 0\<close> \<open>rep_list g \<noteq> 0\<close> by (simp add: rep_list_monom_mult punit.lt_monom_mult)
+    have "punit.lc (rep_list ?h) = punit.lc (rep_list s)"
+      by (rule sig_regular_top_reduced_lc_unique, fact+)
+    hence eq3: "lc r / lc g = punit.lc (rep_list s) / punit.lc (rep_list g)"
+      using \<open>punit.lc (rep_list g) \<noteq> 0\<close> by (simp add: rep_list_monom_mult field_simps)
+    have "sig_red_single (=) (=) s (s - ?h) g (lp r - lp g)"
+      by (rule sig_red_singleI, auto simp: eq1 eq2 eq3 punit.lc_def[symmetric] \<open>lt s = lt r\<close>
+            \<open>rep_list g \<noteq> 0\<close> \<open>rep_list s \<noteq> 0\<close> intro!: punit.lt_in_keys)
+    with \<open>g \<in> G\<close> have "sig_red (=) (=) G s (s - ?h)" unfolding sig_red_def by blast
+    hence "sig_red (\<preceq>\<^sub>t) (\<preceq>) G s (s - ?h)" by (auto dest: sig_red_sing_regI sig_red_top_tailI)
+    with s_red' have r_red: "(sig_red (\<preceq>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* r (s - ?h)" ..
+    show ?thesis
+    proof (cases "s - ?h = 0")
+      case True
+      hence "rep_list (s - ?h) = 0" by (simp only: rep_list_zero)
+      with r_red show ?thesis by (rule sig_red_zeroI)
+    next
+      case False
+      note \<open>is_sig_GB_upt d G (lt s)\<close>
+      moreover from \<open>s \<in> dgrad_sig_set d\<close> \<open>?h \<in> dgrad_sig_set d\<close> have "s - ?h \<in> dgrad_sig_set d"
+        by (rule dgrad_sig_set_closed_minus)
+      moreover from False \<open>lt ?h = lt s\<close> \<open>lc ?h = lc s\<close> have "lt (s - ?h) \<prec>\<^sub>t lt s" by (rule lt_minus_lessI)
+      ultimately have "sig_red_zero (\<preceq>\<^sub>t) G (s - ?h)" by (rule is_sig_GB_uptD3)
+      then obtain s' where "(sig_red (\<preceq>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* (s - ?h) s'" and "rep_list s' = 0"
+        by (rule sig_red_zeroE)
+      from r_red this(1) have "(sig_red (\<preceq>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* r s'" by simp
+      thus ?thesis using \<open>rep_list s' = 0\<close> by (rule sig_red_zeroI)
+    qed
+  qed
+  with \<open>\<not> sig_red_zero (\<preceq>\<^sub>t) G r\<close> show False ..
+qed
+
+corollary is_RB_upt_is_syz_sigD:
+  assumes "dickson_grading (+) d" and "is_canon_rewriter_fun canon G" and "is_RB_upt d canon G u"
+    and "is_syz_sig d G u" and "p \<in> dgrad_sig_set d" and "lt p = u"
+  shows "sig_red_zero (\<prec>\<^sub>t) G p"
+proof -
+  note assms(1)
+  moreover from assms(1, 2, 3) have "is_sig_GB_upt d G u" by (rule is_RB_upt_is_sig_GB_upt)
+  ultimately show ?thesis using assms(4, 5, 6) by (rule is_sig_GB_upt_is_syz_sigD)
+qed
 
 subsubsection \<open>S-Pairs\<close>
 
@@ -1816,8 +2611,8 @@ next
 qed
 
 lemma singular_crit:
-  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt p)" and "p \<in> dgrad_max_set d"
-    and "q \<in> dgrad_max_set d" and "p \<noteq> 0" and "sig_red_zero_or_sing_top_red (\<prec>\<^sub>t) G p" and "lt q = lt p"
+  assumes "dickson_grading (+) d" and "is_sig_GB_upt d G (lt p)" and "p \<in> dgrad_sig_set d"
+    and "q \<in> dgrad_sig_set d" and "p \<noteq> 0" and "sig_red_zero_or_sing_top_red (\<prec>\<^sub>t) G p" and "lt q = lt p"
   shows "sig_red_zero_or_sing_top_red (\<prec>\<^sub>t) G q"
 proof (cases "q = 0")
   case True
@@ -1827,7 +2622,8 @@ next
   case False
   hence "lc q \<noteq> 0" by (rule lc_not_0)
   from assms(5) have "lc p \<noteq> 0" by (rule lc_not_0)
-  from assms(2) have "G \<subseteq> dgrad_max_set d" by (rule is_sig_GB_uptD1)
+  from assms(2) have "G \<subseteq> dgrad_sig_set d" by (rule is_sig_GB_uptD1)
+  hence "G \<subseteq> dgrad_max_set d" by (simp add: dgrad_sig_set_def)
   with assms(1) obtain s' where a: "(sig_red (\<prec>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* q s'" and b: "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) G s'"
     by (rule sig_irredE_dgrad_max_set)
   from a have lt_s': "lt s' = lt q" and lc_s': "lc s' = lc q"
@@ -1838,10 +2634,10 @@ next
   from 1 have lt_s: "lt s = lt p" and lc_s: "lc s = lc p"
     by (rule sig_red_regular_rtrancl_lt, rule sig_red_regular_rtrancl_lc)
   with assms(2) have "is_sig_GB_upt d G (lt s)" by simp
-  moreover from assms(1) \<open>G \<subseteq> dgrad_max_set d\<close> assms(4) a have "s' \<in> dgrad_max_set d"
-    by (rule dgrad_max_set_closed_sig_red_rtrancl)
-  moreover from assms(1) \<open>G \<subseteq> dgrad_max_set d\<close> assms(3) 1 have "s \<in> dgrad_max_set d"
-    by (rule dgrad_max_set_closed_sig_red_rtrancl)
+  moreover from assms(1) \<open>G \<subseteq> dgrad_sig_set d\<close> assms(4) a have "s' \<in> dgrad_sig_set d"
+    by (rule dgrad_sig_set_closed_sig_red_rtrancl)
+  moreover from assms(1) \<open>G \<subseteq> dgrad_sig_set d\<close> assms(3) 1 have "s \<in> dgrad_sig_set d"
+    by (rule dgrad_sig_set_closed_sig_red_rtrancl)
   moreover have "lt s' = lt s" by (simp only: lt_s lt_s' assms(7))
   ultimately have eq: "punit.monom_mult (lc s) 0 (rep_list s') = punit.monom_mult (lc s') 0 (rep_list s)"
     using b 2 by (rule sig_regular_reduced_unique')
@@ -1981,6 +2777,494 @@ proof -
     with assms(4) show False ..
   qed
   with assms(1, 2) show ?thesis by (rule is_regular_spairI)
+qed
+
+lemma is_regular_spairD1: "is_regular_spair p q \<Longrightarrow> rep_list p \<noteq> 0"
+  by (simp add: is_regular_spair_def)
+
+lemma is_regular_spairD2: "is_regular_spair p q \<Longrightarrow> rep_list q \<noteq> 0"
+  by (simp add: is_regular_spair_def)
+
+lemma is_regular_spairD3:
+  assumes "is_regular_spair p q"
+  shows "punit.lt (rep_list q) \<oplus> lt p \<noteq> punit.lt (rep_list p) \<oplus> lt q"
+proof
+  define t1 where "t1 = punit.lt (rep_list p)"
+  define t2 where "t2 = punit.lt (rep_list q)"
+  assume "t2 \<oplus> lt p = t1 \<oplus> lt q"
+  hence eq: "(lcs t1 t2 - t1) \<oplus> lt p = (lcs t1 t2 - t2) \<oplus> lt q"
+    by (simp add: term_is_le_rel_minus_minus adds_lcs adds_lcs_2)
+
+  from assms have "rep_list p \<noteq> 0" by (rule is_regular_spairD1)
+  hence "punit.lc (rep_list p) \<noteq> 0" and "p \<noteq> 0" by (auto simp: rep_list_zero punit.lc_eq_zero_iff)
+  from assms have "rep_list q \<noteq> 0" by (rule is_regular_spairD2)
+  hence "punit.lc (rep_list q) \<noteq> 0" and "q \<noteq> 0" by (auto simp: rep_list_zero punit.lc_eq_zero_iff)
+
+  have "(lcs t1 t2 - t1) \<oplus> lt p = lt (monom_mult (1 / punit.lc (rep_list p)) (lcs t1 t2 - t1) p)"
+    using \<open>punit.lc (rep_list p) \<noteq> 0\<close> \<open>p \<noteq> 0\<close> by (simp add: lt_monom_mult)
+  also from assms have "lt (monom_mult (1 / punit.lc (rep_list p)) (lcs t1 t2 - t1) p) \<noteq>
+                        lt (monom_mult (1 / punit.lc (rep_list q)) (lcs t1 t2 - t2) q)"
+    by (simp add: is_regular_spair_def Let_def t1_def t2_def)
+  also have "lt (monom_mult (1 / punit.lc (rep_list q)) (lcs t1 t2 - t2) q) = (lcs t1 t2 - t2) \<oplus> lt q"
+    using \<open>punit.lc (rep_list q) \<noteq> 0\<close> \<open>q \<noteq> 0\<close> by (simp add: lt_monom_mult)
+  finally have "(lcs t1 t2 - t1) \<oplus> lt p \<noteq> (lcs t1 t2 - t2) \<oplus> lt q" .
+  thus False using eq ..
+qed
+
+lemma lemma_9:
+  assumes "dickson_grading (+) d" and "is_canon_rewriter_fun canon G" and "is_RB_upt d canon G u"
+    and "\<not> is_syz_sig d G u" and "h \<in> G"
+    and "is_sig_red (\<prec>\<^sub>t) (=) {h} (monom_mult 1 (pp_of_term u - lp (canon u)) (canon u))"
+    and "d (pp_of_term u) \<le> dgrad_max d"
+  shows "spair (canon u) h = monom_mult (1 / punit.lc (rep_list (canon u))) (pp_of_term u - lp (canon u)) (canon u) -
+                   monom_mult (1 / punit.lc (rep_list h))
+                    (((pp_of_term u - lp (canon u)) + punit.lt (rep_list (canon u))) - punit.lt (rep_list h)) h"
+        (is ?thesis1)
+    and "is_regular_spair (canon u) h" (is ?thesis2)
+    and "lt (spair (canon u) h) = u" (is ?thesis3)
+    and "canon u \<in> G" (is ?thesis4)
+proof -
+  define g1 where "g1 = canon u"
+  from assms(6) have "rep_list (monom_mult 1 (pp_of_term u - lp g1) g1) \<noteq> 0"
+    unfolding g1_def using is_sig_red_top_addsE by fastforce
+  hence "rep_list g1 \<noteq> 0" by (simp add: rep_list_monom_mult punit.monom_mult_eq_zero_iff)
+  hence "g1 \<noteq> 0" by (auto simp: rep_list_zero)
+  with assms(2) have "g1 \<in> G" and "lt g1 adds\<^sub>t u" by (auto simp: g1_def is_canon_rewriter_fun_def)
+  from this(1) show ?thesis4 by (simp only: g1_def)
+  from assms(3) have "G \<subseteq> dgrad_sig_set d" by (rule is_RB_uptD1)
+  with \<open>g1 \<in> G\<close> have "g1 \<in> dgrad_sig_set d" ..
+  hence "g1 \<in> sig_inv_set" by (simp add: dgrad_sig_set_def)
+  hence "component_of_term (lt g1) < length fs" using \<open>g1 \<noteq> 0\<close> by (rule sig_inv_setD_lt)
+  with \<open>lt g1 adds\<^sub>t u\<close> have "component_of_term u < length fs" by (simp add: adds_term_def)
+
+  from \<open>lt g1 adds\<^sub>t u\<close> obtain a where u: "u = a \<oplus> lt g1" by (rule adds_termE)
+  hence a: "a = pp_of_term u - lp g1" by (simp add: term_simps)
+  from assms(6) have "is_sig_red (\<prec>\<^sub>t) (=) {h} (monom_mult 1 a g1)" by (simp only: a g1_def)
+  hence "rep_list h \<noteq> 0" and "rep_list (monom_mult 1 a g1) \<noteq> 0" and
+      2: "punit.lt (rep_list h) adds punit.lt (rep_list (monom_mult 1 a g1))" and
+      3: "punit.lt (rep_list (monom_mult 1 a g1)) \<oplus> lt h \<prec>\<^sub>t punit.lt (rep_list h) \<oplus> lt (monom_mult 1 a g1)"
+    by (auto elim: is_sig_red_top_addsE)
+  from this(2) have "rep_list g1 \<noteq> 0" by (simp add: rep_list_monom_mult punit.monom_mult_eq_zero_iff)
+  hence "g1 \<noteq> 0" by (auto simp: rep_list_zero)
+  from \<open>rep_list h \<noteq> 0\<close> have "h \<noteq> 0" by (auto simp: rep_list_zero)
+  from 2 \<open>rep_list g1 \<noteq> 0\<close> have "punit.lt (rep_list h) adds a + punit.lt (rep_list g1)"
+    by (simp add: rep_list_monom_mult punit.lt_monom_mult)
+  then obtain b where eq1: "a + punit.lt (rep_list g1) = b + punit.lt (rep_list h)"
+    by (auto elim: addsE simp: add.commute)
+  hence b: "b = ((pp_of_term u - lp g1) + punit.lt (rep_list g1)) - punit.lt (rep_list h)"
+    by (simp add: a)
+  define g where "g = gcs a b"
+  have eq2: "spair g1 h = (monom_mult (1 / punit.lc (rep_list g1)) (a - g) g1) -
+                           (monom_mult (1 / punit.lc (rep_list h)) (b - g) h)"
+    by (simp only: spair_def Let_def lcs_minus_1[OF eq1] lcs_minus_2[OF eq1] g_def)
+
+  have "g = 0"
+  proof (rule ccontr)
+    assume "g \<noteq> 0"
+    have "g adds a" unfolding g_def by (fact gcs_adds)
+    also have "... adds\<^sub>p u" unfolding u by (fact adds_pp_triv)
+    finally obtain v where u2: "u = g \<oplus> v" by (rule adds_ppE)
+    hence v: "v = u \<ominus> g" by (simp add: term_simps)
+    define g2 where "g2 = canon v"
+    from u2 have "v adds\<^sub>t u" by (rule adds_termI)
+    hence "v \<preceq>\<^sub>t u" by (rule ord_adds_term)
+    moreover have "v \<noteq> u"
+    proof
+      assume "v = u"
+      hence "g \<oplus> v = 0 \<oplus> v" by (simp add: u2 term_simps)
+      hence "g = 0" by (simp only: splus_right_canc)
+      with \<open>g \<noteq> 0\<close> show False ..
+    qed
+    ultimately have "v \<prec>\<^sub>t u" by simp
+    note assms(3) \<open>v \<prec>\<^sub>t u\<close>
+    moreover have "d (pp_of_term v) \<le> dgrad_max d"
+    proof (rule le_trans)
+      from assms(1) show "d (pp_of_term v) \<le> d (pp_of_term u)"
+        by (simp add: u2 term_simps dickson_gradingD1)
+    qed fact
+    moreover from \<open>component_of_term u < length fs\<close> have "component_of_term v < length fs"
+      by (simp only: v term_simps)
+    ultimately have "is_RB_in d canon G v" by (rule is_RB_uptD2)
+    moreover have "\<not> is_syz_sig d G v"
+    proof
+      assume "is_syz_sig d G v"
+      with assms(1) have "is_syz_sig d G u" using \<open>v adds\<^sub>t u\<close> assms(7) by (rule is_syz_sig_adds)
+      with assms(4) show False ..
+    qed
+    ultimately have "g2 \<noteq> 0" and *: "\<not> is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term v - lp g2) g2)"
+      unfolding g2_def by (rule is_RB_inD)+
+    from assms(2) \<open>is_RB_in d canon G v\<close> \<open>\<not> is_syz_sig d G v\<close> have "g2 \<in> G" and "lt g2 adds\<^sub>t v"
+      unfolding g2_def by (rule is_RB_inD)+
+    note assms(2) \<open>g1 \<noteq> 0\<close>
+    moreover from \<open>g adds a\<close> have "lt g1 adds\<^sub>t v" by (simp add: v u minus_splus[symmetric] adds_termI)
+    moreover from \<open>lt g2 adds\<^sub>t v\<close> \<open>v adds\<^sub>t u\<close> have "lt g2 adds\<^sub>t u" by (rule adds_term_trans)
+    ultimately have "g2 = g1" unfolding g1_def g2_def by (rule is_canon_rewriter_funD3)
+    have "pp_of_term v - lp g1 = a - g" by (simp add: u v term_simps diff_diff_add)
+
+    have "is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term v - lp g2) g2)"
+      unfolding \<open>g2 = g1\<close> \<open>pp_of_term v - lp g1 = a - g\<close> using assms(5) \<open>rep_list h \<noteq> 0\<close>
+    proof (rule is_sig_red_top_addsI)
+      from \<open>rep_list g1 \<noteq> 0\<close> show "rep_list (monom_mult 1 (a - g) g1) \<noteq> 0"
+        by (simp add: rep_list_monom_mult punit.monom_mult_eq_zero_iff)
+    next
+      have eq3: "(a - g) + punit.lt (rep_list g1) = lcs (punit.lt (rep_list g1)) (punit.lt (rep_list h))"
+        by (simp add: g_def lcs_minus_1[OF eq1, symmetric] adds_minus adds_lcs)
+      from \<open>rep_list g1 \<noteq> 0\<close>
+      show "punit.lt (rep_list h) adds punit.lt (rep_list (monom_mult 1 (a - g) g1))"
+        by (simp add: rep_list_monom_mult punit.lt_monom_mult eq3 adds_lcs_2)
+    next
+      from 3 \<open>rep_list g1 \<noteq> 0\<close> \<open>g1 \<noteq> 0\<close>
+      show "punit.lt (rep_list (monom_mult 1 (a - g) g1)) \<oplus> lt h \<prec>\<^sub>t
+            punit.lt (rep_list h) \<oplus> lt (monom_mult 1 (a - g) g1)"
+        by (auto simp: rep_list_monom_mult punit.lt_monom_mult lt_monom_mult splus_assoc splus_left_commute
+              dest!: ord_term_strict_canc intro: splus_mono_strict)
+    next
+      show "ord_term_lin.is_le_rel (\<prec>\<^sub>t)" by (fact ord_term_lin.is_le_relI)
+    qed
+    with * show False ..
+  qed
+  hence eq3: "spair g1 h = (monom_mult (1 / punit.lc (rep_list g1)) a g1) -
+                           (monom_mult (1 / punit.lc (rep_list h)) b h)" by (simp add: eq2)
+  thus ?thesis1 by (simp only: g1_def[symmetric] a b)
+
+  from 3 \<open>rep_list g1 \<noteq> 0\<close> \<open>g1 \<noteq> 0\<close> have "b \<oplus> lt h \<prec>\<^sub>t a \<oplus> lt g1"
+    by (auto simp: rep_list_monom_mult punit.lt_monom_mult lt_monom_mult eq1 splus_assoc
+        splus_left_commute[of b] dest!: ord_term_strict_canc)
+  hence "a \<oplus> lt g1 \<noteq> b \<oplus> lt h" by simp
+  with \<open>rep_list g1 \<noteq> 0\<close> \<open>rep_list h \<noteq> 0\<close> eq1 show ?thesis2 unfolding g1_def[symmetric]
+    by (rule is_regular_spairI')
+
+  have "lt (monom_mult (1 / punit.lc (rep_list h)) b h) = b \<oplus> lt h"
+  proof (rule lt_monom_mult)
+    from \<open>rep_list h \<noteq> 0\<close> show "1 / punit.lc (rep_list h) \<noteq> 0" by (simp add: punit.lc_eq_zero_iff)
+  qed fact
+  also have "... \<prec>\<^sub>t a \<oplus> lt g1" by fact
+  also have "... = lt (monom_mult (1 / punit.lc (rep_list g1)) a g1)"
+  proof (rule HOL.sym, rule lt_monom_mult)
+    from \<open>rep_list g1 \<noteq> 0\<close> show "1 / punit.lc (rep_list g1) \<noteq> 0" by (simp add: punit.lc_eq_zero_iff)
+  qed fact
+  finally have "lt (spair (canon u) h) = lt (monom_mult (1 / punit.lc (rep_list g1)) a g1)"
+    unfolding g1_def[symmetric] eq3 by (rule lt_minus_eqI_2)
+  also have "... = a \<oplus> lt g1" by (rule HOL.sym, fact)
+  finally show ?thesis3 by (simp only: u)
+qed
+
+lemma lemma_10:
+  assumes "dickson_grading (+) d" and "is_canon_rewriter_fun canon G" and "G \<subseteq> dgrad_sig_set d"
+    and "\<And>g1 g2. g1 \<in> G \<Longrightarrow> g2 \<in> G \<Longrightarrow> is_regular_spair g1 g2 \<Longrightarrow> lt (spair g1 g2) \<prec>\<^sub>t u \<Longrightarrow>
+              is_RB_in d canon G (lt (spair g1 g2))"
+    and "\<And>i. i < length fs \<Longrightarrow> term_of_pair (0, i) \<prec>\<^sub>t u \<Longrightarrow> is_RB_in d canon G (term_of_pair (0, i))"
+  shows "is_RB_upt d canon G u"
+proof (rule ccontr)
+  let ?Q = "{v. v \<prec>\<^sub>t u \<and> d (pp_of_term v) \<le> dgrad_max d \<and> component_of_term v < length fs \<and> \<not> is_RB_in d canon G v}"
+  have Q_sub: "pp_of_term ` ?Q \<subseteq> dgrad_set d (dgrad_max d)" by blast
+  from assms(3) have "G \<subseteq> dgrad_max_set d" by (simp add: dgrad_sig_set_def)
+  assume "\<not> is_RB_upt d canon G u"
+  with assms(3) obtain v' where "v' \<in> ?Q" unfolding is_RB_upt_def by blast
+  with assms(1) obtain v where "v \<in> ?Q" and min: "\<And>y. y \<prec>\<^sub>t v \<Longrightarrow> y \<notin> ?Q" using Q_sub
+    by (rule ord_term_minimum_dgrad_set, blast)
+  from \<open>v \<in> ?Q\<close> have "v \<prec>\<^sub>t u" and "d (pp_of_term v) \<le> dgrad_max d" and "component_of_term v < length fs"
+    and "\<not> is_RB_in d canon G v" by simp_all
+  from this(4)
+  have disj: "canon v = 0 \<or> is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term v - lp (canon v)) (canon v))"
+    and "\<not> is_syz_sig d G v" by (simp_all add: is_RB_in_def Let_def)
+
+  from assms(3) have "is_RB_upt d canon G v"
+  proof (rule is_RB_uptI)
+    fix w
+    assume dw: "d (pp_of_term w) \<le> dgrad_max d" and cp: "component_of_term w < length fs"
+    assume "w \<prec>\<^sub>t v"
+    hence "w \<notin> ?Q" by (rule min)
+    hence "\<not> w \<prec>\<^sub>t u \<or> is_RB_in d canon G w" by (simp add: dw cp)
+    thus "is_RB_in d canon G w"
+    proof
+      assume "\<not> w \<prec>\<^sub>t u"
+      moreover from \<open>w \<prec>\<^sub>t v\<close> \<open>v \<prec>\<^sub>t u\<close> have "w \<prec>\<^sub>t u" by (rule ord_term_lin.less_trans)
+      ultimately show ?thesis ..
+    qed
+  qed
+
+  show False
+  proof (cases "canon v = 0")
+    case True
+    with assms(2) have x: "\<And>g. g \<in> G \<Longrightarrow> lt g adds\<^sub>t v \<Longrightarrow> g = 0" by (auto simp: is_canon_rewriter_fun_def)
+    let ?w = "term_of_pair (0, component_of_term v)"
+    have "?w adds\<^sub>t v" by (simp add: adds_term_def term_simps)
+    hence "?w \<preceq>\<^sub>t v" by (rule ord_adds_term)
+    also have "... \<prec>\<^sub>t u" by fact
+    finally have "?w \<prec>\<^sub>t u" .
+    with \<open>component_of_term v < length fs\<close> have "is_RB_in d canon G ?w" by (rule assms(5))
+    with assms(2) show ?thesis
+    proof (rule is_RB_inE)
+      assume "is_syz_sig d G ?w"
+      with assms(1) have "is_syz_sig d G v" using \<open>?w adds\<^sub>t v\<close> \<open>d (pp_of_term v) \<le> dgrad_max d\<close>
+        by (rule is_syz_sig_adds)
+      with \<open>\<not> is_syz_sig d G v\<close> show ?thesis ..
+    next
+      assume "canon ?w \<noteq> 0" and "canon ?w \<in> G"
+      assume "lt (canon ?w) adds\<^sub>t ?w"
+      hence "lt (canon ?w) adds\<^sub>t v" using \<open>?w adds\<^sub>t v\<close> by (rule adds_term_trans)
+      with \<open>canon ?w \<in> G\<close> have "canon ?w = 0" by (rule x)
+      with \<open>canon ?w \<noteq> 0\<close> show ?thesis ..
+    qed
+  next
+    case False
+    with disj have "is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term v - lp (canon v)) (canon v))"
+      by simp
+    then obtain h where "h \<in> G" and "is_sig_red (\<prec>\<^sub>t) (=) {h} (monom_mult 1 (pp_of_term v - lp (canon v)) (canon v))"
+      by (rule is_sig_red_singletonI)
+    with assms(1, 2) \<open>is_RB_upt d canon G v\<close> \<open>\<not> is_syz_sig d G v\<close>
+    have "is_regular_spair (canon v) h" and eq: "lt (spair (canon v) h) = v" and "canon v \<in> G"
+      using \<open>d (pp_of_term v) \<le> dgrad_max d\<close> by (rule lemma_9)+
+    from \<open>v \<prec>\<^sub>t u\<close> have "lt (spair (canon v) h) \<prec>\<^sub>t u" by (simp only: eq)
+    with \<open>canon v \<in> G\<close> \<open>h \<in> G\<close> \<open>is_regular_spair (canon v) h\<close>
+    have "is_RB_in d canon G (lt (spair (canon v) h))" by (rule assms(4))
+    hence "is_RB_in d canon G v" by (simp only: eq)
+    with \<open>\<not> is_RB_in d canon G v\<close> show ?thesis ..
+  qed
+qed
+
+text \<open>Note that the following lemma actually holds for @{emph \<open>all\<close>} regularly reducible power-products
+  in @{term "rep_list p"}, not just for the leading power-product.\<close>
+
+lemma lemma_11:
+  assumes "dickson_grading (+) d" and "is_canon_rewriter_fun canon G" and "is_RB_upt d canon G (lt p)"
+    and "p \<in> dgrad_sig_set d" and "is_sig_red (\<prec>\<^sub>t) (=) G p"
+  obtains u where "u \<prec>\<^sub>t lt p" and "d (pp_of_term u) \<le> dgrad_max d" and "component_of_term u < length fs"
+    and "\<not> is_syz_sig d G u" and "canon u \<in> G" and "is_sig_red (\<prec>\<^sub>t) (=) {canon u} p"
+proof -
+  from assms(3) have G_sub: "G \<subseteq> dgrad_sig_set d" by (rule is_RB_uptD1)
+  from assms(5) have "rep_list p \<noteq> 0" using is_sig_red_addsE by fastforce
+  hence "p \<noteq> 0" by (auto simp: rep_list_zero)
+  let ?lc = "punit.lc (rep_list p)"
+  let ?lp = "punit.lt (rep_list p)"
+  from \<open>rep_list p \<noteq> 0\<close> have "?lc \<noteq> 0" by (rule punit.lc_not_0)
+  from assms(4) have "p \<in> dgrad_max_set d" and "p \<in> sig_inv_set" by (simp_all add: dgrad_sig_set_def)
+  from \<open>p \<in> dgrad_max_set d\<close> \<open>p \<noteq> 0\<close> have "d (lp p) \<le> dgrad_max d" by (rule dgrad_p_setD_lt)
+  from \<open>p \<in> sig_inv_set\<close> \<open>p \<noteq> 0\<close> have "component_of_term (lt p) < length fs" by (rule sig_inv_setD_lt)
+  from assms(1) \<open>p \<in> dgrad_max_set d\<close> have "rep_list p \<in> punit_dgrad_max_set d" by (rule dgrad_max_2)
+  hence "d ?lp \<le> dgrad_max d" using \<open>rep_list p \<noteq> 0\<close> by (rule punit.dgrad_p_setD_lt[simplified])
+
+  from assms(5) obtain g0 where "g0 \<in> G" and "is_sig_red (\<prec>\<^sub>t) (=) {g0} p"
+    by (rule is_sig_red_singletonI)
+  from \<open>g0 \<in> G\<close> G_sub have "g0 \<in> dgrad_sig_set d" ..
+  let ?g0 = "monom_mult (?lc / punit.lc (rep_list g0)) (?lp - punit.lt (rep_list g0)) g0"
+
+  define M where "M = {monom_mult (?lc / punit.lc (rep_list g)) (?lp - punit.lt (rep_list g)) g |
+                          g. g \<in> dgrad_sig_set d \<and> is_sig_red (\<prec>\<^sub>t) (=) {g} p}"
+  from \<open>g0 \<in> dgrad_sig_set d\<close> \<open>is_sig_red (\<prec>\<^sub>t) (=) {g0} p\<close> have "?g0 \<in> M" by (auto simp: M_def)
+  have "0 \<notin> rep_list ` M"
+  proof
+    assume "0 \<in> rep_list ` M"
+    then obtain g where 1: "is_sig_red (\<prec>\<^sub>t) (=) {g} p"
+      and 2: "rep_list (monom_mult (?lc / punit.lc (rep_list g)) (?lp - punit.lt (rep_list g)) g) = 0"
+      unfolding M_def by fastforce
+    from 1 have "rep_list g \<noteq> 0" using is_sig_red_addsE by fastforce
+    moreover from this have "punit.lc (rep_list g) \<noteq> 0" by (rule punit.lc_not_0)
+    ultimately have "rep_list (monom_mult (?lc / punit.lc (rep_list g)) (?lp - punit.lt (rep_list g)) g) \<noteq> 0"
+      using \<open>?lc \<noteq> 0\<close> by (simp add: rep_list_monom_mult punit.monom_mult_eq_zero_iff)
+    thus False using 2 ..
+  qed
+  with rep_list_zero have "0 \<notin> M" by auto
+  have "M \<subseteq> dgrad_sig_set d"
+  proof
+    fix m
+    assume "m \<in> M"
+    then obtain g where "g \<in> dgrad_sig_set d" and 1: "is_sig_red (\<prec>\<^sub>t) (=) {g} p"
+      and m: "m = monom_mult (?lc / punit.lc (rep_list g)) (?lp - punit.lt (rep_list g)) g"
+      unfolding M_def by fastforce
+    from 1 have "punit.lt (rep_list g) adds ?lp" using is_sig_red_top_addsE by fastforce
+    note assms(1)
+    thm dickson_grading_minus
+    moreover have "d (?lp - punit.lt (rep_list g)) \<le> dgrad_max d"
+      by (rule le_trans, rule dickson_grading_minus, fact+)
+    ultimately show "m \<in> dgrad_sig_set d" unfolding m using \<open>g \<in> dgrad_sig_set d\<close>
+      by (rule dgrad_sig_set_closed_monom_mult)
+  qed
+  hence "M \<subseteq> dgrad_max_set d" and "M \<subseteq> sig_inv_set" by (simp_all add: dgrad_sig_set_def)
+
+  let ?M = "lt ` M"
+  note assms(1)
+  moreover from \<open>?g0 \<in> M\<close> have "lt ?g0 \<in> ?M" by (rule imageI)
+  moreover from \<open>M \<subseteq> dgrad_max_set d\<close> have "pp_of_term ` ?M \<subseteq> dgrad_set d (dgrad_max d)"
+    by (auto intro!: dgrad_p_setD_lt simp: \<open>0 \<notin> M\<close>)
+  ultimately obtain u where "u \<in> ?M" and min: "\<And>v. v \<prec>\<^sub>t u \<Longrightarrow> v \<notin> ?M"
+    by (rule ord_term_minimum_dgrad_set, blast)
+  from \<open>u \<in> ?M\<close> obtain m where "m \<in> M" and u': "u = lt m" ..
+  from this(1) obtain g1 where "g1 \<in> dgrad_sig_set d" and 1: "is_sig_red (\<prec>\<^sub>t) (=) {g1} p"
+    and m: "m = monom_mult (?lc / punit.lc (rep_list g1)) (?lp - punit.lt (rep_list g1)) g1"
+    unfolding M_def by fastforce
+  from 1 have adds: "punit.lt (rep_list g1) adds ?lp" and "?lp \<oplus> lt g1 \<prec>\<^sub>t punit.lt (rep_list g1) \<oplus> lt p"
+    and "rep_list g1 \<noteq> 0" using is_sig_red_top_addsE by fastforce+
+  from this(3) have lc_g1: "punit.lc (rep_list g1) \<noteq> 0" by (rule punit.lc_not_0)
+  from \<open>m \<in> M\<close> \<open>0 \<notin> rep_list ` M\<close> have "rep_list m \<noteq> 0" by fastforce
+  from \<open>m \<in> M\<close> \<open>0 \<notin> M\<close> have "m \<noteq> 0" by blast
+  hence "lc m \<noteq> 0" by (rule lc_not_0)
+  from lc_g1 have eq0: "punit.lc (rep_list m) = ?lc" by (simp add: m rep_list_monom_mult)
+  from \<open>?lc \<noteq> 0\<close> \<open>rep_list g1 \<noteq> 0\<close> adds have eq1: "punit.lt (rep_list m) = ?lp"
+    by (simp add: m rep_list_monom_mult punit.lt_monom_mult punit.lc_eq_zero_iff adds_minus)
+  from \<open>m \<in> M\<close> \<open>M \<subseteq> dgrad_sig_set d\<close> have "m \<in> dgrad_sig_set d" ..
+
+  show ?thesis
+  proof
+    from \<open>rep_list g1 \<noteq> 0\<close> have "punit.lc (rep_list g1) \<noteq> 0" and "g1 \<noteq> 0"
+      by (auto simp: rep_list_zero punit.lc_eq_zero_iff)
+    with \<open>?lc \<noteq> 0\<close> have u: "u = (?lp - punit.lt (rep_list g1)) \<oplus> lt g1"
+      by (simp add: u' m lt_monom_mult lc_eq_zero_iff)
+    hence "punit.lt (rep_list g1) \<oplus> u = punit.lt (rep_list g1) \<oplus> ((?lp - punit.lt (rep_list g1)) \<oplus> lt g1)"
+      by simp
+    also from adds have "... = ?lp \<oplus> lt g1"
+      by (simp only: splus_assoc[symmetric], metis add.commute adds_minus)
+    also have "... \<prec>\<^sub>t punit.lt (rep_list g1) \<oplus> lt p" by fact
+    finally show "u \<prec>\<^sub>t lt p" by (rule ord_term_strict_canc)
+
+    from \<open>u \<in> ?M\<close> have "pp_of_term u \<in> pp_of_term ` ?M" by (rule imageI)
+    also have "... \<subseteq> dgrad_set d (dgrad_max d)" by fact
+    finally show "d (pp_of_term u) \<le> dgrad_max d" by (rule dgrad_setD)
+
+    from \<open>u \<in> ?M\<close> have "component_of_term u \<in> component_of_term ` ?M" by (rule imageI)
+    also from \<open>M \<subseteq> sig_inv_set\<close> \<open>0 \<notin> M\<close> sig_inv_setD_lt have "... \<subseteq> {0..<length fs}" by fastforce
+    finally show "component_of_term u < length fs" by simp
+
+    show "\<not> is_syz_sig d G u"
+    proof
+      assume "is_syz_sig d G u"
+      with assms(1) G_sub obtain s where "s \<noteq> 0" and "lt s = u" and "s \<in> dgrad_sig_set d" and "rep_list s = 0"
+        by (rule is_syz_sig_dgrad_sig_setE)
+      let ?s = "monom_mult (lc m / lc s) 0 s"
+      have "rep_list ?s = 0" by (simp add: rep_list_monom_mult \<open>rep_list s = 0\<close>)
+      from \<open>s \<noteq> 0\<close> have "lc s \<noteq> 0" by (rule lc_not_0)
+      hence "lc m / lc s \<noteq> 0" using \<open>lc m \<noteq> 0\<close> by simp
+      have "m - ?s \<noteq> 0"
+      proof
+        assume "m - ?s = 0"
+        hence "m = ?s" by simp
+        with \<open>rep_list ?s = 0\<close> have "rep_list m = 0" by simp
+        with \<open>rep_list m \<noteq> 0\<close> show False ..
+      qed
+      moreover from \<open>lc m / lc s \<noteq> 0\<close> have "lt ?s = lt m" by (simp add: lt_monom_mult_zero \<open>lt s = u\<close> u')
+      moreover from \<open>lc s \<noteq> 0\<close> have "lc ?s = lc m" by simp
+      ultimately have "lt (m - ?s) \<prec>\<^sub>t u" unfolding u' by (rule lt_minus_lessI)
+      hence "lt (m - ?s) \<notin> ?M" by (rule min)
+      hence "m - ?s \<notin> M" by blast
+      moreover have "m - ?s \<in> M"
+      proof -
+        have "?s = monom_mult (?lc / lc s) 0 (monom_mult (lc g1 / punit.lc (rep_list g1)) 0 s)"
+          by (simp add: m monom_mult_assoc mult.commute)
+        define m' where "m' = m - ?s"
+        have eq: "rep_list m' = rep_list m" by (simp add: m'_def rep_list_minus \<open>rep_list ?s = 0\<close>)
+        from \<open>?lc \<noteq> 0\<close> have "m' = monom_mult (?lc / punit.lc (rep_list m')) (?lp - punit.lt (rep_list m')) m'"
+          by (simp add: eq eq0 eq1)
+        also have "... \<in> M" unfolding M_def
+        proof (rule, intro exI conjI)
+          from \<open>s \<in> dgrad_sig_set d\<close> have "?s \<in> dgrad_sig_set d"
+            by (rule dgrad_sig_set_closed_monom_mult_zero)
+          with \<open>m \<in> dgrad_sig_set d\<close> show "m' \<in> dgrad_sig_set d" unfolding m'_def
+            by (rule dgrad_sig_set_closed_minus)
+        next
+          show "is_sig_red (\<prec>\<^sub>t) (=) {m'} p"
+          proof (rule is_sig_red_top_addsI)
+            show "m' \<in> {m'}" by simp
+          next
+            from \<open>rep_list m \<noteq> 0\<close> show "rep_list m' \<noteq> 0" by (simp add: eq)
+          next
+            show "punit.lt (rep_list m') adds punit.lt (rep_list p)" by (simp add: eq eq1)
+          next
+            have "punit.lt (rep_list p) \<oplus> lt m' \<prec>\<^sub>t punit.lt (rep_list p) \<oplus> u"
+              by (rule splus_mono_strict, simp only: m'_def \<open>lt (m - ?s) \<prec>\<^sub>t u\<close>)
+            also have "... \<prec>\<^sub>t punit.lt (rep_list m') \<oplus> lt p"
+              unfolding eq eq1 using \<open>u \<prec>\<^sub>t lt p\<close> by (rule splus_mono_strict)
+            finally show "punit.lt (rep_list p) \<oplus> lt m' \<prec>\<^sub>t punit.lt (rep_list m') \<oplus> lt p" .
+          next
+            show "ord_term_lin.is_le_rel (\<prec>\<^sub>t)" by simp
+          qed fact
+        qed (fact refl)
+        finally show ?thesis by (simp only: m'_def)
+      qed
+      ultimately show False ..
+    qed
+
+    have "is_RB_in d canon G u" by (rule is_RB_uptD2, fact+)
+    hence "canon u \<noteq> 0" and irred: "\<not> is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term u - lp (canon u)) (canon u))"
+      using \<open>\<not> is_syz_sig d G u\<close> by (rule is_RB_inD)+
+    from assms(2) \<open>is_RB_in d canon G u\<close> \<open>\<not> is_syz_sig d G u\<close> have "canon u \<in> G" and adds': "lt (canon u) adds\<^sub>t u"
+      by (rule is_RB_inD)+
+    from this(1) show "canon u \<in> G" .
+
+    define b where "b = monom_mult 1 (pp_of_term u - lp (canon u)) (canon u)"
+    note assms(1)
+    moreover have "is_sig_GB_upt d G (lt m)" unfolding u'[symmetric]
+      by (rule is_sig_GB_upt_le, rule is_RB_upt_is_sig_GB_upt, fact+, rule ord_term_lin.less_imp_le, fact)
+    moreover from assms(1) have "b \<in> dgrad_sig_set d" unfolding b_def
+    proof (rule dgrad_sig_set_closed_monom_mult)
+      from adds' have "lp (canon u) adds pp_of_term u" by (simp add: adds_term_def)
+      with assms(1) have "d (pp_of_term u - lp (canon u)) \<le> d (pp_of_term u)" by (rule dickson_grading_minus)
+      thus "d (pp_of_term u - lp (canon u)) \<le> dgrad_max d" using \<open>d (pp_of_term u) \<le> dgrad_max d\<close>
+        by (rule le_trans)
+    next
+      from \<open>canon u \<in> G\<close> G_sub show "canon u \<in> dgrad_sig_set d" ..
+    qed
+    moreover note \<open>m \<in> dgrad_sig_set d\<close>
+    moreover from \<open>canon u \<noteq> 0\<close> have "lt b = lt m"
+      by (simp add: b_def u'[symmetric] lt_monom_mult,
+          metis adds' add_diff_cancel_right' adds_termE pp_of_term_splus)
+    moreover from \<open>canon u \<noteq> 0\<close> have "b \<noteq> 0" by (simp add: b_def monom_mult_eq_zero_iff)
+    moreover note \<open>m \<noteq> 0\<close>
+    moreover from irred have "\<not> is_sig_red (\<prec>\<^sub>t) (=) G b" by (simp add: b_def)
+    moreover have "\<not> is_sig_red (\<prec>\<^sub>t) (=) G m"
+    proof
+      assume "is_sig_red (\<prec>\<^sub>t) (=) G m"
+      then obtain g2 where 1: "g2 \<in> G" and 2: "rep_list g2 \<noteq> 0"
+        and 3: "punit.lt (rep_list g2) adds punit.lt (rep_list m)"
+        and 4: "punit.lt (rep_list m) \<oplus> lt g2 \<prec>\<^sub>t punit.lt (rep_list g2) \<oplus> lt m"
+        by (rule is_sig_red_top_addsE)
+      from 2 have "g2 \<noteq> 0" and "punit.lc (rep_list g2) \<noteq> 0" by (auto simp: rep_list_zero punit.lc_eq_zero_iff)
+      with 3 4 have "lt (monom_mult (?lc / punit.lc (rep_list g2)) (?lp - punit.lt (rep_list g2)) g2) \<prec>\<^sub>t u"
+        (is "lt ?g2 \<prec>\<^sub>t u")
+        using \<open>?lc \<noteq> 0\<close> by (simp add: term_is_le_rel_minus u' eq1 lt_monom_mult)
+      hence "lt ?g2 \<notin> ?M" by (rule min)
+      hence "?g2 \<notin> M" by blast
+      hence "g2 \<notin> dgrad_sig_set d \<or> \<not> is_sig_red (\<prec>\<^sub>t) (=) {g2} p" by (simp add: M_def)
+      thus False
+      proof
+        assume "g2 \<notin> dgrad_sig_set d"
+        moreover from \<open>g2 \<in> G\<close> G_sub have "g2 \<in> dgrad_sig_set d" ..
+        ultimately show ?thesis ..
+      next
+        assume "\<not> is_sig_red (\<prec>\<^sub>t) (=) {g2} p"
+        moreover have "is_sig_red (\<prec>\<^sub>t) (=) {g2} p"
+        proof (rule is_sig_red_top_addsI)
+          show "g2 \<in> {g2}" by simp
+        next
+          from 3 show "punit.lt (rep_list g2) adds punit.lt (rep_list p)" by (simp only: eq1)
+        next
+          from 4 have "?lp \<oplus> lt g2 \<prec>\<^sub>t punit.lt (rep_list g2) \<oplus> u" by (simp only: eq1 u')
+          also from \<open>u \<prec>\<^sub>t lt p\<close> have "... \<prec>\<^sub>t punit.lt (rep_list g2) \<oplus> lt p" by (rule splus_mono_strict)
+          finally show "?lp \<oplus> lt g2 \<prec>\<^sub>t punit.lt (rep_list g2) \<oplus> lt p" .
+        next
+          show "ord_term_lin.is_le_rel (\<prec>\<^sub>t)" by simp
+        qed fact+
+        ultimately show ?thesis ..
+      qed
+    qed
+    ultimately have eq2: "punit.lt (rep_list b) = punit.lt (rep_list m)"
+      by (rule sig_regular_top_reduced_lt_unique)
+    have "is_sig_red (\<prec>\<^sub>t) (=) {b} p"
+    proof (rule is_sig_red_top_addsI)
+      show "b \<in> {b}" by simp
+    next
+      have "rep_list (canon u) \<noteq> 0" by (rule is_RB_inD5, fact+)
+      thus "rep_list b \<noteq> 0" by (simp add: b_def rep_list_monom_mult punit.monom_mult_eq_zero_iff)
+    next
+      show "punit.lt (rep_list b) adds punit.lt (rep_list p)" by (simp add: eq1 eq2)
+    next
+      show "punit.lt (rep_list p) \<oplus> lt b \<prec>\<^sub>t punit.lt (rep_list b) \<oplus> lt p"
+        by (simp add: eq1 eq2 \<open>lt b = lt m\<close> u'[symmetric] \<open>u \<prec>\<^sub>t lt p\<close> splus_mono_strict)
+    next
+      show "ord_term_lin.is_le_rel (\<prec>\<^sub>t)" by simp
+    qed fact
+    thus "is_sig_red (\<prec>\<^sub>t) (=) {canon u} p" unfolding b_def by (rule is_sig_red_singleton_monom_multD)
+  qed
 qed
 
 (* Obsolete? *)
