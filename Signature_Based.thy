@@ -4296,6 +4296,156 @@ proof -
   ultimately show ?thesis ..
 qed
 
+subsubsection \<open>Concrete Rewrite Orders\<close>
+
+definition is_strict_rewrite_ord :: "(('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool) \<Rightarrow> bool"
+  where "is_strict_rewrite_ord rel \<longleftrightarrow>
+              (\<forall>x y. rel x y \<longrightarrow> \<not> rel y x) \<and>
+              (\<exists>rel'. is_rewrite_ord rel' \<and> rel \<le> rel' \<and> (\<forall>x y. rel' x y \<longrightarrow> fst x \<noteq> fst y \<longrightarrow> rel x y))"
+
+lemma is_strict_rewrite_ordI:
+  assumes "\<And>x y. rel x y \<Longrightarrow> rel y x \<Longrightarrow> False" and "is_rewrite_ord rel'" and "rel \<le> rel'"
+    and "\<And>x y. rel' x y \<Longrightarrow> fst x \<noteq> fst y \<Longrightarrow> rel x y"
+  shows "is_strict_rewrite_ord rel"
+  unfolding is_strict_rewrite_ord_def using assms by blast
+
+lemma is_strict_rewrite_ordE:
+  assumes "is_strict_rewrite_ord rel"
+  obtains rel' where "is_rewrite_ord rel'" and "rel \<le> rel'"
+    and "\<And>x y. rel' x y \<Longrightarrow> fst x \<noteq> fst y \<Longrightarrow> rel x y"
+  using assms unfolding is_strict_rewrite_ord_def by blast
+
+lemma is_strict_rewrite_ord_asym: "is_strict_rewrite_ord rel \<Longrightarrow> rel p q \<Longrightarrow> \<not> rel q p"
+  unfolding is_strict_rewrite_ord_def by blast
+
+lemma is_strict_rewrite_ord_irrefl: "is_strict_rewrite_ord rel \<Longrightarrow> \<not> rel p p"
+  using is_strict_rewrite_ord_asym by blast
+
+definition rw_rat :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool"
+  where "rw_rat p q \<longleftrightarrow> (let u = punit.lt (snd q) \<oplus> fst p; v = punit.lt (snd p) \<oplus> fst q in
+                          u \<prec>\<^sub>t v \<or> (u = v \<and> fst p \<preceq>\<^sub>t fst q))"
+
+definition rw_rat_strict :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool"
+  where "rw_rat_strict p q \<longleftrightarrow> (let u = punit.lt (snd q) \<oplus> fst p; v = punit.lt (snd p) \<oplus> fst q in
+                          u \<prec>\<^sub>t v \<or> (u = v \<and> fst p \<prec>\<^sub>t fst q))"
+
+definition rw_add :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool"
+  where "rw_add p q \<longleftrightarrow> (fst p \<preceq>\<^sub>t fst q)"
+
+definition rw_add_strict :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool"
+  where "rw_add_strict p q \<longleftrightarrow> (fst p \<prec>\<^sub>t fst q)"
+
+lemma rw_rat_alt:
+  "rw_rat p q \<longleftrightarrow> (term_pp_rel (\<prec>\<^sub>t) (fst p, punit.lt (snd p)) (fst q, punit.lt (snd q)) \<or>
+                    (term_pp_rel (=) (fst p, punit.lt (snd p)) (fst q, punit.lt (snd q)) \<and> fst p \<preceq>\<^sub>t fst q))"
+  by (simp add: rw_rat_def term_pp_rel_def Let_def)
+
+lemma rw_rat_is_rewrite_ord: "is_rewrite_ord rw_rat"
+proof (rule is_rewrite_ordI)
+  show "reflp rw_rat" by (simp add: reflp_def rw_rat_def)
+next
+  have 1: "ord_term_lin.is_le_rel (\<prec>\<^sub>t)" and 2: "ord_term_lin.is_le_rel (=)"
+    by (rule ord_term_lin.is_le_relI)+
+  show "transp rw_rat"
+    by (auto simp: transp_def rw_rat_alt dest: term_pp_rel_trans[OF 1] term_pp_rel_trans_eq_left[OF 1]
+        term_pp_rel_trans_eq_right[OF 1] term_pp_rel_trans[OF 2])
+next
+  fix p q
+  show "rw_rat p q \<or> rw_rat q p" by (auto simp: rw_rat_def Let_def)
+next
+  fix p q
+  assume "rw_rat p q" and "rw_rat q p"
+  thus "fst p = fst q" by (auto simp: rw_rat_def Let_def)
+next
+  fix d G p q
+  assume d: "dickson_grading d" and gb: "is_sig_GB_upt d G (lt q)" and "p \<in> G" and "q \<in> G"
+    and "p \<noteq> 0" and "q \<noteq> 0" and "lt p adds\<^sub>t lt q" and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G q"
+  let ?u = "punit.lt (rep_list q) \<oplus> lt p"
+  let ?v = "punit.lt (rep_list p) \<oplus> lt q"
+  from \<open>lt p adds\<^sub>t lt q\<close> obtain t where lt_q: "lt q = t \<oplus> lt p" by (rule adds_termE)
+  from gb have "G \<subseteq> dgrad_sig_set d" by (rule is_sig_GB_uptD1)
+  hence "G \<subseteq> dgrad_max_set d" by (simp add: dgrad_sig_set_def)
+  with d obtain p' where red: "(sig_red (\<prec>\<^sub>t) (=) G)\<^sup>*\<^sup>* (monom_mult 1 t p) p'"
+    and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G p'" by (rule sig_irredE_dgrad_max_set)
+  from red have "lt p' = lt (monom_mult 1 t p)" and "lc p' = lc (monom_mult 1 t p)"
+    and 2: "punit.lt (rep_list p') \<preceq> punit.lt (rep_list (monom_mult 1 t p))"
+    by (rule sig_red_regular_rtrancl_lt, rule sig_red_regular_rtrancl_lc, rule sig_red_rtrancl_lt_rep_list)
+  with \<open>p \<noteq> 0\<close> have "lt p' = lt q" and "lc p' = lc p" by (simp_all add: lt_q lt_monom_mult)
+  from 2 punit.lt_monom_mult_le[simplified] have 3: "punit.lt (rep_list p') \<preceq> t + punit.lt (rep_list p)"
+    unfolding rep_list_monom_mult by (rule ordered_powerprod_lin.order_trans)
+  have "punit.lt (rep_list p') = punit.lt (rep_list q)"
+  proof (rule sig_regular_top_reduced_lt_unique)
+    show "p' \<in> dgrad_sig_set d"
+    proof (rule dgrad_sig_set_closed_sig_red_rtrancl)
+      note d
+      moreover have "d t \<le> dgrad_max d"
+      proof (rule le_trans)
+        have "t adds lp q" by (simp add: lt_q term_simps)
+        with d show "d t \<le> d (lp q)" by (rule dickson_grading_adds_imp_le)
+      next
+        from \<open>q \<in> G\<close> \<open>G \<subseteq> dgrad_max_set d\<close> have "q \<in> dgrad_max_set d" ..
+        thus "d (lp q) \<le> dgrad_max d" using \<open>q \<noteq> 0\<close> by (rule dgrad_p_setD_lt)
+      qed
+      moreover from \<open>p \<in> G\<close> \<open>G \<subseteq> dgrad_sig_set d\<close> have "p \<in> dgrad_sig_set d" ..
+      ultimately show "monom_mult 1 t p \<in> dgrad_sig_set d" by (rule dgrad_sig_set_closed_monom_mult)
+    qed fact+
+  next
+    from \<open>q \<in> G\<close> \<open>G \<subseteq> dgrad_sig_set d\<close> show "q \<in> dgrad_sig_set d" ..
+  next
+    from \<open>p \<noteq> 0\<close> \<open>lc p' = lc p\<close> show "p' \<noteq> 0" by (auto simp: lc_eq_zero_iff)
+  qed fact+
+  with 3 have "punit.lt (rep_list q) \<preceq> t + punit.lt (rep_list p)" by simp
+  hence "?u \<preceq>\<^sub>t (t + punit.lt (rep_list p)) \<oplus> lt p" by (rule splus_mono_left)
+  also have "... = ?v" by (simp add: lt_q splus_assoc splus_left_commute)
+  finally have "?u \<preceq>\<^sub>t ?v" by (simp only: rel_def)
+  moreover from \<open>lt p adds\<^sub>t lt q\<close> have "lt p \<preceq>\<^sub>t lt q" by (rule ord_adds_term)
+  ultimately show "rw_rat (spp_of p) (spp_of q)" by (auto simp: rw_rat_def Let_def spp_of_def)
+qed
+
+lemma rw_rat_strict_is_strict_rewrite_ord: "is_strict_rewrite_ord rw_rat_strict"
+proof (rule is_strict_rewrite_ordI)
+  fix p q
+  assume "rw_rat_strict p q" and "rw_rat_strict q p"
+  thus False by (auto simp: rw_rat_strict_def Let_def)
+next
+  show "rw_rat_strict \<le> rw_rat" by (auto simp: rw_rat_strict_def rw_rat_def Let_def)
+next
+  fix p q
+  assume "rw_rat p q" and "fst p \<noteq> fst q"
+  thus "rw_rat_strict p q" by (auto simp: rw_rat_strict_def rw_rat_def Let_def)
+qed (fact rw_rat_is_rewrite_ord)
+
+lemma rw_add_is_rewrite_ord: "is_rewrite_ord rw_add"
+proof (rule is_rewrite_ordI)
+  show "reflp rw_add" by (simp add: reflp_def rw_add_def)
+next
+  show "transp rw_add" by (auto simp: transp_def rw_add_def)
+next
+  fix p q
+  show "rw_add p q \<or> rw_add q p" by (simp only: rw_add_def ord_term_lin.linear)
+next
+  fix p q
+  assume "rw_add p q" and "rw_add q p"
+  thus "fst p = fst q" unfolding rw_add_def by (rule ord_term_lin.antisym)
+next
+  fix p q :: "'t \<Rightarrow>\<^sub>0 'b"
+  assume "lt p adds\<^sub>t lt q"
+  thus "rw_add (spp_of p) (spp_of q)" unfolding rw_add_def spp_of_def fst_conv by (rule ord_adds_term)
+qed
+
+lemma rw_add_strict_is_strict_rewrite_ord: "is_strict_rewrite_ord rw_add_strict"
+proof (rule is_strict_rewrite_ordI)
+  fix p q
+  assume "rw_add_strict p q" and "rw_add_strict q p"
+  thus False by (simp add: rw_add_strict_def)
+next
+  show "rw_add_strict \<le> rw_add" by (rule, simp add: rw_add_strict_def rw_add_def)
+next
+  fix p q
+  assume "rw_add p q" and "fst p \<noteq> fst q"
+  thus "rw_add_strict p q" by (simp add: rw_add_strict_def rw_add_def)
+qed (fact rw_add_is_rewrite_ord)
+
 (* Obsolete? *)
 lemma lemma_10:
   assumes "is_sig_GB_upt G u" and "p \<in> G" and "q \<in> G" and "is_regular_spair p q" and "lt (spair p q) adds\<^sub>t u"
