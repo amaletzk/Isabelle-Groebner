@@ -4446,6 +4446,1649 @@ next
   thus "rw_add_strict p q" by (simp add: rw_add_strict_def rw_add_def)
 qed (fact rw_add_is_rewrite_ord)
 
+subsubsection \<open>Algorithms\<close>
+
+context
+  fixes rword_strict :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool"   \<comment>\<open>Must be a @{emph \<open>strict\<close>} rewrite order.\<close>
+  assumes rword_is_strict_rewrite_ord: "is_strict_rewrite_ord rword_strict"
+begin
+
+qualified definition dgrad :: "'a \<Rightarrow> nat"
+  where "dgrad = (SOME d. dickson_grading d)"
+
+qualified definition rword :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool"
+  where "rword = (SOME rel. is_rewrite_ord rel \<and> rword_strict \<le> rel \<and> (\<forall>x y. rel x y \<longrightarrow> fst x \<noteq> fst y \<longrightarrow> rword_strict x y))"
+
+lemma dgrad: "dickson_grading dgrad"
+  unfolding dgrad_def using ex_dgrad ..
+
+lemma rword:
+  "is_rewrite_ord rword" "rword_strict \<le> rword" "\<And>x y. rword x y \<Longrightarrow> fst x \<noteq> fst y \<Longrightarrow> rword_strict x y"
+proof -
+  from rword_is_strict_rewrite_ord obtain rel where "is_rewrite_ord rel" and "rword_strict \<le> rel"
+    and "\<And>x y. rel x y \<Longrightarrow> fst x \<noteq> fst y \<Longrightarrow> rword_strict x y"
+    by (rule is_strict_rewrite_ordE, blast)
+  hence "is_rewrite_ord rel \<and> rword_strict \<le> rel \<and> (\<forall>x y. rel x y \<longrightarrow> fst x \<noteq> fst y \<longrightarrow> rword_strict x y)"
+    by simp
+  hence "is_rewrite_ord rword \<and> rword_strict \<le> rword \<and> (\<forall>x y. rword x y \<longrightarrow> fst x \<noteq> fst y \<longrightarrow> rword_strict x y)"
+    unfolding rword_def
+    by (rule someI[where P="\<lambda>x. is_rewrite_ord x \<and> rword_strict \<le> x \<and> (\<forall>z y. x z y \<longrightarrow> fst z \<noteq> fst y \<longrightarrow> rword_strict z y)"])
+  thus "is_rewrite_ord rword" and "rword_strict \<le> rword"
+    and "\<And>x y. rword x y \<Longrightarrow> fst x \<noteq> fst y \<Longrightarrow> rword_strict x y" by auto
+qed
+
+definition sig_trd :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b)"
+  where "sig_trd bs p = p"  (* TODO *)
+
+lemma sig_trd_red_rtrancl:
+  assumes "set bs \<subseteq> dgrad_sig_set dgrad"
+  shows "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* p (sig_trd bs p)"
+  sorry
+
+lemma sig_trd_irred:
+  assumes "set bs \<subseteq> dgrad_sig_set dgrad"
+  shows "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) (sig_trd bs p)"
+  sorry
+
+definition is_pred_syz :: "'t list \<Rightarrow> 't \<Rightarrow> bool"
+  where "is_pred_syz ss u = (\<exists>v\<in>set ss. v adds\<^sub>t u)"
+
+definition is_rewritable :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> 't \<Rightarrow> bool"
+  where "is_rewritable bs p u = (\<exists>b\<in>set bs. b \<noteq> 0 \<and> lt b adds\<^sub>t u \<and> rword_strict (spp_of p) (spp_of b))"
+
+definition spair_sigs :: "('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('t \<times> 't)"
+  where "spair_sigs p q =
+                  (let t1 = punit.lt (rep_list p); t2 = punit.lt (rep_list q); l = lcs t1 t2 in
+                    ((l - t1) \<oplus> lt p, (l - t2) \<oplus> lt q))"
+
+fun sig_crit :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> 't list \<Rightarrow> ((('t \<Rightarrow>\<^sub>0 'b) \<times> ('t \<Rightarrow>\<^sub>0 'b)) + nat) \<Rightarrow> bool"
+  where
+    "sig_crit bs ss (Inl (p, q)) =
+      (let (u, v) = spair_sigs p q in
+        is_pred_syz ss u \<or> is_pred_syz ss v \<or> is_rewritable bs p u \<or> is_rewritable bs q v)" |
+    "sig_crit bs ss (Inr j) = is_pred_syz ss (term_of_pair (0, j))"
+
+fun poly_of_pair :: "((('t \<Rightarrow>\<^sub>0 'b) \<times> ('t \<Rightarrow>\<^sub>0 'b)) + nat) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b)"
+  where
+    "poly_of_pair (Inl (p, q)) = spair p q" |
+    "poly_of_pair (Inr j) = monomial 1 (term_of_pair (0, j))"
+
+fun sig_of_pair :: "((('t \<Rightarrow>\<^sub>0 'b) \<times> ('t \<Rightarrow>\<^sub>0 'b)) + nat) \<Rightarrow> 't"
+  where
+    "sig_of_pair (Inl (p, q)) = (let (u, v) = spair_sigs p q in ord_term_lin.max u v)" |
+    "sig_of_pair (Inr j) = term_of_pair (0, j)"
+
+lemma spair_alt_spair_sigs:
+  "spair p q = monom_mult (1 / punit.lc (rep_list p)) (pp_of_term (fst (spair_sigs p q)) - lp p) p -
+                monom_mult (1 / punit.lc (rep_list q)) (pp_of_term (snd (spair_sigs p q)) - lp q) q"
+  by (simp add: spair_def spair_sigs_def Let_def term_simps)
+
+lemma sig_of_spair:
+  assumes "is_regular_spair p q"
+  shows "sig_of_pair (Inl (p, q)) = lt (spair p q)"
+proof -
+  from assms have "rep_list p \<noteq> 0" by (rule is_regular_spairD1)
+  hence 1: "punit.lc (rep_list p) \<noteq> 0" and "p \<noteq> 0" by (rule punit.lc_not_0, auto simp: rep_list_zero)
+  from assms have "rep_list q \<noteq> 0" by (rule is_regular_spairD2)
+  hence 2: "punit.lc (rep_list q) \<noteq> 0" and "q \<noteq> 0" by (rule punit.lc_not_0, auto simp: rep_list_zero)
+  let ?t1 = "punit.lt (rep_list p)"
+  let ?t2 = "punit.lt (rep_list q)"
+  let ?l = "lcs ?t1 ?t2"
+  from assms have "lt (monom_mult (1 / punit.lc (rep_list p)) (?l - ?t1) p) \<noteq>
+                   lt (monom_mult (1 / punit.lc (rep_list q)) (?l - ?t2) q)"
+    by (simp add: is_regular_spair_def Let_def)
+  hence *: "lt (monom_mult (1 / punit.lc (rep_list p)) (pp_of_term (fst (spair_sigs p q)) - lp p) p) \<noteq>
+            lt (monom_mult (1 / punit.lc (rep_list q)) (pp_of_term (snd (spair_sigs p q)) - lp q) q)"
+    by (simp add: spair_sigs_def Let_def term_simps)
+  from 1 2 \<open>p \<noteq> 0\<close> \<open>q \<noteq> 0\<close> show ?thesis
+    by (simp add: spair_alt_spair_sigs lt_monom_mult lt_minus_distinct_eq_max[OF *],
+        simp add: spair_sigs_def Let_def term_simps)
+qed
+
+lemma sig_of_spair_commute: "sig_of_pair (Inl (p, q)) = sig_of_pair (Inl (q, p))"
+  by (simp add: spair_sigs_def Let_def lcs_comm ord_term_lin.max.commute)
+
+lemma sum_prodE:
+  assumes "\<And>a b. p = Inl (a, b) \<Longrightarrow> thesis" and "\<And>j. p = Inr j \<Longrightarrow> thesis"
+  shows thesis
+  using _ assms(2)
+proof (rule sumE)
+  fix x
+  assume "p = Inl x"
+  moreover obtain a b where "x = (a, b)" by fastforce
+  ultimately have "p = Inl (a, b)" by simp
+  thus ?thesis by (rule assms(1))
+qed
+
+definition pair_ord :: "((('t \<Rightarrow>\<^sub>0 'b) \<times> ('t \<Rightarrow>\<^sub>0 'b)) + nat) \<Rightarrow> ((('t \<Rightarrow>\<^sub>0 'b) \<times> ('t \<Rightarrow>\<^sub>0 'b)) + nat) \<Rightarrow> bool"
+  where "pair_ord x y \<longleftrightarrow> (sig_of_pair x \<preceq>\<^sub>t sig_of_pair y)"
+
+primrec new_spairs :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ((('t \<Rightarrow>\<^sub>0 'b) \<times> ('t \<Rightarrow>\<^sub>0 'b)) + nat) list" where
+  "new_spairs [] p = []" |
+  "new_spairs (b # bs) p =
+    (if is_regular_spair p b then insort_wrt pair_ord (Inl (p, b)) (new_spairs bs p) else new_spairs bs p)"
+
+lemma in_new_spairsI:
+  assumes "b \<in> set bs" and "is_regular_spair p b"
+  shows "Inl (p, b) \<in> set (new_spairs bs p)"
+  using assms(1)
+proof (induct bs)
+  case Nil
+  thus ?case by simp
+next
+  case (Cons a bs)
+  from Cons(2) have "b = a \<or> b \<in> set bs" by simp
+  thus ?case
+  proof
+    assume "b = a"
+    from assms(2) show ?thesis by (simp add: \<open>b = a\<close>)
+  next
+    assume "b \<in> set bs"
+    hence "Inl (p, b) \<in> set (new_spairs bs p)" by (rule Cons(1))
+    thus ?thesis by simp
+  qed
+qed
+
+lemma in_new_spairsD:
+  assumes "Inl (a, b) \<in> set (new_spairs bs p)"
+  shows "a = p" and "b \<in> set bs" and "is_regular_spair p b"
+proof -
+  from assms have "a = p \<and> b \<in> set bs \<and> is_regular_spair p b"
+  proof (induct bs)
+  case Nil
+  thus ?case by simp
+  next
+    case (Cons c bs)
+    from Cons(2) have "(is_regular_spair p c \<and> Inl (a, b) = Inl (p, c)) \<or> Inl (a, b) \<in> set (new_spairs bs p)"
+      by (simp split: if_split_asm)
+    thus ?case
+    proof
+      assume "is_regular_spair p c \<and> Inl (a, b) = Inl (p, c)"
+      hence "is_regular_spair p c" and "a = p" and "b = c" by simp_all
+      thus ?thesis by simp
+    next
+      assume "Inl (a, b) \<in> set (new_spairs bs p)"
+      hence "a = p \<and> b \<in> set bs \<and> is_regular_spair p b" by (rule Cons(1))
+      thus ?thesis by simp
+    qed
+  qed
+  thus "a = p" and "b \<in> set bs" and "is_regular_spair p b" by simp_all
+qed
+
+corollary in_new_spairs_iff:
+  "Inl (p, b) \<in> set (new_spairs bs p) \<longleftrightarrow> (b \<in> set bs \<and> is_regular_spair p b)"
+  by (auto intro: in_new_spairsI dest: in_new_spairsD)
+
+lemma Inr_not_in_new_spairs: "Inr j \<notin> set (new_spairs bs p)"
+  by (induct bs, simp_all)
+
+corollary in_new_spairsE:
+  assumes "q \<in> set (new_spairs bs p)"
+  obtains b where "b \<in> set bs" and "is_regular_spair p b" and "q = Inl (p, b)"
+proof (rule sum_prodE)
+  fix a b
+  assume q: "q = Inl (a, b)"
+  from assms have "a = p" and "b \<in> set bs" and "is_regular_spair p b"
+    unfolding q by (rule in_new_spairsD)+
+  note this(2, 3)
+  moreover have "q = Inl (p, b)" by (simp only: q \<open>a = p\<close>)
+  ultimately show ?thesis ..
+next
+  fix j
+  assume "q = Inr j"
+  with assms show ?thesis by (simp add: Inr_not_in_new_spairs)
+qed
+
+lemma new_spairs_sorted: "sorted_wrt pair_ord (new_spairs bs p)"
+proof (induct bs)
+  case Nil
+  show ?case by simp
+next
+  case (Cons a bs)
+  moreover have "transp pair_ord" by (rule transpI, simp add: pair_ord_def)
+  moreover have "pair_ord x y \<or> pair_ord y x" for x y by (simp add: pair_ord_def ord_term_lin.linear)
+  ultimately show ?case by (simp add: sorted_wrt_insort_wrt)
+qed
+
+lemma sorted_merge_wrt_new_spairs:
+  assumes "sorted_wrt pair_ord ps"
+  shows "sorted_wrt pair_ord (merge_wrt pair_ord (new_spairs bs p) ps)"
+  using _ _ new_spairs_sorted assms
+proof (rule sorted_merge_wrt)
+  show "transp pair_ord" by (rule transpI, simp add: pair_ord_def)
+next
+  fix x y
+  show "pair_ord x y \<or> pair_ord y x" by (simp add: pair_ord_def ord_term_lin.linear)
+qed
+
+definition sig_gb_aux_inv1 :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> bool"
+  where "sig_gb_aux_inv1 bs =
+               (set bs \<subseteq> dgrad_sig_set dgrad \<and> 0 \<notin> rep_list ` set bs \<and>
+                sorted_wrt (\<lambda>x y. lt y \<prec>\<^sub>t lt x) bs \<and>
+                (\<forall>i<length bs. \<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i) bs)) (bs ! i)) \<and>
+                (\<forall>i<length bs.
+    ((\<exists>j<length fs. (sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i) bs)))\<^sup>*\<^sup>* (monomial 1 (term_of_pair (0, j))) (bs ! i)) \<or>
+    (\<exists>p q. p \<in> set bs \<and> q \<in> set bs \<and> is_regular_spair p q \<and>
+        (sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i) bs)))\<^sup>*\<^sup>* (spair p q) (bs ! i)))) \<and>
+                (\<forall>i<length bs. is_RB_upt dgrad rword (set (drop (Suc i) bs)) (lt (bs ! i))))"
+
+fun sig_gb_aux_inv :: "(('t \<Rightarrow>\<^sub>0 'b) list \<times> 't list \<times> ((('t \<Rightarrow>\<^sub>0 'b) \<times> ('t \<Rightarrow>\<^sub>0 'b)) + nat) list) \<Rightarrow> bool"
+  where "sig_gb_aux_inv (bs, ss, ps) =
+          (sig_gb_aux_inv1 bs \<and>
+            (\<forall>u\<in>set ss. is_syz_sig dgrad (set bs) u) \<and>
+            (\<forall>p q. Inl (p, q) \<in> set ps \<longrightarrow> (is_regular_spair p q \<and> p \<in> set bs \<and> q \<in> set bs)) \<and>
+            (\<forall>j. Inr j \<in> set ps \<longrightarrow> (j < length fs \<and> (\<forall>b\<in>set bs. lt b \<prec>\<^sub>t term_of_pair (0, j))) \<and>
+                              length (filter (\<lambda>q. sig_of_pair q = term_of_pair (0, j)) ps) \<le> 1) \<and>
+            (sorted_wrt pair_ord ps) \<and>
+            (\<forall>p\<in>set ps. (\<forall>b1\<in>set bs. \<forall>b2\<in>set bs. is_regular_spair b1 b2 \<longrightarrow>
+                          sig_of_pair p \<prec>\<^sub>t lt (spair b1 b2) \<longrightarrow> lt (spair b1 b2) \<in> sig_of_pair ` set ps) \<and>
+                        (\<forall>j<length fs. sig_of_pair p \<prec>\<^sub>t term_of_pair (0, j) \<longrightarrow>
+                          term_of_pair (0, j) \<in> sig_of_pair ` set ps)) \<and>
+            (\<forall>b\<in>set bs. \<forall>p\<in>set ps. lt b \<preceq>\<^sub>t sig_of_pair p) \<and>
+            (\<forall>u. (\<forall>p\<in>set ps. u \<preceq>\<^sub>t sig_of_pair p) \<longrightarrow> is_RB_upt dgrad rword (set bs) u))"
+              (* Perhaps one must require "set bs" be a rewrite basis in all signatures "u" where
+                  some s-pair or canonical basis vector with signature "u" does not appear in "ps"
+                  any more -- even if other elements with the same signature still appear in "ps" ? ? ? *)
+
+lemmas [simp del] = sig_gb_aux_inv.simps
+
+lemma sig_gb_aux_inv1_D1: "sig_gb_aux_inv1 bs \<Longrightarrow> set bs \<subseteq> dgrad_sig_set dgrad"
+  by (simp add: sig_gb_aux_inv1_def)
+
+lemma sig_gb_aux_inv1_D2: "sig_gb_aux_inv1 bs \<Longrightarrow> 0 \<notin> rep_list ` set bs"
+  by (simp add: sig_gb_aux_inv1_def)
+
+lemma sig_gb_aux_inv1_D3: "sig_gb_aux_inv1 bs \<Longrightarrow> sorted_wrt (\<lambda>x y. lt y \<prec>\<^sub>t lt x) bs"
+  by (simp add: sig_gb_aux_inv1_def)
+
+lemma sig_gb_aux_inv1_D4:
+  "sig_gb_aux_inv1 bs \<Longrightarrow> i < length bs \<Longrightarrow> \<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i) bs)) (bs ! i)"
+  by (simp add: sig_gb_aux_inv1_def)
+
+lemma sig_gb_aux_inv1_D5:
+  "sig_gb_aux_inv1 bs \<Longrightarrow> i < length bs \<Longrightarrow> is_RB_upt dgrad rword (set (drop (Suc i) bs)) (lt (bs ! i))"
+  by (simp add: sig_gb_aux_inv1_def)
+
+lemma sig_gb_aux_inv1_E:
+  assumes "sig_gb_aux_inv1 bs" and "i < length bs"
+    and "\<And>j. j < length fs \<Longrightarrow>
+            (sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i) bs)))\<^sup>*\<^sup>* (monomial 1 (term_of_pair (0, j))) (bs ! i) \<Longrightarrow> thesis"
+    and "\<And>p q. p \<in> set bs \<Longrightarrow> q \<in> set bs \<Longrightarrow> is_regular_spair p q \<Longrightarrow>
+            (sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i) bs)))\<^sup>*\<^sup>* (spair p q) (bs ! i) \<Longrightarrow> thesis"
+  shows thesis
+  using assms unfolding sig_gb_aux_inv1_def by blast
+
+lemmas sig_gb_aux_inv1_D = sig_gb_aux_inv1_D1 sig_gb_aux_inv1_D2 sig_gb_aux_inv1_D3 sig_gb_aux_inv1_D4
+                           sig_gb_aux_inv1_D5
+
+lemma sig_gb_aux_inv_D1: "sig_gb_aux_inv (bs, ss, ps) \<Longrightarrow> sig_gb_aux_inv1 bs"
+  by (simp add: sig_gb_aux_inv.simps)
+
+lemma sig_gb_aux_inv_D2: "sig_gb_aux_inv (bs, ss, ps) \<Longrightarrow> u \<in> set ss \<Longrightarrow> is_syz_sig dgrad (set bs) u"
+  by (simp add: sig_gb_aux_inv.simps)
+
+lemma sig_gb_aux_inv_D3:
+  assumes "sig_gb_aux_inv (bs, ss, ps)" and "Inl (p, q) \<in> set ps"
+  shows "p \<in> set bs" and "q \<in> set bs" and "is_regular_spair p q"
+  using assms by (simp_all add: sig_gb_aux_inv.simps)
+
+lemma sig_gb_aux_inv_D4:
+  assumes "sig_gb_aux_inv (bs, ss, ps)" and "Inr j \<in> set ps"
+  shows "j < length fs" and "\<And>b. b \<in> set bs \<Longrightarrow> lt b \<prec>\<^sub>t term_of_pair (0, j)"
+    and "length (filter (\<lambda>q. sig_of_pair q = term_of_pair (0, j)) ps) \<le> 1"
+  using assms by (simp_all add: sig_gb_aux_inv.simps)
+
+lemma sig_gb_aux_inv_D5: "sig_gb_aux_inv (bs, ss, ps) \<Longrightarrow> sorted_wrt pair_ord ps"
+  by (simp add: sig_gb_aux_inv.simps)
+
+lemma sig_gb_aux_inv_D6_1:
+  "sig_gb_aux_inv (bs, ss, ps) \<Longrightarrow> p \<in> set ps \<Longrightarrow> b1 \<in> set bs \<Longrightarrow> b2 \<in> set bs \<Longrightarrow> is_regular_spair b1 b2 \<Longrightarrow>
+    sig_of_pair p \<prec>\<^sub>t lt (spair b1 b2) \<Longrightarrow> lt (spair b1 b2) \<in> sig_of_pair ` set ps"
+  by (simp add: sig_gb_aux_inv.simps)
+
+lemma sig_gb_aux_inv_D6_2:
+  "sig_gb_aux_inv (bs, ss, ps) \<Longrightarrow> p \<in> set ps \<Longrightarrow> j < length fs \<Longrightarrow> sig_of_pair p \<prec>\<^sub>t term_of_pair (0, j) \<Longrightarrow>
+    term_of_pair (0, j) \<in> sig_of_pair ` set ps"
+  by (simp add: sig_gb_aux_inv.simps)
+
+lemma sig_gb_aux_inv_D7: "sig_gb_aux_inv (bs, ss, ps) \<Longrightarrow> b \<in> set bs \<Longrightarrow> p \<in> set ps \<Longrightarrow> lt b \<preceq>\<^sub>t sig_of_pair p"
+  by (simp add: sig_gb_aux_inv.simps)
+
+lemma sig_gb_aux_inv_D8:
+  "sig_gb_aux_inv (bs, ss, ps) \<Longrightarrow> (\<And>p. p \<in> set ps \<Longrightarrow> u \<preceq>\<^sub>t sig_of_pair p) \<Longrightarrow>
+    is_RB_upt dgrad rword (set bs) u"
+  by (simp add: sig_gb_aux_inv.simps)
+
+lemma sig_gb_aux_inv_D8_Cons:
+  assumes "sig_gb_aux_inv (bs, ss, p # ps)"
+  shows "is_RB_upt dgrad rword (set bs) (sig_of_pair p)"
+  using assms
+proof (rule sig_gb_aux_inv_D8)
+  fix q
+  assume "q \<in> set (p # ps)"
+  hence "q = p \<or> q \<in> set ps" by simp
+  thus "sig_of_pair p \<preceq>\<^sub>t sig_of_pair q"
+  proof
+    assume "q = p"
+    thus ?thesis by simp
+  next
+    assume "q \<in> set ps"
+    moreover from assms have "sorted_wrt pair_ord (p # ps)" by (rule sig_gb_aux_inv_D5)
+    ultimately show ?thesis by (simp add: pair_ord_def)
+  qed
+qed
+
+lemma sig_gb_aux_inv1_distinct_lt:
+  assumes "sig_gb_aux_inv1 bs"
+  shows "distinct (map lt bs)"
+proof (rule distinct_sorted_wrt_irrefl)
+  show "irreflp (\<succ>\<^sub>t)" by (simp add: irreflp_def)
+next
+  show "transp (\<succ>\<^sub>t)" by (auto simp: transp_def)
+next
+  from assms show "sorted_wrt (\<succ>\<^sub>t) (map lt bs)"
+    unfolding sorted_wrt_map conversep_iff by (rule sig_gb_aux_inv1_D3)
+qed
+
+corollary sig_gb_aux_inv1_lt_inj_on:
+  assumes "sig_gb_aux_inv1 bs"
+  shows "inj_on lt (set bs)"
+proof
+  fix a b
+  assume "a \<in> set bs"
+  then obtain i where i: "i < length bs" and a: "a = bs ! i" by (metis in_set_conv_nth)
+  assume "b \<in> set bs"
+  then obtain j where j: "j < length bs" and b: "b = bs ! j" by (metis in_set_conv_nth)
+  assume "lt a = lt b"
+  with i j have "(map lt bs) ! i = (map lt bs) ! j" by (simp add: a b)
+  moreover from assms have "distinct (map lt bs)" by (rule sig_gb_aux_inv1_distinct_lt)
+  moreover from i have "i < length (map lt bs)" by simp
+  moreover from j have "j < length (map lt bs)" by simp
+  ultimately have "i = j" by (simp only: nth_eq_iff_index_eq)
+  thus "a = b" by (simp add: a b)
+qed
+
+lemma canon_rewriter_unique:
+  assumes "sig_gb_aux_inv1 bs" and "is_canon_rewriter rword (set bs) u a"
+    and "is_canon_rewriter rword (set bs) u b"
+  shows "a = b"
+proof -
+  from assms(1) have "inj_on lt (set bs)" by (rule sig_gb_aux_inv1_lt_inj_on)
+  moreover from rword(1) assms(2, 3) have "lt a = lt b" by (rule is_rewrite_ord_canon_rewriterD2)
+  moreover from assms(2) have "a \<in> set bs" by (rule is_canon_rewriterD1)
+  moreover from assms(3) have "b \<in> set bs" by (rule is_canon_rewriterD1)
+  ultimately show ?thesis by (rule inj_onD)
+qed
+
+lemma pair_list_aux:
+  assumes "sig_gb_aux_inv (bs, ss, ps)" and "p \<in> set ps"
+  shows "sig_of_pair p = lt (poly_of_pair p) \<and> poly_of_pair p \<noteq> 0 \<and> poly_of_pair p \<in> dgrad_sig_set dgrad"
+proof (rule sum_prodE)
+  fix a b
+  assume p: "p = Inl (a, b)"
+  from assms(1) have "sig_gb_aux_inv1 bs" by (rule sig_gb_aux_inv_D1)
+  hence bs_sub: "set bs \<subseteq> dgrad_sig_set dgrad" by (rule sig_gb_aux_inv1_D1)
+  from assms have "is_regular_spair a b" unfolding p by (rule sig_gb_aux_inv_D3)
+  hence "sig_of_pair p = lt (poly_of_pair p)" and "poly_of_pair p \<noteq> 0"
+    unfolding p poly_of_pair.simps by (rule sig_of_spair, rule is_regular_spair_nonzero)
+  moreover from dgrad have "poly_of_pair p \<in> dgrad_sig_set dgrad" unfolding p poly_of_pair.simps
+  proof (rule dgrad_sig_set_closed_spair)
+    from assms have "a \<in> set bs" unfolding p by (rule sig_gb_aux_inv_D3)
+    thus "a \<in> dgrad_sig_set dgrad" using bs_sub ..
+  next
+    from assms have "b \<in> set bs" unfolding p by (rule sig_gb_aux_inv_D3)
+    thus "b \<in> dgrad_sig_set dgrad" using bs_sub ..
+  qed
+  ultimately show ?thesis by simp
+next
+  fix j
+  assume "p = Inr j"
+  from assms have "j < length fs" unfolding \<open>p = Inr j\<close> by (rule sig_gb_aux_inv_D4)
+  have "monomial 1 (term_of_pair (0, j)) \<in> dgrad_sig_set dgrad"
+    by (rule dgrad_sig_set_closed_monomial, simp add: pp_of_term_of_pair dgrad_max_0,
+        simp add: component_of_term_of_pair \<open>j < length fs\<close>)
+  thus ?thesis by (simp add: \<open>p = Inr j\<close> lt_monomial monomial_0_iff)
+qed
+
+corollary pair_list_sig_of_pair:
+  "sig_gb_aux_inv (bs, ss, ps) \<Longrightarrow> p \<in> set ps \<Longrightarrow> sig_of_pair p = lt (poly_of_pair p)"
+  by (simp add: pair_list_aux)
+
+corollary pair_list_nonzero: "sig_gb_aux_inv (bs, ss, ps) \<Longrightarrow> p \<in> set ps \<Longrightarrow> poly_of_pair p \<noteq> 0"
+  by (simp add: pair_list_aux)
+
+corollary pair_list_dgrad_sig_set:
+  "sig_gb_aux_inv (bs, ss, ps) \<Longrightarrow> p \<in> set ps \<Longrightarrow> poly_of_pair p \<in> dgrad_sig_set dgrad"
+  by (simp add: pair_list_aux)
+
+lemma is_rewritableI_is_canon_rewriter:
+  assumes "sig_gb_aux_inv1 bs" and "b \<in> set bs" and "b \<noteq> 0" and "lt b adds\<^sub>t u"
+    and "\<not> is_canon_rewriter rword (set bs) u b"
+  shows "is_rewritable bs b u"
+proof -
+  from assms(2-5) obtain b' where "b' \<in> set bs" and "b' \<noteq> 0" and "lt b' adds\<^sub>t u"
+    and 1: "\<not> rword (spp_of b') (spp_of b)" by (auto simp: is_canon_rewriter_def)
+  show ?thesis unfolding is_rewritable_def
+  proof (intro bexI conjI)
+    from rword(1) have 2: "rword (spp_of b) (spp_of b')"
+    proof (rule is_rewrite_ordD3)
+      assume "rword (spp_of b') (spp_of b)"
+      with 1 show ?thesis ..
+    qed
+    from rword(1) 1 have "b \<noteq> b'" by (auto dest: is_rewrite_ordD1)
+    have "lt b \<noteq> lt b'"
+    proof
+      assume "lt b = lt b'"
+      with sig_gb_aux_inv1_lt_inj_on[OF assms(1)] have "b = b'" using assms(2) \<open>b' \<in> set bs\<close>
+        by (rule inj_onD)
+      with \<open>b \<noteq> b'\<close> show False ..
+    qed
+    hence "fst (spp_of b) \<noteq> fst (spp_of b')" by (simp add: spp_of_def)
+    with 2 show "rword_strict (spp_of b) (spp_of b')" by (rule rword(3))
+  qed fact+
+qed
+
+lemma is_rewritableD_is_canon_rewriter:
+  assumes "sig_gb_aux_inv1 bs" and "is_rewritable bs b u"
+  shows "\<not> is_canon_rewriter rword (set bs) u b"
+proof
+  assume "is_canon_rewriter rword (set bs) u b"
+  hence "b \<in> set bs" and "b \<noteq> 0" and "lt b adds\<^sub>t u"
+    and 1: "\<And>a. a \<in> set bs \<Longrightarrow> a \<noteq> 0 \<Longrightarrow> lt a adds\<^sub>t u \<Longrightarrow> rword (spp_of a) (spp_of b)"
+    by (rule is_canon_rewriterD)+
+  from assms(2) obtain b' where "b' \<in> set bs" and "b' \<noteq> 0" and "lt b' adds\<^sub>t u"
+    and 2: "rword_strict (spp_of b) (spp_of b')" unfolding is_rewritable_def by blast
+  from this(1, 2, 3) have "rword (spp_of b') (spp_of b)" by (rule 1)
+  moreover from rword(2) 2 have "rword (spp_of b) (spp_of b')" ..
+  ultimately have "fst (spp_of b') = fst (spp_of b)" by (rule is_rewrite_ordD4[OF rword(1)])
+  hence "lt b' = lt b" by (simp add: spp_of_def)
+  with sig_gb_aux_inv1_lt_inj_on[OF assms(1)] have "b' = b" using \<open>b' \<in> set bs\<close> \<open>b \<in> set bs\<close>
+    by (rule inj_onD)
+  from rword_is_strict_rewrite_ord have "\<not> rword_strict (spp_of b) (spp_of b')"
+    unfolding \<open>b' = b\<close> by (rule is_strict_rewrite_ord_irrefl)
+  thus False using 2 ..
+qed
+
+lemma lemma_12:
+  assumes "sig_gb_aux_inv (bs, ss, ps)" and "is_RB_upt dgrad rword (set bs) u"
+    and "dgrad (pp_of_term u) \<le> dgrad_max dgrad" and "is_canon_rewriter rword (set bs) u a"
+  shows "(\<exists>p\<in>set bs. \<exists>q\<in>set bs. is_regular_spair p q \<and> lt (spair p q) = u \<and> \<not> sig_crit bs ss (Inl (p, q))) \<longleftrightarrow>
+          (\<not> is_pred_syz ss u \<and> is_sig_red (\<prec>\<^sub>t) (=) (set bs) (monom_mult 1 (pp_of_term u - lp a) a))"
+    (is "?l = ?r")
+proof
+  assume ?l
+  then obtain p q where "p \<in> set bs" and "q \<in> set bs" and "is_regular_spair p q"
+    and "lt (spair p q) = u" and "\<not> sig_crit bs ss (Inl (p, q))" by blast
+  show ?r sorry
+next
+  assume ?r
+  show ?l sorry
+qed
+
+lemma is_canon_rewriterI_eq_sig:
+  assumes "sig_gb_aux_inv1 bs" and "b \<in> set bs"
+  shows "is_canon_rewriter rword (set bs) (lt b) b"
+proof -
+  from assms(2) have "rep_list b \<in> rep_list ` set bs" by (rule imageI)
+  moreover from assms(1) have "0 \<notin> rep_list ` set bs" by (rule sig_gb_aux_inv1_D2)
+  ultimately have "b \<noteq> 0" by (auto simp: rep_list_zero)
+  with assms(2) show ?thesis
+  proof (rule is_canon_rewriterI)
+    fix a
+    assume "a \<in> set bs" and "a \<noteq> 0" and "lt a adds\<^sub>t lt b"
+    from assms(2) obtain i where "i < length bs" and b: "b = bs ! i" by (metis in_set_conv_nth)
+    from assms(1) this(1) have "is_RB_upt dgrad rword (set (drop (Suc i) bs)) (lt (bs ! i))"
+      by (rule sig_gb_aux_inv1_D5)
+    with dgrad have "is_sig_GB_upt dgrad (set (drop (Suc i) bs)) (lt (bs ! i))"
+      by (rule is_RB_upt_is_sig_GB_upt)
+    hence "is_sig_GB_upt dgrad (set (drop (Suc i) bs)) (lt b)" by (simp only: b)
+    moreover have "set (drop (Suc i) bs) \<subseteq> set bs" by (rule set_drop_subset)
+    moreover from assms(1) have "set bs \<subseteq> dgrad_sig_set dgrad" by (rule sig_gb_aux_inv1_D1)
+    ultimately have "is_sig_GB_upt dgrad (set bs) (lt b)" by (rule is_sig_GB_upt_mono)
+    with rword(1) dgrad show "rword (spp_of a) (spp_of b)"
+    proof (rule is_rewrite_ordD5)
+      from assms(1) \<open>i < length bs\<close> have "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i) bs)) (bs ! i)"
+        by (rule sig_gb_aux_inv1_D4)
+      hence "\<not> is_sig_red (\<prec>\<^sub>t) (=) (set (drop (Suc i) bs)) b" by (simp add: b is_sig_red_top_tail_cases)
+      moreover have "\<not> is_sig_red (\<prec>\<^sub>t) (=) (set (take (Suc i) bs)) b"
+      proof
+        assume "is_sig_red (\<prec>\<^sub>t) (=) (set (take (Suc i) bs)) b"
+        then obtain f where f_in: "f \<in> set (take (Suc i) bs)" and "is_sig_red (\<prec>\<^sub>t) (=) {f} b"
+          by (rule is_sig_red_singletonI)
+        from this(2) have "lt f \<prec>\<^sub>t lt b" by (rule is_sig_red_regularD)
+        from \<open>i < length bs\<close> have take_eq: "take (Suc i) bs = (take i bs) @ [b]"
+          unfolding b by (rule take_Suc_conv_app_nth)
+        from assms(1) have "sorted_wrt (\<lambda>x y. lt y \<prec>\<^sub>t lt x) ((take (Suc i) bs) @ (drop (Suc i) bs))"
+          unfolding append_take_drop_id by (rule sig_gb_aux_inv1_D3)
+        hence 1: "\<And>y. y \<in> set (take i bs) \<Longrightarrow> lt b \<prec>\<^sub>t lt y"
+          by (simp add: sorted_wrt_append take_eq del: append_take_drop_id)
+        from f_in have "f = b \<or> f \<in> set (take i bs)" by (simp add: take_eq)
+        hence "lt b \<preceq>\<^sub>t lt f"
+        proof
+          assume "f \<in> set (take i bs)"
+          hence "lt b \<prec>\<^sub>t lt f" by (rule 1)
+          thus ?thesis by simp
+        qed simp
+        with \<open>lt f \<prec>\<^sub>t lt b\<close> show False by simp
+      qed
+      ultimately have "\<not> is_sig_red (\<prec>\<^sub>t) (=) (set (take (Suc i) bs) \<union> set (drop (Suc i) bs)) b"
+        by (simp add: is_sig_red_Un)
+      thus "\<not> is_sig_red (\<prec>\<^sub>t) (=) (set bs) b" by (metis append_take_drop_id set_append)
+    qed fact+
+  qed (simp add: term_simps)
+qed
+
+lemma not_sig_crit:
+  assumes "sig_gb_aux_inv (bs, ss, p # ps)" and "\<not> sig_crit bs ss p" and "b \<in> set bs"
+  shows "lt b \<prec>\<^sub>t sig_of_pair p"
+proof (rule sum_prodE)
+  fix x y
+  assume p: "p = Inl (x, y)"
+  have "p \<in> set (p # ps)" by simp
+  hence "Inl (x, y) \<in> set (p # ps)" by (simp only: p)
+  define t1 where "t1 = punit.lt (rep_list x)"
+  define t2 where "t2 = punit.lt (rep_list y)"
+  define u where "u = fst (spair_sigs x y)"
+  define v where "v = snd (spair_sigs x y)"
+  have u: "u = (lcs t1 t2 - t1) \<oplus> lt x" by (simp add: u_def spair_sigs_def t1_def t2_def Let_def)
+  have v: "v = (lcs t1 t2 - t2) \<oplus> lt y" by (simp add: v_def spair_sigs_def t1_def t2_def Let_def)
+  have spair_sigs: "spair_sigs x y = (u, v)" by (simp add: u_def v_def)
+  with assms(2) have "\<not> is_rewritable bs x u" and "\<not> is_rewritable bs y v"
+    by (simp_all add: p)
+  from assms(1) \<open>Inl (x, y) \<in> set (p # ps)\<close> have x_in: "x \<in> set bs" and y_in: "y \<in> set bs"
+    and "is_regular_spair x y" by (rule sig_gb_aux_inv_D3)+
+  from assms(1) have inv1: "sig_gb_aux_inv1 bs" by (rule sig_gb_aux_inv_D1)
+  from inv1 have "0 \<notin> rep_list ` set bs" by (rule sig_gb_aux_inv1_D2)
+  with x_in y_in have "rep_list x \<noteq> 0" and "rep_list y \<noteq> 0" by auto
+  hence "x \<noteq> 0" and "y \<noteq> 0" by (auto simp: rep_list_zero)
+  from inv1 have sorted: "sorted_wrt (\<lambda>x y. lt y \<prec>\<^sub>t lt x) bs" by (rule sig_gb_aux_inv1_D3)
+  from x_in obtain i1 where "i1 < length bs" and x: "x = bs ! i1" by (metis in_set_conv_nth)
+  from y_in obtain i2 where "i2 < length bs" and y: "y = bs ! i2" by (metis in_set_conv_nth)
+  have "lt b \<noteq> sig_of_pair p"
+  proof
+    assume lt_b: "lt b = sig_of_pair p"
+    from inv1 have crw: "is_canon_rewriter rword (set bs) (lt b) b" using assms(3)
+      by (rule is_canon_rewriterI_eq_sig)
+    show False
+    proof (rule ord_term_lin.linorder_cases)
+      assume "u \<prec>\<^sub>t v"
+      hence "lt b = v" by (auto simp: lt_b p spair_sigs ord_term_lin.max_def)
+      with crw have crw_b: "is_canon_rewriter rword (set bs) v b" by simp
+      from v have "lt y adds\<^sub>t v" by (rule adds_termI)
+      hence "is_canon_rewriter rword (set bs) v y"
+        using inv1 y_in \<open>y \<noteq> 0\<close> \<open>\<not> is_rewritable bs y v\<close> is_rewritableI_is_canon_rewriter by blast
+      with inv1 crw_b have "b = y" by (rule canon_rewriter_unique)
+      with \<open>lt b = v\<close> have "lt y = v" by simp
+      from inv1 \<open>i2 < length bs\<close> have "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i2) bs)) (bs ! i2)"
+        by (rule sig_gb_aux_inv1_D4)
+      moreover have "is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i2) bs)) (bs ! i2)"
+      proof (rule is_sig_red_singletonD)
+        have "is_sig_red (\<prec>\<^sub>t) (=) {x} y"
+        proof (rule is_sig_red_top_addsI)
+          from \<open>lt y = v\<close> have "(lcs t1 t2 - t2) \<oplus> lt y = lt y" by (simp only: v)
+          also have "... = 0 \<oplus> lt y" by (simp only: term_simps)
+          finally have "lcs t1 t2 - t2 = 0" by (simp only: splus_right_canc)
+          hence "lcs t1 t2 = t2" by (metis (full_types) add.left_neutral adds_minus adds_lcs_2)
+          with adds_lcs[of t1 t2] show "punit.lt (rep_list x) adds punit.lt (rep_list y)"
+            by (simp only: t1_def t2_def)
+        next
+          from \<open>u \<prec>\<^sub>t v\<close> show "punit.lt (rep_list y) \<oplus> lt x \<prec>\<^sub>t punit.lt (rep_list x) \<oplus> lt y"
+            by (simp add: t1_def t2_def u v term_is_le_rel_minus_minus adds_lcs adds_lcs_2)
+        qed (simp|fact)+
+        thus "is_sig_red (\<prec>\<^sub>t) (\<preceq>) {x} (bs ! i2)" by (simp add: y is_sig_red_top_tail_cases)
+      next
+        have "lt x \<preceq>\<^sub>t 0 \<oplus> lt x" by (simp only: term_simps)
+        also have "... \<preceq>\<^sub>t u" unfolding u using zero_min by (rule splus_mono_left)
+        also have "... \<prec>\<^sub>t v" by fact
+        finally have *: "lt (bs ! i1) \<prec>\<^sub>t lt (bs ! i2)" by (simp only: \<open>lt y = v\<close> x y[symmetric])
+        have "i2 < i1"
+        proof (rule linorder_cases)
+          assume "i1 < i2"
+          with sorted have "lt (bs ! i2) \<prec>\<^sub>t lt (bs ! i1)" using \<open>i2 < length bs\<close>
+            by (rule sorted_wrt_nth_less)
+          with * show ?thesis by simp
+        next
+          assume "i1 = i2"
+          with * show ?thesis by simp
+        qed
+        hence "Suc i2 \<le> i1" by simp
+        thus "x \<in> set (drop (Suc i2) bs)" unfolding x using \<open>i1 < length bs\<close> by (rule nth_in_set_dropI)
+      qed
+      ultimately show ?thesis ..
+    next
+      assume "v \<prec>\<^sub>t u"
+      hence "lt b = u" by (auto simp: lt_b p spair_sigs ord_term_lin.max_def)
+      with crw have crw_b: "is_canon_rewriter rword (set bs) u b" by simp
+      from u have "lt x adds\<^sub>t u" by (rule adds_termI)
+      hence "is_canon_rewriter rword (set bs) u x"
+        using inv1 x_in \<open>x \<noteq> 0\<close> \<open>\<not> is_rewritable bs x u\<close> is_rewritableI_is_canon_rewriter by blast
+      with inv1 crw_b have "b = x" by (rule canon_rewriter_unique)
+      with \<open>lt b = u\<close> have "lt x = u" by simp
+      from inv1 \<open>i1 < length bs\<close> have "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i1) bs)) (bs ! i1)"
+        by (rule sig_gb_aux_inv1_D4)
+      moreover have "is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i1) bs)) (bs ! i1)"
+      proof (rule is_sig_red_singletonD)
+        have "is_sig_red (\<prec>\<^sub>t) (=) {y} x"
+        proof (rule is_sig_red_top_addsI)
+          from \<open>lt x = u\<close> have "(lcs t1 t2 - t1) \<oplus> lt x = lt x" by (simp only: u)
+          also have "... = 0 \<oplus> lt x" by (simp only: term_simps)
+          finally have "lcs t1 t2 - t1 = 0" by (simp only: splus_right_canc)
+          hence "lcs t1 t2 = t1" by (metis (full_types) add.left_neutral adds_minus adds_lcs)
+          with adds_lcs_2[of t2 t1] show "punit.lt (rep_list y) adds punit.lt (rep_list x)"
+            by (simp only: t1_def t2_def)
+        next
+          from \<open>v \<prec>\<^sub>t u\<close> show "punit.lt (rep_list x) \<oplus> lt y \<prec>\<^sub>t punit.lt (rep_list y) \<oplus> lt x"
+            by (simp add: t1_def t2_def u v term_is_le_rel_minus_minus adds_lcs adds_lcs_2)
+        qed (simp|fact)+
+        thus "is_sig_red (\<prec>\<^sub>t) (\<preceq>) {y} (bs ! i1)" by (simp add: x is_sig_red_top_tail_cases)
+      next
+        have "lt y \<preceq>\<^sub>t 0 \<oplus> lt y" by (simp only: term_simps)
+        also have "... \<preceq>\<^sub>t v" unfolding v using zero_min by (rule splus_mono_left)
+        also have "... \<prec>\<^sub>t u" by fact
+        finally have *: "lt (bs ! i2) \<prec>\<^sub>t lt (bs ! i1)" by (simp only: \<open>lt x = u\<close> y x[symmetric])
+        have "i1 < i2"
+        proof (rule linorder_cases)
+          assume "i2 < i1"
+          with sorted have "lt (bs ! i1) \<prec>\<^sub>t lt (bs ! i2)" using \<open>i1 < length bs\<close>
+            by (rule sorted_wrt_nth_less)
+          with * show ?thesis by simp
+        next
+          assume "i2 = i1"
+          with * show ?thesis by simp
+        qed
+        hence "Suc i1 \<le> i2" by simp
+        thus "y \<in> set (drop (Suc i1) bs)" unfolding y using \<open>i2 < length bs\<close> by (rule nth_in_set_dropI)
+      qed
+      ultimately show ?thesis ..
+    next
+      assume "u = v"
+      hence "punit.lt (rep_list x) \<oplus> lt y = punit.lt (rep_list y) \<oplus> lt x"
+        by (simp add: t1_def t2_def u v term_is_le_rel_minus_minus adds_lcs adds_lcs_2)
+      moreover from \<open>is_regular_spair x y\<close>
+      have "punit.lt (rep_list y) \<oplus> lt x \<noteq> punit.lt (rep_list x) \<oplus> lt y" by (rule is_regular_spairD3)
+      ultimately show ?thesis by simp
+    qed
+  qed
+  moreover from assms(1, 3) \<open>p \<in> set (p # ps)\<close> have "lt b \<preceq>\<^sub>t sig_of_pair p" by (rule sig_gb_aux_inv_D7)
+  ultimately show ?thesis by simp
+next
+  fix j
+  assume p: "p = Inr j"
+  have "Inr j \<in> set (p # ps)" by (simp add: p)
+  with assms(1) have "lt b \<prec>\<^sub>t term_of_pair (0, j)" using assms(3) by (rule sig_gb_aux_inv_D4)
+  thus ?thesis by (simp add: p)
+qed
+
+lemma sig_gb_aux_invD_Cons_is_RB_upt:
+  assumes "sig_gb_aux_inv (bs, ss, p # ps)" and "set bs' \<subseteq> dgrad_sig_set dgrad" and "length bs' \<le> 1"
+    and "\<And>b. b \<in> set bs' \<Longrightarrow> lt b = lt (poly_of_pair p)"
+    and "\<And>b. bs' \<noteq> [] \<Longrightarrow> b \<in> set bs \<Longrightarrow> lt b \<prec>\<^sub>t lt (poly_of_pair p)"
+    and "(\<And>p'. p' \<in> set ps \<Longrightarrow> lt (poly_of_pair p) \<prec>\<^sub>t lt (poly_of_pair p')) \<Longrightarrow>
+            is_RB_in dgrad rword (set (bs' @ bs)) (lt (poly_of_pair p))"
+    and "\<And>q. q \<in> set ps \<Longrightarrow> u \<preceq>\<^sub>t sig_of_pair q"
+    and "\<And>b b'. b \<in> set bs \<Longrightarrow> b' \<in> set bs' \<Longrightarrow> is_regular_spair b' b \<Longrightarrow> u \<preceq>\<^sub>t lt (spair b' b)"
+  shows "is_RB_upt dgrad rword (set (bs' @ bs)) u"
+proof (cases "u \<preceq>\<^sub>t sig_of_pair p")
+  case True
+  from True assms(7) have "\<And>q. q \<in> set (p # ps) \<Longrightarrow> u \<preceq>\<^sub>t sig_of_pair q" by auto
+  with assms(1) have "is_RB_upt dgrad rword (set bs) u" by (rule sig_gb_aux_inv_D8, blast)
+  thus ?thesis unfolding set_append using assms(2)
+  proof (rule is_RB_upt_UnI)
+    fix b'
+    assume "b' \<in> set bs'"
+    hence "lt b' = lt (poly_of_pair p)" by (rule assms(4))
+    also have "... = sig_of_pair p"
+      by (rule HOL.sym, rule pair_list_sig_of_pair, fact assms(1), simp)
+    finally show "u \<preceq>\<^sub>t lt b'" using True by simp
+  qed
+next
+  case False
+  have sig_of_p: "sig_of_pair p = lt (poly_of_pair p)"
+    by (rule pair_list_sig_of_pair, fact assms(1), simp)
+  from False have "sig_of_pair p \<prec>\<^sub>t u" by simp
+  hence "lt (poly_of_pair p) \<prec>\<^sub>t lt (poly_of_pair q)" if "q \<in> set ps" for q
+    using assms(1) assms(7)[OF that] that by (auto simp: pair_list_sig_of_pair)
+  hence "is_RB_in dgrad rword (set (bs' @ bs)) (lt (poly_of_pair p))" by (rule assms(6))
+  hence 2: "is_RB_in dgrad rword (set (bs' @ bs)) (sig_of_pair p)" using assms(1)
+    by (simp add: sig_of_p)
+  from assms(1) have "sig_gb_aux_inv1 bs" and 3: "is_RB_upt dgrad rword (set bs) (sig_of_pair p)"
+    by (rule sig_gb_aux_inv_D1, rule sig_gb_aux_inv_D8_Cons)
+  note dgrad rword(1)
+  moreover have "set (bs' @ bs) \<subseteq> dgrad_sig_set dgrad"
+    by (simp add: assms(2), intro sig_gb_aux_inv1_D1 \<open>sig_gb_aux_inv1 bs\<close>)
+  moreover have "inj_on lt (set (bs' @ bs))"
+  proof (simp add: inj_on_Un, intro conjI)
+    from assms(3) show "inj_on lt (set bs')" by (auto intro!: inj_onI simp del: One_nat_def dest: length_le_1)
+  next
+    from \<open>sig_gb_aux_inv1 bs\<close> show "inj_on lt (set bs)" by (rule sig_gb_aux_inv1_lt_inj_on)
+  next
+    {
+      fix b b'
+      assume "b \<in> set bs" and "b' \<in> set bs'"
+      from this(2) have "lt b' = lt (poly_of_pair p)" and "bs' \<noteq> []" by (rule assms(4), auto)
+      moreover from this(2) \<open>b \<in> set bs\<close> have "lt b \<prec>\<^sub>t lt (poly_of_pair p)" by (rule assms(5))
+      ultimately have "lt b \<prec>\<^sub>t lt b'" by simp
+    }
+    thus "lt ` (set bs' - set bs) \<inter> lt ` (set bs - set bs') = {}" by fastforce
+  qed
+  ultimately show ?thesis using finite_set
+  proof (rule lemma_10)
+    fix g1 g2
+    assume "g1 \<in> set (bs' @ bs)" and "g2 \<in> set (bs' @ bs)"
+    with \<open>set (bs' @ bs) \<subseteq> dgrad_sig_set dgrad\<close> have "g1 \<in> dgrad_sig_set dgrad" and "g2 \<in> dgrad_sig_set dgrad"
+      by blast+
+    with dgrad have spair_in: "spair g1 g2 \<in> dgrad_sig_set dgrad" by (rule dgrad_sig_set_closed_spair)
+    assume 4: "is_regular_spair g1 g2" and "lt (spair g1 g2) \<prec>\<^sub>t u"
+    from 4 have "spair g1 g2 \<noteq> 0" by (rule is_regular_spair_nonzero)
+    show "is_RB_in dgrad rword (set (bs' @ bs)) (lt (spair g1 g2))"
+    proof (rule ord_term_lin.linorder_cases)
+      note 3
+      moreover assume a: "lt (spair g1 g2) \<prec>\<^sub>t sig_of_pair p"
+      moreover from spair_in have "dgrad (lp (spair g1 g2)) \<le> dgrad_max dgrad"
+        by (rule dgrad_sig_setD_lp)
+      moreover from spair_in \<open>spair g1 g2 \<noteq> 0\<close> have "component_of_term (lt (spair g1 g2)) < length fs"
+        by (rule dgrad_sig_setD_lt)
+      ultimately have "is_RB_in dgrad rword (set bs) (lt (spair g1 g2))" by (rule is_RB_uptD2)
+      thus ?thesis unfolding set_append
+      proof (rule is_RB_in_UnI)
+        fix b'
+        assume "b' \<in> set bs'"
+        hence "lt b' = lt (poly_of_pair p)" by (rule assms(4))
+        also have "... = sig_of_pair p" by (simp only: sig_of_p)
+        finally show "lt (spair g1 g2) \<prec>\<^sub>t lt b'" using a by simp
+      qed
+    next
+      assume "lt (spair g1 g2) = sig_of_pair p"
+      with 2 show ?thesis by simp
+    next
+      assume 5: "sig_of_pair p \<prec>\<^sub>t lt (spair g1 g2)"
+      from \<open>g1 \<in> set (bs' @ bs)\<close> \<open>g2 \<in> set (bs' @ bs)\<close>
+      have "g1 \<in> set bs' \<or> g1 \<in> set bs" and "g2 \<in> set bs' \<or> g2 \<in> set bs" by simp_all
+      thus ?thesis
+      proof (elim disjE)
+        assume "g1 \<in> set bs'" and "g2 \<in> set bs'"
+        with assms(3) have "g1 = g2" by (rule length_le_1)
+        hence "\<not> is_regular_spair g1 g2" by (simp add: is_regular_spair_def)
+        thus ?thesis using 4 ..
+      next
+        assume "g2 \<in> set bs" and "g1 \<in> set bs'"
+        hence "u \<preceq>\<^sub>t lt (spair g1 g2)" using 4 by (rule assms(8))
+        with \<open>lt (spair g1 g2) \<prec>\<^sub>t u\<close> show ?thesis by simp
+      next
+        assume "g1 \<in> set bs" and "g2 \<in> set bs'"
+        moreover from 4 have "is_regular_spair g2 g1" by (rule is_regular_spair_sym)
+        ultimately have "u \<preceq>\<^sub>t lt (spair g2 g1)" by (rule assms(8))
+        also have "... = lt (spair g1 g2)" by (simp add: spair_comm[of g1])
+        finally show ?thesis using \<open>lt (spair g1 g2) \<prec>\<^sub>t u\<close> by simp
+      next
+        note assms(1)
+        moreover have "p \<in> set (p # ps)" by simp
+        moreover assume "g1 \<in> set bs" and "g2 \<in> set bs"
+        ultimately have "lt (spair g1 g2) \<in> sig_of_pair ` set (p # ps)" using 4 5
+          by (rule sig_gb_aux_inv_D6_1)
+        with 5 have "lt (spair g1 g2) \<in> sig_of_pair ` set ps" by auto
+        then obtain q where "q \<in> set ps" and "lt (spair g1 g2) = sig_of_pair q" ..
+        moreover from this(1) have "u \<preceq>\<^sub>t sig_of_pair q" by (rule assms(7))
+        ultimately show ?thesis using \<open>lt (spair g1 g2) \<prec>\<^sub>t u\<close> by simp
+      qed
+    qed
+  next
+    fix j
+    assume 4: "j < length fs" and "term_of_pair (0, j) \<prec>\<^sub>t u"
+    show "is_RB_in dgrad rword (set (bs' @ bs)) (term_of_pair (0, j))"
+    proof (rule ord_term_lin.linorder_cases)
+      note 3
+      moreover assume a: "term_of_pair (0, j) \<prec>\<^sub>t sig_of_pair p"
+      moreover have "dgrad (pp_of_term (term_of_pair (0, j))) \<le> dgrad_max dgrad"
+        by (simp add: pp_of_term_of_pair dgrad_max_0)
+      moreover have "component_of_term (term_of_pair (0, j)) < length fs"
+        by (simp add: component_of_term_of_pair 4)
+      ultimately have "is_RB_in dgrad rword (set bs) (term_of_pair (0, j))" by (rule is_RB_uptD2)
+      thus ?thesis unfolding set_append
+      proof (rule is_RB_in_UnI)
+        fix b'
+        assume "b' \<in> set bs'"
+        hence "lt b' = lt (poly_of_pair p)" by (rule assms(4))
+        also have "... = sig_of_pair p" by (simp only: sig_of_p)
+        finally show "term_of_pair (0, j) \<prec>\<^sub>t lt b'" using a by simp
+      qed
+    next
+      assume "term_of_pair (0, j) = sig_of_pair p"
+      with 2 show ?thesis by simp
+    next
+      note assms(1)
+      moreover have "p \<in> set (p # ps)" by simp
+      moreover note 4
+      moreover assume 5: "sig_of_pair p \<prec>\<^sub>t term_of_pair (0, j)"
+      ultimately have "term_of_pair (0, j) \<in> sig_of_pair ` set (p # ps)" by (rule sig_gb_aux_inv_D6_2)
+      with 5 have "term_of_pair (0, j) \<in> sig_of_pair ` set ps" by auto
+      then obtain q where "q \<in> set ps" and "term_of_pair (0, j) = sig_of_pair q" ..
+      moreover from this(1) have "u \<preceq>\<^sub>t sig_of_pair q" by (rule assms(7))
+      ultimately show ?thesis using \<open>term_of_pair (0, j) \<prec>\<^sub>t u\<close> by simp
+    qed
+  qed
+qed
+
+lemma sig_gb_aux_inv_preserved_0:
+  assumes "sig_gb_aux_inv (bs, ss, p # ps)"
+    and "\<And>s. s \<in> set ss' \<Longrightarrow> is_syz_sig dgrad (set bs) s"
+    and "(\<And>p'. p' \<in> set ps \<Longrightarrow> lt (poly_of_pair p) \<prec>\<^sub>t lt (poly_of_pair p')) \<Longrightarrow>
+            is_RB_in dgrad rword (set bs) (lt (poly_of_pair p))"
+  shows "sig_gb_aux_inv (bs, ss', ps)"
+proof -
+  from assms(1) have "sig_gb_aux_inv1 bs" by (rule sig_gb_aux_inv_D1)
+  show ?thesis unfolding sig_gb_aux_inv.simps
+  proof (intro conjI ballI allI impI)
+    fix s
+    assume "s \<in> set ss'"
+    thus "is_syz_sig dgrad (set bs) s" by (rule assms(2))
+  next
+    fix q1 q2
+    assume "Inl (q1, q2) \<in> set ps"
+    hence "Inl (q1, q2) \<in> set (p # ps)" by simp
+    with assms(1) show "is_regular_spair q1 q2" and "q1 \<in> set bs" and "q2 \<in> set bs"
+      by (rule sig_gb_aux_inv_D3)+
+  next
+    fix j
+    assume "Inr j \<in> set ps"
+    hence "Inr j \<in> set (p # ps)" by simp
+    with assms(1) have "j < length fs" and "length (filter (\<lambda>q. sig_of_pair q = term_of_pair (0, j)) (p # ps)) \<le> 1"
+      by (rule sig_gb_aux_inv_D4)+
+    thm sig_gb_aux_inv_D4
+    have "length (filter (\<lambda>q. sig_of_pair q = term_of_pair (0, j)) ps) \<le>
+          length (filter (\<lambda>q. sig_of_pair q = term_of_pair (0, j)) (p # ps))" by simp
+    also have "... \<le> 1" by fact
+    finally show "length (filter (\<lambda>q. sig_of_pair q = term_of_pair (0, j)) ps) \<le> 1" .
+    show "j < length fs" by fact
+
+    fix b
+    assume "b \<in> set bs"
+    with assms(1) \<open>Inr j \<in> set (p # ps)\<close> show "lt b \<prec>\<^sub>t term_of_pair (0, j)" by (rule sig_gb_aux_inv_D4)
+  next
+    from assms(1) have "sorted_wrt pair_ord (p # ps)" by (rule sig_gb_aux_inv_D5)
+    thus "sorted_wrt pair_ord ps" by simp
+  next
+    fix q
+    assume "q \<in> set ps"
+    from assms(1) have "sorted_wrt pair_ord (p # ps)" by (rule sig_gb_aux_inv_D5)
+    hence "\<And>p'. p' \<in> set ps \<Longrightarrow> sig_of_pair p \<preceq>\<^sub>t sig_of_pair p'" by (simp add: pair_ord_def)
+    with \<open>q \<in> set ps\<close> have 1: "sig_of_pair p \<preceq>\<^sub>t sig_of_pair q" by blast
+    {
+      fix b1 b2
+      note assms(1)
+      moreover from \<open>q \<in> set ps\<close> have "q \<in> set (p # ps)" by simp
+      moreover assume "b1 \<in> set bs" and "b2 \<in> set bs" and "is_regular_spair b1 b2"
+        and 2: "sig_of_pair q \<prec>\<^sub>t lt (spair b1 b2)"
+      ultimately have "lt (spair b1 b2) \<in> sig_of_pair ` set (p # ps)"
+        by (rule sig_gb_aux_inv_D6_1)
+      moreover from 1 2 have "sig_of_pair p \<prec>\<^sub>t lt (spair b1 b2)" by simp
+      ultimately show "lt (spair b1 b2) \<in> sig_of_pair ` set ps" by auto
+    }
+    {
+      fix j
+      note assms(1)
+      moreover from \<open>q \<in> set ps\<close> have "q \<in> set (p # ps)" by simp
+      moreover assume "j < length fs" and 2: "sig_of_pair q \<prec>\<^sub>t term_of_pair (0, j)"
+      ultimately have "term_of_pair (0, j) \<in> sig_of_pair ` set (p # ps)" by (rule sig_gb_aux_inv_D6_2)
+      moreover from 1 2 have "sig_of_pair p \<prec>\<^sub>t sig_of_pair (Inr j)" by simp
+      ultimately show "term_of_pair (0, j) \<in> sig_of_pair ` set ps" by auto
+    }
+  next
+    fix b q
+    assume "b \<in> set bs" and "q \<in> set ps"
+    hence "b \<in> set bs" and "q \<in> set (p # ps)" by simp_all
+    with assms(1) show "lt b \<preceq>\<^sub>t sig_of_pair q" by (rule sig_gb_aux_inv_D7)
+  next
+    fix u
+    assume 1: "\<forall>q\<in>set ps. u \<preceq>\<^sub>t sig_of_pair q"
+    from assms(1) have "is_RB_upt dgrad rword (set ([] @ bs)) u"
+    proof (rule sig_gb_aux_invD_Cons_is_RB_upt)
+      assume "\<And>p'. p' \<in> set ps \<Longrightarrow> lt (poly_of_pair p) \<prec>\<^sub>t lt (poly_of_pair p')"
+      hence "is_RB_in dgrad rword (set bs) (lt (poly_of_pair p))" by (rule assms(3))
+      thus "is_RB_in dgrad rword (set ([] @ bs)) (lt (poly_of_pair p))" by simp
+    next
+      fix q
+      assume "q \<in> set ps"
+      with 1 show "u \<preceq>\<^sub>t sig_of_pair q" ..
+    qed simp_all
+    thus "is_RB_upt dgrad rword (set bs) u" by simp
+  qed fact
+qed
+
+lemma sig_gb_aux_inv_preserved_1:
+  assumes "sig_gb_aux_inv (bs, ss, p # ps)" and "sig_crit bs ss p"
+  shows "sig_gb_aux_inv (bs, ss, ps)"
+  using assms(1)
+proof (rule sig_gb_aux_inv_preserved_0)
+  fix s
+  assume "s \<in> set ss"
+  with assms(1) show "is_syz_sig dgrad (set bs) s" by (rule sig_gb_aux_inv_D2)
+next
+  assume "\<And>p'. p' \<in> set ps \<Longrightarrow> lt (poly_of_pair p) \<prec>\<^sub>t lt (poly_of_pair p')"
+  have lt_p: "lt (poly_of_pair p) = sig_of_pair p" sorry
+  show "is_RB_in dgrad rword (set bs) (lt (poly_of_pair p))"
+  proof (rule sum_prodE)
+    fix a b
+    assume p: "p = Inl (a, b)"
+    thm is_rewritableD_is_canon_rewriter
+    show ?thesis
+    proof (cases "is_pred_syz ss (lt (poly_of_pair p))")
+      case True
+      show ?thesis apply (rule is_RB_inI2) sorry
+    next
+      case False
+      obtain a where crw: "is_canon_rewriter rword (set bs) (lt (poly_of_pair p)) a" sorry
+      show ?thesis
+      proof (cases "is_sig_red (\<prec>\<^sub>t) (=) (set bs) (monom_mult 1 (lp (poly_of_pair p) - lp a) a)")
+        case True
+        thm sig_gb_aux_inv_D8_Cons
+        show ?thesis sorry
+      next
+        case False
+        with crw show ?thesis by (rule is_RB_inI1)
+      qed
+    qed
+  next
+    fix j
+    assume p: "p = Inr j"
+    from assms(2) have "is_pred_syz ss (sig_of_pair p)" by (simp add: p)
+    then obtain s where "s \<in> set ss" and "s adds\<^sub>t sig_of_pair p" unfolding is_pred_syz_def ..
+
+    thm sig_gb_aux_inv_D2
+    thm is_syz_sig_adds
+    show ?thesis unfolding lt_p apply (rule is_RB_inI2) sorry
+  qed
+qed
+
+lemma sig_gb_aux_inv_preserved_2:
+  assumes "sig_gb_aux_inv (bs, ss, p # ps)" and "rep_list (sig_trd bs (poly_of_pair p)) = 0"
+  shows "sig_gb_aux_inv (bs, lt (sig_trd bs (poly_of_pair p)) # ss, ps)"
+proof -
+  from assms(1) have "sig_gb_aux_inv1 bs" by (rule sig_gb_aux_inv_D1)
+  hence "set bs \<subseteq> dgrad_sig_set dgrad" by (rule sig_gb_aux_inv1_D1)
+  hence "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (poly_of_pair p) (sig_trd bs (poly_of_pair p))"
+    by (rule sig_trd_red_rtrancl)
+  hence eq: "lt (sig_trd bs (poly_of_pair p)) = lt (poly_of_pair p)" by (rule sig_red_regular_rtrancl_lt)
+  have *: "is_syz_sig dgrad (set bs) (lt (poly_of_pair p))"
+  proof (rule is_syz_sigI)
+    show "poly_of_pair p \<noteq> 0" by (rule pair_list_nonzero, fact, simp)
+  next
+    show "poly_of_pair p \<in> dgrad_sig_set dgrad" by (rule pair_list_dgrad_sig_set, fact, simp)
+  next
+    show "sig_red_zero (\<prec>\<^sub>t) (set bs) (poly_of_pair p)" by (rule sig_red_zeroI, fact+)
+  qed (fact refl)
+  from assms(1) show ?thesis
+  proof (rule sig_gb_aux_inv_preserved_0)
+    fix s
+    assume "s \<in> set (lt (sig_trd bs (poly_of_pair p)) # ss)"
+    hence "s = lt (poly_of_pair p) \<or> s \<in> set ss" by (simp add: eq)
+    thus "is_syz_sig dgrad (set bs) s"
+    proof
+      assume "s = lt (poly_of_pair p)"
+      with * show ?thesis by simp
+    next
+      assume "s \<in> set ss"
+      with assms(1) show ?thesis by (rule sig_gb_aux_inv_D2)
+    qed
+  next
+    from * show "is_RB_in dgrad rword (set bs) (lt (poly_of_pair p))"
+      by (rule is_RB_inI2)
+  qed
+qed
+
+lemma sig_gb_aux_inv_preserved_3:
+  assumes "sig_gb_aux_inv (bs, ss, p # ps)" and "\<not> sig_crit bs ss p"
+    and "rep_list (sig_trd bs (poly_of_pair p)) \<noteq> 0"
+  shows "sig_gb_aux_inv ((sig_trd bs (poly_of_pair p)) # bs, ss,
+                          merge_wrt pair_ord (new_spairs bs (sig_trd bs (poly_of_pair p))) ps)"
+proof -
+  have "p \<in> set (p # ps)" by simp
+  with assms(1) have sig_of_p: "sig_of_pair p = lt (poly_of_pair p)"
+    and p_in: "poly_of_pair p \<in> dgrad_sig_set dgrad"
+    by (rule pair_list_sig_of_pair, rule pair_list_dgrad_sig_set)
+  define p' where "p' = sig_trd bs (poly_of_pair p)"
+  from assms(1) have inv1: "sig_gb_aux_inv1 bs" by (rule sig_gb_aux_inv_D1)
+  hence bs_sub: "set bs \<subseteq> dgrad_sig_set dgrad" by (rule sig_gb_aux_inv1_D1)
+  hence p_red: "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (poly_of_pair p) p'"
+    and p'_irred: "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) p'"
+    unfolding p'_def by (rule sig_trd_red_rtrancl, rule sig_trd_irred)
+  from dgrad bs_sub p_in p_red have p'_in: "p' \<in> dgrad_sig_set dgrad"
+    by (rule dgrad_sig_set_closed_sig_red_rtrancl)
+  from p_red have lt_p': "lt p' = lt (poly_of_pair p)" by (rule sig_red_regular_rtrancl_lt)
+  have sig_merge: "sig_of_pair p \<preceq>\<^sub>t sig_of_pair q"
+    if "q \<in> set (merge_wrt pair_ord (new_spairs bs p') ps)" for q
+    using that unfolding set_merge_wrt
+  proof
+    assume "q \<in> set (new_spairs bs p')"
+    then obtain b0 where "is_regular_spair p' b0" and "q = Inl (p', b0)" by (rule in_new_spairsE)
+    hence sig_of_q: "sig_of_pair q = lt (spair p' b0)" by (simp only: sig_of_spair)
+    show ?thesis unfolding sig_of_q sig_of_p lt_p'[symmetric] by (rule is_regular_spair_lt_ge_1, fact)
+  next
+    assume "q \<in> set ps"
+    moreover from assms(1) have "sorted_wrt pair_ord (p # ps)" by (rule sig_gb_aux_inv_D5)
+    ultimately show ?thesis by (simp add: pair_ord_def)
+  qed
+  have sig_of_p_less: "sig_of_pair p \<prec>\<^sub>t term_of_pair (0, j)" if "Inr j \<in> set ps" for j
+  proof (intro ord_term_lin.le_neq_trans notI)
+    from assms(1) have "sorted_wrt pair_ord (p # ps)" by (rule sig_gb_aux_inv_D5)
+    with \<open>Inr j \<in> set ps\<close> show "sig_of_pair p \<preceq>\<^sub>t term_of_pair (0, j)"
+      by (auto simp: pair_ord_def)
+  next
+    assume eq: "sig_of_pair p = term_of_pair (0, j)"
+    from that have "Inr j \<in> set (p # ps)" by simp
+    let ?P = "\<lambda>q. sig_of_pair q = term_of_pair (0, j)"
+    from that obtain i1 where "i1 < length ps" and Inrj: "Inr j = ps ! i1"
+      by (metis in_set_conv_nth)
+    from assms(1) \<open>Inr j \<in> set (p # ps)\<close> have "length (filter ?P (p # ps)) \<le> 1"
+      by (rule sig_gb_aux_inv_D4)
+    moreover from \<open>i1 < length ps\<close> have "Suc i1 < length (p # ps)" by simp
+    moreover have "0 < length (p # ps)" by simp
+    moreover have "?P ((p # ps) ! Suc i1)" by (simp add: Inrj[symmetric])
+    moreover have "?P ((p # ps) ! 0)" by (simp add: eq)
+    ultimately have "Suc i1 = 0" by (rule length_filter_le_1)
+    thus False ..
+  qed
+  have lt_p_gr: "lt b \<prec>\<^sub>t lt (poly_of_pair p)" if "b \<in> set bs" for b unfolding sig_of_p[symmetric]
+    using assms(1, 2) that by (rule not_sig_crit)
+  have inv1: "sig_gb_aux_inv1 (p' # bs)" unfolding sig_gb_aux_inv1_def
+  proof (intro conjI impI allI)
+    from bs_sub p'_in show "set (p' # bs) \<subseteq> dgrad_sig_set dgrad" by simp
+  next
+    from inv1 have "0 \<notin> rep_list ` set bs" by (rule sig_gb_aux_inv1_D2)
+    with assms(3) show "0 \<notin> rep_list ` set (p' # bs)" by (simp add: p'_def)
+  next
+    from inv1 have "sorted_wrt (\<lambda>x y. lt y \<prec>\<^sub>t lt x) bs" by (rule sig_gb_aux_inv1_D3)
+    with lt_p_gr show "sorted_wrt (\<lambda>x y. lt y \<prec>\<^sub>t lt x) (p' # bs)" by (simp add: lt_p')
+  next
+    fix i
+    assume "i < length (p' # bs)"
+    have "(\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i) (p' # bs))) ((p' # bs) ! i)) \<and>
+          ((\<exists>j<length fs.
+             (sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i) (p' # bs))))\<^sup>*\<^sup>* (monomial 1 (term_of_pair (0, j))) ((p' # bs) ! i)) \<or>
+            (\<exists>p q. p \<in> set (p' # bs) \<and> q \<in> set (p' # bs) \<and> is_regular_spair p q \<and>
+                (sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i) (p' # bs))))\<^sup>*\<^sup>* (spair p q) ((p' # bs) ! i))) \<and>
+          is_RB_upt dgrad rword (set (drop (Suc i) (p' # bs))) (lt ((p' # bs) ! i))"
+      (is "?thesis1 \<and> ?thesis2 \<and> ?thesis3")
+    proof (cases i)
+      case 0
+      show ?thesis
+      proof (simp add: \<open>i = 0\<close> p'_irred, rule conjI)
+        show "(\<exists>j<length fs. (sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (monomial 1 (term_of_pair (0, j))) p') \<or>
+              (\<exists>p. (p = p' \<or> p \<in> set bs) \<and>
+                   (\<exists>q. (q = p' \<or> q \<in> set bs) \<and> is_regular_spair p q \<and> (sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (spair p q) p'))"
+        proof (rule sum_prodE)
+          fix a b
+          assume p: "p = Inl (a, b)"
+          have "Inl (a, b) \<in> set (p # ps)" by (simp add: p)
+          with assms(1) have "a \<in> set bs" and "b \<in> set bs" and "is_regular_spair a b"
+            by (rule sig_gb_aux_inv_D3)+
+          moreover from p_red have "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (spair a b) p'"
+            by (simp add: p)
+          ultimately show ?thesis by blast
+        next
+          fix j
+          assume "p = Inr j"
+          hence "Inr j \<in> set (p # ps)" by simp
+          with assms(1) have "j < length fs" by (rule sig_gb_aux_inv_D4)
+          moreover from p_red have "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (monomial 1 (term_of_pair (0, j))) p'"
+            by (simp add: \<open>p = Inr j\<close>)
+          ultimately show ?thesis by blast
+        qed
+      next
+        from assms(1) show "is_RB_upt dgrad rword (set bs) (lt p')" unfolding lt_p' sig_of_p[symmetric]
+          by (rule sig_gb_aux_inv_D8_Cons)
+      qed
+    next
+      case (Suc i')
+      with \<open>i < length (p' # bs)\<close> have i': "i' < length bs" by simp
+      show ?thesis
+      proof (simp add: \<open>i = Suc i'\<close>, intro conjI)
+        from inv1 i' show "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i') bs)) (bs ! i')"
+          by (rule sig_gb_aux_inv1_D4)
+      next
+        from inv1 i'
+        show "(\<exists>j<length fs. (sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i') bs)))\<^sup>*\<^sup>* (monomial 1 (term_of_pair (0, j))) (bs ! i')) \<or>
+              (\<exists>p. (p = p' \<or> p \<in> set bs) \<and> (\<exists>q. (q = p' \<or> q \<in> set bs) \<and>
+              is_regular_spair p q \<and> (sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc i') bs)))\<^sup>*\<^sup>* (spair p q) (bs ! i')))"
+          by (auto elim!: sig_gb_aux_inv1_E)
+      next
+        from inv1 i' show "is_RB_upt dgrad rword (set (drop (Suc i') bs)) (lt (bs ! i'))"
+          by (rule sig_gb_aux_inv1_D5)
+      qed
+    qed
+    thus ?thesis1 and ?thesis2 and ?thesis3 by simp_all
+  qed
+  show "sig_gb_aux_inv (p' # bs, ss, merge_wrt pair_ord (new_spairs bs p') ps)"
+    unfolding sig_gb_aux_inv.simps
+  proof (intro conjI ballI allI impI)
+    show "sig_gb_aux_inv1 (p' # bs)" by (fact inv1)
+  next
+    fix s
+    assume "s \<in> set ss"
+    with assms(1) have "is_syz_sig dgrad (set bs) s" by (rule sig_gb_aux_inv_D2)
+    moreover have "set bs \<subseteq> set (p' # bs)" by fastforce
+    ultimately show "is_syz_sig dgrad (set (p' # bs)) s" by (rule is_syz_sig_mono)
+  next
+    fix q1 q2
+    assume "Inl (q1, q2) \<in> set (merge_wrt pair_ord (new_spairs bs p') ps)"
+    hence "Inl (q1, q2) \<in> set (new_spairs bs p') \<or> Inl (q1, q2) \<in> set (p # ps)"
+      by (auto simp: set_merge_wrt)
+    hence "is_regular_spair q1 q2 \<and> q1 \<in> set (p' # bs) \<and> q2 \<in> set (p' # bs)"
+    proof
+      assume "Inl (q1, q2) \<in> set (new_spairs bs p')"
+      hence "q1 = p'" and "q2 \<in> set bs" and "is_regular_spair p' q2" by (rule in_new_spairsD)+
+      thus ?thesis by simp
+    next
+      assume "Inl (q1, q2) \<in> set (p # ps)"
+      with assms(1) have "is_regular_spair q1 q2" and "q1 \<in> set bs" and "q2 \<in> set bs"
+        by (rule sig_gb_aux_inv_D3)+
+      thus ?thesis by simp
+    qed
+    thus "is_regular_spair q1 q2" and "q1 \<in> set (p' # bs)" and "q2 \<in> set (p' # bs)" by simp_all
+  next
+    fix j
+    assume "Inr j \<in> set (merge_wrt pair_ord (new_spairs bs p') ps)"
+    hence "Inr j \<in> set ps" by (simp add: set_merge_wrt Inr_not_in_new_spairs)
+    hence "Inr j \<in> set (p # ps)" by simp
+    with assms(1) show "j < length fs" by (rule sig_gb_aux_inv_D4)
+
+    fix b
+    assume "b \<in> set (p' # bs)"
+    hence "b = p' \<or> b \<in> set bs" by simp
+    thus "lt b \<prec>\<^sub>t term_of_pair (0, j)"
+    proof
+      assume "b = p'"
+      hence "lt b = sig_of_pair p" by (simp only: lt_p' sig_of_p)
+      also from \<open>Inr j \<in> set ps\<close> have "... \<prec>\<^sub>t term_of_pair (0, j)" by (rule sig_of_p_less)
+      finally show ?thesis .
+    next
+      assume "b \<in> set bs"
+      with assms(1) \<open>Inr j \<in> set (p # ps)\<close> show ?thesis by (rule sig_gb_aux_inv_D4)
+    qed
+  next
+    fix j
+    assume "Inr j \<in> set (merge_wrt pair_ord (new_spairs bs p') ps)"
+    hence "Inr j \<in> set ps" by (simp add: set_merge_wrt Inr_not_in_new_spairs)
+    hence "Inr j \<in> set (p # ps)" by simp
+    let ?P = "\<lambda>q. sig_of_pair q = term_of_pair (0, j)"
+    have "filter ?P (merge_wrt pair_ord (new_spairs bs p') ps) = filter ?P ps"
+    proof (rule filter_merge_wrt_2)
+      fix q
+      assume "q \<in> set (new_spairs bs p')"
+      then obtain b where "b \<in> set bs" and "is_regular_spair p' b" and "q = Inl (p', b)"
+        by (rule in_new_spairsE)
+      moreover assume "sig_of_pair q = term_of_pair (0, j)"
+      ultimately have "lt (spair p' b) = term_of_pair (0, j)"
+        by (simp add: sig_of_spair del: sig_of_pair.simps)
+      hence eq: "component_of_term (lt (spair p' b)) = j" by (simp add: component_of_term_of_pair)
+      have "component_of_term (lt p') < j"
+      proof (rule ccontr)
+        assume "\<not> component_of_term (lt p') < j"
+        hence "component_of_term (term_of_pair (0, j)) \<le> component_of_term (lt p')"
+          by (simp add: component_of_term_of_pair)
+        moreover have "pp_of_term (term_of_pair (0, j)) \<preceq> pp_of_term (lt p')"
+          by (simp add: pp_of_term_of_pair zero_min)
+        ultimately have "term_of_pair (0, j) \<preceq>\<^sub>t lt p'" using ord_termI by blast
+        moreover have "lt p' \<prec>\<^sub>t term_of_pair (0, j)" unfolding lt_p' sig_of_p[symmetric]
+          using \<open>Inr j \<in> set ps\<close> by (rule sig_of_p_less)
+        ultimately show False by simp
+      qed
+      moreover have "component_of_term (lt b) < j"
+      proof (rule ccontr)
+        assume "\<not> component_of_term (lt b) < j"
+        hence "component_of_term (term_of_pair (0, j)) \<le> component_of_term (lt b)"
+          by (simp add: component_of_term_of_pair)
+        moreover have "pp_of_term (term_of_pair (0, j)) \<preceq> pp_of_term (lt b)"
+          by (simp add: pp_of_term_of_pair zero_min)
+        ultimately have "term_of_pair (0, j) \<preceq>\<^sub>t lt b" using ord_termI by blast
+        moreover from assms(1) \<open>Inr j \<in> set (p # ps)\<close> \<open>b \<in> set bs\<close>
+        have "lt b \<prec>\<^sub>t term_of_pair (0, j)" by (rule sig_gb_aux_inv_D4)
+        ultimately show False by simp
+      qed
+      ultimately have "component_of_term (lt (spair p' b)) < j"
+        using is_regular_spair_component_lt_cases[OF \<open>is_regular_spair p' b\<close>] by auto
+      thus False by (simp add: eq)
+    qed
+    hence "length (filter ?P (merge_wrt pair_ord (new_spairs bs p') ps)) \<le> length (filter ?P (p # ps))"
+      by simp
+    also from assms(1) \<open>Inr j \<in> set (p # ps)\<close> have "... \<le> 1" by (rule sig_gb_aux_inv_D4)
+    finally show "length (filter ?P (merge_wrt pair_ord (new_spairs bs p') ps)) \<le> 1" .
+  next
+    from assms(1) have "sorted_wrt pair_ord (p # ps)" by (rule sig_gb_aux_inv_D5)
+    hence "sorted_wrt pair_ord ps" by simp
+    thus "sorted_wrt pair_ord (merge_wrt pair_ord (new_spairs bs p') ps)"
+      by (rule sorted_merge_wrt_new_spairs)
+  next
+    fix q b1 b2
+    assume 1: "q \<in> set (merge_wrt pair_ord (new_spairs bs p') ps)" and 2: "is_regular_spair b1 b2"
+      and 3: "sig_of_pair q \<prec>\<^sub>t lt (spair b1 b2)"
+    assume "b1 \<in> set (p' # bs)" and "b2 \<in> set (p' # bs)"
+    hence "b1 = p' \<or> b1 \<in> set bs" and "b2 = p' \<or> b2 \<in> set bs" by simp_all
+    thus "lt (spair b1 b2) \<in> sig_of_pair ` set (merge_wrt pair_ord (new_spairs bs p') ps)"
+    proof (elim disjE)
+      assume "b1 = p'" and "b2 = p'"
+      with 2 show ?thesis by (simp add: is_regular_spair_def)
+    next
+      assume "b1 = p'" and "b2 \<in> set bs"
+      from this(2) 2 have "Inl (b1, b2) \<in> set (new_spairs bs p')" unfolding \<open>b1 = p'\<close>
+        by (rule in_new_spairsI)
+      hence "sig_of_pair (Inl (b1, b2)) \<in> sig_of_pair ` set (new_spairs bs p')" by (rule imageI)
+      with 2 show ?thesis by (simp add: sig_of_spair set_merge_wrt image_Un del: sig_of_pair.simps)
+    next
+      assume "b2 = p'" and "b1 \<in> set bs"
+      note this(2)
+      moreover from 2 have "is_regular_spair b2 b1" by (rule is_regular_spair_sym)
+      ultimately have "Inl (b2, b1) \<in> set (new_spairs bs p')" unfolding \<open>b2 = p'\<close>
+        by (rule in_new_spairsI)
+      hence "sig_of_pair (Inl (b2, b1)) \<in> sig_of_pair ` set (new_spairs bs p')" by (rule imageI)
+      with 2 show ?thesis
+        by (simp add: sig_of_spair_commute sig_of_spair set_merge_wrt image_Un del: sig_of_pair.simps)
+    next
+      note assms(1) \<open>p \<in> set (p # ps)\<close>
+      moreover assume "b1 \<in> set bs" and "b2 \<in> set bs"
+      moreover note 2
+      moreover have 4: "sig_of_pair p \<prec>\<^sub>t lt (spair b1 b2)"
+        by (rule ord_term_lin.le_less_trans, rule sig_merge, fact 1, fact 3)
+      ultimately have "lt (spair b1 b2) \<in> sig_of_pair ` set (p # ps)" by (rule sig_gb_aux_inv_D6_1)
+      with 4 show ?thesis by (auto simp: set_merge_wrt)
+    qed
+  next
+    fix q j
+    assume "j < length fs"
+    assume "q \<in> set (merge_wrt pair_ord (new_spairs bs p') ps)"
+    hence "sig_of_pair p \<preceq>\<^sub>t sig_of_pair q" by (rule sig_merge)
+    also assume "sig_of_pair q \<prec>\<^sub>t term_of_pair (0, j)"
+    finally have 1: "sig_of_pair p \<prec>\<^sub>t term_of_pair (0, j)" .
+    with assms(1) \<open>p \<in> set (p # ps)\<close> \<open>j < length fs\<close> have "term_of_pair (0, j) \<in> sig_of_pair ` set (p # ps)"
+      by (rule sig_gb_aux_inv_D6_2)
+    with 1 show "term_of_pair (0, j) \<in> sig_of_pair ` set (merge_wrt pair_ord (new_spairs bs p') ps)"
+      by (auto simp: set_merge_wrt)
+  next
+    fix b q
+    assume "b \<in> set (p' # bs)" and q_in: "q \<in> set (merge_wrt pair_ord (new_spairs bs p') ps)"
+    from this(1) have "b = p' \<or> b \<in> set bs" by simp
+    hence "lt b \<preceq>\<^sub>t lt p'"
+    proof
+      note assms(1)
+      moreover assume "b \<in> set bs"
+      moreover have "p \<in> set (p # ps)" by simp
+      ultimately have "lt b \<preceq>\<^sub>t sig_of_pair p" by (rule sig_gb_aux_inv_D7)
+      thus ?thesis by (simp only: lt_p' sig_of_p)
+    qed simp
+    also have "... = sig_of_pair p" by (simp only: sig_of_p lt_p')
+    also from q_in have "... \<preceq>\<^sub>t sig_of_pair q" by (rule sig_merge)
+    finally show "lt b \<preceq>\<^sub>t sig_of_pair q" .
+  next
+    fix u
+    assume *: "\<forall>q\<in>set (merge_wrt pair_ord (new_spairs bs p') ps). u \<preceq>\<^sub>t sig_of_pair q"
+    from assms(1) have "is_RB_upt dgrad rword (set ([p'] @ bs)) u"
+    proof (rule sig_gb_aux_invD_Cons_is_RB_upt)
+      from p'_in show "set [p'] \<subseteq> dgrad_sig_set dgrad" by simp
+    next
+      fix b'
+      assume "b' \<in> set [p']"
+      thus "lt b' = lt (poly_of_pair p)" by (simp add: lt_p')
+    next
+      fix b
+      assume "b \<in> set bs"
+      thus "lt b \<prec>\<^sub>t lt (poly_of_pair p)" by (rule lt_p_gr)
+    next
+      show "is_RB_in dgrad rword (set ([p'] @ bs)) (lt (poly_of_pair p))"
+      proof (rule is_RB_inI1)
+        have "p' \<in> set (p' # bs)" by simp
+        with inv1 have "is_canon_rewriter rword (set (p' # bs)) (lt p') p'"
+          by (rule is_canon_rewriterI_eq_sig)
+        thus "is_canon_rewriter rword (set ([p'] @ bs)) (lt (poly_of_pair p)) p'" by (simp add: lt_p')
+      next
+        from p'_irred have "\<not> is_sig_red (\<prec>\<^sub>t) (=) (set bs) p'"
+          by (simp add: is_sig_red_top_tail_cases)
+        with sig_irred_regular_self have "\<not> is_sig_red (\<prec>\<^sub>t) (=) ({p'} \<union> set bs) p'"
+          by (simp add: is_sig_red_Un del: Un_insert_left)
+        thus "\<not> is_sig_red (\<prec>\<^sub>t) (=) (set ([p'] @ bs)) (monom_mult 1 (lp (poly_of_pair p) - lp p') p')"
+          by (simp add: lt_p')
+      qed
+    next
+      fix q
+      assume "q \<in> set ps"
+      hence "q \<in> set (merge_wrt pair_ord (new_spairs bs p') ps)" by (simp add: set_merge_wrt)
+      with * show "u \<preceq>\<^sub>t sig_of_pair q" ..
+    next
+      fix b b' :: "'t \<Rightarrow>\<^sub>0 'b"
+      assume "b' \<in> set [p']"
+      hence "b' = p'" by simp
+      assume "b \<in> set bs" and "is_regular_spair b' b"
+      hence "Inl (b', b) \<in> set (new_spairs bs p')" unfolding \<open>b' = p'\<close> by (rule in_new_spairsI)
+      hence "Inl (b', b) \<in> set (merge_wrt pair_ord (new_spairs bs p') ps)" by (simp add: set_merge_wrt)
+      with * have "u \<preceq>\<^sub>t sig_of_pair (Inl (b', b))" ..
+      also have "... = lt (spair b' b)" by (rule sig_of_spair, fact)
+      finally show "u \<preceq>\<^sub>t lt (spair b' b)" .
+    qed simp
+    thus "is_RB_upt dgrad rword (set (p' # bs)) u" by simp
+  qed
+qed
+
+function (domintros) sig_gb_aux :: "(('t \<Rightarrow>\<^sub>0 'b) list \<times> 't list \<times> ((('t \<Rightarrow>\<^sub>0 'b) \<times> ('t \<Rightarrow>\<^sub>0 'b)) + nat) list) \<Rightarrow>
+                                    (('t \<Rightarrow>\<^sub>0 'b) list \<times> 't list \<times> ((('t \<Rightarrow>\<^sub>0 'b) \<times> ('t \<Rightarrow>\<^sub>0 'b)) + nat) list)"
+  where
+    "sig_gb_aux (bs, ss, []) = (bs, ss, [])" |
+    "sig_gb_aux (bs, ss, p # ps) =
+      (if sig_crit bs ss p then
+        sig_gb_aux (bs, ss, ps)
+      else
+        let p' = sig_trd bs (poly_of_pair p) in
+          if rep_list p' = 0 then
+            sig_gb_aux (bs, lt p' # ss, ps)
+          else
+            sig_gb_aux (p' # bs, ss, merge_wrt pair_ord (new_spairs bs p') ps))"
+  by pat_completeness auto
+
+text \<open>Termination\<close>
+
+qualified definition "sig_gb_aux_term1 \<equiv> {(x, y). \<exists>z. x = z # y}"
+
+qualified definition "sig_gb_aux_term2 \<equiv> {(x, y). (fst x, fst y) \<in> sig_gb_aux_term1 \<or>
+                    (fst x = fst y \<and> length (snd (snd x)) < length (snd (snd y)))}"
+
+qualified definition "sig_gb_aux_term \<equiv> sig_gb_aux_term2 \<inter> {(x, y). sig_gb_aux_inv x \<and> sig_gb_aux_inv y}"
+
+lemma wfP_on_sig_gb_aux_term1: "wfP_on (Collect sig_gb_aux_inv1) (\<lambda>x y. (x, y) \<in> sig_gb_aux_term1)"
+proof (rule wfP_on_chain, rule, elim exE)
+  fix seq'
+  assume "\<forall>i. seq' i \<in> Collect sig_gb_aux_inv1 \<and> (seq' (Suc i), seq' i) \<in> sig_gb_aux_term1"
+  hence inv: "sig_gb_aux_inv1 (seq' j)" and cons: "\<exists>b. seq' (Suc j) = b # seq' j" for j
+    by (simp_all add: sig_gb_aux_term1_def)
+  from this(2) have 1: thesis0 if "\<And>j. i < length (seq' j) \<Longrightarrow> thesis0" for i thesis0
+    using that by (rule list_seq_indexE_length)
+
+  define seq where "seq = (\<lambda>i. let j = (SOME k. i < length (seq' k)) in rev (seq' j) ! i)"
+  have 2: "seq i = rev (seq' j) ! i" if "i < length (seq' j)" for i j
+  proof -
+    define k where "k = (SOME k. i < length (seq' k))"
+    from that have "i < length (seq' k)" unfolding k_def by (rule someI)
+    with cons that have "rev (seq' k) ! i = rev (seq' j) ! i" by (rule list_seq_nth')
+    thus ?thesis by (simp add: seq_def k_def[symmetric])
+  qed
+  have 3: "seq i \<in> set (seq' j)" if "i < length (seq' j)" for i j
+  proof -
+    from that have "i < length (rev (seq' j))" by simp
+    moreover from that have "seq i = rev (seq' j) ! i" by (rule 2)
+    ultimately have "seq i \<in> set (rev (seq' j))" by (metis nth_mem)
+    thus ?thesis by simp
+  qed
+  have 4: "seq ` {0..<i} = set (take i (rev (seq' j)))" if "i < length (seq' j)" for i j
+  proof -
+    from refl have "seq ` {0..<i} = (!) (rev (seq' j)) ` {0..<i}"
+    proof (rule image_cong)
+      fix i'
+      assume "i' \<in> {0..<i}"
+      hence "i' < i" by simp
+      hence "i' < length (seq' j)" using that by simp
+      thus "seq i' = rev (seq' j) ! i'" by (rule 2)
+    qed
+    also have "... = set (take i (rev (seq' j)))" by (rule nth_image, simp add: that less_imp_le_nat)
+    finally show ?thesis .
+  qed
+  from dgrad show False
+  proof (rule theorem_20)
+    have "seq i \<in> dgrad_sig_set dgrad" for i
+    proof -
+      obtain j where "i < length (seq' j)" by (rule 1)
+      hence "seq i \<in> set (seq' j)" by (rule 3)
+      moreover from inv have "set (seq' j) \<subseteq> dgrad_sig_set dgrad" by (rule sig_gb_aux_inv1_D1)
+      ultimately show ?thesis ..
+    qed
+    thus "range seq \<subseteq> dgrad_sig_set dgrad" by blast
+  next
+    have "rep_list (seq i) \<noteq> 0" for i
+    proof -
+      obtain j where "i < length (seq' j)" by (rule 1)
+      hence "seq i \<in> set (seq' j)" by (rule 3)
+      moreover from inv have "0 \<notin> rep_list ` set (seq' j)" by (rule sig_gb_aux_inv1_D2)
+      ultimately show ?thesis by auto
+    qed
+    thus "0 \<notin> rep_list ` range seq" by fastforce
+  next
+    fix i1 i2 :: nat
+    assume "i1 < i2"
+    also obtain j where i2: "i2 < length (seq' j)" by (rule 1)
+    finally have i1: "i1 < length (seq' j)" .
+    from i1 have s1: "seq i1 = rev (seq' j) ! i1" by (rule 2)
+    from i2 have s2: "seq i2 = rev (seq' j) ! i2" by (rule 2)
+    from inv have "sorted_wrt (\<lambda>x y. lt y \<prec>\<^sub>t lt x) (seq' j)" by (rule sig_gb_aux_inv1_D3)
+    hence "sorted_wrt (\<lambda>x y. lt x \<prec>\<^sub>t lt y) (rev (seq' j))" by (simp add: sorted_wrt_rev)
+    moreover note \<open>i1 < i2\<close>
+    moreover from i2 have "i2 < length (rev (seq' j))" by simp
+    ultimately have "lt (rev (seq' j) ! i1) \<prec>\<^sub>t lt (rev (seq' j) ! i2)" by (rule sorted_wrt_nth_less)
+    thus "lt (seq i1) \<prec>\<^sub>t lt (seq i2)" by (simp only: s1 s2)
+  next
+    fix i
+    obtain j where i: "i < length (seq' j)" by (rule 1)
+    hence eq1: "seq i = rev (seq' j) ! i" and eq2: "seq ` {0..<i} = set (take i (rev (seq' j)))"
+      by (rule 2, rule 4)
+    let ?i = "length (seq' j) - Suc i"
+    from i have "?i < length (seq' j)" by simp
+    with inv have "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc ?i) (seq' j))) ((seq' j) ! ?i)"
+      by (rule sig_gb_aux_inv1_D4)
+    thus "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (seq ` {0..<i}) (seq i)"
+      using i by (simp add: eq1 eq2 rev_nth take_rev Suc_diff_Suc)
+ 
+    from inv \<open>?i < length (seq' j)\<close>
+    show "(\<exists>j<length fs. (sig_red (\<prec>\<^sub>t) (\<preceq>) (seq ` {0..<i}))\<^sup>*\<^sup>* (monomial 1 (term_of_pair (0, j))) (seq i)) \<or>
+          (\<exists>j k. is_regular_spair (seq j) (seq k) \<and>
+                (sig_red (\<prec>\<^sub>t) (\<preceq>) (seq ` {0..<i}))\<^sup>*\<^sup>* (spair (seq j) (seq k)) (seq i))" (is "?l \<or> ?r")
+    proof (rule sig_gb_aux_inv1_E)
+      fix j0
+      assume "j0 < length fs"
+        and "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc (length (seq' j) - Suc i)) (seq' j))))\<^sup>*\<^sup>*
+                (monomial 1 (term_of_pair (0, j0))) (seq' j ! (length (seq' j) - Suc i))"
+      hence ?l using i by (auto simp: eq1 eq2 rev_nth take_rev Suc_diff_Suc)
+      thus ?thesis ..
+    next
+      fix p q
+      assume "p \<in> set (seq' j)"
+      then obtain pi where "pi < length (seq' j)" and "p = (seq' j) ! pi" by (metis in_set_conv_nth)
+      hence p: "p = seq (length (seq' j) - Suc pi)"
+        by (metis "2" \<open>p \<in> set (seq' j)\<close> diff_Suc_less length_pos_if_in_set length_rev rev_nth rev_rev_ident)
+      assume "q \<in> set (seq' j)"
+      then obtain qi where "qi < length (seq' j)" and "q = (seq' j) ! qi" by (metis in_set_conv_nth)
+      hence q: "q = seq (length (seq' j) - Suc qi)"
+        by (metis "2" \<open>q \<in> set (seq' j)\<close> diff_Suc_less length_pos_if_in_set length_rev rev_nth rev_rev_ident)
+      assume "is_regular_spair p q"
+        and "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set (drop (Suc (length (seq' j) - Suc i)) (seq' j))))\<^sup>*\<^sup>*
+                (spair p q) (seq' j ! (length (seq' j) - Suc i))"
+      hence ?r using i by (auto simp: eq1 eq2 p q rev_nth take_rev Suc_diff_Suc)
+      thus ?thesis ..
+    qed
+
+    from inv \<open>?i < length (seq' j)\<close>
+    have "is_RB_upt dgrad rword (set (drop (Suc ?i) (seq' j))) (lt ((seq' j) ! ?i))"
+      by (rule sig_gb_aux_inv1_D5)
+    with dgrad have "is_sig_GB_upt dgrad (set (drop (Suc ?i) (seq' j))) (lt ((seq' j) ! ?i))"
+      by (rule is_RB_upt_is_sig_GB_upt)
+    thus "is_sig_GB_upt dgrad (seq ` {0..<i}) (lt (seq i))"
+      using i by (simp add: eq1 eq2 rev_nth take_rev Suc_diff_Suc)
+  qed
+qed
+
+lemma wfP_on_sig_gb_aux_term2: "wfP_on (Collect sig_gb_aux_inv) (\<lambda>x y. (x, y) \<in> sig_gb_aux_term2)"
+proof (rule wfP_onI_min)
+  fix x Q
+  assume "x \<in> Q" and Q_sub: "Q \<subseteq> Collect sig_gb_aux_inv"
+  from this(1) have "fst x \<in> fst ` Q" by (rule imageI)
+  have "fst ` Q \<subseteq> Collect sig_gb_aux_inv1"
+  proof
+    fix y
+    assume "y \<in> fst ` Q"
+    then obtain z where "z \<in> Q" and y: "y = fst z" by fastforce
+    obtain bs ss ps where z: "z = (bs, ss, ps)" by (rule sig_gb_aux_inv.cases)
+    from \<open>z \<in> Q\<close> Q_sub have "sig_gb_aux_inv z" by blast
+    thus "y \<in> Collect sig_gb_aux_inv1" by (simp add: y z sig_gb_aux_inv.simps)
+  qed
+  with wfP_on_sig_gb_aux_term1 \<open>fst x \<in> fst ` Q\<close> obtain z' where "z' \<in> fst ` Q"
+    and z'_min: "\<And>y. (y, z') \<in> sig_gb_aux_term1 \<Longrightarrow> y \<notin> fst ` Q" by (rule wfP_onE_min, blast)
+  from this(1) obtain z0 where "z0 \<in> Q" and z': "z' = fst z0" by fastforce
+  define Q0 where "Q0 = {z. z \<in> Q \<and> fst z = fst z0}"
+  from \<open>z0 \<in> Q\<close> have "z0 \<in> Q0" by (simp add: Q0_def)
+  hence "length (snd (snd z0)) \<in> length ` snd ` snd ` Q0" by (intro imageI)
+  with wf_less obtain n where n1: "n \<in> length ` snd ` snd ` Q0"
+    and n2: "\<And>n'. n' < n \<Longrightarrow> n' \<notin> length ` snd ` snd ` Q0" by (rule wfE_min, blast)
+  from n1 obtain z where "z \<in> Q0" and n3: "n = length (snd (snd z))" by fastforce
+  have z_min: "y \<notin> Q0" if "length (snd (snd y)) < length (snd (snd z))" for y
+  proof
+    assume "y \<in> Q0"
+    hence "length (snd (snd y)) \<in> length ` snd ` snd ` Q0" by (intro imageI)
+    with n2 have "\<not> length (snd (snd y)) < length (snd (snd z))" unfolding n3[symmetric] by blast
+    thus False using that ..
+  qed
+  show "\<exists>z\<in>Q. \<forall>y\<in>Collect sig_gb_aux_inv. (y, z) \<in> sig_gb_aux_term2 \<longrightarrow> y \<notin> Q"
+  proof (intro bexI ballI impI)
+    fix y
+    assume "y \<in> Collect sig_gb_aux_inv"
+    assume "(y, z) \<in> sig_gb_aux_term2"
+    hence "(fst y, fst z) \<in> sig_gb_aux_term1 \<or> (fst y = fst z \<and> length (snd (snd y)) < length (snd (snd z)))"
+      by (simp add: sig_gb_aux_term2_def)
+    thus "y \<notin> Q"
+    proof
+      assume "(fst y, fst z) \<in> sig_gb_aux_term1"
+      moreover from \<open>z \<in> Q0\<close> have "fst z = fst z0" by (simp add: Q0_def)
+      ultimately have "(fst y, z') \<in> sig_gb_aux_term1" by (simp add: sig_gb_aux_term1_def z')
+      hence "fst y \<notin> fst ` Q" by (rule z'_min)
+      thus ?thesis by blast
+    next
+      assume "fst y = fst z \<and> length (snd (snd y)) < length (snd (snd z))"
+      hence "fst y = fst z" and "length (snd (snd y)) < length (snd (snd z))" by simp_all
+      from this(2) have "y \<notin> Q0" by (rule z_min)
+      moreover from \<open>z \<in> Q0\<close> have "fst y = fst z0" by (simp add: Q0_def \<open>fst y = fst z\<close>)
+      ultimately show ?thesis by (simp add: Q0_def)
+    qed
+  next
+    from \<open>z \<in> Q0\<close> show "z \<in> Q" by (simp add: Q0_def)
+  qed
+qed
+
+corollary wf_sig_gb_aux_term: "wf sig_gb_aux_term"
+proof (rule wfI_min)
+  fix x::"('t \<Rightarrow>\<^sub>0 'b) list \<times> 't list \<times> ((('t \<Rightarrow>\<^sub>0 'b) \<times> ('t \<Rightarrow>\<^sub>0 'b)) + nat) list" and Q
+  assume "x \<in> Q"
+  show "\<exists>z\<in>Q. \<forall>y. (y, z) \<in> sig_gb_aux_term \<longrightarrow> y \<notin> Q"
+  proof (cases "sig_gb_aux_inv x")
+    case True
+    let ?Q = "Q \<inter> Collect sig_gb_aux_inv"
+    note wfP_on_sig_gb_aux_term2
+    moreover from \<open>x \<in> Q\<close> True have "x \<in> ?Q" by simp
+    moreover have "?Q \<subseteq> Collect sig_gb_aux_inv" by simp
+    ultimately obtain z where "z \<in> ?Q" and z_min: "\<And>y. (y, z) \<in> sig_gb_aux_term2 \<Longrightarrow> y \<notin> ?Q"
+      by (rule wfP_onE_min, blast)
+    show ?thesis
+    proof (intro bexI allI impI)
+      fix y
+      assume "(y, z) \<in> sig_gb_aux_term"
+      hence "(y, z) \<in> sig_gb_aux_term2" and "sig_gb_aux_inv y" by (simp_all add: sig_gb_aux_term_def)
+      from this(1) have "y \<notin> ?Q" by (rule z_min)
+      with \<open>sig_gb_aux_inv y\<close> show "y \<notin> Q" by simp
+    next
+      from \<open>z \<in> ?Q\<close> show "z \<in> Q" by simp
+    qed
+  next
+    case False
+    show ?thesis
+    proof (intro bexI allI impI)
+      fix y
+      assume "(y, x) \<in> sig_gb_aux_term"
+      hence "sig_gb_aux_inv x" by (simp add: sig_gb_aux_term_def)
+      with False show "y \<notin> Q" ..
+    qed fact
+  qed
+qed
+
+lemma sig_gb_aux_domI: "sig_gb_aux_inv args \<Longrightarrow> sig_gb_aux_dom args"
+  using wf_sig_gb_aux_term
+proof (induct args)
+  case (less args)
+  obtain bs ss ps0 where args: "args = (bs, ss, ps0)" by (rule sig_gb_aux_inv.cases)
+  show ?case
+  proof (cases ps0)
+    case Nil
+    show ?thesis unfolding args Nil by (rule sig_gb_aux.domintros)
+  next
+    case (Cons p ps)
+    from less(1) have 1: "\<And>y. (y, (bs, ss, p # ps)) \<in> sig_gb_aux_term \<Longrightarrow> sig_gb_aux_inv y \<Longrightarrow> sig_gb_aux_dom y"
+      by (simp only: args Cons)
+    from less(2) have 2: "sig_gb_aux_inv (bs, ss, p # ps)" by (simp only: args Cons)
+    show ?thesis unfolding args Cons
+    proof (rule sig_gb_aux.domintros)
+      assume "sig_crit bs ss p"
+      with 2 have a: "sig_gb_aux_inv (bs, ss, ps)" by (rule sig_gb_aux_inv_preserved_1)
+      with 2 have "((bs, ss, ps), bs, ss, p # ps) \<in> sig_gb_aux_term"
+        by (simp add: sig_gb_aux_term_def sig_gb_aux_term2_def)
+      thus "sig_gb_aux_dom (bs, ss, ps)" using a by (rule 1)
+    next
+      assume "rep_list (sig_trd bs (poly_of_pair p)) = 0"
+      with 2 have a: "sig_gb_aux_inv (bs, lt (sig_trd bs (poly_of_pair p)) # ss, ps)"
+        by (rule sig_gb_aux_inv_preserved_2)
+      with 2 have "((bs, lt (sig_trd bs (poly_of_pair p)) # ss, ps), bs, ss, p # ps) \<in> sig_gb_aux_term"
+        by (simp add: sig_gb_aux_term_def sig_gb_aux_term2_def)
+      thus "sig_gb_aux_dom (bs, lt (sig_trd bs (poly_of_pair p)) # ss, ps)" using a by (rule 1)
+    next
+      let ?args = "(sig_trd bs (poly_of_pair p) # bs, ss, merge_wrt pair_ord (new_spairs bs (sig_trd bs (poly_of_pair p))) ps)"
+      assume "\<not> sig_crit bs ss p" and "rep_list (sig_trd bs (poly_of_pair p)) \<noteq> 0"
+      with 2 have a: "sig_gb_aux_inv ?args" by (rule sig_gb_aux_inv_preserved_3)
+      with 2 have "(?args, bs, ss, p # ps) \<in> sig_gb_aux_term"
+        by (simp add: sig_gb_aux_term_def sig_gb_aux_term2_def sig_gb_aux_term1_def)
+      thus "sig_gb_aux_dom ?args" using a by (rule 1)
+    qed
+  qed
+qed
+
+text \<open>Invariant\<close>
+
+lemma sig_gb_aux_inv_invariant:
+  assumes "sig_gb_aux_inv args"
+  shows "sig_gb_aux_inv (sig_gb_aux args)"
+proof -
+  from assms have "sig_gb_aux_dom args" by (rule sig_gb_aux_domI)
+  thus ?thesis using assms
+  proof (induct args rule: sig_gb_aux.pinduct)
+    case (1 bs ss)
+    thus ?case by (simp only: sig_gb_aux.psimps(1))
+  next
+    case (2 bs ss p ps)
+    show ?case
+    proof (simp add: sig_gb_aux.psimps(2)[OF 2(1)] Let_def, intro conjI impI)
+      assume a: "sig_crit bs ss p"
+      with 2(5) have "sig_gb_aux_inv (bs, ss, ps)" by (rule sig_gb_aux_inv_preserved_1)
+      with a show "sig_gb_aux_inv (sig_gb_aux (bs, ss, ps))" by (rule 2(2))
+    next
+      assume a: "sig_crit bs ss p"
+      with 2(5) have "sig_gb_aux_inv (bs, ss, ps)" by (rule sig_gb_aux_inv_preserved_1)
+      with a show "sig_gb_aux_inv (sig_gb_aux (bs, ss, ps))" by (rule 2(2))
+    next
+      assume a: "\<not> sig_crit bs ss p"
+      assume b: "rep_list (sig_trd bs (poly_of_pair p)) = 0"
+      with 2(5) have "sig_gb_aux_inv (bs, lt (sig_trd bs (poly_of_pair p)) # ss, ps)"
+        by (rule sig_gb_aux_inv_preserved_2)
+      with a refl b show "sig_gb_aux_inv (sig_gb_aux (bs, lt (sig_trd bs (poly_of_pair p)) # ss, ps))"
+        by (rule 2(3))
+    next
+      assume a: "\<not> sig_crit bs ss p" and b: "rep_list (sig_trd bs (poly_of_pair p)) \<noteq> 0"
+      with 2(5) have "sig_gb_aux_inv (sig_trd bs (poly_of_pair p) # bs, ss,
+                                    merge_wrt pair_ord (new_spairs bs (sig_trd bs (poly_of_pair p))) ps)"
+        by (rule sig_gb_aux_inv_preserved_3)
+      with a refl b show "sig_gb_aux_inv (sig_gb_aux (sig_trd bs (poly_of_pair p) # bs, ss,
+                                    merge_wrt pair_ord (new_spairs bs (sig_trd bs (poly_of_pair p))) ps))"
+        by (rule 2(4))
+    qed
+  qed
+qed
+
+end
+
+thm sig_gb_aux.psimps[OF rw_rat_strict_is_strict_rewrite_ord]
+
+
+
+subsubsection \<open>Obsolete\<close>
+
 (* Obsolete? *)
 lemma lemma_10:
   assumes "is_sig_GB_upt G u" and "p \<in> G" and "q \<in> G" and "is_regular_spair p q" and "lt (spair p q) adds\<^sub>t u"
