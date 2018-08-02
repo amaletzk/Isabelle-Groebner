@@ -329,6 +329,70 @@ proof -
   qed
 qed
 
+lemma length_filter_eq [simp]: "length (filter ((=) x) xs) = count_list xs x"
+  by (induct xs, simp_all)
+
+subsection \<open>@{const count_list}\<close>
+
+lemma count_list_append [simp]: "count_list (xs @ ys) a = count_list xs a + count_list ys a"
+  by (induct xs, simp_all)
+
+lemma count_list_upt [simp]: "count_list [a..<b] x = (if a \<le> x \<and> x < b then 1 else 0)"
+proof (cases "a \<le> b")
+  case True
+  then obtain k where "b = a + k" using le_Suc_ex by blast
+  show ?thesis unfolding \<open>b = a + k\<close> by (induct k, simp_all)
+next
+  case False
+  thus ?thesis by simp
+qed
+
+subsection \<open>@{const sorted_wrt}\<close>
+
+lemma sorted_wrt_upt_iff: "sorted_wrt rel [a..<b] \<longleftrightarrow> (\<forall>i j. a \<le> i \<longrightarrow> i < j \<longrightarrow> j < b \<longrightarrow> rel i j)"
+proof (cases "a \<le> b")
+  case True
+  then obtain k where "b = a + k" using le_Suc_ex by blast
+  show ?thesis unfolding \<open>b = a + k\<close>
+  proof (induct k)
+    case 0
+    show ?case by simp
+  next
+    case (Suc k)
+    show ?case
+    proof (simp add: sorted_wrt_append Suc, intro iffI allI ballI impI conjI)
+      fix i j
+      assume "(\<forall>i\<ge>a. \<forall>j>i. j < a + k \<longrightarrow> rel i j) \<and> (\<forall>x\<in>{a..<a + k}. rel x (a + k))"
+      hence 1: "\<And>i' j'. a \<le> i' \<Longrightarrow> i' < j' \<Longrightarrow> j' < a + k \<Longrightarrow> rel i' j'"
+        and 2: "\<And>x. a \<le> x \<Longrightarrow> x < a + k \<Longrightarrow> rel x (a + k)" by simp_all
+      assume "a \<le> i" and "i < j"
+      assume "j < Suc (a + k)"
+      hence "j < a + k \<or> j = a + k" by auto
+      thus "rel i j"
+      proof
+        assume "j < a + k"
+        with \<open>a \<le> i\<close> \<open>i < j\<close> show ?thesis by (rule 1)
+      next
+        assume "j = a + k"
+        from \<open>a \<le> i\<close> \<open>i < j\<close> show ?thesis unfolding \<open>j = a + k\<close> by (rule 2)
+      qed
+    next
+      fix i j
+      assume "\<forall>i\<ge>a. \<forall>j>i. j < Suc (a + k) \<longrightarrow> rel i j" and "a \<le> i" and "i < j" and "j < a + k"
+      thus "rel i j" by simp
+    next
+      fix x
+      assume "x \<in> {a..<a + k}"
+      hence "a \<le> x" and "x < a + k" by simp_all
+      moreover assume "\<forall>i\<ge>a. \<forall>j>i. j < Suc (a + k) \<longrightarrow> rel i j"
+      ultimately show "rel x (a + k)" by simp
+    qed
+  qed
+next
+  case False
+  thus ?thesis by simp
+qed
+
 subsection \<open>@{const drop}\<close>
 
 lemma nth_in_set_dropI:
