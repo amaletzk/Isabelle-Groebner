@@ -393,6 +393,118 @@ next
   thus ?thesis by simp
 qed
 
+subsection \<open>@{const insort_wrt} and @{const merge_wrt}\<close>
+
+lemma map_insort_wrt:
+  assumes "\<And>x. x \<in> set xs \<Longrightarrow> r2 (f y) (f x) \<longleftrightarrow> r1 y x"
+  shows "map f (insort_wrt r1 y xs) = insort_wrt r2 (f y) (map f xs)"
+  using assms
+proof (induct xs)
+  case Nil
+  show ?case by simp
+next
+  case (Cons x xs)
+  have "x \<in> set (x # xs)" by simp
+  hence "r2 (f y) (f x) = r1 y x" by (rule Cons(2))
+  moreover have "map f (insort_wrt r1 y xs) = insort_wrt r2 (f y) (map f xs)"
+  proof (rule Cons(1))
+    fix x'
+    assume "x' \<in> set xs"
+    hence "x' \<in> set (x # xs)" by simp
+    thus "r2 (f y) (f x') = r1 y x'" by (rule Cons(2))
+  qed
+  ultimately show ?case by simp
+qed
+
+lemma insort_wrt_cong:
+  assumes "f y = f y'" and "map f xs = map f xs'" and "\<And>x x'. f x = f x' \<Longrightarrow> r y x \<longleftrightarrow> r y' x'"
+  shows "map f (insort_wrt r y xs) = map f (insort_wrt r y' xs')"
+  using assms(2)
+proof (induct xs arbitrary: xs')
+  case Nil
+  from Nil have "xs' = []" by simp
+  with assms(1) show ?case by simp
+next
+  case (Cons x xs)
+  from Cons(2) obtain x' xs0 where xs': "xs' = x' # xs0" and eq1: "f x = f x'" and eq2: "map f xs = map f xs0"
+    by auto
+  from this(3) have eq3: "map f (insort_wrt r y xs) = map f (insort_wrt r y' xs0)" by (rule Cons(1))
+  from \<open>f x = f x'\<close> have eq4: "r y x \<longleftrightarrow> r y' x'" by (rule assms(3))
+  show ?case by (simp add: xs' eq1 eq2 eq3 eq4 assms(1))
+qed
+
+lemma map_merge_wrt:
+  assumes "f ` set xs \<inter> f ` set ys = {}"
+    and "\<And>x y. x \<in> set xs \<Longrightarrow> y \<in> set ys \<Longrightarrow> r2 (f x) (f y) \<longleftrightarrow> r1 x y"
+  shows "map f (merge_wrt r1 xs ys) = merge_wrt r2 (map f xs) (map f ys)"
+  using assms
+proof (induct r1 xs ys rule: merge_wrt.induct)
+  case (1 uu xs)
+  show ?case by simp
+next
+  case (2 r1 v va)
+  show ?case by simp
+next
+  case (3 r1 x xs y ys)
+  from 3(4) have "f x \<noteq> f y" and 1: "f ` set xs \<inter> f ` set (y # ys) = {}"
+    and 2: "f ` set (x # xs) \<inter> f ` set ys = {}" by auto
+  from this(1) have "x \<noteq> y" by auto
+  have eq2: "map f (merge_wrt r1 xs (y # ys)) = merge_wrt r2 (map f xs) (map f (y # ys))"
+    if "r1 x y" using \<open>x \<noteq> y\<close> that 1
+  proof (rule 3(2))
+    fix a b
+    assume "a \<in> set xs"
+    hence "a \<in> set (x # xs)" by simp
+    moreover assume "b \<in> set (y # ys)"
+    ultimately show "r2 (f a) (f b) \<longleftrightarrow> r1 a b" by (rule 3(5))
+  qed
+  have eq3: "map f (merge_wrt r1 (x # xs) ys) = merge_wrt r2 (map f (x # xs)) (map f ys)"
+    if "\<not> r1 x y" using \<open>x \<noteq> y\<close> that 2
+  proof (rule 3(3))
+    fix a b
+    assume "a \<in> set (x # xs)"
+    assume "b \<in> set ys"
+    hence "b \<in> set (y # ys)" by simp
+    with \<open>a \<in> set (x # xs)\<close> show "r2 (f a) (f b) \<longleftrightarrow> r1 a b" by (rule 3(5))
+  qed
+  have eq4: "r2 (f x) (f y) \<longleftrightarrow> r1 x y" by (rule 3(5), simp_all)
+  show ?case by (simp add: eq2 eq3 eq4 \<open>f x \<noteq> f y\<close> \<open>x \<noteq> y\<close>)
+qed
+
+lemma merge_wrt_cong:
+  assumes "map f xs = map f xs'" and "map f ys = map f ys'" and "set xs \<inter> set ys = {}"
+    and "set xs' \<inter> set ys' = {}"
+    and "\<And>x x' y y'. f x = f x' \<Longrightarrow> f y = f y' \<Longrightarrow> r x y \<longleftrightarrow> r x' y'"
+  shows "map f (merge_wrt r xs ys) = map f (merge_wrt r xs' ys')"
+  using assms
+proof (induct r xs ys arbitrary: xs' ys' rule: merge_wrt.induct)
+  case (1 uu xs)
+  from 1(2) have "ys' = []" by simp
+  with 1(1) show ?case by simp
+next
+  case (2 rel y ys)
+  from 2(1) have "xs' = []" by simp
+  from 2(2) obtain y' ys0 where "ys' = y' # ys0" and "f y = f y'" and "map f ys = map f ys0"
+    by auto
+  with \<open>xs' = []\<close> show ?case by simp
+next
+  case (3 rel x xs y ys)
+  from 3(6) have "x \<noteq> y" and 1: "set xs \<inter> set (y # ys) = {}"
+    and 2: "set (x # xs) \<inter> set ys = {}" and 4: "set xs \<inter> set ys = {}" by auto
+  from 3(4) obtain x' xs0 where xs': "xs' = x' # xs0" and eq1: "f x = f x'" and eq2: "map f xs = map f xs0"
+    by auto
+  from 3(5) obtain y' ys0 where ys': "ys' = y' # ys0" and eq3: "f y = f y'" and eq4: "map f ys = map f ys0"
+    by auto
+  from 3(7) have "x' \<noteq> y'" and 5: "set xs0 \<inter> set ys' = {}" and 6: "set xs' \<inter> set ys0 = {}"
+    by (auto simp: xs' ys')
+  from eq1 eq3 have eq5: "rel x y \<longleftrightarrow> rel x' y'" by (rule 3(8))
+  have eq7: "map f (merge_wrt rel xs (y # ys)) = map f (merge_wrt rel xs0 ys')"
+    if "rel x y" using \<open>x \<noteq> y\<close> that eq2 3(5) 1 5 3(8) by (rule 3(2))
+  have eq8: "map f (merge_wrt rel (x # xs) ys) = map f (merge_wrt rel xs' ys0)"
+    if "\<not> rel x y" using \<open>x \<noteq> y\<close> that 3(4) eq4 2 6 3(8) by (rule 3(3))
+  show ?case by (simp add: xs' ys' eq5 eq1 eq2 eq3 eq4 eq7 eq8 \<open>x \<noteq> y\<close> \<open>x' \<noteq> y'\<close>)
+qed
+
 subsection \<open>@{const drop}\<close>
 
 lemma nth_in_set_dropI:
@@ -416,6 +528,72 @@ next
     ultimately have "xs ! i0 \<in> set (drop j0 xs)" by (rule Cons(1))
     thus ?thesis by (simp add: i \<open>j = Suc j0\<close>)
   qed
+qed
+
+subsection \<open>@{const map}\<close>
+
+lemma map_cong_strong:
+  assumes "map f xs = map f' ys" and "\<And>x y. x \<in> set xs \<Longrightarrow> y \<in> set ys \<Longrightarrow> f x = f' y \<Longrightarrow> g x = g' y"
+  shows "map g xs = map g' ys"
+  using assms
+proof (induct xs arbitrary: ys)
+  case Nil
+  thus ?case by simp
+next
+  case (Cons x xs)
+  from Cons(2) obtain y ys' where ys: "ys = y # ys'" and 1: "f x = f' y" and 2: "map f xs = map f' ys'"
+    by auto
+  have "g x = g' y" by (rule Cons(3), simp_all add: ys 1)
+  moreover from 2 have "map g xs = map g' ys'"
+  proof (rule Cons(1))
+    fix a b
+    assume "a \<in> set xs" and "b \<in> set ys'"
+    hence "a \<in> set (x # xs)" and "b \<in> set ys" by (simp_all add: ys)
+    moreover assume "f a = f' b"
+    ultimately show "g a = g' b" by (rule Cons(3))
+  qed
+  ultimately show ?case by (simp add: ys)
+qed
+
+subsection \<open>@{const sorted_wrt}\<close>
+
+lemma sorted_wrt_cong_strong:
+  assumes "sorted_wrt P xs" and "map f xs = map f' ys"
+    and "\<And>x1 x2 y1 y2. x1 \<in> set xs \<Longrightarrow> x2 \<in> set xs \<Longrightarrow> y1 \<in> set ys \<Longrightarrow> y2 \<in> set ys \<Longrightarrow>
+            f x1 = f' y1 \<Longrightarrow> f x2 = f' y2 \<Longrightarrow> P x1 x2 = Q y1 y2"
+  shows "sorted_wrt Q ys"
+  using assms
+proof (induct xs arbitrary: ys)
+  case Nil
+  thus ?case by simp
+next
+  case (Cons x xs)
+  from Cons(2) have "sorted_wrt P xs" and 0: "Ball (set xs) (P x)" by simp_all
+  from Cons(3) obtain y ys' where ys: "ys = y # ys'" and 1: "f x = f' y" and 2: "map f xs = map f' ys'"
+    by auto
+  from \<open>sorted_wrt P xs\<close> 2 have "sorted_wrt Q ys'"
+  proof (rule Cons(1))
+    fix a1 a2 b1 b2
+    assume "a1 \<in> set xs" and "a2 \<in> set xs" and "b1 \<in> set ys'" and "b2 \<in> set ys'"
+    hence "a1 \<in> set (x # xs)" and "a2 \<in> set (x # xs)" and "b1 \<in> set ys" and "b2 \<in> set ys"
+      by (simp_all add: ys)
+    moreover assume "f a1 = f' b1" and "f a2 = f' b2"
+    ultimately show "P a1 a2 = Q b1 b2" by (rule Cons(4))
+  qed
+  moreover have "Ball (set ys') (Q y)"
+  proof
+    fix b
+    assume "b \<in> set ys'"
+    hence "f' b \<in> f' ` set ys'" by (rule imageI)
+    also have "... = set (map f' ys')" by simp
+    also have "... = set (map f xs)" by (simp only: 2)
+    also have "... = f ` set xs" by simp
+    finally obtain a where "a \<in> set xs" and "f' b = f a" ..
+    from 0 this(1) have "P x a" ..
+    also have "P x a = Q y b" by (rule Cons(4), simp_all add: \<open>a \<in> set xs\<close> \<open>b \<in> set ys'\<close> ys 1 \<open>f' b = f a\<close>)
+    finally show "Q y b" .
+  qed
+  ultimately show ?case by (simp add: ys)
 qed
 
 end (* theory *)
