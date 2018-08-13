@@ -596,4 +596,137 @@ next
   ultimately show ?case by (simp add: ys)
 qed
 
+section \<open>Recursive Functions\<close>
+
+locale recursive =
+  fixes h' :: "'b \<Rightarrow> 'b"
+  fixes b :: 'b
+  assumes b_fixpoint: "h' b = b"
+begin
+
+context
+  fixes Q :: "'a \<Rightarrow> bool"
+  fixes g :: "'a \<Rightarrow> 'b"
+  fixes h :: "'a \<Rightarrow> 'a"
+begin
+
+function (domintros) recfun_aux :: "'a \<Rightarrow> 'b" where
+  "recfun_aux x = (if Q x then g x else h' (recfun_aux (h x)))"
+  by pat_completeness auto
+
+lemmas [induct del] = recfun_aux.pinduct
+
+definition dom :: "'a \<Rightarrow> bool"
+  where "dom x \<longleftrightarrow> (\<exists>k. Q ((h ^^ k) x))"
+
+lemma domI:
+  assumes "\<not> Q x \<Longrightarrow> dom (h x)"
+  shows "dom x"
+proof (cases "Q x")
+  case True
+  hence "Q ((h ^^ 0) x)" by simp
+  thus ?thesis unfolding dom_def ..
+next
+  case False
+  hence "dom (h x)" by (rule assms)
+  then obtain k where "Q ((h ^^ k) (h x))" unfolding dom_def ..
+  hence "Q ((h ^^ (Suc k)) x)" by (simp add: funpow_swap1)
+  thus ?thesis unfolding dom_def ..
+qed
+
+lemma domD:
+  assumes "dom x" and "\<not> Q x"
+  shows "dom (h x)"
+proof -
+  from assms(1) obtain k where *: "Q ((h ^^ k) x)" unfolding dom_def ..
+  with assms(2) have "k \<noteq> 0" using funpow_0 by fastforce
+  then obtain m where "k = Suc m" using nat.exhaust by blast
+  with * have "Q ((h ^^ m) (h x))" by (simp add: funpow_swap1)
+  thus ?thesis unfolding dom_def ..
+qed
+
+lemma recfun_aux_domI:
+  assumes "dom x"
+  shows "recfun_aux_dom x"
+proof -
+  from assms obtain k where "Q ((h ^^ k) x)" unfolding dom_def ..
+  thus ?thesis
+  proof (induct k arbitrary: x)
+    case 0
+    hence "Q x" by simp
+    with recfun_aux.domintros show ?case by blast
+  next
+    case (Suc k)
+    from Suc(2) have "Q ((h ^^ k) (h x))" by (simp add: funpow_swap1)
+    hence "recfun_aux_dom (h x)" by (rule Suc(1))
+    with recfun_aux.domintros show ?case by blast
+  qed
+qed
+
+lemma recfun_aux_domD:
+  assumes "recfun_aux_dom x"
+  shows "dom x"
+  using assms
+proof (induct x rule: recfun_aux.pinduct)
+  case (1 x)
+  show ?case
+  proof (cases "Q x")
+    case True
+    with domI show ?thesis by blast
+  next
+    case False
+    hence "dom (h x)" by (rule 1(2))
+    thus ?thesis using domI by blast
+  qed
+qed
+
+corollary recfun_aux_dom_alt: "recfun_aux_dom = dom"
+  by (auto dest: recfun_aux_domI recfun_aux_domD)
+
+definition "fun" :: "'a \<Rightarrow> 'b"
+  where "fun x = (if recfun_aux_dom x then recfun_aux x else b)"
+
+lemma simps: "fun x = (if Q x then g x else h' (fun (h x)))"
+proof (cases "dom x")
+  case True
+  hence dom: "recfun_aux_dom x" by (rule recfun_aux_domI)
+  show ?thesis
+  proof (cases "Q x")
+    case True
+    with dom show ?thesis by (simp add: fun_def recfun_aux.psimps)
+  next
+    case False
+    have "recfun_aux_dom (h x)" by (rule recfun_aux_domI, rule domD, fact True, fact False)
+    thus ?thesis by (simp add: fun_def dom False recfun_aux.psimps)
+  qed
+next
+  case False
+  moreover have "\<not> Q x"
+  proof
+    assume "Q x"
+    hence "dom x" using domI by blast
+    with False show False ..
+  qed
+  moreover have "\<not> dom (h x)"
+  proof
+    assume "dom (h x)"
+    hence "dom x" using domI by blast
+    with False show False ..
+  qed
+  ultimately show ?thesis by (simp add: recfun_aux_dom_alt fun_def b_fixpoint split del: if_split)
+qed
+
+lemma eq_fixpointI: "\<not> dom x \<Longrightarrow> fun x = b"
+  by (simp add: fun_def recfun_aux_dom_alt)
+
+lemma pinduct: "dom x \<Longrightarrow> (\<And>x. dom x \<Longrightarrow> (\<not> Q x \<Longrightarrow> P (h x)) \<Longrightarrow> P x) \<Longrightarrow> P x"
+  unfolding recfun_aux_dom_alt[symmetric] by (fact recfun_aux.pinduct)
+
+end
+
+end (* recursive *)
+
+interpretation tailrec: recursive "\<lambda>x. x" undefined
+  by (standard, fact refl)
+
 end (* theory *)
