@@ -8,7 +8,10 @@ begin
 
 (* TODO: Add references. *)
 
-text \<open>This formalization closely follows Sections 4 to 7 of the excellent survey article @{cite Eder2015}.\<close>
+text \<open>This formalization closely follows Sections 4 to 7 of the excellent survey article @{cite Eder2015}.
+  First, we develop the whole theory for elements of the module $K[X]^r$, i.\,e. objects of type
+  @{typ "'t \<Rightarrow>\<^sub>0 'b"}. Later, we transfer all algorithms defined on such objects to algorithms
+  efficiently operating on sig-poly-pairs, i.\,e. objects of type @{typ "'t \<times> ('a \<Rightarrow>\<^sub>0 'b)"}.\<close>
 
 subsection \<open>Preliminaries\<close>
 
@@ -1803,94 +1806,18 @@ proof -
   qed
 qed
 
-lemma sig_red_weak_cong:
-  assumes "sig_red sing_reg top_tail F p p'" and "lt p \<prec>\<^sub>t lt q" and "rep_list q = rep_list p"
-    and "sing_reg = (\<preceq>\<^sub>t) \<or> sing_reg = (\<prec>\<^sub>t)"
-  obtains q' where "sig_red sing_reg top_tail F q q'" and "lt p' \<prec>\<^sub>t lt q'" and "rep_list q' = rep_list p'"
-proof -
-  from assms(1) obtain f t where "f \<in> F" and "sig_red_single sing_reg top_tail p p' f t"
-    unfolding sig_red_def by blast
-  from this(2) have "rep_list f \<noteq> 0" and t: "t + punit.lt (rep_list f) \<in> keys (rep_list p)"
-    and p': "p' = p - monom_mult ((lookup (rep_list p) (t + punit.lt (rep_list f))) / punit.lc (rep_list f)) t f"
-    and 1: "ord_term_lin.is_le_rel sing_reg" and 2: "ordered_powerprod_lin.is_le_rel top_tail"
-    and 3: "sing_reg (t \<oplus> lt f) (lt p)" and 4: "top_tail (t + punit.lt (rep_list f)) (punit.lt (rep_list p))"
-    by (rule sig_red_singleD)+
-
-  let ?q = "q - monom_mult ((lookup (rep_list q) (t + punit.lt (rep_list f))) / punit.lc (rep_list f)) t f"
-  show ?thesis
-  proof
-    show "sig_red sing_reg top_tail F q ?q" unfolding sig_red_def
-    proof (intro bexI exI)
-      note \<open>rep_list f \<noteq> 0\<close>
-      moreover from t have "t + punit.lt (rep_list f) \<in> keys (rep_list q)" by (simp only: assms(3))
-      moreover note refl 1 2
-      moreover from assms(4) have "sing_reg (t \<oplus> lt f) (lt q)"
-      proof
-        assume a: "sing_reg = (\<preceq>\<^sub>t)"
-        from 3 have "t \<oplus> lt f \<preceq>\<^sub>t lt p" by (simp only: a)
-        also have "... \<prec>\<^sub>t lt q" by (fact assms(2))
-        finally show ?thesis by (simp only: a)
-      next
-        assume a: "sing_reg = (\<prec>\<^sub>t)"
-        from 3 have "t \<oplus> lt f \<prec>\<^sub>t lt p" by (simp only: a)
-        also have "... \<prec>\<^sub>t lt q" by (fact assms(2))
-        finally show ?thesis by (simp only: a)
-      qed
-      moreover from 4 have "top_tail (t + punit.lt (rep_list f)) (punit.lt (rep_list q))"
-        by (simp only: assms(3))
-      ultimately show "sig_red_single sing_reg top_tail q ?q f t" by (rule sig_red_singleI)
-    qed fact
-  next
-    from assms(1) have "lt p' \<preceq>\<^sub>t lt p" by (rule sig_red_lt)
-    also have "... \<prec>\<^sub>t lt q" by (fact assms(2))
-    also have "... = lt (q + monom_mult (- (lookup (rep_list q) (t + punit.lt (rep_list f)) / punit.lc (rep_list f))) t f)"
-    proof (rule HOL.sym, rule lt_plus_eqI_2)
-      have "lt (monom_mult (- (lookup (rep_list q) (t + punit.lt (rep_list f)) / punit.lc (rep_list f))) t f) \<preceq>\<^sub>t t \<oplus> lt f"
-        by (fact lt_monom_mult_le)
-      also from assms(4) 3 have "... \<preceq>\<^sub>t lt p" by auto
-      also have "... \<prec>\<^sub>t lt q" by (fact assms(2))
-      finally show "lt (monom_mult (- (lookup (rep_list q) (t + punit.lt (rep_list f)) / punit.lc (rep_list f))) t f) \<prec>\<^sub>t lt q" .
-    qed
-    also have "... = lt ?q" by (simp add: monom_mult_uminus_left)
-    finally show "lt p' \<prec>\<^sub>t lt ?q" .
-  next
-    show "rep_list ?q = rep_list p'" by (simp add: p' rep_list_minus assms(3))
-  qed
-qed
-
-lemma sig_red_rtrancl_weak_cong:
-  assumes "(sig_red sing_reg top_tail F)\<^sup>*\<^sup>* p p'" and "lt p \<prec>\<^sub>t lt q" and "rep_list q = rep_list p"
-    and "sing_reg = (\<preceq>\<^sub>t) \<or> sing_reg = (\<prec>\<^sub>t)"
-  obtains q' where "(sig_red sing_reg top_tail F)\<^sup>*\<^sup>* q q'" and "lt p' \<prec>\<^sub>t lt q'" and "rep_list q' = rep_list p'"
-  using assms(1, 2, 3)
-proof (induct p arbitrary: thesis q rule: converse_rtranclp_induct)
-  case base
-  from rtrancl_refl[to_pred] base(2, 3) show ?case by (rule base(1))
-next
-  case (step y z)
-  from step(1, 5, 6) assms(4) obtain q0 where "sig_red sing_reg top_tail F q q0"
-    and "lt z \<prec>\<^sub>t lt q0" and "rep_list q0 = rep_list z" by (rule sig_red_weak_cong)
-  from step(3)[OF _ this(2, 3)] obtain q' where "(sig_red sing_reg top_tail F)\<^sup>*\<^sup>* q0 q'"
-    and "lt p' \<prec>\<^sub>t lt q'" and "rep_list q' = rep_list p'" by blast
-  from \<open>sig_red sing_reg top_tail F q q0\<close> this(1) have "(sig_red sing_reg top_tail F)\<^sup>*\<^sup>* q q'" by simp
-  thus ?case using \<open>lt p' \<prec>\<^sub>t lt q'\<close> \<open>rep_list q' = rep_list p'\<close> by (rule step(4))
-qed
-
-corollary sig_red_zero_weak_cong:
-  assumes "sig_red_zero sing_reg G p" and "lt p \<prec>\<^sub>t lt q" and "rep_list q = rep_list p"
-    and "sing_reg = (\<preceq>\<^sub>t) \<or> sing_reg = (\<prec>\<^sub>t)"
-  shows "sig_red_zero sing_reg G q"
-proof -
-  from assms(1) obtain s where "(sig_red sing_reg (\<preceq>) G)\<^sup>*\<^sup>* p s" and "rep_list s = 0"
-    by (rule sig_red_zeroE)
-  from this(1) assms(2, 3, 4) obtain s' where "(sig_red sing_reg (\<preceq>) G)\<^sup>*\<^sup>* q s'"
-    and "rep_list s' = rep_list s" by (rule sig_red_rtrancl_weak_cong)
-  from this(2) have "rep_list s' = 0" by (simp only: \<open>rep_list s = 0\<close>)
-  with \<open>(sig_red sing_reg (\<preceq>) G)\<^sup>*\<^sup>* q s'\<close> show ?thesis by (rule sig_red_zeroI)
-qed
-
 lemma sig_red_zero_mono: "sig_red_zero sing_reg F p \<Longrightarrow> F \<subseteq> F' \<Longrightarrow> sig_red_zero sing_reg F' p"
   by (auto simp: sig_red_zero_def dest: sig_red_rtrancl_mono)
+
+lemma sig_red_zero_idealI:
+  assumes "sig_red_zero sing_reg F p"
+  shows "rep_list p \<in> ideal (rep_list ` F)"
+proof -
+  from assms obtain s where "(sig_red sing_reg (\<preceq>) F)\<^sup>*\<^sup>* p s" and "rep_list s = 0" by (rule sig_red_zeroE)
+  from this(1) have "(punit.red (rep_list ` F))\<^sup>*\<^sup>* (rep_list p) (rep_list s)" by (rule sig_red_red_rtrancl)
+  hence "(punit.red (rep_list ` F))\<^sup>*\<^sup>* (rep_list p) 0" by (simp only: \<open>rep_list s = 0\<close>)
+  thus ?thesis by (rule punit.red_rtranclp_0_in_pmdl[simplified])
+qed
 
 lemma is_sig_GB_inI:
   assumes "\<And>r. lt r = u \<Longrightarrow> r \<in> dgrad_sig_set d \<Longrightarrow> sig_red_zero (\<preceq>\<^sub>t) G r"
@@ -4915,7 +4842,8 @@ fun sig_gb_aux_inv :: "(('t \<Rightarrow>\<^sub>0 'b) list \<times> 't list \<ti
             (\<forall>a\<in>set bs. \<forall>b\<in>set bs. is_regular_spair a b \<longrightarrow> Inl (a, b) \<notin> set ps \<longrightarrow> Inl (b, a) \<notin> set ps \<longrightarrow>
                 \<not> is_RB_in dgrad rword (set bs) (lt (spair a b)) \<longrightarrow>
                 (\<exists>p\<in>set ps. sig_of_pair p = lt (spair a b) \<and> \<not> sig_crit' bs p)) \<and>
-            (\<forall>j<length fs. Inr j \<notin> set ps \<longrightarrow> is_RB_in dgrad rword (set bs) (term_of_pair (0, j))))"
+            (\<forall>j<length fs. Inr j \<notin> set ps \<longrightarrow> (is_RB_in dgrad rword (set bs) (term_of_pair (0, j)) \<and>
+                rep_list (monomial (1::'b) (term_of_pair (0, j))) \<in> ideal (rep_list ` set bs))))"
 
 lemmas [simp del] = sig_gb_aux_inv.simps
 
@@ -5031,9 +4959,10 @@ lemma sig_gb_aux_inv_D8:
   using assms unfolding sig_gb_aux_inv.simps by meson
 
 lemma sig_gb_aux_inv_D9:
-  "sig_gb_aux_inv (bs, ss, ps) \<Longrightarrow> j < length fs \<Longrightarrow> Inr j \<notin> set ps \<Longrightarrow>
-    is_RB_in dgrad rword (set bs) (term_of_pair (0, j))"
-  by (simp add: sig_gb_aux_inv.simps)
+  assumes "sig_gb_aux_inv (bs, ss, ps)" and "j < length fs" and "Inr j \<notin> set ps"
+  shows "is_RB_in dgrad rword (set bs) (term_of_pair (0, j))"
+    and "rep_list (monomial (1::'b) (term_of_pair (0, j))) \<in> ideal (rep_list ` set bs)"
+  using assms by (simp_all add: sig_gb_aux_inv.simps)
 
 lemma sig_gb_aux_inv_is_RB_upt:
   assumes "sig_gb_aux_inv (bs, ss, ps)" and "\<And>p. p \<in> set ps \<Longrightarrow> u \<preceq>\<^sub>t sig_of_pair p"
@@ -5541,7 +5470,8 @@ lemma sig_gb_aux_inv_preserved_0:
     and "\<And>a b. a \<in> set bs \<Longrightarrow> b \<in> set bs \<Longrightarrow> is_regular_spair a b \<Longrightarrow> Inl (a, b) \<notin> set ps \<Longrightarrow>
            Inl (b, a) \<notin> set ps \<Longrightarrow> \<not> is_RB_in dgrad rword (set bs) (lt (spair a b)) \<Longrightarrow>
            \<exists>q\<in>set ps. sig_of_pair q = lt (spair a b) \<and> \<not> sig_crit' bs q"
-    and "\<And>j. p = Inr j \<Longrightarrow> Inr j \<notin> set ps \<Longrightarrow> is_RB_in dgrad rword (set bs) (term_of_pair (0, j))"
+    and "\<And>j. j < length fs \<Longrightarrow> p = Inr j \<Longrightarrow> Inr j \<notin> set ps \<Longrightarrow> is_RB_in dgrad rword (set bs) (term_of_pair (0, j)) \<and>
+            rep_list (monomial 1 (term_of_pair (0, j))) \<in> ideal (rep_list ` set bs)"
   shows "sig_gb_aux_inv (bs, ss', ps)"
 proof -
   from assms(1) have "sig_gb_aux_inv1 bs" by (rule sig_gb_aux_inv_D1)
@@ -5618,15 +5548,18 @@ proof -
   next
     fix j
     assume "j < length fs" and "Inr j \<notin> set ps"
-    show "is_RB_in dgrad rword (set bs) (term_of_pair (0, j))"
+    have "is_RB_in dgrad rword (set bs) (term_of_pair (0, j)) \<and>
+            rep_list (monomial 1 (term_of_pair (0, j))) \<in> ideal (rep_list ` set bs)"
     proof (cases "p = Inr j")
       case True
-      thus ?thesis using \<open>Inr j \<notin> set ps\<close> by (rule assms(4))
+      with \<open>j < length fs\<close> show ?thesis using \<open>Inr j \<notin> set ps\<close> by (rule assms(4))
     next
       case False
       with \<open>Inr j \<notin> set ps\<close> have "Inr j \<notin> set (p # ps)" by simp
-      with assms(1) \<open>j < length fs\<close> show ?thesis by (rule sig_gb_aux_inv_D9)
+      with assms(1) \<open>j < length fs\<close> sig_gb_aux_inv_D9 show ?thesis by blast
     qed
+    thus "is_RB_in dgrad rword (set bs) (term_of_pair (0, j))"
+      and "rep_list (monomial 1 (term_of_pair (0, j))) \<in> ideal (rep_list ` set bs)" by simp_all
   qed (fact, rule assms(3))
 qed
 
@@ -5745,9 +5678,25 @@ proof -
     qed
   next
     fix j
+    assume "j < length fs"
     assume p: "p = Inr j"
     with \<open>sig_crit' bs p\<close> have "is_syz_sig dgrad (set bs) (term_of_pair (0, j))" by simp
-    thus "is_RB_in dgrad rword (set bs) (term_of_pair (0, j))" by (rule is_RB_inI2)
+    hence "is_RB_in dgrad rword (set bs) (term_of_pair (0, j))" by (rule is_RB_inI2)
+    moreover have "rep_list (monomial 1 (term_of_pair (0, j))) \<in> ideal (rep_list ` set bs)"
+    proof (rule sig_red_zero_idealI, rule is_sig_GB_upt_is_syz_sigD)
+      from assms(1) have "is_RB_upt dgrad rword (set bs) (sig_of_pair p)"
+        by (rule sig_gb_aux_inv_is_RB_upt_Cons)
+      with dgrad(1) have "is_sig_GB_upt dgrad (set bs) (sig_of_pair p)"
+        by (rule is_RB_upt_is_sig_GB_upt)
+      thus "is_sig_GB_upt dgrad (set bs) (term_of_pair (0, j))" by (simp add: p)
+    next
+      show "monomial 1 (term_of_pair (0, j)) \<in> dgrad_sig_set dgrad"
+        by (rule dgrad_sig_set_closed_monomial, simp_all add: term_simps dgrad_max_0 \<open>j < length fs\<close>)
+    next
+      show "lt (monomial (1::'b) (term_of_pair (0, j))) = term_of_pair (0, j)" by (simp add: lt_monomial)
+    qed (fact dgrad, fact)
+    ultimately show "is_RB_in dgrad rword (set bs) (term_of_pair (0, j)) \<and>
+                      rep_list (monomial 1 (term_of_pair (0, j))) \<in> ideal (rep_list ` set bs)" ..
   qed
 qed
 
@@ -5756,9 +5705,7 @@ lemma sig_gb_aux_inv_preserved_2:
   shows "sig_gb_aux_inv (bs, lt (sig_trd bs (poly_of_pair p)) # ss, ps)"
 proof -
   let ?p = "sig_trd bs (poly_of_pair p)"
-  from assms(1) have "sig_gb_aux_inv1 bs" by (rule sig_gb_aux_inv_D1)
-  hence "set bs \<subseteq> dgrad_sig_set dgrad" by (rule sig_gb_aux_inv1_D1)
-  hence "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (poly_of_pair p) ?p"
+  have 0: "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (poly_of_pair p) ?p"
     by (rule sig_trd_red_rtrancl)
   hence eq: "lt ?p = lt (poly_of_pair p)" by (rule sig_red_regular_rtrancl_lt)
   have *: "is_syz_sig dgrad (set bs) (lt (poly_of_pair p))"
@@ -5798,8 +5745,15 @@ proof -
     thus "\<exists>q\<in>set ps. sig_of_pair q = lt (spair a b) \<and> \<not> sig_crit' bs q" using 8 9 by blast
   next
     fix j
+    assume "j < length fs"
     assume p: "p = Inr j"
-    from rb show "is_RB_in dgrad rword (set bs) (term_of_pair (0, j))" by (simp add: p lt_monomial)
+    from rb have "is_RB_in dgrad rword (set bs) (term_of_pair (0, j))" by (simp add: p lt_monomial)
+    moreover have "rep_list (monomial 1 (term_of_pair (0, j))) \<in> ideal (rep_list ` set bs)"
+    proof (rule sig_red_zero_idealI, rule sig_red_zeroI)
+      from 0 show "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (monomial 1 (term_of_pair (0, j))) ?p" by (simp add: p)
+    qed fact
+    ultimately show "is_RB_in dgrad rword (set bs) (term_of_pair (0, j)) \<and>
+                      rep_list (monomial 1 (term_of_pair (0, j))) \<in> ideal (rep_list ` set bs)" ..
   qed
 qed
 
@@ -5816,7 +5770,7 @@ proof -
   define p' where "p' = sig_trd bs (poly_of_pair p)"
   from assms(1) have inv1: "sig_gb_aux_inv1 bs" by (rule sig_gb_aux_inv_D1)
   hence bs_sub: "set bs \<subseteq> dgrad_sig_set dgrad" by (rule sig_gb_aux_inv1_D1)
-  hence p_red: "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (poly_of_pair p) p'"
+  have p_red: "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (poly_of_pair p) p'"
     and p'_irred: "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) p'"
     unfolding p'_def by (rule sig_trd_red_rtrancl, rule sig_trd_irred)
   from dgrad(1) bs_sub p_in p_red have p'_in: "p' \<in> dgrad_sig_set dgrad"
@@ -6192,6 +6146,7 @@ proof -
     assume "j < length fs"
     assume "Inr j \<notin> set (add_spairs ps bs p')"
     hence "Inr j \<notin> set ps" by (simp add: add_spairs_def set_merge_wrt)
+
     show "is_RB_in dgrad rword (set (p' # bs)) (term_of_pair (0, j))"
     proof (cases "term_of_pair (0, j) = sig_of_pair p")
       case True
@@ -6213,6 +6168,46 @@ proof -
         with \<open>Inr j \<notin> set (p # ps)\<close> show ?thesis ..
       qed
       with rb' show ?thesis unfolding set_simps by (rule is_RB_in_insertI)
+    qed
+
+    show "rep_list (monomial 1 (term_of_pair (0, j))) \<in> ideal (rep_list ` set (p' # bs))"
+    proof (cases "p = Inr j")
+      case True
+      show ?thesis
+      proof (rule sig_red_zero_idealI, rule sig_red_zeroI)
+        from p_red have "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (monomial 1 (term_of_pair (0, j))) p'"
+          by (simp add: True)
+        moreover have "set bs \<subseteq> set (p' # bs)" by fastforce
+        ultimately have "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set (p' # bs)))\<^sup>*\<^sup>* (monomial 1 (term_of_pair (0, j))) p'"
+          by (rule sig_red_rtrancl_mono)
+        hence "(sig_red (\<preceq>\<^sub>t) (\<preceq>) (set (p' # bs)))\<^sup>*\<^sup>* (monomial 1 (term_of_pair (0, j))) p'"
+          by (rule sig_red_rtrancl_sing_regI)
+        also have "sig_red (\<preceq>\<^sub>t) (\<preceq>) (set (p' # bs)) p' 0" unfolding sig_red_def
+        proof (intro exI bexI)
+          from assms(3) have "rep_list p' \<noteq> 0" by (simp add: p'_def)
+          show "sig_red_single (\<preceq>\<^sub>t) (\<preceq>) p' 0 p' 0"
+          proof (rule sig_red_singleI)
+            show "rep_list p' \<noteq> 0" by fact
+          next
+            from \<open>rep_list p' \<noteq> 0\<close> have "punit.lt (rep_list p') \<in> keys (rep_list p')"
+              by (rule punit.lt_in_keys)
+            thus "0 + punit.lt (rep_list p') \<in> keys (rep_list p')" by simp
+          next
+            from \<open>rep_list p' \<noteq> 0\<close> have "punit.lc (rep_list p') \<noteq> 0" by (rule punit.lc_not_0)
+            thus "0 = p' - monom_mult (lookup (rep_list p') (0 + punit.lt (rep_list p')) / punit.lc (rep_list p')) 0 p'"
+              by (simp add: punit.lc_def[symmetric])
+          qed (simp_all add: term_simps)
+        qed simp
+        finally show "(sig_red (\<preceq>\<^sub>t) (\<preceq>) (set (p' # bs)))\<^sup>*\<^sup>* (monomial 1 (term_of_pair (0, j))) 0" .
+      qed (fact rep_list_zero)
+    next
+      case False
+      with \<open>Inr j \<notin> set ps\<close> have "Inr j \<notin> set (p # ps)" by simp
+      with assms(1) \<open>j < length fs\<close>
+      have "rep_list (monomial 1 (term_of_pair (0, j))) \<in> ideal (rep_list ` set bs)"
+        by (rule sig_gb_aux_inv_D9)
+      also have "... \<subseteq> ideal (rep_list ` set (p' # bs))" by (rule ideal.module_mono, fastforce)
+      finally show ?thesis .
     qed
   qed
 
@@ -6653,6 +6648,32 @@ proof -
   thus ?thesis by simp
 qed
 
+lemma ideal_sig_gb_aux:
+  assumes "distinct fs"
+  shows "ideal (set (map rep_list (fst (sig_gb_aux ([], [], map Inr [0..<length fs]))))) = ideal (set fs)"
+    (is "ideal ?l = ideal ?r")
+proof
+  show "ideal ?l \<subseteq> ideal ?r" by (rule ideal.module_subset_moduleI, auto simp: rep_list_in_ideal)
+next
+  show "ideal ?r \<subseteq> ideal ?l"
+  proof (rule ideal.module_subset_moduleI, rule subsetI)
+    fix f
+    assume "f \<in> set fs"
+    then obtain j where "j < length fs" and f: "f = fs ! j" by (metis in_set_conv_nth)
+    let ?args = "([], [], map Inr [0..<length fs])"
+    from sig_gb_aux_inv_init have "sig_gb_aux_dom ?args" by (rule sig_gb_aux_domI)
+    then obtain bs ss where eq: "sig_gb_aux ?args = (bs, ss, [])" by (rule sig_gb_aux_shape)
+    moreover from sig_gb_aux_inv_init have "sig_gb_aux_inv (sig_gb_aux ?args)"
+      by (rule sig_gb_aux_inv_invariant)
+    ultimately have "sig_gb_aux_inv (bs, ss, [])" by simp
+    moreover note \<open>j < length fs\<close>
+    moreover have "Inr j \<notin> set []" by simp
+    ultimately have "rep_list (monomial 1 (term_of_pair (0, j))) \<in> ideal ?l"
+      unfolding eq set_map fst_conv by (rule sig_gb_aux_inv_D9)
+    thus "f \<in> ideal ?l" by (simp add: assms rep_list_monomial term_simps \<open>j < length fs\<close> f)
+  qed
+qed
+
 subsection \<open>Sig-Poly-Pairs\<close>
 
 text \<open>We now prove that the algorithms defined for sig-poly-pairs (i.\,e. those whose names end with
@@ -6953,9 +6974,12 @@ corollary sig_gb_spp_aux_alt:
     sig_gb_spp_aux args = app_args spp_of (sig_gb_aux (app_args vec_of args))"
   by (simp only: sig_gb_aux_alt_spp app_args_spp_of_vec_of)
 
-corollary sig_gb_spp_aux_is_Groebner_basis:
+corollary sig_gb_spp_aux:
   assumes "distinct fs"
   shows "punit.is_Groebner_basis (set (map snd (fst (sig_gb_spp_aux ([], [], map Inr [0..<length fs])))))"
+          (is ?thesis1)
+    and "ideal (set (map snd (fst (sig_gb_spp_aux ([], [], map Inr [0..<length fs]))))) = ideal (set fs)"
+          (is "?thesis2")
 proof -
   let ?args = "([], [], map Inr [0..<length fs])"
   have eq0: "app_pair vec_of \<circ> Inr = Inr" by (intro ext, simp)
@@ -6968,7 +6992,9 @@ proof -
   have "sig_gb_aux_inv (app_args vec_of ?args)" by (simp add: eq0 sig_gb_aux_inv_init)
   with assms have eq3: "sig_gb_spp_aux ?args = app_args spp_of (sig_gb_aux (app_args vec_of ?args))"
     by (rule sig_gb_spp_aux_alt)
-  from sig_gb_aux_is_Groebner_basis show ?thesis by (simp add: eq0 eq1 eq2 eq3 del: set_map)
+  from sig_gb_aux_is_Groebner_basis show ?thesis1 by (simp add: eq0 eq1 eq2 eq3 del: set_map)
+
+  from assms ideal_sig_gb_aux show ?thesis2 by (simp add: eq0 eq1 eq2 eq3 del: set_map)
 qed
 
 end
@@ -6985,7 +7011,17 @@ definition sig_gb :: "(('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow>
 theorem sig_gb_is_Groebner_basis:
   assumes "\<And>fs. is_strict_rewrite_ord fs rword_strict"
   shows "punit.is_Groebner_basis (set (sig_gb rword_strict fs))"
-  unfolding sig_gb_def Let_def using assms distinct_remdups by (rule sig_gb_spp_aux_is_Groebner_basis)
+  unfolding sig_gb_def Let_def using assms distinct_remdups by (rule sig_gb_spp_aux)
+
+theorem ideal_sig_gb:
+  assumes "\<And>fs. is_strict_rewrite_ord fs rword_strict"
+  shows "ideal (set (sig_gb rword_strict fs)) = ideal (set fs)"
+proof -
+  have "ideal (set (sig_gb rword_strict fs)) = ideal (set (remdups fs))"
+    unfolding sig_gb_def Let_def using assms distinct_remdups by (rule sig_gb_spp_aux)
+  also have "... = ideal (set fs)" by simp
+  finally show ?thesis .
+qed
 
 thm sig_gb_is_Groebner_basis[OF rw_rat_strict_is_strict_rewrite_ord]
 thm sig_gb_spp_aux_Nil[OF rw_rat_strict_is_strict_rewrite_ord]
