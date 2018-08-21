@@ -4762,6 +4762,13 @@ definition sig_gb_spp_aux :: "(('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) list 
                        (('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) list \<times> 't list \<times> ((('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<times> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b))) + nat) list)"
   where sig_gb_spp_aux_def [code del]: "sig_gb_spp_aux = tailrec.fun (\<lambda>x. snd (snd x) = []) (\<lambda>x. x) sig_gb_spp_body"
 
+lemma sig_gb_spp_aux_Nil [code]: "sig_gb_spp_aux (bs, ss, []) = (bs, ss, [])"
+  by (simp add: sig_gb_spp_aux_def tailrec.simps)
+
+lemma sig_gb_spp_aux_Cons [code]:
+  "sig_gb_spp_aux (bs, ss, p # ps) = sig_gb_spp_aux (sig_gb_spp_body (bs, ss, p # ps))"
+  by (simp add: sig_gb_spp_aux_def tailrec.simps)
+
 context
   assumes rword_is_strict_rewrite_ord: "is_strict_rewrite_ord rword_strict"
 begin
@@ -6880,13 +6887,6 @@ proof -
   qed
 qed
 
-lemma sig_gb_spp_aux_Nil [code]: "sig_gb_spp_aux (bs, ss, []) = (bs, ss, [])"
-  by (simp add: sig_gb_spp_aux_def tailrec.simps)
-
-lemma sig_gb_spp_aux_Cons [code]:
-  "sig_gb_spp_aux (bs, ss, p # ps) = sig_gb_spp_aux (sig_gb_spp_body (bs, ss, p # ps))"
-  by (simp add: sig_gb_spp_aux_def tailrec.simps)
-
 lemma sig_gb_aux_alt_spp:
   assumes "distinct fs" and "sig_gb_aux_inv args"
   shows "app_args spp_of (sig_gb_aux args) = sig_gb_spp_aux (app_args spp_of args)"
@@ -7024,9 +7024,11 @@ proof -
 qed
 
 thm sig_gb_is_Groebner_basis[OF rw_rat_strict_is_strict_rewrite_ord]
-thm sig_gb_spp_aux_Nil[OF rw_rat_strict_is_strict_rewrite_ord]
-thm sig_gb_spp_aux_Cons[OF rw_rat_strict_is_strict_rewrite_ord]
+thm ideal_sig_gb[OF rw_rat_strict_is_strict_rewrite_ord]
+thm sig_gb_spp_aux_Nil
+thm sig_gb_spp_aux_Cons
 thm sig_gb_spp_body.simps
+thm sig_gb_def
 
 thm sig_gb_is_Groebner_basis[OF rw_add_strict_is_strict_rewrite_ord]
 
