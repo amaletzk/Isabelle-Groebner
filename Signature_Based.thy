@@ -320,6 +320,50 @@ lemma lt_minus_lessI: "p - q \<noteq> 0 \<Longrightarrow> lt q = lt p \<Longrigh
   for p q :: "'t \<Rightarrow>\<^sub>0 'b::ab_group_add"
   by (metis add_diff_cancel_left leading_monomial_tail lower_id_iff lower_minus tail_def)
 
+lemma lt_lower_less:
+  assumes "lower p v \<noteq> 0"
+  shows "lt (lower p v) \<prec>\<^sub>t v"
+  using assms
+proof (rule lt_less)
+  fix u
+  assume "v \<preceq>\<^sub>t u"
+  thus "lookup (lower p v) u = 0" by (simp add: lookup_lower_when)
+qed
+
+lemma higher_lower_decomp: "higher p v + monomial (lookup p v) v + lower p v = p"
+proof (rule poly_mapping_eqI)
+  fix u
+  show "lookup (higher p v + monomial (lookup p v) v + lower p v) u = lookup p u"
+  proof (rule ord_term_lin.linorder_cases)
+    assume "u \<prec>\<^sub>t v"
+    thus ?thesis by (simp add: lookup_add lookup_higher_when lookup_single lookup_lower_when)
+  next
+    assume "u = v"
+    thus ?thesis by (simp add: lookup_add lookup_higher_when lookup_single lookup_lower_when)
+  next
+    assume "v \<prec>\<^sub>t u"
+    thus ?thesis by (simp add: lookup_add lookup_higher_when lookup_single lookup_lower_when)
+  qed
+qed
+
+lemma lower_higher_zeroI: "u \<preceq>\<^sub>t v \<Longrightarrow> lower (higher p v) u = 0"
+  by (simp add: lower_eq_zero_iff lookup_higher_when)
+
+lemma lookup_minus_higher: "lookup (p - higher p v) u = (lookup p u when u \<preceq>\<^sub>t v)"
+  by (auto simp: lookup_minus lookup_higher_when when_def)
+
+lemma keys_minus_higher: "keys (p - higher p v) = {u \<in> keys p. u \<preceq>\<^sub>t v}"
+  by (rule set_eqI, simp add: lookup_minus_higher conj_commute flip: lookup_not_eq_zero_eq_in_keys)
+
+lemma lt_minus_higher: "v \<in> keys p \<Longrightarrow> lt (p - higher p v) = v"
+  by (rule lt_eqI_keys, simp_all add: keys_minus_higher)
+
+lemma lc_minus_higher: "v \<in> keys p \<Longrightarrow> lc (p - higher p v) = lookup p v"
+  by (simp add: lc_def lt_minus_higher lookup_minus_higher)
+
+lemma tail_minus_higher: "v \<in> keys p \<Longrightarrow> tail (p - higher p v) = lower p v"
+  by (rule poly_mapping_eqI, simp add: lookup_tail_when lt_minus_higher lookup_lower_when lookup_minus_higher cong: when_cong)
+
 end (* ordered_term *)
 
 context gd_term
@@ -4453,51 +4497,574 @@ subsubsection \<open>Total Reduction\<close>
 primrec find_sig_reducer :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) list \<Rightarrow> 't \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> nat option" where
   "find_sig_reducer [] _ _ _ = None"|
   "find_sig_reducer (b # bs) u t i =
-          (if snd b \<noteq> 0 \<and> punit.lt (snd b) adds t \<and> fst b \<prec>\<^sub>t u then Some i
+          (if snd b \<noteq> 0 \<and> punit.lt (snd b) adds t \<and> (t - punit.lt (snd b)) \<oplus> fst b \<prec>\<^sub>t u then Some i
            else find_sig_reducer bs u t (Suc i))"
 
-lemma find_sig_reducer_SomeD:
-  assumes "find_sig_reducer bs u t i = Some j" and "b = bs ! (j - i)"
-  shows "b \<in> set bs" and "snd b \<noteq> 0" and "punit.lt (snd b) adds t" and "fst b \<prec>\<^sub>t u"
-  sorry
+lemma find_sig_reducer_SomeD_aux:
+  assumes "find_sig_reducer bs u t i = Some j"
+  shows "i \<le> j" and "j - i < length bs"
+proof -
+  from assms have "i \<le> j \<and> j - i < length bs"
+  proof (induct bs arbitrary: i)
+    case Nil
+    thus ?case by simp
+  next
+    case (Cons b bs)
+    from Cons(2) show ?case
+    proof (simp split: if_split_asm)
+      assume "find_sig_reducer bs u t (Suc i) = Some j"
+      hence "Suc i \<le> j \<and> j - Suc i < length bs" by (rule Cons(1))
+      thus "i \<le> j \<and> j - i < Suc (length bs)" by auto
+    qed
+  qed
+  thus "i \<le> j" and "j - i < length bs" by simp_all
+qed
 
-lemma find_adds_NoneE:
+lemma find_sig_reducer_SomeD':
+  assumes "find_sig_reducer bs u t i = Some j" and "b = bs ! (j - i)"
+  shows "b \<in> set bs" and "snd b \<noteq> 0" and "punit.lt (snd b) adds t" and "(t - punit.lt (snd b)) \<oplus> fst b \<prec>\<^sub>t u"
+proof -
+  from assms(1) have "j - i < length bs" by (rule find_sig_reducer_SomeD_aux)
+  thus "b \<in> set bs" unfolding assms(2) by (rule nth_mem)
+next
+  from assms have "snd b \<noteq> 0 \<and> punit.lt (snd b) adds t \<and> (t - punit.lt (snd b)) \<oplus> fst b \<prec>\<^sub>t u"
+  proof (induct bs arbitrary: i)
+    case Nil
+    from Nil(1) show ?case by simp
+  next
+    case (Cons a bs)
+    from Cons(2) show ?case
+    proof (simp split: if_split_asm)
+      assume "i = j"
+      with Cons(3) have "b = a" by simp
+      moreover assume "snd a \<noteq> 0" and "punit.lt (snd a) adds t" and "(t - punit.lt (snd a)) \<oplus> fst a \<prec>\<^sub>t u"
+      ultimately show ?case by simp
+    next
+      assume *: "find_sig_reducer bs u t (Suc i) = Some j"
+      hence "Suc i \<le> j" by (rule find_sig_reducer_SomeD_aux)
+      note Cons(3)
+      also from \<open>Suc i \<le> j\<close> have "(a # bs) ! (j - i) = bs ! (j - Suc i)" by simp
+      finally have "b = bs ! (j - Suc i)" .
+      with * show ?case by (rule Cons(1))
+    qed
+  qed
+  thus "snd b \<noteq> 0" and "punit.lt (snd b) adds t" and "(t - punit.lt (snd b)) \<oplus> fst b \<prec>\<^sub>t u" by simp_all
+qed
+
+corollary find_sig_reducer_SomeD:
+  assumes "find_sig_reducer (map spp_of bs) u t 0 = Some i"
+  shows "i < length bs" and "rep_list (bs ! i) \<noteq> 0" and "punit.lt (rep_list (bs ! i)) adds t"
+    and "(t - punit.lt (rep_list (bs ! i))) \<oplus> lt (bs ! i) \<prec>\<^sub>t u"
+proof -
+  from assms have "i - 0 < length (map spp_of bs)" by (rule find_sig_reducer_SomeD_aux)
+  thus "i < length bs" by simp
+  hence "spp_of (bs ! i) = (map spp_of bs) ! (i - 0)" by simp
+  with assms have "snd (spp_of (bs ! i)) \<noteq> 0" and "punit.lt (snd (spp_of (bs ! i))) adds t"
+    and "(t - punit.lt (snd (spp_of (bs ! i)))) \<oplus> fst (spp_of (bs ! i)) \<prec>\<^sub>t u"
+    by (rule find_sig_reducer_SomeD')+
+  thus "rep_list (bs ! i) \<noteq> 0" and "punit.lt (rep_list (bs ! i)) adds t"
+    and "(t - punit.lt (rep_list (bs ! i))) \<oplus> lt (bs ! i) \<prec>\<^sub>t u" by (simp_all add: fst_spp_of snd_spp_of)
+qed
+
+lemma find_sig_reducer_NoneE:
   assumes "find_sig_reducer bs u t i = None" and "b \<in> set bs"
   assumes "snd b = 0 \<Longrightarrow> thesis" and "snd b \<noteq> 0 \<Longrightarrow> \<not> punit.lt (snd b) adds t \<Longrightarrow> thesis"
-    and "snd b \<noteq> 0 \<Longrightarrow> punit.lt (snd b) adds t \<Longrightarrow> \<not> fst b \<prec>\<^sub>t u"
+    and "snd b \<noteq> 0 \<Longrightarrow> punit.lt (snd b) adds t \<Longrightarrow> \<not> (t - punit.lt (snd b)) \<oplus> fst b \<prec>\<^sub>t u \<Longrightarrow> thesis"
   shows thesis
-  sorry
+  using assms
+proof (induct bs arbitrary: thesis i)
+  case Nil
+  from Nil(2) show ?case by simp
+next
+  case (Cons a bs)
+  from Cons(2) have 1: "snd a = 0 \<or> \<not> punit.lt (snd a) adds t \<or> \<not> (t - punit.lt (snd a)) \<oplus> fst a \<prec>\<^sub>t u"
+    and eq: "find_sig_reducer bs u t (Suc i) = None" by (simp_all split: if_splits)
+  from Cons(3) have "b = a \<or> b \<in> set bs" by simp
+  thus ?case
+  proof
+    assume "b = a"
+    show ?thesis
+    proof (cases "snd a = 0")
+      case True
+      show ?thesis by (rule Cons(4), simp add: \<open>b = a\<close> True)
+    next
+      case False
+      with 1 have 2: "\<not> punit.lt (snd a) adds t \<or> \<not> (t - punit.lt (snd a)) \<oplus> fst a \<prec>\<^sub>t u" by simp
+      show ?thesis
+      proof (cases "punit.lt (snd a) adds t")
+        case True
+        with 2 have 3: "\<not> (t - punit.lt (snd a)) \<oplus> fst a \<prec>\<^sub>t u" by simp
+        show ?thesis by (rule Cons(6), simp_all add: \<open>b = a\<close> \<open>snd a \<noteq> 0\<close> True 3)
+      next
+        case False
+        show ?thesis by (rule Cons(5), simp_all add: \<open>b = a\<close> \<open>snd a \<noteq> 0\<close> False)
+      qed
+    qed
+  next
+    assume "b \<in> set bs"
+    with eq show ?thesis
+    proof (rule Cons(1))
+      assume "snd b = 0"
+      thus ?thesis by (rule Cons(4))
+    next
+      assume "snd b \<noteq> 0" and "\<not> punit.lt (snd b) adds t"
+      thus ?thesis by (rule Cons(5))
+    next
+      assume "snd b \<noteq> 0" and "punit.lt (snd b) adds t" and "\<not> (t - punit.lt (snd b)) \<oplus> fst b \<prec>\<^sub>t u"
+      thus ?thesis by (rule Cons(6))
+    qed
+  qed
+qed
 
 lemma find_sig_reducer_SomeD_red_single:
-  assumes "rep_list p \<noteq> 0" and "find_sig_reducer (map spp_of bs) (lt p) (punit.lt (rep_list p)) i = Some j"
-    and "b = bs ! (j - i)"
-  shows "sig_red_single (\<prec>\<^sub>t) (\<preceq>) p (tail p - monom_mult (lc p / lc b) (lp p - lp b) (tail b)) b (lp p - lp b)"
-  sorry
+  assumes "t \<in> keys (rep_list p)" and "find_sig_reducer (map spp_of bs) (lt p) t 0 = Some i"
+  shows "sig_red_single (\<prec>\<^sub>t) (\<preceq>) p (p - monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+            (t - punit.lt (rep_list (bs ! i))) (bs ! i)) (bs ! i) (t - punit.lt (rep_list (bs ! i)))"
+proof -
+  from assms(2) have "punit.lt (rep_list (bs ! i)) adds t" and 1: "rep_list (bs ! i) \<noteq> 0"
+    and 2: "(t - punit.lt (rep_list (bs ! i))) \<oplus> lt (bs ! i) \<prec>\<^sub>t lt p"
+    by (rule find_sig_reducer_SomeD)+
+  from this(1) have eq: "t - punit.lt (rep_list (bs ! i)) + punit.lt (rep_list (bs ! i)) = t"
+    by (rule adds_minus)
+  from assms(1) have 3: "t \<preceq> punit.lt (rep_list p)" by (rule punit.lt_max_keys)
+  show ?thesis by (rule sig_red_singleI, simp_all add: eq 1 2 3 assms(1))
+qed
 
-lemma find_sig_reducer_SomeD_red:
-  assumes "rep_list p \<noteq> 0" and "find_sig_reducer (map spp_of bs) (lt p) (punit.lt (rep_list p)) i = Some j"
-    and "b = bs ! (j - i)"
-  shows "sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) p (tail p - monom_mult (lc p / lc b) (lp p - lp b) (tail b))"
-  sorry
+corollary find_sig_reducer_SomeD_red:
+  assumes "t \<in> keys (rep_list p)" and "find_sig_reducer (map spp_of bs) (lt p) t 0 = Some i"
+  shows "sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) p (p - monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+            (t - punit.lt (rep_list (bs ! i))) (bs ! i))"
+  unfolding sig_red_def
+proof (intro bexI exI, rule find_sig_reducer_SomeD_red_single)
+  from assms(2) have "i - 0 < length (map spp_of bs)" by (rule find_sig_reducer_SomeD_aux)
+  hence "i < length bs" by simp
+  thus "bs ! i \<in> set bs" by (rule nth_mem)
+qed fact+
 
-definition sig_trd :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b)"
-  where "sig_trd bs p = p"  (* TODO *)
+context
+  fixes bs :: "('t \<Rightarrow>\<^sub>0 'b) list"
+begin
 
-definition sig_trd_spp :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) list \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b))"
-  where "sig_trd_spp bs p = p"  (* TODO *)
+definition sig_trd_term :: "(('a \<times> ('t \<Rightarrow>\<^sub>0 'b)) \<times> ('a \<times> ('t \<Rightarrow>\<^sub>0 'b))) set"
+  where "sig_trd_term = {(x, y). punit.dgrad_p_set_le dgrad {rep_list (snd x)}
+                                      (insert (rep_list (snd y)) (rep_list ` set bs)) \<and>
+                                 fst x \<in> keys (rep_list (snd x)) \<and> fst y \<in> keys (rep_list (snd y)) \<and>
+                                 fst x \<prec> fst y}"
 
-text \<open>Note: We define function @{const sig_trd_spp}, operating on sig-poly-pairs, already here, to
-  have its definition in the right context. Lemmas about it are proved below in Section \<open>Sig-Poly-Pairs\<close>.\<close>
+lemma sig_trd_term_wf: "wf sig_trd_term"
+proof (rule wfI_min)
+  fix x :: "'a \<times> ('t \<Rightarrow>\<^sub>0 'b)" and Q
+  assume "x \<in> Q"
+  show "\<exists>z\<in>Q. \<forall>y. (y, z) \<in> sig_trd_term \<longrightarrow> y \<notin> Q"
+  proof (cases "fst x \<in> keys (rep_list (snd x))")
+    case True
+    define X where "X = rep_list ` set bs"
+    let ?A = "insert (rep_list (snd x)) X"
+    have "finite X" unfolding X_def by simp
+    hence "finite ?A" by (simp only: finite_insert)
+    then obtain m where A: "?A \<subseteq> punit.dgrad_p_set dgrad m" by (rule punit.dgrad_p_set_exhaust)
+    hence x: "rep_list (snd x) \<in> punit.dgrad_p_set dgrad m" and X: "X \<subseteq> punit.dgrad_p_set dgrad m"
+      by simp_all
+    let ?Q = "{q \<in> Q. rep_list (snd q) \<in> punit.dgrad_p_set dgrad m \<and> fst q \<in> keys (rep_list (snd q))}"
+    from \<open>x \<in> Q\<close> x True have "x \<in> ?Q" by simp
+    have "\<forall>Q x. x \<in> Q \<and> Q \<subseteq> {q. dgrad q \<le> m} \<longrightarrow> (\<exists>z\<in>Q. \<forall>y. y \<prec> z \<longrightarrow> y \<notin> Q)"
+      by (rule wfp_on_imp_minimal, rule wfp_on_ord_strict, fact dgrad(1))
+    hence 1: "fst x \<in> fst ` ?Q \<Longrightarrow> fst ` ?Q \<subseteq> {q. dgrad q \<le> m} \<Longrightarrow> (\<exists>z\<in>fst ` ?Q. \<forall>y. y \<prec> z \<longrightarrow> y \<notin> fst ` ?Q)"
+      by meson
+  
+    have "fst x \<in> fst ` ?Q" by (rule, fact refl, fact)
+    moreover have "fst ` ?Q \<subseteq> {q. dgrad q \<le> m}"
+    proof -
+      {
+        fix q
+        assume a: "rep_list (snd q) \<in> punit.dgrad_p_set dgrad m" and b: "fst q \<in> keys (rep_list (snd q))"
+        from a have "keys (rep_list (snd q)) \<subseteq> dgrad_set dgrad m" by (simp add: punit.dgrad_p_set_def)
+        with b have "fst q \<in> dgrad_set dgrad m" ..
+        hence "dgrad (fst q) \<le> m" by (simp add: dgrad_set_def)
+      }
+      thus ?thesis by auto
+    qed
+    ultimately have "\<exists>z\<in>fst ` ?Q. \<forall>y. y \<prec> z \<longrightarrow> y \<notin> fst ` ?Q" by (rule 1)
+    then obtain z0 where "z0 \<in> fst ` ?Q" and 2: "\<And>y. y \<prec> z0 \<Longrightarrow> y \<notin> fst ` ?Q" by blast
+    from this(1) obtain z where "z \<in> ?Q" and z0: "z0 = fst z" ..
+    hence "z \<in> Q" and z: "rep_list (snd z) \<in> punit.dgrad_p_set dgrad m" by simp_all
+    from this(1) show "\<exists>z\<in>Q. \<forall>y. (y, z) \<in> sig_trd_term \<longrightarrow> y \<notin> Q"
+    proof
+      show "\<forall>y. (y, z) \<in> sig_trd_term \<longrightarrow> y \<notin> Q"
+      proof (intro allI impI)
+        fix y
+        assume "(y, z) \<in> sig_trd_term"
+        hence 3: "punit.dgrad_p_set_le dgrad {rep_list (snd y)} (insert (rep_list (snd z)) X)"
+          and 4: "fst y \<in> keys (rep_list (snd y))" and "fst y \<prec> z0"
+          by (simp_all add: sig_trd_term_def X_def z0)
+        from this(3) have "fst y \<notin> fst ` ?Q" by (rule 2)
+        hence "y \<notin> Q \<or> rep_list (snd y) \<notin> punit.dgrad_p_set dgrad m \<or> fst y \<notin> keys (rep_list (snd y))"
+          by auto
+        thus "y \<notin> Q"
+        proof (elim disjE)
+          assume 5: "rep_list (snd y) \<notin> punit.dgrad_p_set dgrad m"
+          from z X have "insert (rep_list (snd z)) X \<subseteq> punit.dgrad_p_set dgrad m" by simp
+          with 3 have "{rep_list (snd y)} \<subseteq> punit.dgrad_p_set dgrad m" by (rule punit.dgrad_p_set_le_dgrad_p_set)
+          hence "rep_list (snd y) \<in> punit.dgrad_p_set dgrad m" by simp
+          with 5 show ?thesis ..
+        next
+          assume "fst y \<notin> keys (rep_list (snd y))"
+          thus ?thesis using 4 ..
+        qed
+      qed
+    qed
+  next
+    case False
+    from \<open>x \<in> Q\<close> show ?thesis
+    proof
+      show "\<forall>y. (y, x) \<in> sig_trd_term \<longrightarrow> y \<notin> Q"
+      proof (intro allI impI)
+        fix y
+        assume "(y, x) \<in> sig_trd_term"
+        hence "fst x \<in> keys (rep_list (snd x))" by (simp add: sig_trd_term_def)
+        with False show "y \<notin> Q" ..
+      qed
+    qed
+  qed
+qed
 
-lemma sig_trd_red_rtrancl:
-  assumes "set bs \<subseteq> dgrad_sig_set dgrad"
-  shows "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* p (sig_trd bs p)"
-  sorry
+function (domintros) sig_trd_aux :: "('a \<times> ('t \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b)" where
+  "sig_trd_aux (t, p) =
+    (let p' =
+      (case find_sig_reducer (map spp_of bs) (lt p) t 0 of
+          None   \<Rightarrow> p
+        | Some i \<Rightarrow> p - monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+                          (t - punit.lt (rep_list (bs ! i))) (bs ! i));
+      p'' = punit.lower (rep_list p') t in
+    if p'' = 0 then p' else sig_trd_aux (punit.lt p'', p'))"
+  by auto
 
-lemma sig_trd_irred:
-  assumes "set bs \<subseteq> dgrad_sig_set dgrad"
-  shows "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) (sig_trd bs p)"
-  sorry
+lemma sig_trd_aux_domI:
+  assumes "fst args0 \<in> keys (rep_list (snd args0))"
+  shows "sig_trd_aux_dom args0"
+  using sig_trd_term_wf assms
+proof (induct args0)
+  case (less args)
+  obtain t p where args: "args = (t, p)" using prod.exhaust by blast
+  with less(1) have 1: "\<And>s q. ((s, q), (t, p)) \<in> sig_trd_term \<Longrightarrow> s \<in> keys (rep_list q) \<Longrightarrow> sig_trd_aux_dom (s, q)"
+    using prod.exhaust by auto
+  from less(2) have "t \<in> keys (rep_list p)" by (simp add: args)
+  show ?case unfolding args
+  proof (rule sig_trd_aux.domintros)
+    define p' where "p' = (case find_sig_reducer (map spp_of bs) (lt p) t 0 of
+                              None \<Rightarrow> p
+                            | Some i \<Rightarrow> p -
+                                monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+                                 (t - punit.lt (rep_list (bs ! i))) (bs ! i))"
+    define p'' where "p'' = punit.lower (rep_list p') t"
+    assume "p'' \<noteq> 0"
+    from \<open>p'' \<noteq> 0\<close> have "punit.lt p'' \<in> keys p''" by (rule punit.lt_in_keys)
+    also have "... \<subseteq> keys (rep_list p')" by (auto simp: p''_def punit.keys_lower)
+    finally have "punit.lt p'' \<in> keys (rep_list p')" .
+    with _ show "sig_trd_aux_dom (punit.lt p'', p')"
+    proof (rule 1)
+      have "punit.dgrad_p_set_le dgrad {rep_list p'} (insert (rep_list p) (rep_list ` set bs))"
+      proof (cases "find_sig_reducer (map spp_of bs) (lt p) t 0")
+        case None
+        hence "p' = p" by (simp add: p'_def)
+        hence "{rep_list p'} \<subseteq> insert (rep_list p) (rep_list ` set bs)" by simp
+        thus ?thesis by (rule punit.dgrad_p_set_le_subset)
+      next
+        case (Some i)
+        hence p': "p' = p - monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+                                  (t - punit.lt (rep_list (bs ! i))) (bs ! i)" by (simp add: p'_def)
+        have "sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) p p'" unfolding p' using \<open>t \<in> keys (rep_list p)\<close> Some
+          by (rule find_sig_reducer_SomeD_red)
+        hence "punit.red (rep_list ` set bs) (rep_list p) (rep_list p')" by (rule sig_red_red)
+        with dgrad(1) show ?thesis by (rule punit.dgrad_p_set_le_red)
+      qed
+      moreover note \<open>punit.lt p'' \<in> keys (rep_list p')\<close> \<open>t \<in> keys (rep_list p)\<close>
+      moreover from \<open>p'' \<noteq> 0\<close> have "punit.lt p'' \<prec> t" unfolding p''_def by (rule punit.lt_lower_less)
+      ultimately show "((punit.lt p'', p'), t, p) \<in> sig_trd_term" by (simp add: sig_trd_term_def)
+    qed
+  qed
+qed
+
+definition sig_trd :: "('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b)"
+  where "sig_trd p = (if rep_list p = 0 then p else sig_trd_aux (punit.lt (rep_list p), p))"
+
+lemma sig_trd_aux_red_rtrancl:
+  assumes "fst args0 \<in> keys (rep_list (snd args0))"
+  shows "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (snd args0) (sig_trd_aux args0)"
+proof -
+  from assms have "sig_trd_aux_dom args0" by (rule sig_trd_aux_domI)
+  thus ?thesis using assms
+  proof (induct args0 rule: sig_trd_aux.pinduct)
+    case (1 t p)
+    define p' where "p' = (case find_sig_reducer (map spp_of bs) (lt p) t 0 of
+                              None \<Rightarrow> p
+                            | Some i \<Rightarrow> p -
+                                monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+                                 (t - punit.lt (rep_list (bs ! i))) (bs ! i))"
+    define p'' where "p'' = punit.lower (rep_list p') t"
+    from 1(3) have "t \<in> keys (rep_list p)" by simp
+    have *: "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* p p'"
+    proof (cases "find_sig_reducer (map spp_of bs) (lt p) t 0")
+      case None
+      hence "p' = p" by (simp add: p'_def)
+      thus ?thesis by simp
+    next
+      case (Some i)
+      hence p': "p' = p - monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+                                  (t - punit.lt (rep_list (bs ! i))) (bs ! i)" by (simp add: p'_def)
+      have "sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) p p'" unfolding p' using \<open>t \<in> keys (rep_list p)\<close> Some
+        by (rule find_sig_reducer_SomeD_red)
+      thus ?thesis ..
+    qed
+    show ?case
+    proof (simp add: sig_trd_aux.psimps[OF 1(1)] Let_def p'_def[symmetric] p''_def[symmetric] *, intro impI)
+      assume "p'' \<noteq> 0"
+      from * have "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* p (snd (punit.lt p'', p'))" by (simp only: snd_conv)
+      moreover have "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (snd (punit.lt p'', p')) (sig_trd_aux (punit.lt p'', p'))"
+        using p'_def p''_def \<open>p'' \<noteq> 0\<close>
+      proof (rule 1(2))
+        from \<open>p'' \<noteq> 0\<close> have "punit.lt p'' \<in> keys p''" by (rule punit.lt_in_keys)
+        also have "... \<subseteq> keys (rep_list p')" by (auto simp: p''_def punit.keys_lower)
+        finally show "fst (punit.lt p'', p') \<in> keys (rep_list (snd (punit.lt p'', p')))" by simp
+      qed
+      ultimately show "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* p (sig_trd_aux (punit.lt p'', p'))"
+        by (rule rtranclp_trans)
+    qed
+  qed
+qed
+
+corollary sig_trd_red_rtrancl: "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* p (sig_trd p)"
+  unfolding sig_trd_def
+proof (split if_split, intro conjI impI rtranclp.rtrancl_refl)
+  let ?args = "(punit.lt (rep_list p), p)"
+  assume "rep_list p \<noteq> 0"
+  hence "punit.lt (rep_list p) \<in> keys (rep_list p)" by (rule punit.lt_in_keys)
+  hence "fst (punit.lt (rep_list p), p) \<in> keys (rep_list (snd (punit.lt (rep_list p), p)))"
+    by (simp only: fst_conv snd_conv)
+  hence "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (snd ?args) (sig_trd_aux ?args)" by (rule sig_trd_aux_red_rtrancl)
+  thus "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* p (sig_trd_aux (punit.lt (rep_list p), p))" by (simp only: snd_conv)
+qed
+
+lemma sig_trd_aux_irred:
+  assumes "fst args0 \<in> keys (rep_list (snd args0))"
+    and "\<And>b s. b \<in> set bs \<Longrightarrow> rep_list b \<noteq> 0 \<Longrightarrow> fst args0 \<prec> s + punit.lt (rep_list b) \<Longrightarrow>
+              s \<oplus> lt b \<prec>\<^sub>t lt (snd (args0)) \<Longrightarrow> lookup (rep_list (snd args0)) (s + punit.lt (rep_list b)) = 0"
+  shows "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) (sig_trd_aux args0)"
+proof -
+  from assms(1) have "sig_trd_aux_dom args0" by (rule sig_trd_aux_domI)
+  thus ?thesis using assms
+  proof (induct args0 rule: sig_trd_aux.pinduct)
+    case (1 t p)
+    define p' where "p' = (case find_sig_reducer (map spp_of bs) (lt p) t 0 of
+                              None \<Rightarrow> p
+                            | Some i \<Rightarrow> p -
+                                monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+                                 (t - punit.lt (rep_list (bs ! i))) (bs ! i))"
+    define p'' where "p'' = punit.lower (rep_list p') t"
+    from 1(3) have "t \<in> keys (rep_list p)" by simp
+    from 1(4) have a: "b \<in> set bs \<Longrightarrow> rep_list b \<noteq> 0 \<Longrightarrow> t \<prec> s + punit.lt (rep_list b) \<Longrightarrow>
+                       s \<oplus> lt b \<prec>\<^sub>t lt p \<Longrightarrow> lookup (rep_list p) (s + punit.lt (rep_list b)) = 0"
+      for b s by (simp only: fst_conv snd_conv)
+    have "lt p' = lt p \<and> (\<forall>s. t \<prec> s \<longrightarrow> lookup (rep_list p') s = lookup (rep_list p) s)"
+    proof (cases "find_sig_reducer (map spp_of bs) (lt p) t 0")
+      case None
+      thus ?thesis by (simp add: p'_def)
+    next
+      case (Some i)
+      hence p': "p' = p - monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+                                  (t - punit.lt (rep_list (bs ! i))) (bs ! i)" by (simp add: p'_def)
+      have "sig_red_single (\<prec>\<^sub>t) (\<preceq>) p p' (bs ! i) (t - punit.lt (rep_list (bs ! i)))"
+        unfolding p' using \<open>t \<in> keys (rep_list p)\<close> Some by (rule find_sig_reducer_SomeD_red_single)
+      hence r: "punit.red_single (rep_list p) (rep_list p') (rep_list (bs ! i)) (t - punit.lt (rep_list (bs ! i)))"
+        and "lt p' = lt p" by (rule sig_red_single_red_single, rule sig_red_single_regular_lt)
+      have "\<forall>s. t \<prec> s \<longrightarrow> lookup (rep_list p') s = lookup (rep_list p) s"
+      proof (intro allI impI)
+        fix s
+        assume "t \<prec> s"
+        from Some have "punit.lt (rep_list (bs ! i)) adds t" by (rule find_sig_reducer_SomeD)
+        hence eq0: "(t - punit.lt (rep_list (bs ! i))) + punit.lt (rep_list (bs ! i)) = t" (is "?t = t")
+          by (rule adds_minus)
+        from \<open>t \<prec> s\<close> have "lookup (rep_list p') s = lookup (punit.higher (rep_list p') ?t) s"
+          by (simp add: eq0 punit.lookup_higher_when)
+        also from r have "... = lookup (punit.higher (rep_list p) ?t) s"
+          by (simp add: punit.red_single_higher[simplified])
+        also from \<open>t \<prec> s\<close> have "... = lookup (rep_list p) s" by (simp add: eq0 punit.lookup_higher_when)
+        finally show "lookup (rep_list p') s = lookup (rep_list p) s" .
+      qed
+      with \<open>lt p' = lt p\<close> show ?thesis ..
+    qed
+    hence lt_p': "lt p' = lt p" and b: "\<And>s. t \<prec> s \<Longrightarrow> lookup (rep_list p') s = lookup (rep_list p) s"
+      by blast+
+    have c: "lookup (rep_list p') (s + punit.lt (rep_list b)) = 0"
+      if "b \<in> set bs" and "rep_list b \<noteq> 0" and "t \<preceq> s + punit.lt (rep_list b)" and "s \<oplus> lt b \<prec>\<^sub>t lt p'" for b s
+    proof (cases "t \<prec> s + punit.lt (rep_list b)")
+      case True
+      hence "lookup (rep_list p') (s + punit.lt (rep_list b)) =
+             lookup (rep_list p) (s + punit.lt (rep_list b))" by (rule b)
+      also from that(1, 2) True that(4) have "... = 0" unfolding lt_p' by (rule a)
+      finally show ?thesis .
+    next
+      case False
+      with that(3) have t: "t = s + punit.lt (rep_list b)" by simp
+      show ?thesis
+      proof (cases "find_sig_reducer (map spp_of bs) (lt p) t 0")
+        case None
+        from that(1) have "spp_of b \<in> set (map spp_of bs)" by fastforce
+        with None show ?thesis
+        proof (rule find_sig_reducer_NoneE)
+          assume "snd (spp_of b) = 0"
+          with that(2) show ?thesis by (simp add: snd_spp_of)
+        next
+          assume "\<not> punit.lt (snd (spp_of b)) adds t"
+          thus ?thesis by (simp add: snd_spp_of t)
+        next
+          assume "\<not> (t - punit.lt (snd (spp_of b))) \<oplus> fst (spp_of b) \<prec>\<^sub>t lt p"
+          with that(4) show ?thesis by (simp add: fst_spp_of snd_spp_of t lt_p')
+        qed
+      next
+        case (Some i)
+        hence p': "p' = p - monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+                                  (t - punit.lt (rep_list (bs ! i))) (bs ! i)" by (simp add: p'_def)
+        have "sig_red_single (\<prec>\<^sub>t) (\<preceq>) p p' (bs ! i) (t - punit.lt (rep_list (bs ! i)))"
+          unfolding p' using \<open>t \<in> keys (rep_list p)\<close> Some by (rule find_sig_reducer_SomeD_red_single)
+        hence r: "punit.red_single (rep_list p) (rep_list p') (rep_list (bs ! i)) (t - punit.lt (rep_list (bs ! i)))"
+          by (rule sig_red_single_red_single)
+        from Some have "punit.lt (rep_list (bs ! i)) adds t" by (rule find_sig_reducer_SomeD)
+        hence eq0: "(t - punit.lt (rep_list (bs ! i))) + punit.lt (rep_list (bs ! i)) = t" (is "?t = t")
+          by (rule adds_minus)
+        from r have "lookup (rep_list p') ((t - punit.lt (rep_list (bs ! i))) + punit.lt (rep_list (bs ! i))) = 0"
+          by (rule punit.red_single_lookup[simplified])
+        thus ?thesis by (simp only: eq0 t[symmetric])
+      qed
+    qed
+    show ?case
+    proof (simp add: sig_trd_aux.psimps[OF 1(1)] Let_def p'_def[symmetric] p''_def[symmetric], intro conjI impI)
+      assume "p'' = 0"
+      show "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) p'"
+      proof
+        assume "is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) p'"
+        then obtain b s where "b \<in> set bs" and "s \<in> keys (rep_list p')" and "rep_list b \<noteq> 0"
+          and adds: "punit.lt (rep_list b) adds s" and "s \<oplus> lt b \<prec>\<^sub>t punit.lt (rep_list b) \<oplus> lt p'"
+          by (rule is_sig_red_addsE)
+        let ?s = "s - punit.lt (rep_list b)"
+        from adds have eq0: "?s + punit.lt (rep_list b) = s" by (simp add: adds_minus)
+        show False
+        proof (cases "t \<preceq> s")
+          case True
+          note \<open>b \<in> set bs\<close> \<open>rep_list b \<noteq> 0\<close>
+          moreover from True have "t \<preceq> ?s + punit.lt (rep_list b)" by (simp only: eq0)
+          moreover from adds \<open>s \<oplus> lt b \<prec>\<^sub>t punit.lt (rep_list b) \<oplus> lt p'\<close> have "?s \<oplus> lt b \<prec>\<^sub>t lt p'"
+            by (simp add: term_is_le_rel_minus)
+          ultimately have "lookup (rep_list p') (?s + punit.lt (rep_list b)) = 0" by (rule c)
+          hence "s \<notin> keys (rep_list p')" by (simp add: eq0)
+          thus ?thesis using \<open>s \<in> keys (rep_list p')\<close> ..
+        next
+          case False
+          hence "s \<prec> t" by simp
+          hence "lookup (rep_list p') s = lookup (punit.lower (rep_list p') t) s"
+            by (simp add: punit.lookup_lower_when)
+          also from \<open>p'' = 0\<close> have "... = 0" by (simp add: p''_def)
+          finally have "s \<notin> keys (rep_list p')" by simp
+          thus ?thesis using \<open>s \<in> keys (rep_list p')\<close> ..
+        qed
+      qed
+    next
+      assume "p'' \<noteq> 0"
+      with p'_def p''_def show "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) (sig_trd_aux (punit.lt p'', p'))"
+      proof (rule 1(2))
+        from \<open>p'' \<noteq> 0\<close> have "punit.lt p'' \<in> keys p''" by (rule punit.lt_in_keys)
+        also have "... \<subseteq> keys (rep_list p')" by (auto simp: p''_def punit.keys_lower)
+        finally show "fst (punit.lt p'', p') \<in> keys (rep_list (snd (punit.lt p'', p')))" by simp
+      next
+        fix b s
+        assume "b \<in> set bs" and "rep_list b \<noteq> 0"
+        assume "fst (punit.lt p'', p') \<prec> s + punit.lt (rep_list b)"
+          and "s \<oplus> lt b \<prec>\<^sub>t lt (snd (punit.lt p'', p'))"
+        hence "punit.lt p'' \<prec> s + punit.lt (rep_list b)" and "s \<oplus> lt b \<prec>\<^sub>t lt p'" by simp_all
+        have "lookup (rep_list p') (s + punit.lt (rep_list b)) = 0"
+        proof (cases "t \<preceq> s + punit.lt (rep_list b)")
+          case True
+          with \<open>b \<in> set bs\<close> \<open>rep_list b \<noteq> 0\<close> show ?thesis using \<open>s \<oplus> lt b \<prec>\<^sub>t lt p'\<close> by (rule c)
+        next
+          case False
+          hence "s + punit.lt (rep_list b) \<prec> t" by simp
+          hence "lookup (rep_list p') (s + punit.lt (rep_list b)) =
+                  lookup (punit.lower (rep_list p') t) (s + punit.lt (rep_list b))"
+            by (simp add: punit.lookup_lower_when)
+          also have "... = 0"
+          proof (rule ccontr)
+            assume "lookup (punit.lower (rep_list p') t) (s + punit.lt (rep_list b)) \<noteq> 0"
+            hence "s + punit.lt (rep_list b) \<preceq> punit.lt (punit.lower (rep_list p') t)"
+              by (rule punit.lt_max)
+            also have "... = punit.lt p''" by (simp only: p''_def)
+            finally show False using \<open>punit.lt p'' \<prec> s + punit.lt (rep_list b)\<close> by simp
+          qed
+          finally show ?thesis .
+        qed
+        thus "lookup (rep_list (snd (punit.lt p'', p'))) (s + punit.lt (rep_list b)) = 0"
+          by (simp only: snd_conv)
+      qed
+    qed
+  qed
+qed
+
+corollary sig_trd_irred: "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) (sig_trd p)"
+  unfolding sig_trd_def
+proof (split if_split, intro conjI impI)
+  assume "rep_list p = 0"
+  show "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) p"
+  proof
+    assume "is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) p"
+    then obtain t where "t \<in> keys (rep_list p)" by (rule is_sig_red_addsE)
+    thus False by (simp add: \<open>rep_list p = 0\<close>)
+  qed
+next
+  assume "rep_list p \<noteq> 0"
+  show "\<not> is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) (sig_trd_aux (punit.lt (rep_list p), p))"
+  proof (rule sig_trd_aux_irred)
+    from \<open>rep_list p \<noteq> 0\<close> have "punit.lt (rep_list p) \<in> keys (rep_list p)" by (rule punit.lt_in_keys)
+    thus "fst (punit.lt (rep_list p), p) \<in> keys (rep_list (snd (punit.lt (rep_list p), p)))" by simp
+  next
+    fix b s
+    assume "fst (punit.lt (rep_list p), p) \<prec> s + punit.lt (rep_list b)"
+    thus "lookup (rep_list (snd (punit.lt (rep_list p), p))) (s + punit.lt (rep_list b)) = 0"
+      using punit.lt_max by force
+  qed
+qed
+
+end
+
+context
+  fixes bs :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) list"
+begin
+
+context
+  fixes v :: 't
+begin
+
+fun sig_trd_spp_body :: "(('a \<Rightarrow>\<^sub>0 'b) \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> (('a \<Rightarrow>\<^sub>0 'b) \<times> ('a \<Rightarrow>\<^sub>0 'b))" where
+  "sig_trd_spp_body (p, r) =
+    (case find_sig_reducer bs v (punit.lt p) 0 of
+        None   \<Rightarrow> (punit.tail p, r + monomial (punit.lc p) (punit.lt p))
+      | Some i \<Rightarrow> let b = snd (bs ! i) in
+          (punit.tail p - punit.monom_mult (punit.lc p / punit.lc b) (punit.lt p - punit.lt b) (punit.tail b), r))"
+
+definition sig_trd_spp_aux :: "(('a \<Rightarrow>\<^sub>0 'b) \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b)"
+  where sig_trd_spp_aux_def [code del]: "sig_trd_spp_aux = tailrec.fun (\<lambda>x. fst x = 0) snd sig_trd_spp_body"
+
+lemma sig_trd_spp_aux_simps [code]:
+  "sig_trd_spp_aux (p, r) = (if p = 0 then r else sig_trd_spp_aux (sig_trd_spp_body (p, r)))"
+  by (simp add: sig_trd_spp_aux_def tailrec.simps)
+
+end
+
+fun sig_trd_spp :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b))" where
+  "sig_trd_spp (v, p) = (v, sig_trd_spp_aux v (p, 0))"
+
+text \<open>We define function @{const sig_trd_spp}, operating on sig-poly-pairs, already here, to have
+  its definition in the right context. Lemmas are proved about it below in Section \<open>Sig-Poly-Pairs\<close>.\<close>
+
+end
 
 subsubsection \<open>Algorithms\<close>
 
@@ -6762,8 +7329,221 @@ proof -
     by (simp add: spair_spp_def spair_def Let_def spp_of_def rep_list_minus rep_list_monom_mult)
 qed
 
+lemma sig_trd_spp_body_alt_Some:
+  assumes "find_sig_reducer (map spp_of bs) v (punit.lt p) 0 = Some i"
+  shows "sig_trd_spp_body (map spp_of bs) v (p, r) =
+          (punit.lower (p - local.punit.monom_mult (punit.lc p / punit.lc (rep_list (bs ! i)))
+                  (punit.lt p - punit.lt (rep_list (bs ! i))) (rep_list (bs ! i))) (punit.lt p), r)"
+      (is ?thesis1)
+    and "sig_trd_spp_body (map spp_of bs) v (p, r) =
+          (p - local.punit.monom_mult (punit.lc p / punit.lc (rep_list (bs ! i)))
+                  (punit.lt p - punit.lt (rep_list (bs ! i))) (rep_list (bs ! i)), r)"
+      (is ?thesis2)
+proof -
+  have "?thesis1 \<and> ?thesis2"
+  proof (cases "p = 0")
+    case True
+    show ?thesis by (simp add: assms, simp add: True)
+  next
+    case False
+    from assms have "i < length bs" by (rule find_sig_reducer_SomeD)
+    hence eq1: "snd (map spp_of bs ! i) = rep_list (bs ! i)" by (simp add: snd_spp_of)
+    from assms have "rep_list (bs ! i) \<noteq> 0" and "punit.lt (rep_list (bs ! i)) adds punit.lt p"
+      by (rule find_sig_reducer_SomeD)+
+    hence nz: "rep_list (bs ! i) \<noteq> 0" and adds: "punit.lt (rep_list (bs ! i)) adds punit.lt p"
+      by (simp_all add: snd_spp_of)
+    from nz have "punit.lc (rep_list (bs ! i)) \<noteq> 0" by (rule punit.lc_not_0)
+    moreover from False have "punit.lc p \<noteq> 0" by (rule punit.lc_not_0)
+    ultimately have eq2: "punit.lt (punit.monom_mult (punit.lc p / punit.lc (rep_list (bs ! i)))
+                        (punit.lt p - punit.lt (rep_list (bs ! i))) (rep_list (bs ! i))) = punit.lt p"
+      (is "punit.lt ?p = _") using nz adds by (simp add: lp_monom_mult adds_minus)
+    have ?thesis1 by (simp add: assms Let_def eq1 punit.lower_minus punit.tail_monom_mult[symmetric],
+                      simp add: punit.tail_def eq2)
+    moreover have ?thesis2
+    proof (simp add: \<open>?thesis1\<close> punit.lower_id_iff disj_commute[of "p = ?p"] del: sig_trd_spp_body.simps)
+      show "punit.lt (p - ?p) \<prec> punit.lt p \<or> p = ?p"
+      proof (rule disjCI)
+        assume "p \<noteq> ?p"
+        hence "p - ?p \<noteq> 0" by simp
+        moreover note eq2
+        moreover from \<open>punit.lc (rep_list (bs ! i)) \<noteq> 0\<close> have "punit.lc ?p = punit.lc p" by simp
+        ultimately show "punit.lt (p - ?p) \<prec> punit.lt p" by (rule punit.lt_minus_lessI)
+      qed
+    qed
+    ultimately show ?thesis ..
+  qed
+  thus ?thesis1 and ?thesis2 by blast+
+qed
+
+lemma sig_trd_aux_alt_spp:
+  assumes "fst args \<in> keys (rep_list (snd args))"
+  shows "rep_list (sig_trd_aux bs args) =
+              sig_trd_spp_aux (map spp_of bs) (lt (snd args))
+                (rep_list (snd args) - punit.higher (rep_list (snd args)) (fst args),
+                 punit.higher (rep_list (snd args)) (fst args))"
+proof -
+  from assms have "sig_trd_aux_dom bs args" by (rule sig_trd_aux_domI)
+  thus ?thesis using assms
+  proof (induct args rule: sig_trd_aux.pinduct)
+    case (1 t p)
+    define p' where "p' = (case find_sig_reducer (map spp_of bs) (lt p) t 0 of
+                              None \<Rightarrow> p
+                            | Some i \<Rightarrow> p -
+                                monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+                                 (t - punit.lt (rep_list (bs ! i))) (bs ! i))"
+    define p'' where "p'' = punit.lower (rep_list p') t"
+    from 1(3) have t_in: "t \<in> keys (rep_list p)" by simp
+    hence "t \<in> keys (rep_list p - punit.higher (rep_list p) t)" (is "_ \<in> keys ?p")
+      by (simp add: punit.keys_minus_higher)
+    hence "?p \<noteq> 0" by auto
+    hence eq1: "sig_trd_spp_aux bs0 v0 (?p, r0) = sig_trd_spp_aux bs0 v0 (sig_trd_spp_body bs0 v0 (?p, r0))"
+      for bs0 v0 r0 by (simp add: sig_trd_spp_aux_simps del: sig_trd_spp_body.simps)
+    from t_in have lt_p: "punit.lt ?p = t" and lc_p: "punit.lc ?p = lookup (rep_list p) t"
+      and tail_p: "punit.tail ?p = punit.lower (rep_list p) t"
+      by (rule punit.lt_minus_higher, rule punit.lc_minus_higher, rule punit.tail_minus_higher)
+    have "lt p' = lt p \<and> punit.higher (rep_list p') t = punit.higher (rep_list p) t \<and>
+          (\<forall>i. find_sig_reducer (map spp_of bs) (lt p) t 0 = Some i \<longrightarrow> lookup (rep_list p') t = 0)"
+      (is "?A \<and> ?B \<and> ?C")
+    proof (cases "find_sig_reducer (map spp_of bs) (lt p) t 0")
+      case None
+      thus ?thesis by (simp add: p'_def)
+    next
+      case (Some i)
+      hence p': "p' = p - monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+                            (t - punit.lt (rep_list (bs ! i))) (bs ! i)" by (simp add: p'_def)
+      from Some have "punit.lt (rep_list (bs ! i)) adds t" by (rule find_sig_reducer_SomeD)
+      hence eq: "t - punit.lt (rep_list (bs ! i)) + punit.lt (rep_list (bs ! i)) = t" by (rule adds_minus)
+      from t_in Some have *: "sig_red_single (\<prec>\<^sub>t) (\<preceq>) p p' (bs ! i) (t - punit.lt (rep_list (bs ! i)))"
+        unfolding p' by (rule find_sig_reducer_SomeD_red_single)
+      hence **: "punit.red_single (rep_list p) (rep_list p') (rep_list (bs ! i)) (t - punit.lt (rep_list (bs ! i)))"
+        by (rule sig_red_single_red_single)
+      from * have ?A by (rule sig_red_single_regular_lt)
+      moreover from punit.red_single_higher[OF **] have ?B by (simp add: eq)
+      moreover have ?C
+      proof (intro allI impI)
+        from punit.red_single_lookup[OF **] show "lookup (rep_list p') t = 0" by (simp add: eq)
+      qed
+      ultimately show ?thesis by (intro conjI)
+    qed
+    hence lt_p': "lt p' = lt p" and higher_p': "punit.higher (rep_list p') t = punit.higher (rep_list p) t"
+      and lookup_p': "\<And>i. find_sig_reducer (map spp_of bs) (lt p) t 0 = Some i \<Longrightarrow> lookup (rep_list p') t = 0"
+      by blast+
+    show ?case
+    proof (simp add: sig_trd_aux.psimps[OF 1(1)] Let_def p'_def[symmetric] p''_def[symmetric], intro conjI impI)
+      assume "p'' = 0"
+      hence p'_decomp: "punit.higher (rep_list p) t + monomial (lookup (rep_list p') t) t = rep_list p'"
+        using punit.higher_lower_decomp[of "rep_list p'" t] by (simp add: p''_def higher_p')
+      show "rep_list p' = sig_trd_spp_aux (map spp_of bs) (lt p) (?p, punit.higher (rep_list p) t)"
+      proof (cases "find_sig_reducer (map spp_of bs) (lt p) t 0")
+        case None
+        hence p': "p' = p" by (simp add: p'_def)
+        from \<open>p'' = 0\<close> have eq2: "punit.tail ?p = 0" by (simp add: tail_p p''_def p')
+        from p'_decomp show ?thesis by (simp add: p' eq1 lt_p lc_p None eq2 sig_trd_spp_aux_simps)
+      next
+        case (Some i)
+        hence p': "p' = p - monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+                            (t - punit.lt (rep_list (bs ! i))) (bs ! i)" by (simp add: p'_def)
+        from \<open>p'' = 0\<close> have eq2: "punit.lower (rep_list p - punit.higher (rep_list p) t -
+                punit.monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+                  (t - punit.lt (rep_list (bs ! i))) (rep_list (bs ! i)))
+                t = 0"
+          by (simp add: p''_def p' rep_list_minus rep_list_monom_mult punit.lower_minus punit.lower_higher_zeroI)
+        from Some have "lookup (rep_list p') t = 0" by (rule lookup_p')
+        with p'_decomp have eq3: "rep_list p' = punit.higher (rep_list p) t" by simp
+        show ?thesis by (simp add: sig_trd_spp_body_alt_Some(1) eq1 eq2 lt_p lc_p Some del: sig_trd_spp_body.simps,
+                         simp add: sig_trd_spp_aux_simps eq3)
+      qed
+    next
+      assume "p'' \<noteq> 0"
+      hence "punit.lt p'' \<prec> t" unfolding p''_def by (rule punit.lt_lower_less)
+      have higher_p'_2: "punit.higher (rep_list p') (punit.lt p'') =
+                          punit.higher (rep_list p) t + monomial (lookup (rep_list p') t) t"
+      proof (simp add: higher_p'[symmetric], rule poly_mapping_eqI)
+        fix s
+        show "lookup (punit.higher (rep_list p') (punit.lt p'')) s =
+              lookup (punit.higher (rep_list p') t + monomial (lookup (rep_list p') t) t) s"
+        proof (rule ordered_powerprod_lin.linorder_cases)
+          assume "t \<prec> s"
+          moreover from \<open>punit.lt p'' \<prec> t\<close> this have "punit.lt p'' \<prec> s"
+            by (rule ordered_powerprod_lin.less_trans)
+          ultimately show ?thesis by (simp add: lookup_add punit.lookup_higher_when lookup_single)
+        next
+          assume "t = s"
+          with \<open>punit.lt p'' \<prec> t\<close> show ?thesis by (simp add: lookup_add punit.lookup_higher_when)
+        next
+          assume "s \<prec> t"
+          show ?thesis
+          proof (cases "punit.lt p'' \<prec> s")
+            case True
+            hence "lookup (punit.higher (rep_list p') (punit.lt p'')) s = lookup (rep_list p') s"
+              by (simp add: punit.lookup_higher_when)
+            also from \<open>s \<prec> t\<close> have "... = lookup p'' s" by (simp add: p''_def punit.lookup_lower_when)
+            also from True have "... = 0" using punit.lt_le_iff by auto
+            finally show ?thesis using \<open>s \<prec> t\<close>
+              by (simp add: lookup_add lookup_single punit.lookup_higher_when)
+          next
+            case False
+            with \<open>s \<prec> t\<close> show ?thesis by (simp add: lookup_add punit.lookup_higher_when lookup_single)
+          qed
+        qed
+      qed
+      have "rep_list (sig_trd_aux bs (punit.lt p'', p')) =
+              sig_trd_spp_aux (map spp_of bs) (lt (snd (punit.lt p'', p')))
+               (rep_list (snd (punit.lt p'', p')) -
+                punit.higher (rep_list (snd (punit.lt p'', p'))) (fst (punit.lt p'', p')),
+                punit.higher (rep_list (snd (punit.lt p'', p'))) (fst (punit.lt p'', p')))"
+        using p'_def p''_def \<open>p'' \<noteq> 0\<close>
+      proof (rule 1(2))
+        from \<open>p'' \<noteq> 0\<close> have "punit.lt p'' \<in> keys p''" by (rule punit.lt_in_keys)
+        also have "... \<subseteq> keys (rep_list p')" by (auto simp: p''_def punit.keys_lower)
+        finally show "fst (punit.lt p'', p') \<in> keys (rep_list (snd (punit.lt p'', p')))" by simp
+      qed
+      also have "... = sig_trd_spp_aux (map spp_of bs) (lt p)
+                         (rep_list p' - punit.higher (rep_list p') (punit.lt p''),
+                          punit.higher (rep_list p') (punit.lt p''))"
+        by (simp only: lt_p' fst_conv snd_conv)
+      also have "... = sig_trd_spp_aux (map spp_of bs) (lt p) (?p, punit.higher (rep_list p) t)"
+      proof (cases "find_sig_reducer (map spp_of bs) (lt p) t 0")
+        case None
+        hence p': "p' = p" by (simp add: p'_def)
+        have "rep_list p - (punit.higher (rep_list p) t + monomial (lookup (rep_list p) t) t) =
+              punit.lower (rep_list p) t"
+          using punit.higher_lower_decomp[of "rep_list p" t] by (simp add: diff_eq_eq ac_simps)
+        with higher_p'_2 show ?thesis by (simp add: eq1 lt_p lc_p tail_p p' None)
+      next
+        case (Some i)
+        hence p': "rep_list p - punit.monom_mult (lookup (rep_list p) t / punit.lc (rep_list (bs ! i)))
+                          (t - punit.lt (rep_list (bs ! i))) (rep_list (bs ! i)) = rep_list p'"
+          by (simp add: p'_def rep_list_minus rep_list_monom_mult)
+        from Some have "lookup (rep_list p') t = 0" by (rule lookup_p')
+        with higher_p'_2 show ?thesis
+          by (simp add: sig_trd_spp_body_alt_Some(2) eq1 lt_p lc_p tail_p Some
+              diff_right_commute[of "rep_list p" "punit.higher (rep_list p) t"] p' del: sig_trd_spp_body.simps)
+      qed
+      finally show "rep_list (sig_trd_aux bs (punit.lt p'', p')) =
+                     sig_trd_spp_aux (map spp_of bs) (lt p) (?p, punit.higher (rep_list p) t)" .
+    qed
+  qed
+qed
+
 lemma sig_trd_alt_spp: "spp_of (sig_trd bs p) = sig_trd_spp (map spp_of bs) (spp_of p)"
-  sorry
+  unfolding sig_trd_def
+proof (split if_split, intro conjI impI)
+  assume "rep_list p = 0"
+  thus "spp_of p = sig_trd_spp (map spp_of bs) (spp_of p)" by (simp add: spp_of_def sig_trd_spp_aux_simps)
+next
+  let ?args = "(punit.lt (rep_list p), p)"
+  assume "rep_list p \<noteq> 0"
+  hence a: "fst ?args \<in> keys (rep_list (snd ?args))" by (simp add: punit.lt_in_keys)
+  hence "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (snd ?args) (sig_trd_aux bs ?args)"
+    by (rule sig_trd_aux_red_rtrancl)
+  hence eq1: "lt (sig_trd_aux bs ?args) = lt (snd ?args)" by (rule sig_red_regular_rtrancl_lt)
+  have eq2: "punit.higher (rep_list p) (punit.lt (rep_list p)) = 0"
+    by (auto simp: punit.higher_eq_zero_iff punit.lt_max simp flip: not_in_keys_iff_lookup_eq_zero
+            dest: punit.lt_max_keys)
+  show "spp_of (sig_trd_aux bs (punit.lt (rep_list p), p)) = sig_trd_spp (map spp_of bs) (spp_of p)"
+    by (simp add: spp_of_def eq1 eq2 sig_trd_aux_alt_spp[OF a])
+qed
 
 lemma is_regular_spair_alt_spp: "is_regular_spair p q \<longleftrightarrow> is_regular_spair_spp (spp_of p) (spp_of q)"
   by (auto simp: is_regular_spair_spp_def fst_spp_of snd_spp_of intro: is_regular_spairI
@@ -7029,6 +7809,9 @@ thm sig_gb_spp_aux_Nil
 thm sig_gb_spp_aux_Cons
 thm sig_gb_spp_body.simps
 thm sig_gb_def
+thm sig_trd_spp_aux_simps
+thm sig_trd_spp_body.simps
+thm find_sig_reducer.simps
 
 thm sig_gb_is_Groebner_basis[OF rw_add_strict_is_strict_rewrite_ord]
 
