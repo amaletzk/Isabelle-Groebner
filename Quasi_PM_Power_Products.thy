@@ -47,54 +47,70 @@ lemma decr_grading_idI: "hom_grading d \<Longrightarrow> d t \<le> n \<Longright
   using decr_grading unfolding hom_grading_fun_def by blast
 
 class quasi_pm_powerprod = ulcs_powerprod +
-  assumes ex_igrad: "\<exists>d::'a \<Rightarrow> nat. dickson_grading d \<and> hom_grading d"
+  assumes ex_hgrad: "\<exists>d::'a \<Rightarrow> nat. dickson_grading d \<and> hom_grading d"
 begin
 
 subclass graded_dickson_powerprod
 proof
-  from ex_igrad show "\<exists>d. dickson_grading d" by blast
+  from ex_hgrad show "\<exists>d. dickson_grading d" by blast
 qed
 
 end (* quasi_pm_powerprod *)
 
+lemma lookup_truncate: "lookup (truncate_poly_mapping V t) = (\<lambda>x. lookup t x when x \<in> V)"
+  by (intro ext, simp add: lookup_truncate_fun truncate_fun_def)
+
+lemma truncate_poly_mapping_zero: "truncate_poly_mapping V 0 = 0"
+  by (rule poly_mapping_eqI, simp add: lookup_truncate)
+
+lemma truncate_poly_mapping_plus:
+  "truncate_poly_mapping V (s + t) = truncate_poly_mapping V s + truncate_poly_mapping V t"
+  by (rule poly_mapping_eqI, simp add: lookup_truncate lookup_add when_def)
+
+lemma truncate_poly_mapping_id_iff: "(truncate_poly_mapping V t = t) \<longleftrightarrow> (keys t \<subseteq> V)"
+proof
+  assume *: "truncate_poly_mapping V t = t"
+  show "keys t \<subseteq> V"
+  proof
+    fix x
+    assume "x \<in> keys t"
+    with * have "lookup (truncate_poly_mapping V t) x \<noteq> 0" by simp
+    thus "x \<in> V" by (simp add: lookup_truncate)
+  qed
+next
+  assume "keys t \<subseteq> V"
+  show "truncate_poly_mapping V t = t"
+  proof (rule poly_mapping_eqI)
+    fix x
+    show "lookup (truncate_poly_mapping V t) x = lookup t x"
+    proof (cases "x \<in> keys t")
+      case True
+      hence "x \<in> V" using \<open>keys t \<subseteq> V\<close> ..
+      thus ?thesis by (simp add: lookup_truncate)
+    next
+      case False
+      thus ?thesis by (simp add: lookup_truncate)
+    qed
+  qed
+qed
+
+lemma varnum_le_iff: "varnum t \<le> n \<longleftrightarrow> keys t \<subseteq> {x. elem_index x < n}"
+  by (auto simp: varnum_def Suc_le_eq)
+
 lemma hom_grading_varnum: "hom_grading (varnum::('a::countable \<Rightarrow>\<^sub>0 'b::add_wellorder) \<Rightarrow> nat)"
 proof -
-  define f where "f = (\<lambda>n. \<lambda>t::'a \<Rightarrow>\<^sub>0 'b. Abs_poly_mapping (\<lambda>x. lookup t x when elem_index x < n))"
-  have l: "lookup (f n t) = (\<lambda>x. lookup t x when elem_index x < n)" for n t unfolding f_def
-    by (rule Abs_poly_mapping_inverse, simp)
+  define f where "f = (\<lambda>n. (truncate_poly_mapping {x. elem_index x < n})::_ \<Rightarrow> 'a \<Rightarrow>\<^sub>0 'b)"
   show ?thesis unfolding hom_grading_def hom_grading_fun_def
   proof (intro exI allI conjI impI)
     fix n s t
-    show "f n (s + t) = f n s + f n t" by (rule poly_mapping_eqI, simp add: l lookup_add when_def)
+    show "f n (s + t) = f n s + f n t" by (simp only: f_def truncate_poly_mapping_plus)
   next
     fix n t
-    have fin: "finite (elem_index ` keys (f n t))" by simp
-    show "varnum (f n t) \<le> n" 
-    proof (simp add: varnum_def, intro impI Suc_leI)
-      assume "f n t \<noteq> 0"
-      hence "elem_index ` keys (f n t) \<noteq> {}" by simp
-      with fin show "MAXIMUM (keys (f n t)) elem_index < n"
-      proof (simp, intro ballI)
-        fix x
-        assume "x \<in> keys (f n t)"
-        hence "lookup (f n t) x \<noteq> 0" by simp
-        thus "elem_index x < n" by (simp add: l)
-      qed
-    qed
+    from sub_keys_truncate[of "{x. elem_index x < n}" t] show "varnum (f n t) \<le> n"
+      by (simp add: varnum_le_iff sub_keys_def f_def)
   next
-    fix n::nat and t::"'a \<Rightarrow>\<^sub>0 'b"
-    assume "varnum t \<le> n"
-    show "f n t = t"
-    proof (rule poly_mapping_eqI, simp add: l when_def, rule, rule ccontr)
-      fix x
-      assume "lookup t x \<noteq> 0"
-      hence "x \<in> keys t" by simp
-      hence "elem_index x < varnum t" by (rule elem_index_less_varnum)
-      also have "... \<le> n" by fact
-      finally have "elem_index x < n" .
-      moreover assume "\<not> elem_index x < n"
-      ultimately show False by simp
-    qed
+    fix n t
+    show "varnum t \<le> n \<Longrightarrow> f n t = t" by (simp add: f_def truncate_poly_mapping_id_iff varnum_le_iff)
   qed
 qed
 

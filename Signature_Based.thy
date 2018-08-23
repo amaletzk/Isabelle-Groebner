@@ -4379,7 +4379,7 @@ qualified definition dgrad :: "'a \<Rightarrow> nat"
 
 lemma dgrad: "dickson_grading dgrad" "hom_grading dgrad"
 proof -
-  have "dickson_grading dgrad \<and> hom_grading dgrad" unfolding dgrad_def using ex_igrad ..
+  have "dickson_grading dgrad \<and> hom_grading dgrad" unfolding dgrad_def using ex_hgrad ..
   thus "dickson_grading dgrad" and "hom_grading dgrad" by simp_all
 qed
 
