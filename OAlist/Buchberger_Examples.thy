@@ -92,6 +92,9 @@ function trd_aux_punit_print where
   by auto
 termination sorry
 
+lemma compute_trd_punit [code]: "trd_punit to fs p = trd_aux_punit to fs p (change_ord to 0)"
+  by (simp add: punit'.punit.trd_def change_ord_def)
+
 definition "product_crit_punit_print to =
   (\<lambda>gs bs ps data p q. if product_crit_punit to gs bs ps data p q then (print ''prod'' True) else False)"
 
@@ -369,6 +372,9 @@ lemma compute_splus_pprod [code]: "splus_pprod t (s, i) = (t + s, i)"
 lemma compute_shift_map_keys_pprod [code abstract]:
   "list_of_oalist_ntm (shift_map_keys_pprod t f xs) = map_raw (\<lambda>(k, v). (splus_pprod t k, f v)) (list_of_oalist_ntm xs)"
   by (simp add: pprod'.list_of_oalist_shift_keys case_prod_beta')
+
+lemma compute_trd_pprod [code]: "trd_pprod to fs p = trd_aux_pprod to fs p (change_ord to 0)"
+  by (simp add: pprod'.trd_def change_ord_def)
 
 lemmas [code] = conversep_iff
 
