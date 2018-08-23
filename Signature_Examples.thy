@@ -185,6 +185,7 @@ global_interpretation pprod': qpm_nat_inf_term cmp_pp
   and "pprod'.aux.punit.tail = tail_punit cmp_pp"
   for cmp_pp :: "('a::nat, 'b::nat) pp nat_term_order"
   defines max_pprod = pprod'.ord_term_lin.max
+  and Koszul_syz_sigs_aux_pprod = pprod'.aux.Koszul_syz_sigs_aux
   and Koszul_syz_sigs_pprod = pprod'.aux.Koszul_syz_sigs
   and find_sig_reducer_pprod = pprod'.aux.find_sig_reducer
   and sig_trd_spp_body_pprod = pprod'.aux.sig_trd_spp_body
@@ -242,7 +243,7 @@ lemmas [code] = conversep_iff
 definition "sig_gb_pprod cmp_pp rword_strict fs \<equiv> sig_gb_pprod' cmp_pp (rword_strict cmp_pp) (map (change_ord cmp_pp) fs)"
 
 definition "zero_reds_pprod cmp_pp rword_strict fs0 =
-              (let fs = remdups (filter (\<lambda>f. f \<noteq> 0) fs0); Ksyz = Koszul_syz_sigs_pprod cmp_pp fs 0 in
+              (let fs = remdups (filter (\<lambda>f. f \<noteq> 0) fs0); Ksyz = Koszul_syz_sigs_pprod cmp_pp fs in
                   length (fst (snd (sig_gb_spp_aux_pprod cmp_pp fs (rword_strict cmp_pp) ([], Ksyz, map Inr [0..<length fs])))) - length Ksyz)"
 
 lemma sig_gb_pprod'_eq_sig_gb_pprod:
@@ -259,7 +260,7 @@ abbreviation "poly1 \<equiv> change_ord DRLEX (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2
 abbreviation "poly2 \<equiv> change_ord DRLEX (X * Y * Z + 2 * Y\<^sup>2)"
 abbreviation "poly3 \<equiv> change_ord DRLEX (X\<^sup>2 * Z ^ 3)"
 
-value [code] "Koszul_syz_sigs_pprod DRLEX [poly1, poly2] 0"
+value [code] "Koszul_syz_sigs_pprod DRLEX [poly1, poly2]"
 
 value [code] "find_sig_reducer_pprod DRLEX [((0, 0), poly1), ((0, 0), poly2)] (0, 1) (sparse\<^sub>0 [(0, 2), (1, 1), (2, 3)]) 0"
 
@@ -277,7 +278,7 @@ value [code] "sig_gb_pprod DRLEX rw_rat_strict_pprod [poly1, poly2]"
 
 value [code] "timing (length (sig_gb_pprod DRLEX rw_rat_strict_pprod ((Katsura DRLEX 1)::(_ \<Rightarrow>\<^sub>0 rat) list)))"
 
-value [code] "timing (zero_reds_pprod DRLEX rw_rat_strict_pprod ((Katsura DRLEX 1)::(_ \<Rightarrow>\<^sub>0 rat) list))"
+value [code] "timing (zero_reds_pprod DRLEX rw_rat_strict_pprod ((cyclic DRLEX 1)::(_ \<Rightarrow>\<^sub>0 rat) list))"
 
 (* Timings on benchmark problems (on qftquad2)
 
