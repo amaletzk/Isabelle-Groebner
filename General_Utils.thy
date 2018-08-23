@@ -596,6 +596,234 @@ next
   ultimately show ?case by (simp add: ys)
 qed
 
+subsection \<open>Filtering Minimal Elements\<close>
+
+context
+  fixes rel :: "'a \<Rightarrow> 'a \<Rightarrow> bool"
+begin
+
+primrec filter_min_aux :: "'a list \<Rightarrow> 'a list \<Rightarrow> 'a list" where
+  "filter_min_aux [] ys = ys"|
+  "filter_min_aux (x # xs) ys =
+    (if (\<exists>y\<in>(set xs \<union> set ys). rel y x) then (filter_min_aux xs ys)
+    else (filter_min_aux xs (x # ys)))"
+
+definition filter_min :: "'a list \<Rightarrow> 'a list"
+  where "filter_min xs = filter_min_aux xs []"
+  
+lemma filter_min_aux_supset: "set ys \<subseteq> set (filter_min_aux xs ys)"
+proof (induct xs arbitrary: ys)
+  case Nil
+  show ?case by simp
+next
+  case (Cons x xs)
+  have "set ys \<subseteq> set (x # ys)" by auto
+  also have "set (x # ys) \<subseteq> set (filter_min_aux xs (x # ys))" by (rule Cons.hyps)
+  finally have "set ys \<subseteq> set (filter_min_aux xs (x # ys))" .
+  moreover have "set ys \<subseteq> set (filter_min_aux xs ys)" by (rule Cons.hyps)
+  ultimately show ?case by simp
+qed
+    
+lemma filter_min_aux_subset: "set (filter_min_aux xs ys) \<subseteq> set xs \<union> set ys"
+proof (induct xs arbitrary: ys)
+  case Nil
+  show ?case by simp
+next
+  case (Cons x xs)
+  note Cons.hyps
+  also have "set xs \<union> set ys \<subseteq> set (x # xs) \<union> set ys" by fastforce
+  finally have c1: "set (filter_min_aux xs ys) \<subseteq> set (x # xs) \<union> set ys" .
+  
+  note Cons.hyps
+  also have "set xs \<union> set (x # ys) = set (x # xs) \<union> set ys" by simp
+  finally have "set (filter_min_aux xs (x # ys)) \<subseteq> set (x # xs) \<union> set ys" .
+  with c1 show ?case by simp
+qed
+
+lemma filter_min_aux_relE:
+  assumes "transp rel" and "x \<in> set xs" and "x \<notin> set (filter_min_aux xs ys)"
+  obtains y where "y \<in> set (filter_min_aux xs ys)" and "rel y x"
+  using assms(2, 3)
+proof (induct xs arbitrary: x ys thesis)
+  case Nil
+  from Nil(2) show ?case by simp
+next
+  case (Cons x0 xs)
+  from Cons(3) have "x = x0 \<or> x \<in> set xs" by simp
+  thus ?case
+  proof
+    assume "x = x0"
+    from Cons(4) have *: "\<exists>y\<in>set xs \<union> set ys. rel y x0"
+    proof (simp add: \<open>x = x0\<close> split: if_splits)
+      assume "x0 \<notin> set (filter_min_aux xs (x0 # ys))"
+      moreover from filter_min_aux_supset have "x0 \<in> set (filter_min_aux xs (x0 # ys))"
+        by (rule subsetD) simp
+      ultimately show False ..
+    qed
+    hence eq: "filter_min_aux (x0 # xs) ys = filter_min_aux xs ys" by simp
+    from * obtain x1 where "x1 \<in> set xs \<union> set ys" and "rel x1 x" unfolding \<open>x = x0\<close> ..
+    from this(1) show ?thesis
+    proof
+      assume "x1 \<in> set xs"
+      show ?thesis
+      proof (cases "x1 \<in> set (filter_min_aux xs ys)")
+        case True
+        hence "x1 \<in> set (filter_min_aux (x0 # xs) ys)" by (simp only: eq)
+        thus ?thesis using \<open>rel x1 x\<close> by (rule Cons(2))
+      next
+        case False
+        with \<open>x1 \<in> set xs\<close> obtain y where "y \<in> set (filter_min_aux xs ys)" and "rel y x1"
+          using Cons.hyps by blast
+        from this(1) have "y \<in> set (filter_min_aux (x0 # xs) ys)" by (simp only: eq)
+        moreover from assms(1) \<open>rel y x1\<close> \<open>rel x1 x\<close> have "rel y x" by (rule transpD)
+        ultimately show ?thesis by (rule Cons(2))
+      qed
+    next
+      assume "x1 \<in> set ys"
+      hence "x1 \<in> set (filter_min_aux (x0 # xs) ys)" using filter_min_aux_supset ..
+      thus ?thesis using \<open>rel x1 x\<close> by (rule Cons(2))
+    qed
+  next
+    assume "x \<in> set xs"
+    show ?thesis
+    proof (cases "\<exists>y\<in>set xs \<union> set ys. rel y x0")
+      case True
+      hence eq: "filter_min_aux (x0 # xs) ys = filter_min_aux xs ys" by simp
+      with Cons(4) have "x \<notin> set (filter_min_aux xs ys)" by simp
+      with \<open>x \<in> set xs\<close> obtain y where "y \<in> set (filter_min_aux xs ys)" and "rel y x"
+        using Cons.hyps by blast
+      from this(1) have "y \<in> set (filter_min_aux (x0 # xs) ys)" by (simp only: eq)
+      thus ?thesis using \<open>rel y x\<close> by (rule Cons(2))
+    next
+      case False
+      hence eq: "filter_min_aux (x0 # xs) ys = filter_min_aux xs (x0 # ys)" by simp
+      with Cons(4) have "x \<notin> set (filter_min_aux xs (x0 # ys))" by simp
+      with \<open>x \<in> set xs\<close> obtain y where "y \<in> set (filter_min_aux xs (x0 # ys))" and "rel y x"
+        using Cons.hyps by blast
+      from this(1) have "y \<in> set (filter_min_aux (x0 # xs) ys)" by (simp only: eq)
+      thus ?thesis using \<open>rel y x\<close> by (rule Cons(2))
+    qed
+  qed
+qed
+
+lemma filter_min_aux_minimal:
+  assumes "transp rel" and "x \<in> set (filter_min_aux xs ys)" and "y \<in> set (filter_min_aux xs ys)"
+    and "rel x y"
+  assumes "\<And>a b. a \<in> set xs \<union> set ys \<Longrightarrow> b \<in> set ys \<Longrightarrow> rel a b \<Longrightarrow> a = b"
+  shows "x = y"
+  using assms(2-5)
+proof (induct xs arbitrary: x y ys)
+  case Nil
+  from Nil(1) have "x \<in> set [] \<union> set ys" by simp
+  moreover from Nil(2) have "y \<in> set ys" by simp
+  ultimately show ?case using Nil(3) by (rule Nil(4))
+next
+  case (Cons x0 xs)
+  show ?case
+  proof (cases "\<exists>y\<in>set xs \<union> set ys. rel y x0")
+    case True
+    hence eq: "filter_min_aux (x0 # xs) ys = filter_min_aux xs ys" by simp
+    with Cons(2, 3) have "x \<in> set (filter_min_aux xs ys)" and "y \<in> set (filter_min_aux xs ys)"
+      by simp_all
+    thus ?thesis using Cons(4)
+    proof (rule Cons.hyps)
+      fix a b
+      assume "a \<in> set xs \<union> set ys"
+      hence "a \<in> set (x0 # xs) \<union> set ys" by simp
+      moreover assume "b \<in> set ys" and "rel a b"
+      ultimately show "a = b" by (rule Cons(5))
+    qed
+  next
+    case False
+    hence eq: "filter_min_aux (x0 # xs) ys = filter_min_aux xs (x0 # ys)" by simp
+    with Cons(2, 3) have "x \<in> set (filter_min_aux xs (x0 # ys))" and "y \<in> set (filter_min_aux xs (x0 # ys))"
+      by simp_all
+    thus ?thesis using Cons(4)
+    proof (rule Cons.hyps)
+      fix a b
+      assume a: "a \<in> set xs \<union> set (x0 # ys)" and "b \<in> set (x0 # ys)" and "rel a b"
+      from this(2) have "b = x0 \<or> b \<in> set ys" by simp
+      thus "a = b"
+      proof
+        assume "b = x0"
+        from a have "a = x0 \<or> a \<in> set xs \<union> set ys" by simp
+        thus ?thesis
+        proof
+          assume "a = x0"
+          with \<open>b = x0\<close> show ?thesis by simp
+        next
+          assume "a \<in> set xs \<union> set ys"
+          hence "\<exists>y\<in>set xs \<union> set ys. rel y x0" using \<open>rel a b\<close> unfolding \<open>b = x0\<close> ..
+          with False show ?thesis ..
+        qed
+      next
+        from a have "a \<in> set (x0 # xs) \<union> set ys" by simp
+        moreover assume "b \<in> set ys"
+        ultimately show ?thesis using \<open>rel a b\<close> by (rule Cons(5))
+      qed
+    qed
+  qed
+qed
+  
+lemma filter_min_aux_distinct:
+  assumes "reflp rel" and "distinct ys"
+  shows "distinct (filter_min_aux xs ys)"
+  using assms(2)
+proof (induct xs arbitrary: ys)
+  case Nil
+  thus ?case by simp
+next
+  case (Cons x xs)
+  show ?case
+  proof (simp split: if_split, intro conjI impI)
+    from Cons(2) show "distinct (filter_min_aux xs ys)" by (rule Cons.hyps)
+  next
+    assume a: "\<forall>y\<in>set xs \<union> set ys. \<not> rel y x"
+    show "distinct (filter_min_aux xs (x # ys))"
+    proof (rule Cons.hyps)
+      have "x \<notin> set ys"
+      proof
+        assume "x \<in> set ys"
+        hence "x \<in> set xs \<union> set ys" by simp
+        with a have "\<not> rel x x" ..
+        moreover from assms(1) have "rel x x" by (rule reflpD)
+        ultimately show False ..
+      qed
+      with Cons(2) show "distinct (x # ys)" by simp
+    qed
+  qed
+qed
+
+lemma filter_min_subset: "set (filter_min xs) \<subseteq> set xs"
+  using filter_min_aux_subset[of xs "[]"] by (simp add: filter_min_def)
+
+lemma filter_min_cases:
+  assumes "transp rel" and "x \<in> set xs"
+  assumes "x \<in> set (filter_min xs) \<Longrightarrow> thesis"
+  assumes "\<And>y. y \<in> set (filter_min xs) \<Longrightarrow> x \<notin> set (filter_min xs) \<Longrightarrow> rel y x \<Longrightarrow> thesis"
+  shows thesis
+proof (cases "x \<in> set (filter_min xs)")
+  case True
+  thus ?thesis by (rule assms(3))
+next
+  case False
+  with assms(1, 2) obtain y where "y \<in> set (filter_min xs)" and "rel y x"
+    unfolding filter_min_def by (rule filter_min_aux_relE)
+  from this(1) False this(2) show ?thesis by (rule assms(4))
+qed
+
+lemma filter_min_minimal:
+  assumes "transp rel" and "x \<in> set (filter_min xs)" and "y \<in> set (filter_min xs)" and "rel x y"
+  shows "x = y"
+  using assms unfolding filter_min_def by (rule filter_min_aux_minimal) simp
+
+lemma filter_min_distinct:
+  assumes "reflp rel"
+  shows "distinct (filter_min xs)"
+  unfolding filter_min_def by (rule filter_min_aux_distinct, fact, simp)
+
+end
+
 section \<open>Recursive Functions\<close>
 
 locale recursive =
