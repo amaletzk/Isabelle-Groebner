@@ -424,6 +424,31 @@ proof -
   qed
 qed
 
+lemma lt_spoly_less_lcs:
+  assumes "p \<noteq> 0" and "q \<noteq> 0" and "spoly p q \<noteq> 0"
+  shows "lt (spoly p q) \<prec>\<^sub>t term_of_pair (lcs (lp p) (lp q), component_of_term (lt p))"
+proof -
+  let ?l = "lcs (lp p) (lp q)"
+  let ?p = "monom_mult (1 / lc p) (?l - lp p) p"
+  let ?q = "monom_mult (1 / lc q) (?l - lp q) q"
+  from assms(3) have eq1: "component_of_term (lt p) = component_of_term (lt q)"
+    and eq2: "spoly p q = ?p - ?q"
+    by (simp_all add: spoly_def Let_def lc_def split: if_split_asm)
+  from \<open>p \<noteq> 0\<close> have "lc p \<noteq> 0" by (rule lc_not_0)
+  with assms(1) have "lt ?p = (?l - lp p) \<oplus> lt p" and "lc ?p = 1" by (simp_all add: lt_monom_mult)
+  from this(1) have lt_p: "lt ?p = term_of_pair (?l, component_of_term (lt p))"
+    by (simp add: splus_def adds_minus adds_lcs)
+  from \<open>q \<noteq> 0\<close> have "lc q \<noteq> 0" by (rule lc_not_0)
+  with assms(2) have "lt ?q = (?l - lp q) \<oplus> lt q" and "lc ?q = 1" by (simp_all add: lt_monom_mult)
+  from this(1) have lt_q: "lt ?q = term_of_pair (?l, component_of_term (lt p))"
+    by (simp add: eq1 splus_def adds_minus adds_lcs_2)
+  from assms(3) have "?p - ?q \<noteq> 0" by (simp add: eq2)
+  moreover have "lt ?q = lt ?p" by (simp only: lt_p lt_q)
+  moreover have "lc ?q = lc ?p" by (simp only: \<open>lc ?p = 1\<close> \<open>lc ?q = 1\<close>)
+  ultimately have "lt (?p - ?q) \<prec>\<^sub>t lt ?p" by (rule lt_minus_lessI)
+  thus ?thesis by (simp only: eq2 lt_p)
+qed
+
 end (* gd_term *)
 
 subsection \<open>Module Polynomials\<close>
@@ -1742,7 +1767,24 @@ lemma is_sig_red_Un:
   "is_sig_red sing_reg top_tail (A \<union> B) p \<longleftrightarrow> (is_sig_red sing_reg top_tail A p \<or> is_sig_red sing_reg top_tail B p)"
   by (auto simp: is_sig_red_def sig_red_Un)
 
-lemma is_sig_red_regularD:
+lemma is_sig_redD_lt:
+  assumes "is_sig_red (\<preceq>\<^sub>t) top_tail {f} p"
+  shows "lt f \<preceq>\<^sub>t lt p"
+proof -
+  from assms obtain s where "rep_list f \<noteq> 0" and "s \<in> keys (rep_list p)"
+    and 1: "punit.lt (rep_list f) adds s" and 2: "s \<oplus> lt f \<preceq>\<^sub>t punit.lt (rep_list f) \<oplus> lt p"
+    by (auto elim!: is_sig_red_addsE)
+  from 1 obtain t where eq: "s = punit.lt (rep_list f) + t" by (rule addsE)
+  hence "punit.lt (rep_list f) \<oplus> (t \<oplus> lt f) = s \<oplus> lt f" by (simp add: splus_assoc)
+  also note 2
+  finally have "t \<oplus> lt f \<preceq>\<^sub>t lt p" by (rule ord_term_canc)
+  have "0 \<preceq> t" by (fact zero_min)
+  hence "0 \<oplus> lt f \<preceq>\<^sub>t t \<oplus> lt f" by (rule splus_mono_left)
+  hence "lt f \<preceq>\<^sub>t t \<oplus> lt f" by (simp add: term_simps)
+  thus ?thesis using \<open>t \<oplus> lt f \<preceq>\<^sub>t lt p\<close> by simp
+qed
+
+lemma is_sig_red_regularD_lt:
   assumes "is_sig_red (\<prec>\<^sub>t) top_tail {f} p"
   shows "lt f \<prec>\<^sub>t lt p"
 proof -
@@ -1760,7 +1802,7 @@ proof -
 qed
 
 lemma sig_irred_regular_self: "\<not> is_sig_red (\<prec>\<^sub>t) top_tail {p} p"
-  by (auto dest: is_sig_red_regularD)
+  by (auto dest: is_sig_red_regularD_lt)
 
 subsubsection \<open>Signature Gr\"obner Bases\<close>
 
@@ -1774,6 +1816,12 @@ definition is_sig_GB_upt :: "('a \<Rightarrow> nat) \<Rightarrow> ('t \<Rightarr
   where "is_sig_GB_upt d G u \<longleftrightarrow>
             (G \<subseteq> dgrad_sig_set d \<and> (\<forall>v. v \<prec>\<^sub>t u \<longrightarrow> d (pp_of_term v) \<le> dgrad_max d \<longrightarrow>
                                           component_of_term v < length fs \<longrightarrow> is_sig_GB_in d G v))"
+
+definition is_min_sig_GB :: "('a \<Rightarrow> nat) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> bool"
+  where "is_min_sig_GB d G \<longleftrightarrow> G \<subseteq> dgrad_sig_set d \<and>
+                                (\<forall>u. d (pp_of_term u) \<le> dgrad_max d \<longrightarrow> component_of_term u < length fs \<longrightarrow>
+                                      is_sig_GB_in d G u) \<and>
+                                (\<forall>g\<in>G. \<not> is_sig_red (\<preceq>\<^sub>t) (=) (G - {g}) g)"
 
 definition is_syz_sig :: "('a \<Rightarrow> nat) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> 't \<Rightarrow> bool"
   where "is_syz_sig d G u \<longleftrightarrow> (\<exists>r. r \<noteq> 0 \<and> lt r = u \<and> r \<in> dgrad_sig_set d \<and> sig_red_zero (\<prec>\<^sub>t) G r)"
@@ -2184,6 +2232,82 @@ next
   finally show ?thesis using \<open>lc q \<noteq> 0\<close> by simp
 qed
 
+text \<open>Minimal signature Gr\"obner bases are indeed minimal, at least up to sig-lead-pairs:\<close>
+
+lemma is_min_sig_GB_minimal:
+  assumes "is_min_sig_GB d G" and "G' \<subseteq> dgrad_sig_set d"
+    and "\<And>u. d (pp_of_term u) \<le> dgrad_max d \<Longrightarrow> component_of_term u < length fs \<Longrightarrow> is_sig_GB_in d G' u"
+    and "g \<in> G" and "rep_list g \<noteq> 0"
+  obtains g' where "g' \<in> G'" and "rep_list g' \<noteq> 0" and "lt g' = lt g"
+    and "punit.lt (rep_list g') = punit.lt (rep_list g)"
+proof -
+  from assms(1) have "G \<subseteq> dgrad_sig_set d"
+    and 1: "\<And>u. d (pp_of_term u) \<le> dgrad_max d \<Longrightarrow> component_of_term u < length fs \<Longrightarrow> is_sig_GB_in d G u"
+    and 2: "\<And>g0. g0 \<in> G \<Longrightarrow> \<not> is_sig_red (\<preceq>\<^sub>t) (=) (G - {g0}) g0"
+    by (simp_all add: is_min_sig_GB_def)
+  from assms(4) have 3: "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (G - {g}) g" by (rule 2)
+
+  from assms(5) have "g \<noteq> 0" by (auto simp: rep_list_zero)
+  from assms(4) \<open>G \<subseteq> dgrad_sig_set d\<close> have "g \<in> dgrad_sig_set d" ..
+  hence "d (lp g) \<le> dgrad_max d" and "component_of_term (lt g) < length fs"
+    by (rule dgrad_sig_setD_lp, rule dgrad_sig_setD_lt[OF _ \<open>g \<noteq> 0\<close>])
+  hence "is_sig_GB_in d G' (lt g)" by (rule assms(3))
+  hence "sig_red_zero (\<preceq>\<^sub>t) G' g" using \<open>g \<in> dgrad_sig_set d\<close> refl by (rule is_sig_GB_inD)
+  moreover note assms(5)
+  moreover have "(\<preceq>\<^sub>t) = (\<preceq>\<^sub>t) \<or> (\<preceq>\<^sub>t) = (\<prec>\<^sub>t)" by simp
+  ultimately have "is_sig_red (\<preceq>\<^sub>t) (=) G' g" by (rule sig_red_zero_nonzero)
+  then obtain g' where "g' \<in> G'" and "rep_list g' \<noteq> 0"
+    and adds1: "punit.lt (rep_list g') adds punit.lt (rep_list g)"
+    and le1: "punit.lt (rep_list g) \<oplus> lt g' \<preceq>\<^sub>t punit.lt (rep_list g') \<oplus> lt g"
+    by (rule is_sig_red_top_addsE)
+
+  from \<open>rep_list g' \<noteq> 0\<close> have "g' \<noteq> 0" by (auto simp: rep_list_zero)
+  from \<open>g' \<in> G'\<close> assms(2) have "g' \<in> dgrad_sig_set d" ..
+  hence "d (lp g') \<le> dgrad_max d" and "component_of_term (lt g') < length fs"
+    by (rule dgrad_sig_setD_lp, rule dgrad_sig_setD_lt[OF _ \<open>g' \<noteq> 0\<close>])
+  hence "is_sig_GB_in d G (lt g')" by (rule 1)
+  hence "sig_red_zero (\<preceq>\<^sub>t) G g'" using \<open>g' \<in> dgrad_sig_set d\<close> refl by (rule is_sig_GB_inD)
+  moreover note \<open>rep_list g' \<noteq> 0\<close>
+  moreover have "(\<preceq>\<^sub>t) = (\<preceq>\<^sub>t) \<or> (\<preceq>\<^sub>t) = (\<prec>\<^sub>t)" by simp
+  ultimately have "is_sig_red (\<preceq>\<^sub>t) (=) G g'" by (rule sig_red_zero_nonzero)
+  then obtain g0 where "g0 \<in> G" and "rep_list g0 \<noteq> 0"
+    and adds2: "punit.lt (rep_list g0) adds punit.lt (rep_list g')"
+    and le2: "punit.lt (rep_list g') \<oplus> lt g0 \<preceq>\<^sub>t punit.lt (rep_list g0) \<oplus> lt g'"
+    by (rule is_sig_red_top_addsE)
+
+  have eq1: "g0 = g"
+  proof (rule ccontr)
+    assume "g0 \<noteq> g"
+    with \<open>g0 \<in> G\<close> have "g0 \<in> G - {g}" by simp
+    moreover note \<open>rep_list g0 \<noteq> 0\<close> assms(5)
+    moreover from adds2 adds1 have "punit.lt (rep_list g0) adds punit.lt (rep_list g)"
+      by (rule adds_trans)
+    moreover have "ord_term_lin.is_le_rel (\<preceq>\<^sub>t)" by simp
+    moreover have "punit.lt (rep_list g) \<oplus> lt g0 \<preceq>\<^sub>t punit.lt (rep_list g0) \<oplus> lt g"
+    proof (rule ord_term_canc)
+      have "punit.lt (rep_list g') \<oplus> (punit.lt (rep_list g) \<oplus> lt g0) =
+            punit.lt (rep_list g) \<oplus> (punit.lt (rep_list g') \<oplus> lt g0)" by (fact splus_left_commute)
+      also from le2 have "... \<preceq>\<^sub>t punit.lt (rep_list g) \<oplus> (punit.lt (rep_list g0) \<oplus> lt g')"
+        by (rule splus_mono)
+      also have "... = punit.lt (rep_list g0) \<oplus> (punit.lt (rep_list g) \<oplus> lt g')"
+        by (fact splus_left_commute)
+      also from le1 have "... \<preceq>\<^sub>t punit.lt (rep_list g0) \<oplus> (punit.lt (rep_list g') \<oplus> lt g)"
+        by (rule splus_mono)
+      also have "... = punit.lt (rep_list g') \<oplus> (punit.lt (rep_list g0) \<oplus> lt g)"
+        by (fact splus_left_commute)
+      finally show "punit.lt (rep_list g') \<oplus> (punit.lt (rep_list g) \<oplus> lt g0) \<preceq>\<^sub>t
+                    punit.lt (rep_list g') \<oplus> (punit.lt (rep_list g0) \<oplus> lt g)" .
+    qed
+    ultimately have "is_sig_red (\<preceq>\<^sub>t) (=) (G - {g}) g" by (rule is_sig_red_top_addsI)
+    with 3 show False ..
+  qed
+
+  from adds2 adds1 have eq2: "punit.lt (rep_list g') = punit.lt (rep_list g)" by (simp add: eq1 adds_antisym)
+  with le1 le2 have "punit.lt (rep_list g) \<oplus> lt g' = punit.lt (rep_list g) \<oplus> lt g" by (simp add: eq1)
+  hence "lt g' = lt g" by (simp only: splus_left_canc)
+  with \<open>g' \<in> G'\<close> \<open>rep_list g' \<noteq> 0\<close> show ?thesis using eq2 ..
+qed
+
 lemma sig_red_zero_regularI_adds:
   assumes "dickson_grading d" and "is_sig_GB_upt d G (lt q)"
     and "p \<in> dgrad_sig_set d" and "q \<in> dgrad_sig_set d" and "p \<noteq> 0" and "sig_red_zero (\<prec>\<^sub>t) G p"
@@ -2546,8 +2670,6 @@ lemmas is_canon_rewriterD = is_canon_rewriterD1 is_canon_rewriterD2 is_canon_rew
 
 lemma is_rewrite_ord_finite_canon_rewriterE:
   assumes "is_rewrite_ord rword" and "finite A" and "a \<in> A" and "a \<noteq> 0" and "lt a adds\<^sub>t u"
-    \<comment>\<open>The finiteness condition could be replaced by a condition expressing that @{term u}
-        has only finitely many ``adders''.\<close>
   obtains p where "is_canon_rewriter rword A u p"
 proof -
   let ?A = "{x. x \<in> A \<and> x \<noteq> 0 \<and> lt x adds\<^sub>t u}"
@@ -2734,7 +2856,7 @@ next
       assume "is_sig_red (\<prec>\<^sub>t) (=) (H \<union> G) ?g"
       with irred have "is_sig_red (\<prec>\<^sub>t) (=) H ?g" by (simp add: is_sig_red_Un del: Un_insert_left)
       then obtain h where "h \<in> H" and "is_sig_red (\<prec>\<^sub>t) (=) {h} ?g" by (rule is_sig_red_singletonI)
-      from this(2) have "lt h \<prec>\<^sub>t lt ?g" by (rule is_sig_red_regularD)
+      from this(2) have "lt h \<prec>\<^sub>t lt ?g" by (rule is_sig_red_regularD_lt)
       also from \<open>g' \<noteq> 0\<close> \<open>lt g' adds\<^sub>t u\<close> have "... = u"
         by (auto simp: lt_monom_mult adds_term_alt pp_of_term_splus)
       finally have "lt h \<prec>\<^sub>t u" .
@@ -4225,26 +4347,33 @@ qed
 subsubsection \<open>Concrete Rewrite Orders\<close>
 
 definition is_strict_rewrite_ord :: "(('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool) \<Rightarrow> bool"
-  where "is_strict_rewrite_ord rel \<longleftrightarrow>
-              (\<forall>x y. rel x y \<longrightarrow> \<not> rel y x) \<and>
-              (\<exists>rel'. is_rewrite_ord rel' \<and> rel \<le> rel' \<and> (\<forall>x y. rel' x y \<longrightarrow> fst x \<noteq> fst y \<longrightarrow> rel x y))"
+  where "is_strict_rewrite_ord rel \<longleftrightarrow> is_rewrite_ord (\<lambda>x y. \<not> rel y x)"
 
-lemma is_strict_rewrite_ordI:
-  assumes "\<And>x y. rel x y \<Longrightarrow> rel y x \<Longrightarrow> False" and "is_rewrite_ord rel'" and "rel \<le> rel'"
-    and "\<And>x y. rel' x y \<Longrightarrow> fst x \<noteq> fst y \<Longrightarrow> rel x y"
-  shows "is_strict_rewrite_ord rel"
-  unfolding is_strict_rewrite_ord_def using assms by blast
-
-lemma is_strict_rewrite_ordE:
-  assumes "is_strict_rewrite_ord rel"
-  obtains rel' where "is_rewrite_ord rel'" and "rel \<le> rel'"
-    and "\<And>x y. rel' x y \<Longrightarrow> fst x \<noteq> fst y \<Longrightarrow> rel x y"
-  using assms unfolding is_strict_rewrite_ord_def by blast
-
-lemma is_strict_rewrite_ord_asym: "is_strict_rewrite_ord rel \<Longrightarrow> rel p q \<Longrightarrow> \<not> rel q p"
+lemma is_strict_rewrite_ordI: "is_rewrite_ord (\<lambda>x y. \<not> rel y x) \<Longrightarrow> is_strict_rewrite_ord rel"
   unfolding is_strict_rewrite_ord_def by blast
 
-lemma is_strict_rewrite_ord_irrefl: "is_strict_rewrite_ord rel \<Longrightarrow> \<not> rel p p"
+lemma is_strict_rewrite_ordD: "is_strict_rewrite_ord rel \<Longrightarrow> is_rewrite_ord (\<lambda>x y. \<not> rel y x)"
+  unfolding is_strict_rewrite_ord_def by blast
+
+lemma is_strict_rewrite_ord_antisym:
+  assumes "is_strict_rewrite_ord rel" and "\<not> rel x y" and "\<not> rel y x"
+  shows "fst x = fst y"
+  by (rule is_rewrite_ordD4, rule is_strict_rewrite_ordD, fact+)
+
+lemma is_strict_rewrite_ord_asym:
+  assumes "is_strict_rewrite_ord rel" and "rel x y"
+  shows "\<not> rel y x"
+proof -
+  from assms(1) have "is_rewrite_ord (\<lambda>x y. \<not> rel y x)" by (rule is_strict_rewrite_ordD)
+  thus ?thesis
+  proof (rule is_rewrite_ordD3)
+    assume "\<not> \<not> rel y x"
+    assume "\<not> rel x y"
+    thus ?thesis using \<open>rel x y\<close> ..
+  qed
+qed
+
+lemma is_strict_rewrite_ord_irrefl: "is_strict_rewrite_ord rel \<Longrightarrow> \<not> rel x x"
   using is_strict_rewrite_ord_asym by blast
 
 definition rw_rat :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool"
@@ -4261,10 +4390,8 @@ definition rw_add :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> 
 definition rw_add_strict :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool"
   where "rw_add_strict p q \<longleftrightarrow> (fst p \<prec>\<^sub>t fst q)"
 
-lemma rw_rat_alt:
-  "rw_rat p q \<longleftrightarrow> (term_pp_rel (\<prec>\<^sub>t) (fst p, punit.lt (snd p)) (fst q, punit.lt (snd q)) \<or>
-                    (term_pp_rel (=) (fst p, punit.lt (snd p)) (fst q, punit.lt (snd q)) \<and> fst p \<preceq>\<^sub>t fst q))"
-  by (simp add: rw_rat_def term_pp_rel_def Let_def)
+lemma rw_rat_alt: "rw_rat = (\<lambda>p q. \<not> rw_rat_strict q p)"
+  by (intro ext, auto simp: rw_rat_def rw_rat_strict_def Let_def)
 
 lemma rw_rat_is_rewrite_ord: "is_rewrite_ord rw_rat"
 proof (rule is_rewrite_ordI)
@@ -4272,8 +4399,13 @@ proof (rule is_rewrite_ordI)
 next
   have 1: "ord_term_lin.is_le_rel (\<prec>\<^sub>t)" and 2: "ord_term_lin.is_le_rel (=)"
     by (rule ord_term_lin.is_le_relI)+
-  show "transp rw_rat"
-    by (auto simp: transp_def rw_rat_alt dest: term_pp_rel_trans[OF 1] term_pp_rel_trans_eq_left[OF 1]
+  have "rw_rat p q \<longleftrightarrow> (term_pp_rel (\<prec>\<^sub>t) (fst p, punit.lt (snd p)) (fst q, punit.lt (snd q)) \<or>
+                        (term_pp_rel (=) (fst p, punit.lt (snd p)) (fst q, punit.lt (snd q)) \<and>
+                          fst p \<preceq>\<^sub>t fst q))"
+    for p q
+  by (simp add: rw_rat_def term_pp_rel_def Let_def)
+  thus "transp rw_rat"
+    by (auto simp: transp_def dest: term_pp_rel_trans[OF 1] term_pp_rel_trans_eq_left[OF 1]
         term_pp_rel_trans_eq_right[OF 1] term_pp_rel_trans[OF 2])
 next
   fix p q
@@ -4330,16 +4462,12 @@ qed
 
 lemma rw_rat_strict_is_strict_rewrite_ord: "is_strict_rewrite_ord rw_rat_strict"
 proof (rule is_strict_rewrite_ordI)
-  fix p q
-  assume "rw_rat_strict p q" and "rw_rat_strict q p"
-  thus False by (auto simp: rw_rat_strict_def Let_def)
-next
-  show "rw_rat_strict \<le> rw_rat" by (auto simp: rw_rat_strict_def rw_rat_def Let_def)
-next
-  fix p q
-  assume "rw_rat p q" and "fst p \<noteq> fst q"
-  thus "rw_rat_strict p q" by (auto simp: rw_rat_strict_def rw_rat_def Let_def)
-qed (fact rw_rat_is_rewrite_ord)
+  show "is_rewrite_ord (\<lambda>x y. \<not> rw_rat_strict y x)"
+    unfolding rw_rat_alt[symmetric] by (fact rw_rat_is_rewrite_ord)
+qed
+
+lemma rw_add_alt: "rw_add = (\<lambda>p q. \<not> rw_add_strict q p)"
+  by (intro ext, auto simp: rw_add_def rw_add_strict_def)
 
 lemma rw_add_is_rewrite_ord: "is_rewrite_ord rw_add"
 proof (rule is_rewrite_ordI)
@@ -4361,16 +4489,9 @@ qed
 
 lemma rw_add_strict_is_strict_rewrite_ord: "is_strict_rewrite_ord rw_add_strict"
 proof (rule is_strict_rewrite_ordI)
-  fix p q
-  assume "rw_add_strict p q" and "rw_add_strict q p"
-  thus False by (simp add: rw_add_strict_def)
-next
-  show "rw_add_strict \<le> rw_add" by (rule, simp add: rw_add_strict_def rw_add_def)
-next
-  fix p q
-  assume "rw_add p q" and "fst p \<noteq> fst q"
-  thus "rw_add_strict p q" by (simp add: rw_add_strict_def rw_add_def)
-qed (fact rw_add_is_rewrite_ord)
+  show "is_rewrite_ord (\<lambda>x y. \<not> rw_add_strict y x)"
+    unfolding rw_add_alt[symmetric] by (fact rw_add_is_rewrite_ord)
+qed
 
 subsubsection \<open>Preparations for Sig-Poly-Pairs\<close>
 
@@ -5552,7 +5673,7 @@ context
 begin
 
 qualified definition rword :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool"
-  where "rword = (SOME rel. is_rewrite_ord rel \<and> rword_strict \<le> rel \<and> (\<forall>x y. rel x y \<longrightarrow> fst x \<noteq> fst y \<longrightarrow> rword_strict x y))"
+  where "rword x y \<longleftrightarrow> \<not> rword_strict y x"
 
 definition is_pred_syz :: "'t list \<Rightarrow> 't \<Rightarrow> bool"
   where "is_pred_syz ss u = (\<exists>v\<in>set ss. v adds\<^sub>t u)"
@@ -5615,20 +5736,8 @@ context
   assumes rword_is_strict_rewrite_ord: "is_strict_rewrite_ord rword_strict"
 begin
 
-lemma rword:
-  "is_rewrite_ord rword" "rword_strict \<le> rword" "\<And>x y. rword x y \<Longrightarrow> fst x \<noteq> fst y \<Longrightarrow> rword_strict x y"
-proof -
-  from rword_is_strict_rewrite_ord obtain rel where "is_rewrite_ord rel" and "rword_strict \<le> rel"
-    and "\<And>x y. rel x y \<Longrightarrow> fst x \<noteq> fst y \<Longrightarrow> rword_strict x y"
-    by (rule is_strict_rewrite_ordE, blast)
-  hence "is_rewrite_ord rel \<and> rword_strict \<le> rel \<and> (\<forall>x y. rel x y \<longrightarrow> fst x \<noteq> fst y \<longrightarrow> rword_strict x y)"
-    by simp
-  hence "is_rewrite_ord rword \<and> rword_strict \<le> rword \<and> (\<forall>x y. rword x y \<longrightarrow> fst x \<noteq> fst y \<longrightarrow> rword_strict x y)"
-    unfolding rword_def
-    by (rule someI[where P="\<lambda>x. is_rewrite_ord x \<and> rword_strict \<le> x \<and> (\<forall>z y. x z y \<longrightarrow> fst z \<noteq> fst y \<longrightarrow> rword_strict z y)"])
-  thus "is_rewrite_ord rword" and "rword_strict \<le> rword"
-    and "\<And>x y. rword x y \<Longrightarrow> fst x \<noteq> fst y \<Longrightarrow> rword_strict x y" by auto
-qed
+lemma rword: "is_rewrite_ord rword"
+  unfolding rword_def using rword_is_strict_rewrite_ord by (rule is_strict_rewrite_ordD)
 
 lemma sig_crit'_sym: "sig_crit' bs (Inl (p, q)) \<Longrightarrow> sig_crit' bs (Inl (q, p))"
   by (auto simp: spair_sigs_def Let_def lcs_comm)
@@ -6026,7 +6135,8 @@ proof -
       with \<open>b \<noteq> b'\<close> show False ..
     qed
     hence "fst (spp_of b) \<noteq> fst (spp_of b')" by (simp add: spp_of_def)
-    with 2 show "rword_strict (spp_of b) (spp_of b')" by (rule rword(3))
+    with rword_is_strict_rewrite_ord 2 show "rword_strict (spp_of b) (spp_of b')"
+      by (auto simp: rword_def dest: is_strict_rewrite_ord_antisym)
   qed fact+
 qed
 
@@ -6041,8 +6151,9 @@ proof
   from assms(2) obtain b' where "b' \<in> set bs" and "b' \<noteq> 0" and "lt b' adds\<^sub>t u"
     and 2: "rword_strict (spp_of b) (spp_of b')" unfolding is_rewritable_def by blast
   from this(1, 2, 3) have "rword (spp_of b') (spp_of b)" by (rule 1)
-  moreover from rword(2) 2 have "rword (spp_of b) (spp_of b')" ..
-  ultimately have "fst (spp_of b') = fst (spp_of b)" by (rule is_rewrite_ordD4[OF rword(1)])
+  moreover from rword_is_strict_rewrite_ord 2 have "rword (spp_of b) (spp_of b')"
+    unfolding rword_def by (rule is_strict_rewrite_ord_asym)
+  ultimately have "fst (spp_of b') = fst (spp_of b)" by (rule is_rewrite_ordD4[OF rword])
   hence "lt b' = lt b" by (simp add: spp_of_def)
   with sig_gb_aux_inv1_lt_inj_on[OF assms(1)] have "b' = b" using \<open>b' \<in> set bs\<close> \<open>b \<in> set bs\<close>
     by (rule inj_onD)
@@ -6149,7 +6260,7 @@ proof -
         assume "is_sig_red (\<prec>\<^sub>t) (=) (set (take (Suc i) bs)) b"
         then obtain f where f_in: "f \<in> set (take (Suc i) bs)" and "is_sig_red (\<prec>\<^sub>t) (=) {f} b"
           by (rule is_sig_red_singletonI)
-        from this(2) have "lt f \<prec>\<^sub>t lt b" by (rule is_sig_red_regularD)
+        from this(2) have "lt f \<prec>\<^sub>t lt b" by (rule is_sig_red_regularD_lt)
         from \<open>i < length bs\<close> have take_eq: "take (Suc i) bs = (take i bs) @ [b]"
           unfolding b by (rule take_Suc_conv_app_nth)
         from assms(1) have "sorted_wrt (\<lambda>x y. lt y \<prec>\<^sub>t lt x) ((take (Suc i) bs) @ (drop (Suc i) bs))"
@@ -7532,6 +7643,269 @@ next
   qed
 qed
 
+lemma sig_gb_aux_top_irred':
+  assumes "rword_strict = rw_rat_strict" and "sig_gb_aux_inv (bs, ss, p # ps)" and "\<not> sig_crit bs ss p"
+  shows "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set bs) (sig_trd bs (poly_of_pair p))"
+proof -
+  have "rword = rw_rat" by (intro ext, simp only: rword_def rw_rat_alt, simp add: assms(1))
+
+  have lt_p: "sig_of_pair p = lt (poly_of_pair p)" by (rule pair_list_sig_of_pair, fact, simp)
+  define p' where "p' = sig_trd bs (poly_of_pair p)"
+  have red_p: "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (poly_of_pair p) p'"
+    unfolding p'_def by (rule sig_trd_red_rtrancl)
+  hence lt_p': "lt p' = sig_of_pair p"
+    and lt_p'': "punit.lt (rep_list p') \<preceq> punit.lt (rep_list (poly_of_pair p))"
+    unfolding lt_p by (rule sig_red_regular_rtrancl_lt, rule sig_red_rtrancl_lt_rep_list)
+  have "\<not> is_sig_red (=) (=) (set bs) p'"
+  proof
+    assume "is_sig_red (=) (=) (set bs) p'"
+    then obtain b where "b \<in> set bs" and "rep_list b \<noteq> 0" and "rep_list p' \<noteq> 0"
+      and 1: "punit.lt (rep_list b) adds punit.lt (rep_list p')"
+      and 2: "punit.lt (rep_list p') \<oplus> lt b = punit.lt (rep_list b) \<oplus> lt p'"
+      by (rule is_sig_red_top_addsE)
+    note this(3)
+    moreover from red_p have "(punit.red (rep_list ` set bs))\<^sup>*\<^sup>* (rep_list (poly_of_pair p)) (rep_list p')"
+      by (rule sig_red_red_rtrancl)
+    ultimately have "rep_list (poly_of_pair p) \<noteq> 0" by (auto simp: punit.rtrancl_0)
+
+    define x where "x = punit.lt (rep_list p') - punit.lt (rep_list b)"
+    from 1 2 have x1: "x \<oplus> lt b = lt p'" by (simp add: term_is_le_rel_minus x_def)
+    from this[symmetric] have "lt b adds\<^sub>t sig_of_pair p" unfolding lt_p' by (rule adds_termI)
+    from 1 have x2: "x + punit.lt (rep_list b) = punit.lt (rep_list p')" by (simp add: x_def adds_minus)
+    from \<open>rep_list b \<noteq> 0\<close> have "b \<noteq> 0" by (auto simp: rep_list_zero)
+
+    show False
+    proof (rule sum_prodE)
+      fix a0 b0
+      assume p: "p = Inl (a0, b0)"
+      hence "Inl (a0, b0) \<in> set (p # ps)" by simp
+      with assms(2) have reg: "is_regular_spair a0 b0" and "a0 \<in> set bs" and "b0 \<in> set bs"
+        by (rule sig_gb_aux_inv_D3)+
+      from assms(2) have inv1: "sig_gb_aux_inv1 bs" by (rule sig_gb_aux_inv_D1)
+      hence "0 \<notin> rep_list ` set bs" by (rule sig_gb_aux_inv1_D2)
+      with \<open>a0 \<in> set bs\<close> \<open>b0 \<in> set bs\<close> have "rep_list a0 \<noteq> 0" and "rep_list b0 \<noteq> 0" by fastforce+
+      hence "a0 \<noteq> 0" and "b0 \<noteq> 0" by (auto simp: rep_list_zero)
+
+      let ?t1 = "punit.lt (rep_list a0)"
+      let ?t2 = "punit.lt (rep_list b0)"
+      let ?l = "lcs ?t1 ?t2"
+      from \<open>rep_list (poly_of_pair p) \<noteq> 0\<close> have "punit.spoly (rep_list a0) (rep_list b0) \<noteq> 0"
+        by (simp add: p rep_list_spair)
+      with \<open>rep_list a0 \<noteq> 0\<close> \<open>rep_list b0 \<noteq> 0\<close>
+      have "punit.lt (punit.spoly (rep_list a0) (rep_list b0)) \<prec> ?l"
+        by (rule punit.lt_spoly_less_lcs[simplified])
+
+      obtain b' where 3: "is_canon_rewriter rword (set bs) (sig_of_pair p) b'"
+        and 4: "punit.lt (rep_list (poly_of_pair p)) \<prec>
+                      (pp_of_term (sig_of_pair p) - lp b') + punit.lt (rep_list b')"
+      proof (cases "(?l - ?t1) \<oplus> lt a0 \<preceq>\<^sub>t (?l - ?t2) \<oplus> lt b0")
+        case True
+        have "sig_of_pair p = lt (spair a0 b0)" unfolding lt_p by (simp add: p)
+        also from reg have "... = (?l - ?t2) \<oplus> lt b0"
+          by (simp add: True is_regular_spair_lt ord_term_lin.max_def)
+        finally have eq1: "sig_of_pair p = (?l - ?t2) \<oplus> lt b0" .
+        hence "lt b0 adds\<^sub>t sig_of_pair p" by (rule adds_termI)
+        moreover from assms(3) have "\<not> is_rewritable bs b0 ((?l - ?t2) \<oplus> lt b0)"
+          by (simp add: p spair_sigs_def Let_def)
+        ultimately have "is_canon_rewriter rword (set bs) (sig_of_pair p) b0"
+          unfolding eq1[symmetric] using inv1 \<open>b0 \<in> set bs\<close> \<open>b0 \<noteq> 0\<close> is_rewritableI_is_canon_rewriter
+          by blast
+        thus ?thesis
+        proof
+          have "punit.lt (rep_list (poly_of_pair p)) = punit.lt (punit.spoly (rep_list a0) (rep_list b0))"
+            by (simp add: p rep_list_spair)
+          also have "... \<prec> ?l" by fact
+          also have "... = (?l - ?t2) + ?t2" by (simp only: adds_minus adds_lcs_2)
+          also have "... = (pp_of_term (sig_of_pair p) - lp b0) + ?t2"
+            by (simp only: eq1 pp_of_term_splus add_diff_cancel_right')
+          finally show "punit.lt (rep_list (poly_of_pair p)) \<prec> pp_of_term (sig_of_pair p) - lp b0 + ?t2" .
+        qed
+      next
+        case False
+        have "sig_of_pair p = lt (spair a0 b0)" unfolding lt_p by (simp add: p)
+        also from reg have "... = (?l - ?t1) \<oplus> lt a0"
+          by (simp add: False is_regular_spair_lt ord_term_lin.max_def)
+        finally have eq1: "sig_of_pair p = (?l - ?t1) \<oplus> lt a0" .
+        hence "lt a0 adds\<^sub>t sig_of_pair p" by (rule adds_termI)
+        moreover from assms(3) have "\<not> is_rewritable bs a0 ((?l - ?t1) \<oplus> lt a0)"
+          by (simp add: p spair_sigs_def Let_def)
+        ultimately have "is_canon_rewriter rword (set bs) (sig_of_pair p) a0"
+          unfolding eq1[symmetric] using inv1 \<open>a0 \<in> set bs\<close> \<open>a0 \<noteq> 0\<close> is_rewritableI_is_canon_rewriter
+          by blast
+        thus ?thesis
+        proof
+          have "punit.lt (rep_list (poly_of_pair p)) = punit.lt (punit.spoly (rep_list a0) (rep_list b0))"
+            by (simp add: p rep_list_spair)
+          also have "... \<prec> ?l" by fact
+          also have "... = (?l - ?t1) + ?t1" by (simp only: adds_minus adds_lcs)
+          also have "... = (pp_of_term (sig_of_pair p) - lp a0) + ?t1"
+            by (simp only: eq1 pp_of_term_splus add_diff_cancel_right')
+          finally show "punit.lt (rep_list (poly_of_pair p)) \<prec> pp_of_term (sig_of_pair p) - lp a0 + ?t1" .
+        qed
+      qed
+
+      define y where "y = pp_of_term (sig_of_pair p) - lp b'"
+      from lt_p'' 4 have y2: "punit.lt (rep_list p') \<prec> y + punit.lt (rep_list b')"
+        unfolding y_def by (rule ordered_powerprod_lin.le_less_trans)
+      from 3 have "lt b' adds\<^sub>t sig_of_pair p" by (rule is_canon_rewriterD3)
+      hence "lp b' adds lp p'" and "component_of_term (lt b') = component_of_term (lt p')"
+        by (simp_all add: adds_term_def lt_p')
+      hence y1: "y \<oplus> lt b' = lt p'" by (simp add: y_def splus_def lt_p' adds_minus term_simps)
+      from 3 \<open>b \<in> set bs\<close> \<open>b \<noteq> 0\<close> \<open>lt b adds\<^sub>t sig_of_pair p\<close>
+      have "rword (spp_of b) (spp_of b')" by (rule is_canon_rewriterD)
+      hence "punit.lt (rep_list b') \<oplus> lt b \<preceq>\<^sub>t punit.lt (rep_list b) \<oplus> lt b'"
+        by (auto simp: \<open>rword = rw_rat\<close> rw_rat_def Let_def spp_of_def)
+      hence "(x + y) \<oplus> (punit.lt (rep_list b') \<oplus> lt b) \<preceq>\<^sub>t (x + y) \<oplus> (punit.lt (rep_list b) \<oplus> lt b')"
+        by (rule splus_mono)
+      hence "(y + punit.lt (rep_list b')) \<oplus> (x \<oplus> lt b) \<preceq>\<^sub>t (x + punit.lt (rep_list b)) \<oplus> (y \<oplus> lt b')"
+        by (simp add: ac_simps)
+      hence "(y + punit.lt (rep_list b')) \<oplus> lt p' \<preceq>\<^sub>t punit.lt (rep_list p') \<oplus> lt p'"
+        by (simp only: x1 x2 y1)
+      hence "y + punit.lt (rep_list b') \<preceq> punit.lt (rep_list p')" by (rule ord_term_canc_left)
+      with y2 show ?thesis by simp
+    next
+      fix j
+      assume p: "p = Inr j"
+      hence "lt p' = term_of_pair (0, j)" by (simp add: lt_p')
+      with x1 term_of_pair_pair[of "lt b"] have "lt b = term_of_pair (0, j)"
+        by (auto simp: splus_def dest!: term_of_pair_injective plus_eq_zero_2)
+      moreover have "lt b \<prec>\<^sub>t term_of_pair (0, j)" by (rule sig_gb_aux_inv_D4, fact, simp add: p, fact)
+      ultimately show ?thesis by simp
+    qed
+  qed
+  moreover have "\<not> is_sig_red (\<prec>\<^sub>t) (=) (set bs) p'"
+  proof
+    assume "is_sig_red (\<prec>\<^sub>t) (=) (set bs) p'"
+    hence "is_sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs) p'" by (simp add: is_sig_red_top_tail_cases)
+    with sig_trd_irred show False unfolding p'_def ..
+  qed
+  ultimately show ?thesis by (simp add: p'_def is_sig_red_sing_reg_cases)
+qed
+
+lemma sig_gb_aux_top_irred:
+  assumes "rword_strict = rw_rat_strict" and "sig_gb_aux_inv args" and "b \<in> set (fst (sig_gb_aux args))"
+    and "\<And>b0. b0 \<in> set (fst args) \<Longrightarrow> \<not> is_sig_red (\<preceq>\<^sub>t) (=) (set (fst args) - {b0}) b0"
+  shows "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set (fst (sig_gb_aux args)) - {b}) b"
+proof -
+  from assms(2) have "sig_gb_aux_dom args" by (rule sig_gb_aux_domI)
+  thus ?thesis using assms(2, 3, 4)
+  proof (induct args)
+    case (1 bs ss)
+    let ?nil = "[]::((('t \<Rightarrow>\<^sub>0 'b) \<times> ('t \<Rightarrow>\<^sub>0 'b)) + nat) list"
+    from 1(3) have "b \<in> set (fst (bs, ss, ?nil))" by (simp add: sig_gb_aux.psimps(1)[OF 1(1)])
+    hence "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set (fst (bs, ss, ?nil)) - {b}) b" by (rule 1(4))
+    thus ?case by (simp add: sig_gb_aux.psimps(1)[OF 1(1)])
+  next
+    case (2 bs ss p ps)
+    define p' where "p' = sig_trd bs (poly_of_pair p)"
+    from 2(6) show ?case
+    proof (simp add: sig_gb_aux.psimps(2)[OF 2(1)] Let_def p'_def[symmetric] split: if_splits)
+      assume "sig_crit bs ss p"
+      moreover from 2(5) this have "sig_gb_aux_inv (bs, ss, ps)" by (rule sig_gb_aux_inv_preserved_1)
+      moreover assume "b \<in> set (fst (sig_gb_aux (bs, ss, ps)))"
+      ultimately show "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set (fst (sig_gb_aux (bs, ss, ps))) - {b}) b"
+      proof (rule 2(2))
+        fix b0
+        assume "b0 \<in> set (fst (bs, ss, ps))"
+        hence "b0 \<in> set (fst (bs, ss, p # ps))" by simp
+        hence "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set (fst (bs, ss, p # ps)) - {b0}) b0" by (rule 2(7))
+        thus "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set (fst (bs, ss, ps)) - {b0}) b0" by simp
+      qed
+    next
+      assume "\<not> sig_crit bs ss p"
+      moreover note refl
+      moreover assume "rep_list p' = 0"
+      moreover from 2(5) this have "sig_gb_aux_inv (bs, lt p' # ss, ps)"
+        unfolding p'_def by (rule sig_gb_aux_inv_preserved_2)
+      moreover assume "b \<in> set (fst (sig_gb_aux (bs, lt p' # ss, ps)))"
+      ultimately show "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set (fst (sig_gb_aux (bs, lt p' # ss, ps))) - {b}) b"
+      proof (rule 2(3)[simplified p'_def[symmetric]])
+        fix b0
+        assume "b0 \<in> set (fst (bs, lt p' # ss, ps))"
+        hence "b0 \<in> set (fst (bs, ss, p # ps))" by simp
+        hence "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set (fst (bs, ss, p # ps)) - {b0}) b0" by (rule 2(7))
+        thus "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set (fst (bs, lt p' # ss, ps)) - {b0}) b0" by simp
+      qed
+    next
+      assume "\<not> sig_crit bs ss p"
+      moreover note refl
+      moreover assume "rep_list p' \<noteq> 0"
+      moreover from 2(5) \<open>\<not> sig_crit bs ss p\<close> this have inv: "sig_gb_aux_inv (p' # bs, ss, add_spairs ps bs p')"
+        unfolding p'_def by (rule sig_gb_aux_inv_preserved_3)
+      moreover assume "b \<in> set (fst (sig_gb_aux (p' # bs, ss, add_spairs ps bs p')))"
+      ultimately show "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set (fst (sig_gb_aux (p' # bs, ss, add_spairs ps bs p'))) - {b}) b"
+      proof (rule 2(4)[simplified p'_def[symmetric]])
+        fix b0
+        assume "b0 \<in> set (fst (p' # bs, ss, add_spairs ps bs p'))"
+        hence "b0 = p' \<or> b0 \<in> set bs" by simp
+        hence "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (({p'} - {b0}) \<union> (set bs - {b0})) b0"
+        proof
+          assume "b0 = p'"
+          have "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set bs - {b0}) p'"
+          proof
+            assume "is_sig_red (\<preceq>\<^sub>t) (=) (set bs - {b0}) p'"
+            moreover have "set bs - {b0} \<subseteq> set bs" by fastforce
+            ultimately have "is_sig_red (\<preceq>\<^sub>t) (=) (set bs) p'" by (rule is_sig_red_mono)
+            moreover have "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set bs) p'" unfolding p'_def
+              using assms(1) 2(5) \<open>\<not> sig_crit bs ss p\<close> by (rule sig_gb_aux_top_irred')
+            ultimately show False by simp
+          qed
+          thus ?thesis by (simp add: \<open>b0 = p'\<close>)
+        next
+          assume "b0 \<in> set bs"
+          hence "b0 \<in> set (fst (bs, ss, p # ps))" by simp
+          hence "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set (fst (bs, ss, p # ps)) - {b0}) b0" by (rule 2(7))
+          hence "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set bs - {b0}) b0" by simp
+          moreover have "\<not> is_sig_red (\<preceq>\<^sub>t) (=) ({p'} - {b0}) b0"
+          proof
+            assume "is_sig_red (\<preceq>\<^sub>t) (=) ({p'} - {b0}) b0"
+            moreover have "{p'} - {b0} \<subseteq> {p'}" by fastforce
+            ultimately have "is_sig_red (\<preceq>\<^sub>t) (=) {p'} b0" by (rule is_sig_red_mono)
+            hence "lt p' \<preceq>\<^sub>t lt b0" by (rule is_sig_redD_lt)
+
+            from inv have "sig_gb_aux_inv1 (p' # bs)" by (rule sig_gb_aux_inv_D1)
+            hence "sorted_wrt (\<lambda>x y. lt y \<prec>\<^sub>t lt x) (p' # bs)" by (rule sig_gb_aux_inv1_D3)
+            with \<open>b0 \<in> set bs\<close> have "lt b0 \<prec>\<^sub>t lt p'" by simp
+            with \<open>lt p' \<preceq>\<^sub>t lt b0\<close> show False by simp
+          qed
+          ultimately show ?thesis by (simp add: is_sig_red_Un)
+        qed
+        thus "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set (fst (p' # bs, ss, add_spairs ps bs p')) - {b0}) b0"
+          by (simp add: Un_Diff[symmetric])
+      qed
+    qed
+  qed
+qed
+
+text \<open>The following result essentially shows that @{const rw_rat_strict} is the best rewrite-order
+  in general, since the signature Gr\"obner basis computed by @{const sig_gb_aux} is minimal then:\<close>
+
+corollary sig_gb_aux_is_min_sig_GB:
+  assumes "rword_strict = rw_rat_strict" and "distinct fs" and "0 \<notin> set fs"
+  shows "is_min_sig_GB dgrad (set (fst (sig_gb_aux ([], Koszul_syz_sigs fs, map Inr [0..<length fs]))))"
+    (is "is_min_sig_GB _ (set (fst (sig_gb_aux ?args)))")
+  unfolding is_min_sig_GB_def
+proof (intro conjI allI ballI impI)
+  from assms(2, 3) have "sig_gb_aux_inv ?args" by (rule sig_gb_aux_inv_init)
+  hence inv: "sig_gb_aux_inv (sig_gb_aux ?args)" and "sig_gb_aux_dom ?args"
+    by (rule sig_gb_aux_inv_invariant, rule sig_gb_aux_domI)
+  from this(2) obtain bs ss where eq: "sig_gb_aux ?args = (bs, ss, [])" by (rule sig_gb_aux_shape)
+  from inv have "sig_gb_aux_inv (bs, ss, [])" by (simp only: eq)
+  hence "sig_gb_aux_inv1 bs" by (rule sig_gb_aux_inv_D1)
+  hence "set bs \<subseteq> dgrad_sig_set dgrad" by (rule sig_gb_aux_inv1_D1)
+  thus "set (fst (sig_gb_aux ?args)) \<subseteq> dgrad_sig_set dgrad" by (simp add: eq)
+next
+  fix u
+  from assms(2, 3) show "is_sig_GB_in dgrad (set (fst (sig_gb_aux ?args))) u"
+    by (rule sig_gb_aux_is_sig_GB_in)
+next
+  fix g
+  assume "g \<in> set (fst (sig_gb_aux ?args))"
+  with assms(1) sig_gb_aux_inv_init[OF assms(2, 3)]
+  show "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set (fst (sig_gb_aux ?args)) - {g}) g"
+    by (rule sig_gb_aux_top_irred) simp
+qed
+
 subsection \<open>Sig-Poly-Pairs\<close>
 
 text \<open>We now prove that the algorithms defined for sig-poly-pairs (i.\,e. those whose names end with
@@ -8086,18 +8460,6 @@ proof -
     unfolding sig_gb_def Let_def by (rule sig_gb_spp_aux)+
   thus ?thesis1 and ?thesis2 by (simp_all only: 1 ideal.module_minus_singleton_zero)
 qed
-
-thm sig_gb[OF rw_rat_strict_is_strict_rewrite_ord] sig_gb[OF rw_add_strict_is_strict_rewrite_ord]
-
-thm sig_gb_spp_aux_Nil
-thm sig_gb_spp_aux_Cons
-thm sig_gb_spp_body.simps
-thm sig_gb_def
-thm sig_trd_spp_aux_simps
-thm sig_trd_spp_body.simps
-thm find_sig_reducer.simps
-thm Koszul_syz_sigs_aux.simps
-thm Koszul_syz_sigs_def
 
 end (* qpm_inf_term *)
 

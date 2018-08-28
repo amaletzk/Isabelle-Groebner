@@ -330,6 +330,9 @@ value [code] "rw_add_strict_pprod DRLEX ((0, 0), poly1) ((0, 0), poly2)"
 
 value [code] "sig_gb_spp_body_pprod DRLEX ((cyclic DRLEX 2)::(_ \<Rightarrow>\<^sub>0 rat) list) (rw_rat_strict_pprod DRLEX) ([], [], [Inr 0, Inr 1])"
 
+text \<open>We restrict computations of (signature) Gr\"obner bases to @{const rw_rat_strict_pprod}, because
+  according to @{thm pprod'.aux.sig_gb_aux_is_min_sig_GB} this rewrite-order is optimal.\<close>
+
 value [code] "sig_gb_pprod DRLEX rw_rat_strict_pprod [poly1, poly2]"
 
 value [code] "timing (length (sig_gb_pprod (POT DRLEX) rw_rat_strict_pprod ((Katsura DRLEX 1)::(_ \<Rightarrow>\<^sub>0 rat) list)))"
