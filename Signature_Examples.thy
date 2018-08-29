@@ -25,11 +25,11 @@ text \<open>@{term "cyclic n"} is a system of \<open>n\<close> polynomials in \<
 
 subsubsection \<open>Katsura\<close>
 
-definition Katsura_poly :: "(nat, nat) pp nat_term_order \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> ((nat, nat) pp \<Rightarrow>\<^sub>0 rat)"
+definition Katsura_poly :: "(nat, nat) pp nat_term_order \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> ((nat, nat) pp \<Rightarrow>\<^sub>0 'a::comm_ring_1)"
   where "Katsura_poly to n i =
             change_ord to ((\<Sum>j=-(int n)..<(int n) + 1 - i. V\<^sub>0 (nat (abs j)) * V\<^sub>0 (nat (abs j + i))) - V\<^sub>0 i)"
 
-definition Katsura :: "(nat, nat) pp nat_term_order \<Rightarrow> nat \<Rightarrow> ((nat, nat) pp \<Rightarrow>\<^sub>0 rat) list"
+definition Katsura :: "(nat, nat) pp nat_term_order \<Rightarrow> nat \<Rightarrow> ((nat, nat) pp \<Rightarrow>\<^sub>0 'a::comm_ring_1) list"
   where "Katsura to n =
           (let xs = [0..<n] in
             (distr\<^sub>0 to ((sparse\<^sub>0 [(0, 1)], 1) # (map (\<lambda>i. (sparse\<^sub>0 [(Suc i, 1)], 2)) xs) @ [(0, -1)])) # (map (Katsura_poly to n) xs)
@@ -254,6 +254,8 @@ global_interpretation pprod': qpm_nat_inf_term to
   and new_spairs_spp_pprod = pprod'.aux.new_spairs_spp
   and is_regular_spair_spp_pprod = pprod'.aux.is_regular_spair_spp
   and add_spairs_spp_pprod = pprod'.aux.add_spairs_spp
+  and is_pot_ord_pprod = pprod'.is_pot_ord
+  and new_syz_sigs_spp_pprod = pprod'.aux.new_syz_sigs_spp
   and sig_gb_spp_body_pprod = pprod'.aux.sig_gb_spp_body
   and sig_gb_spp_aux_pprod = pprod'.aux.sig_gb_spp_aux
   and sig_gb_pprod' = pprod'.aux.sig_gb
@@ -269,6 +271,8 @@ global_interpretation pprod': qpm_nat_inf_term to
   subgoal by (simp only: lc_punit_def)
   subgoal by (simp only: tail_punit_def)
   done
+
+subsubsection \<open>More Lemmas and Definitions\<close>
 
 lemma compute_adds_term_pprod [code]:
   "adds_term_pprod u v = (snd u = snd v \<and> adds_pp_add_linorder (fst u) (fst v))"
@@ -292,21 +296,81 @@ lemma compute_sig_trd_spp_pprod [code]:
 
 lemmas [code] = conversep_iff
 
-lemma POT_is_pot_ord: "pprod'.is_pot_ord (TYPE('a::nat)) (TYPE('b::nat)) (POT to)"
-  by (rule pprod'.is_pot_ordI, simp add: lt_of_nat_term_order nat_term_compare_POT pot_comp rep_nat_term_prod_def,
-      simp add: comparator_of_def)
+lemma is_pot_ord [code]:
+  "is_pot_ord_pprod (LEX::(('a::nat, 'b::nat) pp \<times> nat) nat_term_order) = False"
+    (is "is_pot_ord_pprod ?lex = _")
+  "is_pot_ord_pprod (DRLEX::(('a::nat, 'b::nat) pp \<times> nat) nat_term_order) = False"
+    (is "is_pot_ord_pprod ?drlex = _")
+  "is_pot_ord_pprod (DEG (to::(('a::nat, 'b::nat) pp \<times> nat) nat_term_order)) = False"
+  "is_pot_ord_pprod (POT (to::(('a::nat, 'b::nat) pp \<times> nat) nat_term_order)) = True"
+proof -
+  have eq1: "snd ((Term_Order.of_exps a b i)::('a, 'b) pp \<times> nat) = i" for a b and i::nat
+  proof -
+    have "snd ((Term_Order.of_exps a b i)::('a, 'b) pp \<times> nat) =
+          snd (rep_nat_term ((Term_Order.of_exps a b i)::('a, 'b) pp \<times> nat))"
+      by (simp add: rep_nat_term_prod_def rep_nat_nat_def)
+    also have "... = i"
+    proof (rule snd_of_exps)
+      show "snd (rep_nat_term (undefined, i)) = i" by (simp add: rep_nat_term_prod_def rep_nat_nat_def)
+    qed
+    finally show ?thesis .
+  qed
+
+  let ?u = "(Term_Order.of_exps 1 0 0)::('a, 'b) pp \<times> nat"
+  let ?v = "(Term_Order.of_exps 0 0 1)::('a, 'b) pp \<times> nat"
+  have "\<not> is_pot_ord_pprod ?lex"
+  proof
+    assume "is_pot_ord_pprod ?lex"
+    moreover have "le_of_nat_term_order ?lex ?v ?u"
+      by (simp add: le_of_nat_term_order nat_term_compare_LEX lex_comp lex_comp_aux_def
+            comp_of_ord_def lex_pp_of_exps eq_of_exps)
+    ultimately have "snd ?v \<le> snd ?u" by (rule pprod'.is_pot_ordD2)
+    thus False by (simp add: eq1)
+  qed
+  thus "is_pot_ord_pprod ?lex = False" by simp
+
+  have "\<not> is_pot_ord_pprod ?drlex"
+  proof
+    assume "is_pot_ord_pprod ?drlex"
+    moreover have "le_of_nat_term_order ?drlex ?v ?u"
+      by (simp add: le_of_nat_term_order nat_term_compare_DRLEX deg_comp comparator_of_def)
+    ultimately have "snd ?v \<le> snd ?u" by (rule pprod'.is_pot_ordD2)
+    thus False by (simp add: eq1)
+  qed
+  thus "is_pot_ord_pprod ?drlex = False" by simp
+
+  have "\<not> is_pot_ord_pprod (DEG to)"
+  proof
+    assume "is_pot_ord_pprod (DEG to)"
+    moreover have "le_of_nat_term_order (DEG to) ?v ?u"
+      by (simp add: le_of_nat_term_order nat_term_compare_DEG deg_comp comparator_of_def)
+    ultimately have "snd ?v \<le> snd ?u" by (rule pprod'.is_pot_ordD2)
+    thus False by (simp add: eq1)
+  qed
+  thus "is_pot_ord_pprod (DEG to) = False" by simp
+
+  have "is_pot_ord_pprod (POT to)"
+    by (rule pprod'.is_pot_ordI, simp add: lt_of_nat_term_order nat_term_compare_POT pot_comp rep_nat_term_prod_def,
+        simp add: comparator_of_def)
+  thus "is_pot_ord_pprod (POT to) = True" by simp
+qed
 
 definition "sig_gb_pprod to rword_strict fs \<equiv> sig_gb_pprod' to (rword_strict to) (map (change_ord (proj_ord to)) fs)"
-
-definition "zero_reds_pprod to rword_strict fs0 =
-              (let fs = remdups (filter (\<lambda>f. f \<noteq> 0) fs0); Ksyz = Koszul_syz_sigs_pprod to fs in
-                  length (fst (snd (sig_gb_spp_aux_pprod to fs (rword_strict to) ([], Ksyz, map Inr [0..<length fs])))) - length Ksyz)"
 
 lemma sig_gb_pprod'_eq_sig_gb_pprod:
   "sig_gb_pprod' to (rword_strict to) fs = sig_gb_pprod to rword_strict fs"
   by (simp add: sig_gb_pprod_def change_ord_def)
 
 thm pprod'.aux.sig_gb[OF pprod'.aux.rw_rat_strict_is_strict_rewrite_ord, simplified sig_gb_pprod'_eq_sig_gb_pprod]
+
+lemma sig_gb_spp_body_pprod_code [code]:
+  "sig_gb_spp_body_pprod to fs rword_strict (bs, ss, p # ps) =
+  (let ss' = new_syz_sigs_spp_pprod to fs ss bs p
+  in if sig_crit_spp_pprod to rword_strict bs ss' p then (bs, ss', ps)
+     else let p' = sig_trd_spp_pprod to bs (spp_of_pair_pprod to fs p)
+          in if snd p' = 0 then print ''0'' (bs, fst p' # ss', ps) else (p' # bs, ss', add_spairs_spp_pprod to ps bs p'))"
+  "sig_gb_spp_body_pprod to fs rword_strict (bs, ss, []) = (bs, ss, [])"
+  by (simp_all add: Let_def)
 
 subsection \<open>Computations\<close>
 
@@ -315,6 +379,8 @@ experiment begin interpretation trivariate\<^sub>0_rat .
 abbreviation "poly1 \<equiv> change_ord DRLEX (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y)"
 abbreviation "poly2 \<equiv> change_ord DRLEX (X * Y * Z + 2 * Y\<^sup>2)"
 abbreviation "poly3 \<equiv> change_ord DRLEX (X\<^sup>2 * Z ^ 3)"
+
+value [code] "is_pot_ord_pprod (POT (DRLEX::((nat, nat) pp \<times> nat) nat_term_order))"
 
 value [code] "Koszul_syz_sigs_pprod DRLEX [poly1, poly2]"
 
@@ -337,19 +403,36 @@ value [code] "sig_gb_pprod DRLEX rw_rat_strict_pprod [poly1, poly2]"
 
 value [code] "timing (length (sig_gb_pprod (POT DRLEX) rw_rat_strict_pprod ((Katsura DRLEX 1)::(_ \<Rightarrow>\<^sub>0 rat) list)))"
 
-value [code] "timing (zero_reds_pprod (POT DRLEX) rw_rat_strict_pprod ((cyclic DRLEX 1)::(_ \<Rightarrow>\<^sub>0 rat) list))"
+(*
+Timings on benchmark problems
+=============================
 
-(* Timings on benchmark problems (on qftquad2)
+New implementation, on qftquad4:
+
+Problem       Time (s)      #Basis      #0-Reductions
+-----------------------------------------------------
+Cyclic-4        0.0            7           1
+Cyclic-5        0.1           39           0
+Cyclic-6        2.0          155           8
+Cyclic-7      500.0          749          36
+Katsura-4       0.0           16           0
+Katsura-5       0.5           32           0
+Katsura-6      10.0           64           0
+
+
+Old implementation (initial Koszul syzygies only), on qftquad2:
 
 Problem       Time (s)      #Basis      #0-Reductions
 -----------------------------------------------------
 Cyclic-4        0.0            7           3
 Cyclic-5        0.1           39          14
 Cyclic-6        2.5          155          47
+Cyclic-7      996.6            ?         177            (on qftquad4)
 Katsura-4       0.0           16          11
 Katsura-5       1.0           32          26
 Katsura-6      28.1           64          57
-
 *)
+
+(* https://raw.githubusercontent.com/ederc/singular-benchmarks/master/benchs.lib *)
 
 end (* theory *)
