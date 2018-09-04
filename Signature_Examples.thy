@@ -3,39 +3,8 @@
 section \<open>Sample Computations with Signature-Based Algorithms\<close>
 
 theory Signature_Examples
-  imports Signature_Based Polynomials.MPoly_Type_Class_OAlist Groebner_Bases.Code_Target_Rat Print
+  imports Signature_Based Benchmarks Polynomials.MPoly_Type_Class_OAlist Groebner_Bases.Code_Target_Rat Print
 begin
-
-subsection \<open>Benchmark Problems\<close>
-
-(* TODO: Move to separate "Benchmarks" theory. *)
-
-subsubsection \<open>Cyclic\<close>
-
-definition cycl_pp :: "nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> (nat, nat) pp"
-  where "cycl_pp n d i = sparse\<^sub>0 (map (\<lambda>k. (modulo (k + i) n, 1)) [0..<d])"
-
-definition cyclic :: "(nat, nat) pp nat_term_order \<Rightarrow> nat \<Rightarrow> ((nat, nat) pp \<Rightarrow>\<^sub>0 'a::{zero,one,uminus}) list"
-  where "cyclic to n =
-            (let xs = [0..<n] in
-              (map (\<lambda>d. distr\<^sub>0 to (map (\<lambda>i. (cycl_pp n d i, 1)) xs)) [1..<n]) @ [distr\<^sub>0 to [(cycl_pp n n 0, 1), (0, -1)]]
-            )"
-
-text \<open>@{term "cyclic n"} is a system of \<open>n\<close> polynomials in \<open>n\<close> indeterminates, with maximum degree \<open>n\<close>.\<close>
-
-subsubsection \<open>Katsura\<close>
-
-definition Katsura_poly :: "(nat, nat) pp nat_term_order \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> ((nat, nat) pp \<Rightarrow>\<^sub>0 'a::comm_ring_1)"
-  where "Katsura_poly to n i =
-            change_ord to ((\<Sum>j=-(int n)..<(int n) + 1 - i. V\<^sub>0 (nat (abs j)) * V\<^sub>0 (nat (abs j + i))) - V\<^sub>0 i)"
-
-definition Katsura :: "(nat, nat) pp nat_term_order \<Rightarrow> nat \<Rightarrow> ((nat, nat) pp \<Rightarrow>\<^sub>0 'a::comm_ring_1) list"
-  where "Katsura to n =
-          (let xs = [0..<n] in
-            (distr\<^sub>0 to ((sparse\<^sub>0 [(0, 1)], 1) # (map (\<lambda>i. (sparse\<^sub>0 [(Suc i, 1)], 2)) xs) @ [(0, -1)])) # (map (Katsura_poly to n) xs)
-          )"
-
-text \<open>@{term "Katsura n"} is a system of \<open>n + 1\<close> polynomials in \<open>n + 1\<close> indeterminates, with maximum degree \<open>2\<close>.\<close>
 
 subsection \<open>Setup\<close>
 
@@ -422,21 +391,31 @@ value [code] "timing ((sig_gb_z_pprod (POT DRLEX) rw_rat_strict_pprod ((cyclic D
 (*
 Timings on benchmark problems
 =============================
+ATTENTION! The "katsura n" here corresponds to "Katsura (n-1)" in "Buchberger_Examples" etc.!
 
-New implementation, on qftquad4:
+All tests have been performed with "POT DRLEX" and "rw_rat_strict_pprod".
+
+New implementation, rational coefficients, on qftquad4:
 
 Problem       Time (s)      #Basis      #0-Reductions
 -----------------------------------------------------
-Cyclic-4        0.0            7           1
-Cyclic-5        0.1           39           0
-Cyclic-6        2.0          155           8
-Cyclic-7      500.0          749          36
-Katsura-4       0.0           16           0
-Katsura-5       0.5           32           0
-Katsura-6      10.0           64           0
+Cyclic-4          0.0           7           1
+Cyclic-5          0.1          39           0
+Cyclic-6          2.0         155           8
+Cyclic-7        500.0         749          36
+Katsura-5         0.0          16           0
+Katsura-6         0.5          32           0
+Katsura-7        10.0          64           0
+Eco-8             0.5          76           0
+Eco-9             3.0         143           0
+Eco-10           32.0         282           0
+Eco-11          297.2         559           0
+Noon-5            0.9          83           0
+Noon-6            8.8         206           0
+Noon-7          213.5         524           0
 
 
-Old implementation (initial Koszul syzygies only), on qftquad2:
+Old implementation (initial Koszul syzygies only), rational coefficients, on qftquad2:
 
 Problem       Time (s)      #Basis      #0-Reductions
 -----------------------------------------------------
@@ -447,12 +426,6 @@ Cyclic-7      996.6            ?         177            (on qftquad4)
 Katsura-4       0.0           16          11
 Katsura-5       1.0           32          26
 Katsura-6      28.1           64          57
-
-First experiments with the finite field of order 32003 indicate that "rat" is faster, probably
-because of the non-optimal implementation of division in the finite field and of "mod" in the
-underlying ring of integers.
 *)
-
-(* https://raw.githubusercontent.com/ederc/singular-benchmarks/master/benchs.lib *)
 
 end (* theory *)
