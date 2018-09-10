@@ -610,6 +610,11 @@ primrec filter_min_aux :: "'a list \<Rightarrow> 'a list \<Rightarrow> 'a list" 
 
 definition filter_min :: "'a list \<Rightarrow> 'a list"
   where "filter_min xs = filter_min_aux xs []"
+
+definition filter_min_append :: "'a list \<Rightarrow> 'a list \<Rightarrow> 'a list"
+  where "filter_min_append xs ys =
+                  (let P = (\<lambda>zs. \<lambda>x. \<not> (\<exists>z\<in>set zs. rel z x)); ys1 = filter (P xs) ys in
+                    (filter (P ys1) xs) @ ys1)"
   
 lemma filter_min_aux_supset: "set ys \<subseteq> set (filter_min_aux xs ys)"
 proof (induct xs arbitrary: ys)
@@ -812,6 +817,16 @@ next
   from this(1) False this(2) show ?thesis by (rule assms(4))
 qed
 
+corollary filter_min_relE:
+  assumes "transp rel" and "reflp rel" and "x \<in> set xs"
+  obtains y where "y \<in> set (filter_min xs)" and "rel y x"
+  using assms(1, 3)
+proof (rule filter_min_cases)
+  assume "x \<in> set (filter_min xs)"
+  moreover from assms(2) have "rel x x" by (rule reflpD)
+  ultimately show ?thesis ..
+qed
+
 lemma filter_min_minimal:
   assumes "transp rel" and "x \<in> set (filter_min xs)" and "y \<in> set (filter_min xs)" and "rel x y"
   shows "x = y"
@@ -821,6 +836,113 @@ lemma filter_min_distinct:
   assumes "reflp rel"
   shows "distinct (filter_min xs)"
   unfolding filter_min_def by (rule filter_min_aux_distinct, fact, simp)
+
+lemma filter_min_append_subset: "set (filter_min_append xs ys) \<subseteq> set xs \<union> set ys"
+  by (auto simp: filter_min_append_def)
+
+lemma filter_min_append_cases:
+  assumes "transp rel" and "x \<in> set xs \<union> set ys"
+  assumes "x \<in> set (filter_min_append xs ys) \<Longrightarrow> thesis"
+  assumes "\<And>y. y \<in> set (filter_min_append xs ys) \<Longrightarrow> x \<notin> set (filter_min_append xs ys) \<Longrightarrow> rel y x \<Longrightarrow> thesis"
+  shows thesis
+proof (cases "x \<in> set (filter_min_append xs ys)")
+  case True
+  thus ?thesis by (rule assms(3))
+next
+  case False
+  define P where "P = (\<lambda>zs. \<lambda>a. \<not> (\<exists>z\<in>set zs. rel z a))"
+  from assms(2) obtain y where "y \<in> set (filter_min_append xs ys)" and "rel y x"
+  proof
+    assume "x \<in> set xs"
+    with False obtain y where "y \<in> set (filter_min_append xs ys)" and "rel y x"
+      by (auto simp: filter_min_append_def P_def)
+    thus ?thesis ..
+  next
+    assume "x \<in> set ys"
+    with False obtain y where "y \<in> set xs" and "rel y x"
+      by (auto simp: filter_min_append_def P_def)
+    show ?thesis
+    proof (cases "y \<in> set (filter_min_append xs ys)")
+      case True
+      thus ?thesis using \<open>rel y x\<close> ..
+    next
+      case False
+      with \<open>y \<in> set xs\<close> obtain y' where y': "y' \<in> set (filter_min_append xs ys)" and "rel y' y"
+        by (auto simp: filter_min_append_def P_def)
+      from assms(1) this(2) \<open>rel y x\<close> have "rel y' x" by (rule transpD)
+      with y' show ?thesis ..
+    qed
+  qed
+  from this(1) False this(2) show ?thesis by (rule assms(4))
+qed
+
+corollary filter_min_append_relE:
+  assumes "transp rel" and "reflp rel" and "x \<in> set xs \<union> set ys"
+  obtains y where "y \<in> set (filter_min_append xs ys)" and "rel y x"
+  using assms(1, 3)
+proof (rule filter_min_append_cases)
+  assume "x \<in> set (filter_min_append xs ys)"
+  moreover from assms(2) have "rel x x" by (rule reflpD)
+  ultimately show ?thesis ..
+qed
+
+lemma filter_min_append_minimal:
+  assumes "\<And>x' y'. x' \<in> set xs \<Longrightarrow> y' \<in> set xs \<Longrightarrow> rel x' y' \<Longrightarrow> x' = y'"
+    and "\<And>x' y'. x' \<in> set ys \<Longrightarrow> y' \<in> set ys \<Longrightarrow> rel x' y' \<Longrightarrow> x' = y'"
+    and "x \<in> set (filter_min_append xs ys)" and "y \<in> set (filter_min_append xs ys)" and "rel x y"
+  shows "x = y"
+proof -
+  define P where "P = (\<lambda>zs. \<lambda>a. \<not> (\<exists>z\<in>set zs. rel z a))"
+  define ys1 where "ys1 = filter (P xs) ys"
+  from assms(3) have "x \<in> set xs \<union> set ys1"
+    by (auto simp: filter_min_append_def P_def ys1_def)
+  moreover from assms(4) have "y \<in> set (filter (P ys1) xs) \<union> set ys1"
+    by (simp add: filter_min_append_def P_def ys1_def)
+  ultimately show ?thesis
+  proof (elim UnE)
+    assume "x \<in> set xs"
+    assume "y \<in> set (filter (P ys1) xs)"
+    hence "y \<in> set xs" by simp
+    with \<open>x \<in> set xs\<close> show ?thesis using assms(5) by (rule assms(1))
+  next
+    assume "y \<in> set ys1"
+    hence "\<And>z. z \<in> set xs \<Longrightarrow> \<not> rel z y" by (simp add: ys1_def P_def)
+    moreover assume "x \<in> set xs"
+    ultimately have "\<not> rel x y" by blast
+    thus ?thesis using \<open>rel x y\<close> ..
+  next
+    assume "y \<in> set (filter (P ys1) xs)"
+    hence "\<And>z. z \<in> set ys1 \<Longrightarrow> \<not> rel z y" by (simp add: P_def)
+    moreover assume "x \<in> set ys1"
+    ultimately have "\<not> rel x y" by blast
+    thus ?thesis using \<open>rel x y\<close> ..
+  next
+    assume "x \<in> set ys1" and "y \<in> set ys1"
+    hence "x \<in> set ys" and "y \<in> set ys" by (simp_all add: ys1_def)
+    thus ?thesis using assms(5) by (rule assms(2))
+  qed
+qed
+
+lemma filter_min_append_distinct:
+  assumes "reflp rel" and "distinct xs" and "distinct ys"
+  shows "distinct (filter_min_append xs ys)"
+proof -
+  define P where "P = (\<lambda>zs. \<lambda>a. \<not> (\<exists>z\<in>set zs. rel z a))"
+  define ys1 where "ys1 = filter (P xs) ys"
+  from assms(2) have "distinct (filter (P ys1) xs)" by simp
+  moreover from assms(3) have "distinct ys1" by (simp add: ys1_def)
+  moreover have "set (filter (P ys1) xs) \<inter> set ys1 = {}"
+  proof (simp add: set_eq_iff, intro allI impI notI)
+    fix x
+    assume "P ys1 x"
+    hence "\<And>z. z \<in> set ys1 \<Longrightarrow> \<not> rel z x" by (simp add: P_def)
+    moreover assume "x \<in> set ys1"
+    ultimately have "\<not> rel x x" by blast
+    moreover from assms(1) have "rel x x" by (rule reflpD)
+    ultimately show False ..
+  qed
+  ultimately show ?thesis by (simp add: filter_min_append_def ys1_def P_def)
+qed
 
 end
 
