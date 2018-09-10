@@ -5655,9 +5655,7 @@ fun new_syz_sigs :: "'t list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) list \<
     "new_syz_sigs ss bs (Inl (a, b)) = ss" |
     "new_syz_sigs ss bs (Inr j) =
       (if is_pot_ord then
-        filter_min (adds\<^sub>t)
-          (ss @ (let lt_j = punit.lt (fs ! j) in
-                  map (\<lambda>b. ord_term_lin.max (term_of_pair (punit.lt (rep_list b), j)) (lt_j \<oplus> lt b)) bs))
+        filter_min_append (adds\<^sub>t) ss (filter_min (adds\<^sub>t) (map (\<lambda>b. term_of_pair (punit.lt (rep_list b), j)) bs))
       else ss)"
 
 fun new_syz_sigs_spp :: "'t list \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) list \<Rightarrow> (('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<times> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b))) + nat \<Rightarrow> 't list"
@@ -5665,9 +5663,7 @@ fun new_syz_sigs_spp :: "'t list \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^
     "new_syz_sigs_spp ss bs (Inl (a, b)) = ss" |
     "new_syz_sigs_spp ss bs (Inr j) =
       (if is_pot_ord then
-        filter_min (adds\<^sub>t)
-          (ss @ (let lt_j = punit.lt (fs ! j) in
-                  map (\<lambda>b. ord_term_lin.max (term_of_pair (punit.lt (snd b), j)) (lt_j \<oplus> fst b)) bs))
+        filter_min_append (adds\<^sub>t) ss (filter_min (adds\<^sub>t) (map (\<lambda>b. term_of_pair (punit.lt (snd b), j)) bs))
       else ss)"
 
 lemma Koszul_syz_sigs_auxI:
@@ -5840,23 +5836,23 @@ proof -
 qed
 
 corollary lt_Koszul_syz_in_Koszul_syz_sigs:
-  assumes "distinct fs" and "0 \<notin> set fs" and "i < j" and "j < length fs"
+  assumes "\<not> is_pot_ord" and "distinct fs" and "0 \<notin> set fs" and "i < j" and "j < length fs"
   obtains v where "v \<in> set (Koszul_syz_sigs fs)"
     and "v adds\<^sub>t lt ((fs ! i) \<odot> monomial 1 (term_of_pair (0, j)) - (fs ! j) \<odot> monomial 1 (term_of_pair (0, i)))"
 proof -
   have "transp (adds\<^sub>t)" by (rule transpI, drule adds_term_trans)
   moreover have "lt ((fs ! i) \<odot> monomial 1 (term_of_pair (0, j)) - (fs ! j) \<odot> monomial 1 (term_of_pair (0, i))) \<in>
                   set (Koszul_syz_sigs_aux fs 0)" (is "?l \<in> set ?ks")
-    using assms by (rule lt_Koszul_syz_in_Koszul_syz_sigs_aux)
+    using assms(2-5) by (rule lt_Koszul_syz_in_Koszul_syz_sigs_aux)
   ultimately show ?thesis
   proof (rule filter_min_cases)
     assume "?l \<in> set (filter_min (adds\<^sub>t) ?ks)"
-    hence "?l \<in> set (Koszul_syz_sigs fs)" by (simp only: Koszul_syz_sigs_def)
+    hence "?l \<in> set (Koszul_syz_sigs fs)" by (simp add: Koszul_syz_sigs_def assms(1))
     thus ?thesis using adds_term_refl ..
   next
     fix v
     assume "v \<in> set (filter_min (adds\<^sub>t) ?ks)"
-    hence "v \<in> set (Koszul_syz_sigs fs)" by (simp only: Koszul_syz_sigs_def)
+    hence "v \<in> set (Koszul_syz_sigs fs)" by (simp add: Koszul_syz_sigs_def assms(1))
     moreover assume "v adds\<^sub>t ?l"
     ultimately show ?thesis ..
   qed
@@ -5899,7 +5895,7 @@ corollary Koszul_syz_sigs_is_syz_sig:
   shows "is_syz_sig dgrad G v"
 proof -
   from assms(4) have "v \<in> set (Koszul_syz_sigs_aux fs 0)"
-    unfolding Koszul_syz_sigs_def using filter_min_subset ..
+    using filter_min_subset by (fastforce simp: Koszul_syz_sigs_def)
   with assms(3) obtain i j where "i < j" and "j < length fs"
     and v': "v = lt ((fs ! i) \<odot> monomial 1 (term_of_pair (0, j)) - (fs ! j) \<odot> monomial 1 (term_of_pair (0, i)))"
           (is "v = lt (?p - ?q)")
@@ -5937,15 +5933,19 @@ qed
 lemma Koszul_syz_sigs_minimal:
   assumes "u \<in> set (Koszul_syz_sigs fs)" and "v \<in> set (Koszul_syz_sigs fs)" and "u adds\<^sub>t v"
   shows "u = v"
-  using _ assms unfolding Koszul_syz_sigs_def
-proof (rule filter_min_minimal)
-  show "transp (adds\<^sub>t)" by (rule transpI, drule adds_term_trans)
+proof -
+  from assms(1, 2) have "u \<in> set (filter_min (adds\<^sub>t) (Koszul_syz_sigs_aux fs 0))"
+    and "v \<in> set (filter_min (adds\<^sub>t) (Koszul_syz_sigs_aux fs 0))" by (simp_all add: Koszul_syz_sigs_def)
+  with _ show ?thesis using assms(3)
+  proof (rule filter_min_minimal)
+    show "transp (adds\<^sub>t)" by (rule transpI, drule adds_term_trans)
+  qed
 qed
 
 lemma Koszul_syz_sigs_distinct: "distinct (Koszul_syz_sigs fs)"
-  unfolding Koszul_syz_sigs_def
-proof (rule filter_min_distinct)
-  from adds_term_refl show "reflp (adds\<^sub>t)" by (rule reflpI)
+proof -
+  from adds_term_refl have "reflp (adds\<^sub>t)" by (rule reflpI)
+  thus ?thesis by (simp add: Koszul_syz_sigs_def filter_min_distinct)
 qed
 
 subsubsection \<open>Algorithms\<close>
@@ -6876,7 +6876,7 @@ proof (rule sum_prodE)
 next
   fix j
   assume p: "p = Inr j"
-  let ?f = "\<lambda>b. ord_term_lin.max (term_of_pair (punit.lt (rep_list b), j)) (punit.lt (fs ! j) \<oplus> lt b)"
+  let ?f = "\<lambda>b. term_of_pair (punit.lt (rep_list b), j)"
   let ?a = "monomial (1::'b) (term_of_pair (0, j))"
   from assms(1) have inv1: "sig_gb_aux_inv1 bs" by (rule sig_gb_aux_inv_D1)
   have "Inr j \<in> set (p # ps)" by (simp add: p)
@@ -6885,9 +6885,9 @@ next
   show ?thesis
   proof (cases "is_pot_ord")
     case True
-    with assms(2) have "v \<in> set (filter_min (adds\<^sub>t) (ss @ map ?f bs))" by (simp add: p)
-    hence "v \<in> set (ss @ map ?f bs)" using filter_min_subset ..
-    hence "v \<in> set ss \<or> v \<in> ?f ` set bs" by (simp add: comp_def)
+    with assms(2) have "v \<in> set (filter_min_append (adds\<^sub>t) ss (filter_min (adds\<^sub>t) (map ?f bs)))"
+      by (simp add: p)
+    hence "v \<in> set ss \<union> ?f ` set bs" using filter_min_append_subset filter_min_subset by fastforce
     thus ?thesis
     proof
       assume "v \<in> set ss"
@@ -6895,8 +6895,34 @@ next
     next
       assume "v \<in> ?f ` set bs"
       then obtain b where "b \<in> set bs" and "v = ?f b" ..
-      from this(2) have v: "v = ord_term_lin.max (punit.lt (rep_list b) \<oplus> lt ?a) (punit.lt (rep_list ?a) \<oplus> lt b)"
-        by (simp add: a lt_monomial splus_def term_simps)
+      have comp_b: "component_of_term (lt b) < component_of_term (lt ?a)"
+      proof (rule ccontr)
+        have *: "pp_of_term (term_of_pair (0, j)) \<preceq> pp_of_term (lt b)"
+          by (simp add: pp_of_term_of_pair zero_min)
+        assume "\<not> component_of_term (lt b) < component_of_term (lt ?a)"
+        hence "component_of_term (term_of_pair (0, j)) \<le> component_of_term (lt b)"
+          by (simp add: lt_monomial)
+        with * have "term_of_pair (0, j) \<preceq>\<^sub>t lt b" by (rule ord_termI)
+        moreover from assms(1) \<open>Inr j \<in> set (p # ps)\<close> \<open>b \<in> set bs\<close> have "lt b \<prec>\<^sub>t term_of_pair (0, j)"
+          by (rule sig_gb_aux_inv_D4)
+        ultimately show False by simp
+      qed
+      have "v = punit.lt (rep_list b) \<oplus> lt ?a"
+        by (simp add: \<open>v = ?f b\<close> a lt_monomial splus_def term_simps)
+      also have "... = ord_term_lin.max (punit.lt (rep_list b) \<oplus> lt ?a) (punit.lt (rep_list ?a) \<oplus> lt b)"
+      proof -
+        have "component_of_term (punit.lt (rep_list ?a) \<oplus> lt b) = component_of_term (lt b)"
+          by (simp only: term_simps)
+        also have "... < component_of_term (lt ?a)" by (fact comp_b)
+        also have "... = component_of_term (punit.lt (rep_list b) \<oplus> lt ?a)"
+          by (simp only: term_simps)
+        finally have "component_of_term (punit.lt (rep_list ?a) \<oplus> lt b) <
+                      component_of_term (punit.lt (rep_list b) \<oplus> lt ?a)" .
+        with True have "punit.lt (rep_list ?a) \<oplus> lt b \<prec>\<^sub>t punit.lt (rep_list b) \<oplus> lt ?a"
+          by (rule is_pot_ordD)
+        thus ?thesis by (auto simp: ord_term_lin.max_def)
+      qed
+      finally have v: "v = ord_term_lin.max (punit.lt (rep_list b) \<oplus> lt ?a) (punit.lt (rep_list ?a) \<oplus> lt b)" .
       show ?thesis unfolding v using dgrad
       proof (rule Koszul_syz_is_syz_sig)
         from inv1 have "set bs \<subseteq> dgrad_sig_set dgrad" by (rule sig_gb_aux_inv1_D1)
@@ -6910,25 +6936,67 @@ next
       next
         from \<open>j < length fs\<close> have "fs ! j \<in> set fs" by (rule nth_mem)
         with fs_nonzero show "rep_list ?a \<noteq> 0" by (auto simp: a)
-      next
-        show "component_of_term (lt b) < component_of_term (lt ?a)"
-        proof (rule ccontr)
-          have *: "pp_of_term (term_of_pair (0, j)) \<preceq> pp_of_term (lt b)"
-            by (simp add: pp_of_term_of_pair zero_min)
-          assume "\<not> component_of_term (lt b) < component_of_term (lt ?a)"
-          hence "component_of_term (term_of_pair (0, j)) \<le> component_of_term (lt b)"
-            by (simp add: lt_monomial)
-          with * have "term_of_pair (0, j) \<preceq>\<^sub>t lt b" by (rule ord_termI)
-          moreover from assms(1) \<open>Inr j \<in> set (p # ps)\<close> \<open>b \<in> set bs\<close> have "lt b \<prec>\<^sub>t term_of_pair (0, j)"
-            by (rule sig_gb_aux_inv_D4)
-          ultimately show False by simp
-        qed
-      qed
+      qed (fact comp_b)
     qed
   next
     case False
     with assms(2) have "v \<in> set ss" by (simp add: p)
     with assms(1) show ?thesis by (rule sig_gb_aux_inv_D2)
+  qed
+qed
+
+lemma new_syz_sigs_minimal:
+  assumes "\<And>u' v'. u' \<in> set ss \<Longrightarrow> v' \<in> set ss \<Longrightarrow> u' adds\<^sub>t v' \<Longrightarrow> u' = v'"
+  assumes "u \<in> set (new_syz_sigs ss bs p)" and "v \<in> set (new_syz_sigs ss bs p)" and "u adds\<^sub>t v"
+  shows "u = v"
+proof (rule sum_prodE)
+  fix a b
+  assume p: "p = Inl (a, b)"
+  from assms(2, 3) have "u \<in> set ss" and "v \<in> set ss" by (simp_all add: p)
+  thus ?thesis using assms(4) by (rule assms(1))
+next
+  fix j
+  assume p: "p = Inr j"
+  show ?thesis
+  proof (cases is_pot_ord)
+    case True
+    have "transp (adds\<^sub>t)" by (rule transpI, drule adds_term_trans)
+    define ss' where "ss' = filter_min (adds\<^sub>t) (map (\<lambda>b. term_of_pair (punit.lt (rep_list b), j)) bs)"
+    note assms(1)
+    moreover have "u' = v'" if "u' \<in> set ss'" and "v' \<in> set ss'" and "u' adds\<^sub>t v'" for u' v'
+      using \<open>transp (adds\<^sub>t)\<close> that unfolding ss'_def by (rule filter_min_minimal)
+    moreover from True assms(2, 3) have "u \<in> set (filter_min_append (adds\<^sub>t) ss ss')"
+      and "v \<in> set (filter_min_append (adds\<^sub>t) ss ss')" by (simp_all add: p ss'_def)
+    ultimately show ?thesis using assms(4) by (rule filter_min_append_minimal)
+  next
+    case False
+    with assms(2, 3) have "u \<in> set ss" and "v \<in> set ss" by (simp_all add: p)
+    thus ?thesis using assms(4) by (rule assms(1))
+  qed
+qed
+
+lemma new_syz_sigs_distinct:
+  assumes "distinct ss"
+  shows "distinct (new_syz_sigs ss bs p)"
+proof (rule sum_prodE)
+  fix a b
+  assume "p = Inl (a, b)"
+  with assms show ?thesis by simp
+next
+  fix j
+  assume p: "p = Inr j"
+  show ?thesis
+  proof (cases is_pot_ord)
+    case True
+    define ss' where "ss' = filter_min (adds\<^sub>t) (map (\<lambda>b. term_of_pair (punit.lt (rep_list b), j)) bs)"
+    from adds_term_refl have "reflp (adds\<^sub>t)" by (rule reflpI)
+    moreover note assms
+    moreover have "distinct ss'" unfolding ss'_def using \<open>reflp (adds\<^sub>t)\<close> by (rule filter_min_distinct)
+    ultimately have "distinct (filter_min_append (adds\<^sub>t) ss ss')" by (rule filter_min_append_distinct)
+    thus ?thesis by (simp add: p ss'_def True)
+  next
+    case False
+    with assms show ?thesis by (simp add: p)
   qed
 qed
 
@@ -8608,49 +8676,57 @@ next
   fix i
   assume p: "p = Inr i"
   have trans: "transp (adds\<^sub>t)" by (rule transpI, drule adds_term_trans)
+  from adds_term_refl have refl: "reflp (adds\<^sub>t)" by (rule reflpI)
   let ?v = "term_of_pair (punit.lt (rep_list b), j)"
-  let ?f = "\<lambda>b. ord_term_lin.max (term_of_pair (punit.lt (rep_list b), i)) (punit.lt (fs ! i) \<oplus> lt b)"
+  let ?f = "\<lambda>b. term_of_pair (punit.lt (rep_list b), i)"
+  define ss' where "ss' = filter_min (adds\<^sub>t) (map ?f bs)"
+  have eq: "new_syz_sigs ss bs p = filter_min_append (adds\<^sub>t) ss ss'" by (simp add: p ss'_def pot)
   show ?thesis
   proof (cases "i = j")
     case True
-    from pot have "punit.lt (fs ! j) \<oplus> lt b \<prec>\<^sub>t ?v"
-    proof (rule is_pot_ordD)
-      from assms(5) show "component_of_term (punit.lt (fs ! j) \<oplus> lt b) < component_of_term ?v"
-        by (simp only: term_simps)
-    qed
-    hence "?v = ord_term_lin.max ?v (punit.lt (fs ! j) \<oplus> lt b)" by (auto simp: ord_term_lin.max_def)
-    also from \<open>b \<in> set bs\<close> have "... \<in> ?f ` set bs" unfolding \<open>i = j\<close> by (rule imageI)
-    finally have "?v \<in> set (ss @ map ?f bs)" by simp
-    with trans show ?thesis
-    proof (rule filter_min_cases)
-      assume "?v \<in> set (filter_min (adds\<^sub>t) (ss @ map ?f bs))"
-      hence "?v \<in> set (new_syz_sigs ss bs p)" by (simp add: p True pot)
-      with adds_term_refl show ?thesis ..
+    from \<open>b \<in> set bs\<close> have "?v \<in> ?f ` set bs" unfolding \<open>i = j\<close> by (rule imageI)
+    hence "?v \<in> set ss \<union> set (map ?f bs)" by simp
+    thus ?thesis
+    proof
+      assume "?v \<in> set ss"
+      hence "?v \<in> set ss \<union> set ss'" by simp
+      with trans refl obtain s where "s \<in> set (new_syz_sigs ss bs p)" and "s adds\<^sub>t ?v"
+        unfolding eq by (rule filter_min_append_relE)
+      thus ?thesis ..
     next
-      fix s
-      assume "s adds\<^sub>t ?v"
-      assume "s \<in> set (filter_min (adds\<^sub>t) (ss @ map ?f bs))"
-      hence "s \<in> set (new_syz_sigs ss bs p)" by (simp add: p True pot)
-      with \<open>s adds\<^sub>t ?v\<close> show ?thesis ..
+      assume "?v \<in> set (map ?f bs)"
+      with trans refl obtain s where "s \<in> set ss'" and "s adds\<^sub>t ?v"
+        unfolding ss'_def by (rule filter_min_relE)
+      from this(1) have "s \<in> set ss \<union> set ss'" by simp
+      with trans refl obtain s' where s': "s' \<in> set (new_syz_sigs ss bs p)" and "s' adds\<^sub>t s"
+        unfolding eq by (rule filter_min_append_relE)
+      from this(2) \<open>s adds\<^sub>t ?v\<close> have "s' adds\<^sub>t ?v" by (rule adds_term_trans)
+      with s' show ?thesis ..
     qed
   next
     case False
     with assms(3) have "Inr j \<notin> set (p # ps)" by (simp add: p)
     with assms(1, 2) obtain s where "s \<in> set ss" and "s adds\<^sub>t ?v"
       using assms(4, 5) by (rule sig_gb_aux_inv2_E)
-    from this(1) have "s \<in> set (ss @ map ?f bs)" by simp
-    with trans show ?thesis
-    proof (rule filter_min_cases)
-      assume "s \<in> set (filter_min (adds\<^sub>t) (ss @ map ?f bs))"
-      hence "s \<in> set (new_syz_sigs ss bs p)" by (simp add: p pot)
-      with \<open>s adds\<^sub>t ?v\<close> show ?thesis ..
+    from this(1) have "s \<in> set ss \<union> set (map ?f bs)" by simp
+    thus ?thesis
+    proof
+      assume "s \<in> set ss"
+      hence "s \<in> set ss \<union> set ss'" by simp
+      with trans refl obtain s' where s': "s' \<in> set (new_syz_sigs ss bs p)" and "s' adds\<^sub>t s"
+        unfolding eq by (rule filter_min_append_relE)
+      from this(2) \<open>s adds\<^sub>t ?v\<close> have "s' adds\<^sub>t ?v" by (rule adds_term_trans)
+      with s' show ?thesis ..
     next
-      fix s'
-      assume "s' adds\<^sub>t s"
-      hence "s' adds\<^sub>t ?v" using \<open>s adds\<^sub>t ?v\<close> by (rule adds_term_trans)
-      assume "s' \<in> set (filter_min (adds\<^sub>t) (ss @ map ?f bs))"
-      hence "s' \<in> set (new_syz_sigs ss bs p)" by (simp add: p pot)
-      with \<open>s' adds\<^sub>t ?v\<close> show ?thesis ..
+      assume "s \<in> set (map ?f bs)"
+      with trans refl obtain s' where "s' \<in> set ss'" and "s' adds\<^sub>t s"
+        unfolding ss'_def by (rule filter_min_relE)
+      from this(1) have "s' \<in> set ss \<union> set ss'" by simp
+      with trans refl obtain s'' where s'': "s'' \<in> set (new_syz_sigs ss bs p)" and "s'' adds\<^sub>t s'"
+        unfolding eq by (rule filter_min_append_relE)
+      from this(2) \<open>s' adds\<^sub>t s\<close> have "s'' adds\<^sub>t s" by (rule adds_term_trans)
+      hence "s'' adds\<^sub>t ?v" using \<open>s adds\<^sub>t ?v\<close> by (rule adds_term_trans)
+      with s'' show ?thesis ..
     qed
   qed
 qed
