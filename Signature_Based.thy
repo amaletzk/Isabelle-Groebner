@@ -2192,8 +2192,8 @@ definition is_min_sig_GB :: "('a \<Rightarrow> nat) \<Rightarrow> ('t \<Rightarr
                                       is_sig_GB_in d G u) \<and>
                                 (\<forall>g\<in>G. \<not> is_sig_red (\<preceq>\<^sub>t) (=) (G - {g}) g)"
 
-definition is_syz_sig :: "('a \<Rightarrow> nat) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> 't \<Rightarrow> bool"
-  where "is_syz_sig d G u \<longleftrightarrow> (\<exists>r. r \<noteq> 0 \<and> lt r = u \<and> r \<in> dgrad_sig_set d \<and> sig_red_zero (\<prec>\<^sub>t) G r)"
+definition is_syz_sig :: "('a \<Rightarrow> nat) \<Rightarrow> 't \<Rightarrow> bool"
+  where "is_syz_sig d u \<longleftrightarrow> (\<exists>s\<in>dgrad_sig_set d. s \<noteq> 0 \<and> lt s = u \<and> rep_list s = 0)"
 
 lemma sig_red_zeroI:
   assumes "(sig_red sing_reg (\<preceq>) F)\<^sup>*\<^sup>* r s" and "rep_list s = 0"
@@ -2787,108 +2787,51 @@ next
 qed
 
 lemma is_syz_sigI:
-  assumes "r \<noteq> 0" and "lt r = u" and "r \<in> dgrad_sig_set d" and "sig_red_zero (\<prec>\<^sub>t) G r"
-  shows "is_syz_sig d G u"
+  assumes "s \<noteq> 0" and "lt s = u" and "s \<in> dgrad_sig_set d" and "rep_list s = 0"
+  shows "is_syz_sig d u"
   unfolding is_syz_sig_def using assms by blast
 
 lemma is_syz_sigE:
-  assumes "is_syz_sig d G u"
-  obtains r where "r \<noteq> 0" and "lt r = u" and "r \<in> dgrad_sig_set d" and "sig_red_zero (\<prec>\<^sub>t) G r"
+  assumes "is_syz_sig d u"
+  obtains r where "r \<noteq> 0" and "lt r = u" and "r \<in> dgrad_sig_set d" and "rep_list r = 0"
   using assms unfolding is_syz_sig_def by blast
 
-lemma is_syz_sig_dgrad_sig_setE:
-  assumes "dickson_grading d" and "G \<subseteq> dgrad_sig_set d" and "is_syz_sig d G u"
-  obtains s where "s \<noteq> 0" and "lt s = u" and "s \<in> dgrad_sig_set d" and "rep_list s = 0"
-proof -
-  from assms(3) obtain r where "r \<noteq> 0" and "lt r = u" and "r \<in> dgrad_sig_set d" and "sig_red_zero (\<prec>\<^sub>t) G r"
-    by (rule is_syz_sigE)
-  from this(4) obtain s where r_red: "(sig_red (\<prec>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* r s" and "rep_list s = 0"
-    by (rule sig_red_zeroE)
-  show ?thesis
-  proof
-    from r_red have "lc s = lc r" by (rule sig_red_regular_rtrancl_lc)
-    also from \<open>r \<noteq> 0\<close> have "... \<noteq> 0" by (rule lc_not_0)
-    finally show "s \<noteq> 0" by (simp add: lc_eq_zero_iff)
-  next
-    from r_red have "lt s = lt r" by (rule sig_red_regular_rtrancl_lt)
-    also have "... = u" by fact
-    finally show "lt s = u" .
-  next
-    from assms(1, 2) \<open>r \<in> dgrad_sig_set d\<close> r_red show "s \<in> dgrad_sig_set d"
-      by (rule dgrad_sig_set_closed_sig_red_rtrancl)
-  qed fact
-qed
-
 lemma is_syz_sig_adds:
-  assumes "dickson_grading d" and "is_syz_sig d G u" and "u adds\<^sub>t v"
+  assumes "dickson_grading d" and "is_syz_sig d u" and "u adds\<^sub>t v"
     and "d (pp_of_term v) \<le> dgrad_max d"
-  shows "is_syz_sig d G v"
+  shows "is_syz_sig d v"
 proof -
-  from assms(2) obtain r where "r \<noteq> 0" and "lt r = u" and "r \<in> dgrad_sig_set d"
-    and "sig_red_zero (\<prec>\<^sub>t) G r" by (rule is_syz_sigE)
+  from assms(2) obtain s where "s \<noteq> 0" and "lt s = u" and "s \<in> dgrad_sig_set d"
+    and "rep_list s = 0" by (rule is_syz_sigE)
   from assms(3) obtain t where v: "v = t \<oplus> u" by (rule adds_termE)
   show ?thesis
   proof (rule is_syz_sigI)
-    from \<open>r \<noteq> 0\<close> show "monom_mult 1 t r \<noteq> 0" by (simp add: monom_mult_eq_zero_iff)
+    from \<open>s \<noteq> 0\<close> show "monom_mult 1 t s \<noteq> 0" by (simp add: monom_mult_eq_zero_iff)
   next
-    from \<open>r \<noteq> 0\<close> show "lt (monom_mult 1 t r) = v" by (simp add: lt_monom_mult v \<open>lt r = u\<close>)
+    from \<open>s \<noteq> 0\<close> show "lt (monom_mult 1 t s) = v" by (simp add: lt_monom_mult v \<open>lt s = u\<close>)
   next
     from assms(4) have "d (t + pp_of_term u) \<le> dgrad_max d" by (simp add: v term_simps)
     with assms(1) have "d t \<le> dgrad_max d" by (simp add: dickson_gradingD1)
-    with assms(1) show "monom_mult 1 t r \<in> dgrad_sig_set d" using \<open>r \<in> dgrad_sig_set d\<close>
+    with assms(1) show "monom_mult 1 t s \<in> dgrad_sig_set d" using \<open>s \<in> dgrad_sig_set d\<close>
       by (rule dgrad_sig_set_closed_monom_mult)
   next
-    from \<open>sig_red_zero (\<prec>\<^sub>t) G r\<close> show "sig_red_zero (\<prec>\<^sub>t) G (monom_mult 1 t r)"
-      by (rule sig_red_zero_monom_mult)
+    show "rep_list (monom_mult 1 t s) = 0" by (simp add: \<open>rep_list s = 0\<close> rep_list_monom_mult)
   qed
-qed
-
-lemma is_syz_sig_mono: "is_syz_sig d F u \<Longrightarrow> F \<subseteq> F' \<Longrightarrow> is_syz_sig d F' u"
-  by (auto simp: is_syz_sig_def dest: sig_red_zero_mono)
-
-lemma is_syz_sig_insertD:
-  assumes "is_syz_sig d (insert f F) u" and "u \<preceq>\<^sub>t lt f"
-  shows "is_syz_sig d F u"
-proof -
-  from assms(1) obtain r where "r \<noteq> 0" and "lt r = u" and "r \<in> dgrad_sig_set d"
-    and "sig_red_zero (\<prec>\<^sub>t) (insert f F) r" by (rule is_syz_sigE)
-  from this(4) obtain s where "(sig_red (\<prec>\<^sub>t) (\<preceq>) (insert f F))\<^sup>*\<^sup>* r s" and "rep_list s = 0"
-    by (rule sig_red_zeroE)
-  from this(1) have "(sig_red (\<prec>\<^sub>t) (\<preceq>) F)\<^sup>*\<^sup>* r s"
-  proof (induct)
-    case base
-    show ?case ..
-  next
-    case (step y z)
-    from step(1) have "lt y \<preceq>\<^sub>t lt r" by (fact sig_red_rtrancl_lt)
-    also from assms(2) have "... \<preceq>\<^sub>t lt f" by (simp only: \<open>lt r = u\<close>)
-    finally have "lt y \<preceq>\<^sub>t lt f" .
-    from step(2) obtain f' t where "f' \<in> insert f F" and *: "sig_red_single (\<prec>\<^sub>t) (\<preceq>) y z f' t"
-      by (auto simp: sig_red_def)
-    from this(2) have "t \<oplus> lt f' \<prec>\<^sub>t lt y" by (rule sig_red_singleD)
-    also have "... = 0 \<oplus> lt y" by (simp only: term_simps)
-    also from zero_min have "... \<preceq>\<^sub>t t \<oplus> lt y" by (rule splus_mono_left)
-    finally have "lt f' \<prec>\<^sub>t lt y" by (rule ord_term_strict_canc)
-    with \<open>lt y \<preceq>\<^sub>t lt f\<close> have "f' \<noteq> f" by auto
-    with \<open>f' \<in> insert f F\<close> have "f' \<in> F" by simp
-    hence "sig_red (\<prec>\<^sub>t) (\<preceq>) F y z" using * by (auto simp: sig_red_def)
-    with step(3) show ?case ..
-  qed
-  hence "sig_red_zero (\<prec>\<^sub>t) F r" using \<open>rep_list s = 0\<close> by (rule sig_red_zeroI)
-  with \<open>r \<noteq> 0\<close> \<open>lt r = u\<close> \<open>r \<in> dgrad_sig_set d\<close> show ?thesis by (rule is_syz_sigI)
 qed
 
 lemma syzygy_crit:
-  assumes "dickson_grading d" and "is_sig_GB_upt d G u" and "is_syz_sig d G u"
+  assumes "dickson_grading d" and "is_sig_GB_upt d G u" and "is_syz_sig d u"
     and "p \<in> dgrad_sig_set d" and "lt p = u"
   shows "sig_red_zero (\<prec>\<^sub>t) G p"
 proof -
-  from assms(3) obtain r where "r \<noteq> 0" and "lt r = u" and "r \<in> dgrad_sig_set d"
-    and "sig_red_zero (\<prec>\<^sub>t) G r" by (rule is_syz_sigE)
+  from assms(3) obtain s where "s \<noteq> 0" and "lt s = u" and "s \<in> dgrad_sig_set d"
+    and "rep_list s = 0" by (rule is_syz_sigE)
   note assms(1)
   moreover from assms(2) have "is_sig_GB_upt d G (lt p)" by (simp only: assms(5))
-  moreover note \<open>r \<in> dgrad_sig_set d\<close> assms(4) \<open>r \<noteq> 0\<close> \<open>sig_red_zero (\<prec>\<^sub>t) G r\<close>
-  moreover have "lt r adds\<^sub>t lt p" by (simp only: assms(5) \<open>lt r = u\<close> adds_term_refl)
+  moreover note \<open>s \<in> dgrad_sig_set d\<close> assms(4) \<open>s \<noteq> 0\<close>
+  moreover from rtranclp.rtrancl_refl \<open>rep_list s = 0\<close> have "sig_red_zero (\<prec>\<^sub>t) G s"
+    by (rule sig_red_zeroI)
+  moreover have "lt s adds\<^sub>t lt p" by (simp only: assms(5) \<open>lt s = u\<close> adds_term_refl)
   ultimately show ?thesis by (rule sig_red_zero_regularI_adds)
 qed
 
@@ -2988,7 +2931,7 @@ definition is_canon_rewriter :: "(('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<
 definition is_RB_in :: "('a \<Rightarrow> nat) \<Rightarrow> (('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> 't \<Rightarrow> bool"
   where "is_RB_in d rword G u \<longleftrightarrow>
             ((\<exists>g. is_canon_rewriter rword G u g \<and> \<not> is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term u - lp g) g)) \<or>
-             is_syz_sig d G u)"
+             is_syz_sig d u)"
 
 definition is_RB_upt :: "('a \<Rightarrow> nat) \<Rightarrow> (('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> 't \<Rightarrow> bool"
   where "is_RB_upt d rword G u \<longleftrightarrow>
@@ -3160,36 +3103,34 @@ lemma is_RB_inI1:
   unfolding is_RB_in_def using assms is_canon_rewriterD1 by blast
 
 lemma is_RB_inI2:
-  assumes "is_syz_sig d G u"
+  assumes "is_syz_sig d u"
   shows "is_RB_in d rword G u"
   unfolding is_RB_in_def Let_def using assms by blast
 
 lemma is_RB_inE:
   assumes "is_RB_in d rword G u"
-    and "is_syz_sig d G u \<Longrightarrow> thesis"
-    and "\<And>g. \<not> is_syz_sig d G u \<Longrightarrow> is_canon_rewriter rword G u g \<Longrightarrow>
+    and "is_syz_sig d u \<Longrightarrow> thesis"
+    and "\<And>g. \<not> is_syz_sig d u \<Longrightarrow> is_canon_rewriter rword G u g \<Longrightarrow>
             \<not> is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term u - lp g) g) \<Longrightarrow> thesis"
   shows thesis
   using assms unfolding is_RB_in_def by blast
 
 lemma is_RB_inD:
   assumes "dickson_grading d" and "G \<subseteq> dgrad_sig_set d" and "is_RB_in d rword G u"
-    and "\<not> is_syz_sig d G u" and "d (pp_of_term u) \<le> dgrad_max d"
+    and "\<not> is_syz_sig d u" and "d (pp_of_term u) \<le> dgrad_max d"
     and "is_canon_rewriter rword G u g"
   shows "rep_list g \<noteq> 0"
 proof
   assume a: "rep_list g = 0"
-  from assms(1) have "is_syz_sig d G u"
+  from assms(1) have "is_syz_sig d u"
   proof (rule is_syz_sig_adds)
-    show "is_syz_sig d G (lt g)"
+    show "is_syz_sig d (lt g)"
     proof (rule is_syz_sigI)
       from assms(6) show "g \<noteq> 0" by (rule is_canon_rewriterD2)
     next
       from assms(6) have "g \<in> G" by (rule is_canon_rewriterD1)
       thus "g \<in> dgrad_sig_set d" using assms(2) ..
-    next
-      from rtrancl_refl[to_pred] a show "sig_red_zero (\<prec>\<^sub>t) G g" by (rule sig_red_zeroI)
-    qed (fact refl)
+    qed (fact refl, fact a)
   next
     from assms(6) show "lt g adds\<^sub>t u" by (rule is_canon_rewriterD3)
   qed fact
@@ -3219,9 +3160,7 @@ lemma is_RB_in_UnI:
   shows "is_RB_in d rword (H \<union> G) u"
   using assms(1)
 proof (rule is_RB_inE)
-  assume "is_syz_sig d G u"
-  moreover have "G \<subseteq> H \<union> G" by blast
-  ultimately have "is_syz_sig d (H \<union> G) u" by (rule is_syz_sig_mono)
+  assume "is_syz_sig d u"
   thus "is_RB_in d rword (H \<union> G) u" by (rule is_RB_inI2)
 next
   fix g'
@@ -3347,7 +3286,7 @@ proof (rule ccontr)
 
   from \<open>is_RB_in d rword G v\<close> have "sig_red_zero (\<preceq>\<^sub>t) G r"
   proof (rule is_RB_inE)
-    assume "is_syz_sig d G v"
+    assume "is_syz_sig d v"
     have "sig_red_zero (\<prec>\<^sub>t) G r" by (rule syzygy_crit, fact+)
     thus ?thesis by (rule sig_red_zero_sing_regI)
   next
@@ -3355,7 +3294,7 @@ proof (rule ccontr)
     assume a: "\<not> is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term v - lp g) g)"
     assume "is_canon_rewriter rword G v g"
     hence "g \<in> G" and "g \<noteq> 0" and "lt g adds\<^sub>t v" by (rule is_canon_rewriterD)+
-    assume "\<not> is_syz_sig d G v"
+    assume "\<not> is_syz_sig d v"
     from \<open>g \<in> G\<close> G_sub have "g \<in> dgrad_sig_set d" ..
     from \<open>g \<noteq> 0\<close> have "lc g \<noteq> 0" by (rule lc_not_0)
     with \<open>lc r \<noteq> 0\<close> have "lc r / lc g \<noteq> 0" by simp
@@ -3386,9 +3325,8 @@ proof (rule ccontr)
     have "rep_list ?h \<noteq> 0"
     proof
       assume "rep_list ?h = 0"
-      with rtrancl_refl[to_pred] have "sig_red_zero (\<prec>\<^sub>t) G ?h" by (rule sig_red_zeroI)
-      with \<open>?h \<noteq> 0\<close> \<open>lt ?h = v\<close> \<open>?h \<in> dgrad_sig_set d\<close> have "is_syz_sig d G v" by (rule is_syz_sigI)
-      with \<open>\<not> is_syz_sig d G v\<close> show False ..
+      with \<open>?h \<noteq> 0\<close> \<open>lt ?h = v\<close> \<open>?h \<in> dgrad_sig_set d\<close> have "is_syz_sig d v" by (rule is_syz_sigI)
+      with \<open>\<not> is_syz_sig d v\<close> show False ..
     qed
     hence "rep_list g \<noteq> 0" by (simp add: rep_list_monom_mult punit.monom_mult_eq_zero_iff)
     hence "punit.lc (rep_list g) \<noteq> 0" by (rule punit.lc_not_0)
@@ -3446,7 +3384,7 @@ qed
 
 corollary is_RB_upt_is_syz_sigD:
   assumes "dickson_grading d" and "is_RB_upt d rword G u"
-    and "is_syz_sig d G u" and "p \<in> dgrad_sig_set d" and "lt p = u"
+    and "is_syz_sig d u" and "p \<in> dgrad_sig_set d" and "lt p = u"
   shows "sig_red_zero (\<prec>\<^sub>t) G p"
 proof -
   note assms(1)
@@ -3743,7 +3681,7 @@ qed
 
 lemma lemma_9:
   assumes "dickson_grading d" and "is_rewrite_ord rword" and "is_RB_upt d rword G u"
-    and "inj_on lt G" and "\<not> is_syz_sig d G u" and "is_canon_rewriter rword G u g1" and "h \<in> G"
+    and "inj_on lt G" and "\<not> is_syz_sig d u" and "is_canon_rewriter rword G u g1" and "h \<in> G"
     and "is_sig_red (\<prec>\<^sub>t) (=) {h} (monom_mult 1 (pp_of_term u - lp g1) g1)"
     and "d (pp_of_term u) \<le> dgrad_max d"
   shows "lcs (punit.lt (rep_list g1)) (punit.lt (rep_list h)) - punit.lt (rep_list g1) =
@@ -3809,15 +3747,15 @@ proof -
     ultimately have "is_RB_in d rword G v" by (rule is_RB_uptD2)
     thus False
     proof (rule is_RB_inE)
-      assume "is_syz_sig d G v"
-      with assms(1) have "is_syz_sig d G u" using \<open>v adds\<^sub>t u\<close> assms(9) by (rule is_syz_sig_adds)
+      assume "is_syz_sig d v"
+      with assms(1) have "is_syz_sig d u" using \<open>v adds\<^sub>t u\<close> assms(9) by (rule is_syz_sig_adds)
       with assms(5) show False ..
     next
       fix g2
       assume *: "\<not> is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term v - lp g2) g2)"
       assume "is_canon_rewriter rword G v g2"
       hence "g2 \<in> G" and "g2 \<noteq> 0" and "lt g2 adds\<^sub>t v" by (rule is_canon_rewriterD)+
-      assume "\<not> is_syz_sig d G v"
+      assume "\<not> is_syz_sig d v"
       note assms(2) \<open>is_canon_rewriter rword G v g2\<close> assms(6)
       moreover from \<open>lt g2 adds\<^sub>t v\<close> \<open>v adds\<^sub>t u\<close> have "lt g2 adds\<^sub>t u" by (rule adds_term_trans)
       moreover from \<open>g adds a\<close> have "lt g1 adds\<^sub>t v" by (simp add: v u minus_splus[symmetric] adds_termI)
@@ -3895,7 +3833,7 @@ proof (rule ccontr)
   from this(4)
   have impl: "\<And>g. g \<in> G \<Longrightarrow> is_canon_rewriter rword G v g \<Longrightarrow>
                     is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term v - lp g) g)"
-    and "\<not> is_syz_sig d G v" by (simp_all add: is_RB_in_def Let_def)
+    and "\<not> is_syz_sig d v" by (simp_all add: is_RB_in_def Let_def)
 
   from assms(3) have "is_RB_upt d rword G v"
   proof (rule is_RB_uptI)
@@ -3924,10 +3862,10 @@ proof (rule ccontr)
     with \<open>component_of_term v < length fs\<close> have "is_RB_in d rword G ?w" by (rule assms(7))
     thus ?thesis
     proof (rule is_RB_inE)
-      assume "is_syz_sig d G ?w"
-      with assms(1) have "is_syz_sig d G v" using \<open>?w adds\<^sub>t v\<close> \<open>d (pp_of_term v) \<le> dgrad_max d\<close>
+      assume "is_syz_sig d ?w"
+      with assms(1) have "is_syz_sig d v" using \<open>?w adds\<^sub>t v\<close> \<open>d (pp_of_term v) \<le> dgrad_max d\<close>
         by (rule is_syz_sig_adds)
-      with \<open>\<not> is_syz_sig d G v\<close> show ?thesis ..
+      with \<open>\<not> is_syz_sig d v\<close> show ?thesis ..
     next
       fix g1
       assume "is_canon_rewriter rword G ?w g1"
@@ -3945,7 +3883,7 @@ proof (rule ccontr)
     hence "is_sig_red (\<prec>\<^sub>t) (=) G (monom_mult 1 (pp_of_term v - lp g1) g1)" using crw by (rule impl)
     then obtain h where "h \<in> G" and "is_sig_red (\<prec>\<^sub>t) (=) {h} (monom_mult 1 (pp_of_term v - lp g1) g1)"
       by (rule is_sig_red_singletonI)
-    with assms(1, 2) \<open>is_RB_upt d rword G v\<close> assms(4) \<open>\<not> is_syz_sig d G v\<close> crw
+    with assms(1, 2) \<open>is_RB_upt d rword G v\<close> assms(4) \<open>\<not> is_syz_sig d v\<close> crw
     have "is_regular_spair g1 h" and eq: "lt (spair g1 h) = v"
       using \<open>d (pp_of_term v) \<le> dgrad_max d\<close> by (rule lemma_9)+
     from \<open>v \<prec>\<^sub>t u\<close> have "lt (spair g1 h) \<prec>\<^sub>t u" by (simp only: eq)
@@ -3963,7 +3901,7 @@ lemma lemma_11:
   assumes "dickson_grading d" and "is_rewrite_ord rword" and "is_RB_upt d rword G (lt p)"
     and "p \<in> dgrad_sig_set d" and "is_sig_red (\<prec>\<^sub>t) (=) G p"
   obtains u g where "u \<prec>\<^sub>t lt p" and "d (pp_of_term u) \<le> dgrad_max d" and "component_of_term u < length fs"
-    and "\<not> is_syz_sig d G u" and "is_canon_rewriter rword G u g"
+    and "\<not> is_syz_sig d u" and "is_canon_rewriter rword G u g"
     and "u = (punit.lt (rep_list p) - punit.lt (rep_list g)) \<oplus> lt g" and "is_sig_red (\<prec>\<^sub>t) (=) {g} p"
 proof -
   from assms(3) have G_sub: "G \<subseteq> dgrad_sig_set d" by (rule is_RB_uptD1)
@@ -4057,11 +3995,11 @@ proof -
   also from \<open>M \<subseteq> sig_inv_set\<close> \<open>0 \<notin> M\<close> sig_inv_setD_lt have "... \<subseteq> {0..<length fs}" by fastforce
   finally have "component_of_term u < length fs" by simp
 
-  have "\<not> is_syz_sig d G u"
+  have "\<not> is_syz_sig d u"
   proof
-    assume "is_syz_sig d G u"
-    with assms(1) G_sub obtain s where "s \<noteq> 0" and "lt s = u" and "s \<in> dgrad_sig_set d" and "rep_list s = 0"
-      by (rule is_syz_sig_dgrad_sig_setE)
+    assume "is_syz_sig d u"
+    then obtain s where "s \<noteq> 0" and "lt s = u" and "s \<in> dgrad_sig_set d" and "rep_list s = 0"
+      by (rule is_syz_sigE)
     let ?s = "monom_mult (lc m / lc s) 0 s"
     have "rep_list ?s = 0" by (simp add: rep_list_monom_mult \<open>rep_list s = 0\<close>)
     from \<open>s \<noteq> 0\<close> have "lc s \<noteq> 0" by (rule lc_not_0)
@@ -4118,8 +4056,8 @@ proof -
   have "is_RB_in d rword G u" by (rule is_RB_uptD2, fact+)
   thus ?thesis
   proof (rule is_RB_inE)
-    assume "is_syz_sig d G u"
-    with \<open>\<not> is_syz_sig d G u\<close> show ?thesis ..
+    assume "is_syz_sig d u"
+    with \<open>\<not> is_syz_sig d u\<close> show ?thesis ..
   next
     fix g
     assume "is_canon_rewriter rword G u g"
@@ -5767,7 +5705,7 @@ qed
 corollary Koszul_syz_is_syz_sig:
   assumes "dickson_grading dgrad" and "a \<in> dgrad_sig_set dgrad" and "b \<in> dgrad_sig_set dgrad"
     and "rep_list a \<noteq> 0" and "rep_list b \<noteq> 0" and "component_of_term (lt a) < component_of_term (lt b)"
-  shows "is_syz_sig dgrad G (ord_term_lin.max (punit.lt (rep_list a) \<oplus> lt b) (punit.lt (rep_list b) \<oplus> lt a))"
+  shows "is_syz_sig dgrad (ord_term_lin.max (punit.lt (rep_list a) \<oplus> lt b) (punit.lt (rep_list b) \<oplus> lt a))"
 proof (rule is_syz_sigI)
   from assms(4-6) show "rep_list a \<odot> b - rep_list b \<odot> a \<noteq> 0"
     and "lt (rep_list a \<odot> b - rep_list b \<odot> a) =
@@ -5776,10 +5714,7 @@ proof (rule is_syz_sigI)
 next
   from assms(1-3) show "rep_list a \<odot> b - rep_list b \<odot> a \<in> dgrad_sig_set dgrad"
     by (rule dgrad_sig_set_closed_Koszul_syz)
-next
-  from rtranclp.rtrancl_refl Koszul_syz_is_syz show "sig_red_zero (\<prec>\<^sub>t) G (rep_list a \<odot> b - rep_list b \<odot> a)"
-    by (rule sig_red_zeroI)
-qed
+qed (fact Koszul_syz_is_syz)
 
 corollary lt_Koszul_syz_in_Koszul_syz_sigs_aux:
   assumes "distinct fs" and "0 \<notin> set fs" and "i < j" and "j < length fs"
@@ -5867,7 +5802,7 @@ qed
 
 corollary Koszul_syz_sigs_is_syz_sig:
   assumes "dickson_grading dgrad" and "distinct fs" and "0 \<notin> set fs" and "v \<in> set (Koszul_syz_sigs fs)"
-  shows "is_syz_sig dgrad G v"
+  shows "is_syz_sig dgrad v"
 proof -
   from assms(4) have "v \<in> set (Koszul_syz_sigs_aux fs 0)"
     using filter_min_subset by (fastforce simp: Koszul_syz_sigs_def)
@@ -6156,8 +6091,8 @@ fun sig_crit' :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ((('t \<Right
   where
     "sig_crit' bs (Inl (p, q)) =
       (let (u, v) = spair_sigs p q in
-        is_syz_sig dgrad (set bs) u \<or> is_syz_sig dgrad (set bs) v \<or> is_rewritable bs p u \<or> is_rewritable bs q v)" |
-    "sig_crit' bs (Inr j) = is_syz_sig dgrad (set bs) (term_of_pair (0, j))"
+        is_syz_sig dgrad u \<or> is_syz_sig dgrad v \<or> is_rewritable bs p u \<or> is_rewritable bs q v)" |
+    "sig_crit' bs (Inr j) = is_syz_sig dgrad (term_of_pair (0, j))"
 
 fun sig_crit_spp :: "('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) list \<Rightarrow> 't list \<Rightarrow> ((('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<times> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b))) + nat) \<Rightarrow> bool"
   where
@@ -6234,11 +6169,11 @@ proof (rule sum_prodE)
   have sigs: "spair_sigs x y = (u, v)" by (simp add: u_def v_def)
   have "u \<preceq>\<^sub>t sig_of_pair p" and "v \<preceq>\<^sub>t sig_of_pair p" by (simp_all add: p sigs)
   hence "u \<prec>\<^sub>t lt b" and "v \<prec>\<^sub>t lt b" using assms(2) by simp_all
-  with assms(1) show ?thesis by (auto simp: p sigs dest: is_syz_sig_insertD is_rewritable_ConsD)
+  with assms(1) show ?thesis by (auto simp: p sigs dest: is_rewritable_ConsD)
 next
   fix j
   assume p: "p = Inr j"
-  from assms show ?thesis by (auto simp: p dest: is_syz_sig_insertD)
+  from assms show ?thesis by (simp add: p)
 qed
 
 definition sig_gb_aux_inv1 :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> bool"
@@ -6256,7 +6191,7 @@ definition sig_gb_aux_inv1 :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> 
 fun sig_gb_aux_inv :: "(('t \<Rightarrow>\<^sub>0 'b) list \<times> 't list \<times> ((('t \<Rightarrow>\<^sub>0 'b) \<times> ('t \<Rightarrow>\<^sub>0 'b)) + nat) list) \<Rightarrow> bool"
   where "sig_gb_aux_inv (bs, ss, ps) =
           (sig_gb_aux_inv1 bs \<and>
-            (\<forall>u\<in>set ss. is_syz_sig dgrad (set bs) u) \<and>
+            (\<forall>u\<in>set ss. is_syz_sig dgrad u) \<and>
             (\<forall>p q. Inl (p, q) \<in> set ps \<longrightarrow> (is_regular_spair p q \<and> p \<in> set bs \<and> q \<in> set bs)) \<and>
             (\<forall>j. Inr j \<in> set ps \<longrightarrow> (j < length fs \<and> (\<forall>b\<in>set bs. lt b \<prec>\<^sub>t term_of_pair (0, j))) \<and>
                               length (filter (\<lambda>q. sig_of_pair q = term_of_pair (0, j)) ps) \<le> 1) \<and>
@@ -6347,7 +6282,7 @@ qed
 lemma sig_gb_aux_inv_D1: "sig_gb_aux_inv (bs, ss, ps) \<Longrightarrow> sig_gb_aux_inv1 bs"
   by (simp add: sig_gb_aux_inv.simps)
 
-lemma sig_gb_aux_inv_D2: "sig_gb_aux_inv (bs, ss, ps) \<Longrightarrow> u \<in> set ss \<Longrightarrow> is_syz_sig dgrad (set bs) u"
+lemma sig_gb_aux_inv_D2: "sig_gb_aux_inv (bs, ss, ps) \<Longrightarrow> u \<in> set ss \<Longrightarrow> is_syz_sig dgrad u"
   by (simp add: sig_gb_aux_inv.simps)
 
 lemma sig_gb_aux_inv_D3:
@@ -6573,7 +6508,7 @@ qed
 lemma lemma_12:
   assumes "sig_gb_aux_inv (bs, ss, ps)" and "is_RB_upt dgrad rword (set bs) u"
     and "dgrad (pp_of_term u) \<le> dgrad_max dgrad" and "is_canon_rewriter rword (set bs) u a"
-    and "\<not> is_syz_sig dgrad (set bs) u" and "is_sig_red (\<prec>\<^sub>t) (=) (set bs) (monom_mult 1 (pp_of_term u - lp a) a)"
+    and "\<not> is_syz_sig dgrad u" and "is_sig_red (\<prec>\<^sub>t) (=) (set bs) (monom_mult 1 (pp_of_term u - lp a) a)"
   obtains p q where "p \<in> set bs" and "q \<in> set bs" and "is_regular_spair p q" and "lt (spair p q) = u"
     and "\<not> sig_crit' bs (Inl (p, q))"
 proof -
@@ -6604,7 +6539,7 @@ proof -
     with \<open>a \<in> set bs\<close> show "a \<in> dgrad_sig_set dgrad" ..
   qed
   ultimately obtain v b where "v \<prec>\<^sub>t lt ?a" and "dgrad (pp_of_term v) \<le> dgrad_max dgrad"
-    and "component_of_term v < length fs" and ns: "\<not> is_syz_sig dgrad (set bs) v"
+    and "component_of_term v < length fs" and ns: "\<not> is_syz_sig dgrad v"
     and v: "v = (punit.lt (rep_list ?a) - punit.lt (rep_list b)) \<oplus> lt b"
     and cr: "is_canon_rewriter rword (set bs) v b" and "is_sig_red (\<prec>\<^sub>t) (=) {b} ?a"
     using assms(6) by (rule lemma_11)
@@ -6842,7 +6777,7 @@ lemma rep_list_monomial': "rep_list (monomial 1 (term_of_pair (0, j))) = ((fs ! 
 
 lemma new_syz_sigs_is_syz_sig:
   assumes "sig_gb_aux_inv (bs, ss, p # ps)" and "v \<in> set (new_syz_sigs ss bs p)"
-  shows "is_syz_sig dgrad (set bs) v"
+  shows "is_syz_sig dgrad v"
 proof (rule sum_prodE)
   fix a b
   assume "p = Inl (a, b)"
@@ -6979,12 +6914,12 @@ lemma sig_crit'I_sig_crit:
   assumes "sig_gb_aux_inv (bs, ss, p # ps)" and "sig_crit bs (new_syz_sigs ss bs p) p"
   shows "sig_crit' bs p"
 proof -
-  have rl: "is_syz_sig dgrad (set bs) u"
+  have rl: "is_syz_sig dgrad u"
     if "is_pred_syz (new_syz_sigs ss bs p) u" and "dgrad (pp_of_term u) \<le> dgrad_max dgrad" for u
   proof -
     from that(1) obtain s where "s \<in> set (new_syz_sigs ss bs p)" and adds: "s adds\<^sub>t u"
       unfolding is_pred_syz_def ..
-    from assms(1) this(1) have "is_syz_sig dgrad (set bs) s" by (rule new_syz_sigs_is_syz_sig)
+    from assms(1) this(1) have "is_syz_sig dgrad s" by (rule new_syz_sigs_is_syz_sig)
     with dgrad show ?thesis using adds that(2) by (rule is_syz_sig_adds)
   qed
   from assms(1) have "sig_gb_aux_inv1 bs" by (rule sig_gb_aux_inv_D1)
@@ -7025,7 +6960,7 @@ proof -
         next
           from a_in show "dgrad (lp a) \<le> dgrad_max dgrad" by (rule dgrad_sig_setD_lp)
         qed
-        ultimately have "is_syz_sig dgrad (set bs) u" by (rule rl)
+        ultimately have "is_syz_sig dgrad u" by (rule rl)
         thus ?thesis by (simp add: p 1)
       next
         assume "is_pred_syz (new_syz_sigs ss bs p) v"
@@ -7038,7 +6973,7 @@ proof -
         next
           from b_in show "dgrad (lp b) \<le> dgrad_max dgrad" by (rule dgrad_sig_setD_lp)
         qed
-        ultimately have "is_syz_sig dgrad (set bs) v" by (rule rl)
+        ultimately have "is_syz_sig dgrad v" by (rule rl)
         thus ?thesis by (simp add: p 1)
       qed
     next
@@ -7051,14 +6986,14 @@ proof -
     with assms(2) have "is_pred_syz (new_syz_sigs ss bs p) (term_of_pair (0, j))" by simp
     moreover have "dgrad (pp_of_term (term_of_pair (0, j))) \<le> dgrad_max dgrad"
       by (simp add: pp_of_term_of_pair dgrad_max_0)
-    ultimately have "is_syz_sig dgrad (set bs) (term_of_pair (0, j))" by (rule rl)
+    ultimately have "is_syz_sig dgrad (term_of_pair (0, j))" by (rule rl)
     thus ?thesis by (simp add: \<open>p = Inr j\<close>)
   qed
 qed
 
 lemma sig_gb_aux_inv_preserved_0:
   assumes "sig_gb_aux_inv (bs, ss, p # ps)"
-    and "\<And>s. s \<in> set ss' \<Longrightarrow> is_syz_sig dgrad (set bs) s"
+    and "\<And>s. s \<in> set ss' \<Longrightarrow> is_syz_sig dgrad s"
     and "\<And>a b. a \<in> set bs \<Longrightarrow> b \<in> set bs \<Longrightarrow> is_regular_spair a b \<Longrightarrow> Inl (a, b) \<notin> set ps \<Longrightarrow>
            Inl (b, a) \<notin> set ps \<Longrightarrow> \<not> is_RB_in dgrad rword (set bs) (lt (spair a b)) \<Longrightarrow>
            \<exists>q\<in>set ps. sig_of_pair q = lt (spair a b) \<and> \<not> sig_crit' bs q"
@@ -7071,7 +7006,7 @@ proof -
   proof (intro conjI ballI allI impI)
     fix s
     assume "s \<in> set ss'"
-    thus "is_syz_sig dgrad (set bs) s" by (rule assms(2))
+    thus "is_syz_sig dgrad s" by (rule assms(2))
   next
     fix q1 q2
     assume "Inl (q1, q2) \<in> set ps"
@@ -7166,7 +7101,7 @@ proof -
   proof (rule sig_gb_aux_inv_preserved_0)
     fix s
     assume "s \<in> set (new_syz_sigs ss bs p)"
-    with assms(1) show "is_syz_sig dgrad (set bs) s" by (rule new_syz_sigs_is_syz_sig)
+    with assms(1) show "is_syz_sig dgrad s" by (rule new_syz_sigs_is_syz_sig)
   next
     fix a b
     assume 1: "a \<in> set bs" and 2: "b \<in> set bs" and 3: "is_regular_spair a b" and 4: "Inl (a, b) \<notin> set ps"
@@ -7218,7 +7153,7 @@ proof -
         moreover assume "punit.lt (rep_list b) \<oplus> lt a = punit.lt (rep_list a) \<oplus> lt b"
         ultimately show ?thesis ..
       qed
-      moreover from 6 have "\<not> is_syz_sig dgrad (set bs) (lt (spair a b))" by (simp add: is_RB_in_def)
+      moreover from 6 have "\<not> is_syz_sig dgrad (lt (spair a b))" by (simp add: is_RB_in_def)
       moreover from 6 crw have "is_sig_red (\<prec>\<^sub>t) (=) (set bs) (monom_mult 1 (lp (spair a b) - lp c) c)"
         by (simp add: is_RB_in_def)
       ultimately obtain x y where 7: "x \<in> set bs" and 8: "y \<in> set bs" and 9: "is_regular_spair x y"
@@ -7270,7 +7205,7 @@ proof -
     fix j
     assume "j < length fs"
     assume p: "p = Inr j"
-    with \<open>sig_crit' bs p\<close> have "is_syz_sig dgrad (set bs) (term_of_pair (0, j))" by simp
+    with \<open>sig_crit' bs p\<close> have "is_syz_sig dgrad (term_of_pair (0, j))" by simp
     hence "is_RB_in dgrad rword (set bs) (term_of_pair (0, j))" by (rule is_RB_inI2)
     moreover have "rep_list (monomial 1 (term_of_pair (0, j))) \<in> ideal (rep_list ` set bs)"
     proof (rule sig_red_zero_idealI, rule syzygy_crit)
@@ -7298,21 +7233,27 @@ proof -
   have 0: "(sig_red (\<prec>\<^sub>t) (\<preceq>) (set bs))\<^sup>*\<^sup>* (poly_of_pair p) ?p"
     by (rule sig_trd_red_rtrancl)
   hence eq: "lt ?p = lt (poly_of_pair p)" by (rule sig_red_regular_rtrancl_lt)
-  have *: "is_syz_sig dgrad (set bs) (lt (poly_of_pair p))"
+  from assms(1) have inv1: "sig_gb_aux_inv1 bs" by (rule sig_gb_aux_inv_D1)
+  have *: "is_syz_sig dgrad (lt (poly_of_pair p))"
   proof (rule is_syz_sigI)
-    show "poly_of_pair p \<noteq> 0" by (rule pair_list_nonzero, fact, simp)
+    have "poly_of_pair p \<noteq> 0" by (rule pair_list_nonzero, fact, simp)
+    hence "lc (poly_of_pair p) \<noteq> 0" by (rule lc_not_0)
+    moreover from 0 have "lc ?p = lc (poly_of_pair p)" by (rule sig_red_regular_rtrancl_lc)
+    ultimately have "lc ?p \<noteq> 0" by simp
+    thus "?p \<noteq> 0" by (simp add: lc_eq_zero_iff)
   next
-    show "poly_of_pair p \<in> dgrad_sig_set dgrad" by (rule pair_list_dgrad_sig_set, fact, simp)
-  next
-    show "sig_red_zero (\<prec>\<^sub>t) (set bs) (poly_of_pair p)" by (rule sig_red_zeroI, fact+)
-  qed (fact refl)
+    note dgrad(1)
+    moreover from inv1 have "set bs \<subseteq> dgrad_sig_set dgrad" by (rule sig_gb_aux_inv1_D1)
+    moreover have "poly_of_pair p \<in> dgrad_sig_set dgrad" by (rule pair_list_dgrad_sig_set, fact, simp)
+    ultimately show "?p \<in> dgrad_sig_set dgrad" using 0 by (rule dgrad_sig_set_closed_sig_red_rtrancl)
+  qed (fact eq, fact assms(2))
   hence rb: "is_RB_in dgrad rword (set bs) (lt (poly_of_pair p))" by (rule is_RB_inI2)
   from assms(1) show ?thesis
   proof (rule sig_gb_aux_inv_preserved_0)
     fix s
     assume "s \<in> set (lt ?p # new_syz_sigs ss bs p)"
     hence "s = lt (poly_of_pair p) \<or> s \<in> set (new_syz_sigs ss bs p)" by (simp add: eq)
-    thus "is_syz_sig dgrad (set bs) s"
+    thus "is_syz_sig dgrad s"
     proof
       assume "s = lt (poly_of_pair p)"
       with * show ?thesis by simp
@@ -7490,9 +7431,7 @@ proof -
   next
     fix s
     assume "s \<in> set (new_syz_sigs ss bs p)"
-    with assms(1) have "is_syz_sig dgrad (set bs) s" by (rule new_syz_sigs_is_syz_sig)
-    moreover have "set bs \<subseteq> set (p' # bs)" by fastforce
-    ultimately show "is_syz_sig dgrad (set (p' # bs)) s" by (rule is_syz_sig_mono)
+    with assms(1) show "is_syz_sig dgrad s" by (rule new_syz_sigs_is_syz_sig)
   next
     fix q1 q2
     assume "Inl (q1, q2) \<in> set (add_spairs ps bs p')"
@@ -7804,7 +7743,7 @@ lemma sig_gb_aux_inv_init: "sig_gb_aux_inv ([], Koszul_syz_sigs fs, map Inr [0..
 proof (simp add: sig_gb_aux_inv.simps sig_gb_aux_inv1_def o_def, intro conjI ballI allI impI)
   fix v
   assume "v \<in> set (Koszul_syz_sigs fs)"
-  with dgrad fs_distinct fs_nonzero show "is_syz_sig dgrad {} v" by (rule Koszul_syz_sigs_is_syz_sig)
+  with dgrad fs_distinct fs_nonzero show "is_syz_sig dgrad v" by (rule Koszul_syz_sigs_is_syz_sig)
 next
   fix p q :: "'t \<Rightarrow>\<^sub>0 'b"
   show "Inl (p, q) \<notin> Inr ` {0..<length fs}" by blast
@@ -8738,7 +8677,7 @@ proof (intro allI conjI impI ballI)
         show "lt (monomial (1::'b) (term_of_pair (0, j))) = term_of_pair (0, j)" by (simp add: lt_monomial)
       next
         from inv assms(2) have "sig_crit' bs p" by (rule sig_crit'I_sig_crit)
-        thus "is_syz_sig dgrad (set bs) (term_of_pair (0, j))" by (simp add: \<open>p = Inr j\<close>)
+        thus "is_syz_sig dgrad (term_of_pair (0, j))" by (simp add: \<open>p = Inr j\<close>)
       qed (fact dgrad)
       hence "sig_red_zero (\<preceq>\<^sub>t) (set bs) (monomial 1 (term_of_pair (0, j)))"
         by (rule sig_red_zero_sing_regI)
