@@ -2878,7 +2878,7 @@ proof -
   with \<open>r \<noteq> 0\<close> \<open>lt r = u\<close> \<open>r \<in> dgrad_sig_set d\<close> show ?thesis by (rule is_syz_sigI)
 qed
 
-lemma is_sig_GB_upt_is_syz_sigD:
+lemma syzygy_crit:
   assumes "dickson_grading d" and "is_sig_GB_upt d G u" and "is_syz_sig d G u"
     and "p \<in> dgrad_sig_set d" and "lt p = u"
   shows "sig_red_zero (\<prec>\<^sub>t) G p"
@@ -2890,22 +2890,6 @@ proof -
   moreover note \<open>r \<in> dgrad_sig_set d\<close> assms(4) \<open>r \<noteq> 0\<close> \<open>sig_red_zero (\<prec>\<^sub>t) G r\<close>
   moreover have "lt r adds\<^sub>t lt p" by (simp only: assms(5) \<open>lt r = u\<close> adds_term_refl)
   ultimately show ?thesis by (rule sig_red_zero_regularI_adds)
-qed
-
-lemma syzygy_crit:
-  assumes "dickson_grading d" and "is_sig_GB_upt d G (lt p)" and "u \<in> dgrad_sig_set d"
-    and "p \<in> dgrad_sig_set d" and "lt u adds\<^sub>t lt p" and "u \<noteq> 0" and "rep_list u = 0"
-  shows "sig_red_zero (\<prec>\<^sub>t) G p"
-proof -
-  note assms(1)
-  moreover from assms(6) refl assms(3) have "is_syz_sig d G (lt u)"
-  proof (rule is_syz_sigI)
-    from rtrancl_refl[to_pred] assms(7) show "sig_red_zero (\<prec>\<^sub>t) G u" by (rule sig_red_zeroI)
-  qed
-  moreover note assms(5)
-  moreover from assms(4) have "d (lp p) \<le> dgrad_max d" by (rule dgrad_sig_setD_lp)
-  ultimately have "is_syz_sig d G (lt p)" by (rule is_syz_sig_adds)
-  with assms(1, 2) show ?thesis using assms(4) refl by (rule is_sig_GB_upt_is_syz_sigD)
 qed
 
 lemma lemma_21:
@@ -3364,7 +3348,7 @@ proof (rule ccontr)
   from \<open>is_RB_in d rword G v\<close> have "sig_red_zero (\<preceq>\<^sub>t) G r"
   proof (rule is_RB_inE)
     assume "is_syz_sig d G v"
-    have "sig_red_zero (\<prec>\<^sub>t) G r" by (rule is_sig_GB_upt_is_syz_sigD, fact+)
+    have "sig_red_zero (\<prec>\<^sub>t) G r" by (rule syzygy_crit, fact+)
     thus ?thesis by (rule sig_red_zero_sing_regI)
   next
     fix g
@@ -3467,7 +3451,7 @@ corollary is_RB_upt_is_syz_sigD:
 proof -
   note assms(1)
   moreover from assms(1, 2) have "is_sig_GB_upt d G u" by (rule is_RB_upt_is_sig_GB_upt)
-  ultimately show ?thesis using assms(3, 4, 5) by (rule is_sig_GB_upt_is_syz_sigD)
+  ultimately show ?thesis using assms(3, 4, 5) by (rule syzygy_crit)
 qed
 
 subsubsection \<open>S-Pairs\<close>
@@ -3900,7 +3884,7 @@ proof -
   finally show ?thesis4 by (simp only: u)
 qed
 
-lemma lemma_10:
+lemma is_RB_upt_finite:
   assumes "dickson_grading d" and "is_rewrite_ord rword" and "G \<subseteq> dgrad_sig_set d" and "inj_on lt G"
     and "finite G"
     and "\<And>g1 g2. g1 \<in> G \<Longrightarrow> g2 \<in> G \<Longrightarrow> is_regular_spair g1 g2 \<Longrightarrow> lt (spair g1 g2) \<prec>\<^sub>t u \<Longrightarrow>
@@ -6421,7 +6405,7 @@ lemma sig_gb_aux_inv_is_RB_upt:
 proof -
   from assms(1) have inv1: "sig_gb_aux_inv1 bs" by (rule sig_gb_aux_inv_D1)
   from dgrad rword(1) show ?thesis
-  proof (rule lemma_10)
+  proof (rule is_RB_upt_finite)
     from inv1 show "set bs \<subseteq> dgrad_sig_set dgrad" by (rule sig_gb_aux_inv1_D1)
   next
     from inv1 show "inj_on lt (set bs)" by (rule sig_gb_aux_inv1_lt_inj_on)
@@ -7298,7 +7282,7 @@ proof -
     with \<open>sig_crit' bs p\<close> have "is_syz_sig dgrad (set bs) (term_of_pair (0, j))" by simp
     hence "is_RB_in dgrad rword (set bs) (term_of_pair (0, j))" by (rule is_RB_inI2)
     moreover have "rep_list (monomial 1 (term_of_pair (0, j))) \<in> ideal (rep_list ` set bs)"
-    proof (rule sig_red_zero_idealI, rule is_sig_GB_upt_is_syz_sigD)
+    proof (rule sig_red_zero_idealI, rule syzygy_crit)
       from assms(1) have "is_RB_upt dgrad rword (set bs) (sig_of_pair p)"
         by (rule sig_gb_aux_inv_is_RB_upt_Cons)
       with dgrad have "is_sig_GB_upt dgrad (set bs) (sig_of_pair p)"
@@ -8750,7 +8734,7 @@ proof (intro allI conjI impI ballI)
     have "rep_list (monomial 1 (term_of_pair (0, j))) \<in> ideal (rep_list ` ?X)"
     proof (rule sig_red_zero_idealI)
       have "sig_red_zero (\<prec>\<^sub>t) (set bs) (monomial 1 (term_of_pair (0, j)))"
-      proof (rule is_sig_GB_upt_is_syz_sigD)
+      proof (rule syzygy_crit)
         from inv have "is_RB_upt dgrad rword (set bs) (sig_of_pair p)"
           by (rule sig_gb_aux_inv_is_RB_upt_Cons)
         with dgrad have "is_sig_GB_upt dgrad (set bs) (sig_of_pair p)"
