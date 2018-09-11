@@ -3465,8 +3465,7 @@ definition is_regular_spair :: "('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('t 
   where "is_regular_spair p q \<longleftrightarrow>
                     (rep_list p \<noteq> 0 \<and> rep_list q \<noteq> 0 \<and>
                       (let t1 = punit.lt (rep_list p); t2 = punit.lt (rep_list q); l = lcs t1 t2 in
-                        lt (monom_mult (1 / punit.lc (rep_list p)) (l - t1) p) \<noteq>
-                        lt (monom_mult (1 / punit.lc (rep_list q)) (l - t2) q)))"
+                        (l - t1) \<oplus> lt p \<noteq> (l - t2) \<oplus> lt q))"
 
 lemma rep_list_spair: "rep_list (spair p q) = punit.spoly (rep_list p) (rep_list q)"
   by (simp add: spair_def punit.spoly_def Let_def rep_list_minus rep_list_monom_mult punit.lc_def)
@@ -3597,14 +3596,6 @@ proof -
       by (simp add: term_is_le_rel_minus_minus adds_lcs adds_lcs_2)
     with assms(3) show False ..
   qed
-  from assms(1) have "punit.lc (rep_list p) \<noteq> 0" by (rule punit.lc_not_0)
-  moreover from assms(2) have "punit.lc (rep_list q) \<noteq> 0" by (rule punit.lc_not_0)
-  ultimately have "1 / punit.lc (rep_list p) \<noteq> 0" and "1 / punit.lc (rep_list q) \<noteq> 0" by simp_all
-  moreover from assms(1, 2) have "p \<noteq> 0" and "q \<noteq> 0" by (auto simp: rep_list_zero)
-  ultimately have
-    "lt (monom_mult (1 / punit.lc (rep_list p)) (lcs (punit.lt (rep_list p)) (punit.lt (rep_list q)) - punit.lt (rep_list p)) p) \<noteq>
-     lt (monom_mult (1 / punit.lc (rep_list q)) (lcs (punit.lt (rep_list p)) (punit.lt (rep_list q)) - punit.lt (rep_list q)) q)"
-    using * by (simp add: lt_monom_mult)
   with assms(1, 2) show ?thesis by (simp add: is_regular_spair_def)
 qed
 
@@ -3634,38 +3625,38 @@ lemma is_regular_spairD2: "is_regular_spair p q \<Longrightarrow> rep_list q \<n
   by (simp add: is_regular_spair_def)
 
 lemma is_regular_spairD3:
+  fixes p q
+  defines "t1 \<equiv> punit.lt (rep_list p)"
+  defines "t2 \<equiv> punit.lt (rep_list q)"
   assumes "is_regular_spair p q"
-  shows "punit.lt (rep_list q) \<oplus> lt p \<noteq> punit.lt (rep_list p) \<oplus> lt q"
-proof
-  define t1 where "t1 = punit.lt (rep_list p)"
-  define t2 where "t2 = punit.lt (rep_list q)"
-  assume "t2 \<oplus> lt p = t1 \<oplus> lt q"
-  hence eq: "(lcs t1 t2 - t1) \<oplus> lt p = (lcs t1 t2 - t2) \<oplus> lt q"
-    by (simp add: term_is_le_rel_minus_minus adds_lcs adds_lcs_2)
-
-  from assms have "rep_list p \<noteq> 0" by (rule is_regular_spairD1)
+  shows "t2 \<oplus> lt p \<noteq> t1 \<oplus> lt q" (is ?thesis1)
+    and "lt (monom_mult (1 / punit.lc (rep_list p)) (lcs t1 t2 - t1) p) \<noteq>
+         lt (monom_mult (1 / punit.lc (rep_list q)) (lcs t1 t2 - t2) q)"  (is "?l \<noteq> ?r")
+proof -
+  from assms(3) have "rep_list p \<noteq> 0" by (rule is_regular_spairD1)
   hence "punit.lc (rep_list p) \<noteq> 0" and "p \<noteq> 0" by (auto simp: rep_list_zero punit.lc_eq_zero_iff)
-  from assms have "rep_list q \<noteq> 0" by (rule is_regular_spairD2)
+  from assms(3) have "rep_list q \<noteq> 0" by (rule is_regular_spairD2)
   hence "punit.lc (rep_list q) \<noteq> 0" and "q \<noteq> 0" by (auto simp: rep_list_zero punit.lc_eq_zero_iff)
 
-  have "(lcs t1 t2 - t1) \<oplus> lt p = lt (monom_mult (1 / punit.lc (rep_list p)) (lcs t1 t2 - t1) p)"
+  have "?l = (lcs t1 t2 - t1) \<oplus> lt p"
     using \<open>punit.lc (rep_list p) \<noteq> 0\<close> \<open>p \<noteq> 0\<close> by (simp add: lt_monom_mult)
-  also from assms have "lt (monom_mult (1 / punit.lc (rep_list p)) (lcs t1 t2 - t1) p) \<noteq>
-                        lt (monom_mult (1 / punit.lc (rep_list q)) (lcs t1 t2 - t2) q)"
-    by (simp add: is_regular_spair_def Let_def t1_def t2_def)
-  also have "lt (monom_mult (1 / punit.lc (rep_list q)) (lcs t1 t2 - t2) q) = (lcs t1 t2 - t2) \<oplus> lt q"
+  also from assms(3) have *: "... \<noteq> (lcs t1 t2 - t2) \<oplus> lt q"
+    by (simp add: is_regular_spair_def t1_def t2_def Let_def)
+  also have "(lcs t1 t2 - t2) \<oplus> lt q = ?r"
     using \<open>punit.lc (rep_list q) \<noteq> 0\<close> \<open>q \<noteq> 0\<close> by (simp add: lt_monom_mult)
-  finally have "(lcs t1 t2 - t1) \<oplus> lt p \<noteq> (lcs t1 t2 - t2) \<oplus> lt q" .
-  thus False using eq ..
+  finally show "?l \<noteq> ?r" .
+
+  show ?thesis1
+  proof
+    assume "t2 \<oplus> lt p = t1 \<oplus> lt q"
+    hence "(lcs t1 t2 - t1) \<oplus> lt p = (lcs t1 t2 - t2) \<oplus> lt q"
+      by (simp add: term_is_le_rel_minus_minus adds_lcs adds_lcs_2)
+    with * show False ..
+  qed
 qed
 
-lemma is_regular_spair_nonzero:
-  assumes "is_regular_spair p q"
-  shows "spair p q \<noteq> 0"
-proof
-  assume "spair p q = 0"
-  with assms show False by (simp add: is_regular_spair_def spair_def Let_def)
-qed
+lemma is_regular_spair_nonzero: "is_regular_spair p q \<Longrightarrow> spair p q \<noteq> 0"
+  by (auto simp: spair_def Let_def dest: is_regular_spairD3)
 
 lemma is_regular_spair_lt:
   assumes "is_regular_spair p q"
@@ -6021,7 +6012,7 @@ proof -
   let ?l = "lcs ?t1 ?t2"
   from assms have "lt (monom_mult (1 / punit.lc (rep_list p)) (?l - ?t1) p) \<noteq>
                    lt (monom_mult (1 / punit.lc (rep_list q)) (?l - ?t2) q)"
-    by (simp add: is_regular_spair_def Let_def)
+    by (rule is_regular_spairD3)
   hence *: "lt (monom_mult (1 / punit.lc (rep_list p)) (pp_of_term (fst (spair_sigs p q)) - lp p) p) \<noteq>
             lt (monom_mult (1 / punit.lc (rep_list q)) (pp_of_term (snd (spair_sigs p q)) - lp q) q)"
     by (simp add: spair_sigs_def Let_def term_simps)
@@ -9228,7 +9219,7 @@ proof -
     by (auto simp: rep_list_zero punit.lc_eq_zero_iff)
   from assms have "lt (monom_mult (1 / punit.lc (rep_list p)) (?l - ?t1) p) \<noteq>
                     lt (monom_mult (1 / punit.lc (rep_list q)) (?l - ?t2) q)" (is "?u \<noteq> ?v")
-    by (simp add: is_regular_spair_def Let_def)
+    by (rule is_regular_spairD3)
   hence "lt (monom_mult (1 / punit.lc (rep_list p)) (?l - ?t1) p - monom_mult (1 / punit.lc (rep_list q)) (?l - ?t2) q) =
           ord_term_lin.max ?u ?v" by (rule lt_minus_distinct_eq_max)
   moreover from \<open>p \<noteq> 0\<close> 1 have "?u = (?l - ?t1) \<oplus> fst (spp_of p)" by (simp add: lt_monom_mult fst_spp_of)
