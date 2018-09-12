@@ -225,8 +225,8 @@ global_interpretation pprod': qpm_nat_inf_term to
   and add_spairs_spp_pprod = pprod'.aux.add_spairs_spp
   and is_pot_ord_pprod = pprod'.is_pot_ord
   and new_syz_sigs_spp_pprod = pprod'.aux.new_syz_sigs_spp
-  and sig_gb_spp_body_pprod = pprod'.aux.sig_gb_spp_body
-  and sig_gb_spp_aux_pprod = pprod'.aux.sig_gb_spp_aux
+  and rb_spp_body_pprod = pprod'.aux.rb_spp_body
+  and rb_spp_aux_pprod = pprod'.aux.rb_spp_aux
   and sig_gb_z_pprod' = pprod'.aux.sig_gb_z
   and sig_gb_pprod' = pprod'.aux.sig_gb
   and rw_rat_strict_pprod = pprod'.aux.rw_rat_strict
