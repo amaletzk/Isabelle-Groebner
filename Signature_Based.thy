@@ -4353,7 +4353,7 @@ proof -
   ultimately show ?thesis by (rule finite_subset)
 qed
 
-lemma theorem_20:
+lemma rb_termination:
   fixes seq :: "nat \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::field)"
   assumes "dickson_grading d" and "range seq \<subseteq> dgrad_sig_set d" and "0 \<notin> rep_list ` range seq"
     and "\<And>i j. i < j \<Longrightarrow> lt (seq i) \<prec>\<^sub>t lt (seq j)"
@@ -7837,7 +7837,7 @@ proof (rule wfP_on_chain, rule, elim exE)
     finally show ?thesis .
   qed
   from dgrad show False
-  proof (rule theorem_20)
+  proof (rule rb_termination)
     have "seq i \<in> dgrad_sig_set dgrad" for i
     proof -
       obtain j where "i < length (seq' j)" by (rule 1)
