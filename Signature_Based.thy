@@ -7787,8 +7787,14 @@ function (domintros) rb_aux :: "((('t \<Rightarrow>\<^sub>0 'b) list \<times> 't
               rb_aux ((p' # bs, ss', add_spairs ps bs p'), z))"
   by pat_completeness auto
 
-text \<open>The last argument / return value of @{const rb_aux} is the number of $0$-reductions. It
-  is only needed for proving that under certain assumptions, there are no such $0$-reductions.\<close>
+definition rb :: "('t \<Rightarrow>\<^sub>0 'b) list \<times> nat"
+  where "rb = (let ((bs, _, _), z) = rb_aux (([], Koszul_syz_sigs fs, map Inr [0..<length fs]), 0) in (bs, z))"
+
+text \<open>@{const rb} is only an auxiliary function used for stating some theorems about rewrite bases
+  and their computation in a readable way. Actual computations (of Gr\"obner bases) are performed
+  by function \<open>sig_gb\<close>, defined below.
+  The second return value of @{const rb} is the number of $0$-reductions. It is only needed for
+  proving that under certain assumptions, there are no such $0$-reductions.\<close>
 
 text \<open>Termination\<close>
 
@@ -8165,6 +8171,9 @@ proof -
   thus ?thesis by (simp add: eq)
 qed
 
+corollary rb_is_RB_upt: "is_RB_upt dgrad rword (set (fst rb)) u"
+  using rb_aux_is_RB_upt[of 0 u] by (auto simp add: rb_def split: prod.split)
+
 corollary rb_aux_is_sig_GB_upt:
   "is_sig_GB_upt dgrad (set (fst (fst (rb_aux (([], Koszul_syz_sigs fs, map Inr [0..<length fs]), z))))) u"
   using dgrad rb_aux_is_RB_upt by (rule is_RB_upt_is_sig_GB_upt)
@@ -8228,6 +8237,15 @@ next
       unfolding eq set_map fst_conv by (rule rb_aux_inv_D9)
     thus "f \<in> ideal ?l" by (simp add: rep_list_monomial' \<open>j < length fs\<close> f)
   qed
+qed
+
+corollary ideal_rb: "ideal (rep_list ` set (fst rb)) = ideal (set fs)"
+proof -
+  have "ideal (rep_list ` set (fst rb)) =
+        ideal (set (map rep_list (fst (fst (rb_aux (([], Koszul_syz_sigs fs, map Inr [0..<length fs]), 0))))))"
+    by (auto simp: rb_def split: prod.splits)
+  also have "... = ideal (set fs)" by (fact ideal_rb_aux)
+  finally show ?thesis .
 qed
 
 lemma
@@ -8526,6 +8544,11 @@ next
   show "\<not> is_sig_red (\<preceq>\<^sub>t) (=) (set (fst (fst (rb_aux ?args))) - {g}) g"
     by (rule rb_aux_top_irred) simp
 qed
+
+corollary rb_is_min_sig_GB:
+  assumes "rword_strict = rw_rat_strict"
+  shows "is_min_sig_GB dgrad (set (fst rb))"
+  using rb_aux_is_min_sig_GB[OF assms, of 0] by (auto simp: rb_def split: prod.split)
 
 subsubsection \<open>No $0$-Reductions\<close>
 
@@ -9067,6 +9090,11 @@ proof -
   with assms have "snd (rb_aux ?args) = snd ?args" by (rule rb_aux_no_zero_red')
   thus ?thesis by (simp only: snd_conv)
 qed
+
+corollary rb_no_zero_red:
+  assumes "hom_grading dgrad" and "is_regular_sequence fs"
+  shows "snd rb = 0"
+  using rb_aux_no_zero_red[OF assms, of 0] by (auto simp: rb_def split: prod.split)
 
 end
 
