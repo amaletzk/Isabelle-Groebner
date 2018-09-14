@@ -40,27 +40,26 @@ p(m)  = x(0)*x(1)*...*x(m) - 1
 subsection \<open>Katsura\<close>
 
 definition katsura_poly :: "(nat, nat) pp nat_term_order \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> ((nat, nat) pp \<Rightarrow>\<^sub>0 'a::comm_ring_1)"
-  where "katsura_poly to m i =
-            change_ord to ((\<Sum>j=-(int m)..<(int m) + 1 - i. V\<^sub>0 (nat (abs j)) * V\<^sub>0 (nat (abs j + i))) - V\<^sub>0 i)"
+  where "katsura_poly to n i =
+            change_ord to ((\<Sum>j::int=-int n..<n + 1. if abs (i - j) \<le> n then V\<^sub>0 (nat (abs j)) * V\<^sub>0 (nat (abs (i - j))) else 0) - V\<^sub>0 i)"
 
 definition katsura :: "(nat, nat) pp nat_term_order \<Rightarrow> nat \<Rightarrow> ((nat, nat) pp \<Rightarrow>\<^sub>0 'a::comm_ring_1) list"
   where "katsura to n =
-          (let m = n - 1; xs = [0..<m] in
+          (let xs = [0..<n] in
             (distr\<^sub>0 to ((sparse\<^sub>0 [(0, 1)], 1) # (map (\<lambda>i. (sparse\<^sub>0 [(Suc i, 1)], 2)) xs) @ [(0, -1)])) #
-            (map (katsura_poly to m) xs)
+            (map (katsura_poly to n) xs)
           )"
 
-text \<open>For @{prop "1 \<le> n"}, @{term "katsura n"} is a system of \<open>n\<close> polynomials in \<open>n\<close> indeterminates,
-  with maximum degree \<open>2\<close>.\<close>
+text \<open>For @{prop "1 \<le> n"}, @{term "katsura n"} is a system of \<open>n + 1\<close> polynomials in \<open>n + 1\<close>
+  indeterminates, with maximum degree \<open>2\<close>.\<close>
 
 (*
 Input: n
-Define: m \<equiv> n - 1
-Variables: x(0), ..., x(m)
-Polynomials: p(0), ..., p(m)
+Variables: x(0), ..., x(n)
+Polynomials: p(0), ..., p(n)
 
-p(0)    = x(0) + 2 * (x(1) + ... + x(m)) - 1
-p(i+1)  = \<Sum>j=-m..m-i. x(|j|) * x(|j| + i) - x(i)    for 0 \<le> i < m
+p(0)    = x(0) + 2 * (x(1) + ... + x(n)) - 1
+p(i+1)  = (\<Sum>j=-n..n. if |i - j| \<le> n then x(|j|) * x(|i - j|) else 0) - x(i)    for 0 \<le> i < n
 *)
 
 subsection \<open>Eco\<close>

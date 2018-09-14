@@ -345,18 +345,6 @@ lemma gb_sig_pprod'_eq_gb_sig_pprod:
 thm pprod'.aux.gb_sig_isGB[OF pprod'.aux.rw_rat_strict_is_strict_rewrite_ord, simplified gb_sig_pprod'_eq_gb_sig_pprod]
 thm pprod'.aux.gb_sig_no_zero_red[OF pprod'.aux.rw_rat_strict_is_strict_rewrite_ord is_pot_ord_POT, simplified snd_gb_sig_z_pprod'_eq_gb_sig_z_pprod]
 
-(*
-lemma rb_spp_body_pprod_code_print [code]:
-  "rb_spp_body_pprod to fs rword_strict ((bs, ss, p # ps), z) =
-  (let ss' = new_syz_sigs_spp_pprod to ss bs p
-  in if sig_crit_spp_pprod to rword_strict bs ss' p then ((bs, ss', ps), z)
-     else let p' = sig_trd_spp_pprod to bs (spp_of_pair_pprod to fs p)
-          in if snd p' = 0 then print ''0'' ((bs, fst p' # ss', ps), Suc z)
-              else ((p' # bs, ss', add_spairs_spp_pprod to ps bs p'), z))"
-  "rb_spp_body_pprod to fs rword_strict ((bs, ss, []), z) = ((bs, ss, []), z)"
-  by (simp_all add: Let_def)
-*)
-
 subsection \<open>Computations\<close>
 
 experiment begin interpretation trivariate\<^sub>0_rat .
@@ -388,12 +376,11 @@ value [code] "timing ((gb_sig_z_pprod (POT DRLEX) rw_rat_strict_pprod ((katsura 
 (*
 Timings on benchmark problems
 =============================
-ATTENTION! The "katsura n" here corresponds to "Katsura (n-1)" in "Buchberger_Examples" etc.!
 ATTENTION! "d-pot" in [Eder+Faugere 2017] is NOT the same as "DEG POT!"
 
-All tests have been performed with "POT DRLEX" and "rw_rat_strict_pprod".
+All tests were performed with "POT DRLEX" and "rw_rat_strict_pprod".
 
-New implementation, rational coefficients, on qftquad4:
+Rational coefficients, on qftquad4 (katsura on roadrunner):
 
 Problem       Time (s)      #Basis      #0-Reductions
 -----------------------------------------------------
@@ -401,10 +388,10 @@ Cyclic-4          0.0           7           1
 Cyclic-5          0.1          39           0
 Cyclic-6          2.0         155           8
 Cyclic-7        500.0         749          36
-Katsura-5         0.0          16           0
-Katsura-6         0.5          32           0
-Katsura-7        10.0          64           0
-Katsura-8       403.0         128           0
+Katsura-5         0.1          29           0
+Katsura-6         1.0          59           0
+Katsura-7        23.8         117           0
+Katsura-8      1062.5         225           0
 Eco-8             0.5          76           0
 Eco-9             3.0         143           0
 Eco-10           32.0         282           0
@@ -412,19 +399,6 @@ Eco-11          297.2         559           0
 Noon-5            0.9          83           0
 Noon-6            8.8         206           0
 Noon-7          213.5         524           0
-
-
-Old implementation (initial Koszul syzygies only), rational coefficients, on qftquad2:
-
-Problem       Time (s)      #Basis      #0-Reductions
------------------------------------------------------
-Cyclic-4        0.0            7           3
-Cyclic-5        0.1           39          14
-Cyclic-6        2.5          155          47
-Cyclic-7      996.6            ?         177            (on qftquad4)
-Katsura-4       0.0           16          11
-Katsura-5       1.0           32          26
-Katsura-6      28.1           64          57
 *)
 
 end (* theory *)
