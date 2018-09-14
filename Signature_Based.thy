@@ -9716,42 +9716,39 @@ end
 
 end
 
-definition sig_gb_z ::
+definition gb_sig_z ::
     "(('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> (('t \<times> ('a \<Rightarrow>\<^sub>0 'b::field)) list \<times> nat)"
-  where "sig_gb_z rword_strict fs0 =
+  where "gb_sig_z rword_strict fs0 =
               (let fs = rev (remdups (rev (removeAll 0 fs0)));
                    res = rb_spp_aux fs rword_strict (([], Koszul_syz_sigs fs, map Inr [0..<length fs]), 0) in
                   (fst (fst res), snd res))"
 
-text \<open>The second return value of @{const sig_gb_z} is the total number of $0$-reductions.\<close>
+text \<open>The second return value of @{const gb_sig_z} is the total number of $0$-reductions.\<close>
 
-definition sig_gb :: "(('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
-  where "sig_gb rword_strict fs0 = map snd (fst (sig_gb_z rword_strict fs0))"
-
-text \<open>Attention! The name of @{const sig_gb} does not mean that @{const sig_gb} returns signature
-  Gr\"obner bases, only that it computes ordinary Gr\"obner bases by signature-based algorithms.\<close>
+definition gb_sig :: "(('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
+  where "gb_sig rword_strict fs0 = map snd (fst (gb_sig_z rword_strict fs0))"
 
 theorem
   assumes "\<And>fs. is_strict_rewrite_ord fs rword_strict"
-  shows sig_gb_isGB: "punit.is_Groebner_basis (set (sig_gb rword_strict fs))" (is ?thesis1)
-    and sig_gb_ideal: "ideal (set (sig_gb rword_strict fs)) = ideal (set fs)" (is ?thesis2)
-    and dgrad_p_set_closed_sig_gb:
-        "dickson_grading d \<Longrightarrow> set fs \<subseteq> punit.dgrad_p_set d m \<Longrightarrow> set (sig_gb rword_strict fs) \<subseteq> punit.dgrad_p_set d m"
+  shows gb_sig_isGB: "punit.is_Groebner_basis (set (gb_sig rword_strict fs))" (is ?thesis1)
+    and gb_sig_ideal: "ideal (set (gb_sig rword_strict fs)) = ideal (set fs)" (is ?thesis2)
+    and dgrad_p_set_closed_gb_sig:
+        "dickson_grading d \<Longrightarrow> set fs \<subseteq> punit.dgrad_p_set d m \<Longrightarrow> set (gb_sig rword_strict fs) \<subseteq> punit.dgrad_p_set d m"
           (is "_ \<Longrightarrow> _ \<Longrightarrow> ?thesis3")
-    and sig_gb_nonzero: "0 \<notin> set (sig_gb rword_strict fs)" (is ?thesis4)
-    and sig_gb_no_zero_red: "is_pot_ord \<Longrightarrow> is_regular_sequence fs \<Longrightarrow> snd (sig_gb_z rword_strict fs) = 0"
+    and gb_sig_nonzero: "0 \<notin> set (gb_sig rword_strict fs)" (is ?thesis4)
+    and gb_sig_no_zero_red: "is_pot_ord \<Longrightarrow> is_regular_sequence fs \<Longrightarrow> snd (gb_sig_z rword_strict fs) = 0"
 proof -
   from ex_hgrad obtain d0::"'a \<Rightarrow> nat" where "dickson_grading d0 \<and> hom_grading d0" ..
   hence dg: "dickson_grading d0" and hg: "hom_grading d0" by simp_all
   define fs1 where "fs1 = rev (remdups (rev (removeAll 0 fs)))"
   note assms dg
   moreover have "distinct fs1" and "0 \<notin> set fs1" by (simp_all add: fs1_def)
-  ultimately have "ideal (set (sig_gb rword_strict fs)) = ideal (set fs1)" and ?thesis4
-    unfolding sig_gb_def sig_gb_z_def fst_conv fs1_def Let_def by (rule rb_spp_aux)+
+  ultimately have "ideal (set (gb_sig rword_strict fs)) = ideal (set fs1)" and ?thesis4
+    unfolding gb_sig_def gb_sig_z_def fst_conv fs1_def Let_def by (rule rb_spp_aux)+
   thus ?thesis2 and ?thesis4 by (simp_all add: fs1_def ideal.module_minus_singleton_zero)
 
   from assms dg \<open>distinct fs1\<close> \<open>0 \<notin> set fs1\<close> hg show ?thesis1
-    unfolding sig_gb_def sig_gb_z_def fst_conv fs1_def Let_def by (rule rb_spp_aux)
+    unfolding gb_sig_def gb_sig_z_def fst_conv fs1_def Let_def by (rule rb_spp_aux)
 
   {
     assume dg: "dickson_grading d" and *: "set fs \<subseteq> punit.dgrad_p_set d m"
@@ -9760,7 +9757,7 @@ proof -
       case True
       hence "removeAll 0 fs = []"
         by (metis (no_types, lifting) Diff_iff ex_in_conv set_empty2 set_removeAll subset_singleton_iff)
-      thus ?thesis by (simp add: sig_gb_def sig_gb_z_def Let_def rb_spp_aux_Nil)
+      thus ?thesis by (simp add: gb_sig_def gb_sig_z_def Let_def rb_spp_aux_Nil)
     next
       case False
       have "set fs1 \<subseteq> set fs" by (fastforce simp: fs1_def)
@@ -9772,9 +9769,9 @@ proof -
         by (simp add: finite_Keys)
       ultimately have le: "Max (insert (d 0) (d ` Keys (set fs1))) \<le>
                             Max (insert (d 0) (d ` Keys (set fs)))" by (rule Max_mono)
-      from assms dg have "set (sig_gb rword_strict fs) \<subseteq> punit_dgrad_max_set (TYPE('b)) fs1 d"
+      from assms dg have "set (gb_sig rword_strict fs) \<subseteq> punit_dgrad_max_set (TYPE('b)) fs1 d"
         using \<open>distinct fs1\<close> \<open>0 \<notin> set fs1\<close>
-        unfolding sig_gb_def sig_gb_z_def fst_conv fs1_def Let_def by (rule rb_spp_aux)
+        unfolding gb_sig_def gb_sig_z_def fst_conv fs1_def Let_def by (rule rb_spp_aux)
       also have "punit_dgrad_max_set (TYPE('b)) fs1 d \<subseteq> punit_dgrad_max_set (TYPE('b)) fs d"
         by (rule punit.dgrad_p_set_subset, simp add: dgrad_max_def le)
       also from dg * False have "... \<subseteq> punit.dgrad_p_set d m"
@@ -9789,13 +9786,13 @@ proof -
     moreover assume "is_pot_ord"
     moreover from \<open>is_regular_sequence fs\<close> have "is_regular_sequence fs1" unfolding fs1_def
       by (intro is_regular_sequence_remdups is_regular_sequence_removeAll_zero)
-    ultimately show "snd (sig_gb_z rword_strict fs) = 0"
-      unfolding sig_gb_def sig_gb_z_def snd_conv fs1_def Let_def by (rule rb_spp_aux)
+    ultimately show "snd (gb_sig_z rword_strict fs) = 0"
+      unfolding gb_sig_def gb_sig_z_def snd_conv fs1_def Let_def by (rule rb_spp_aux)
   }
 qed
 
-theorem sig_gb_is_min_sig_GB:
-  assumes "p \<in> set (fst (sig_gb_z rw_rat_strict fs))" and "q \<in> set (fst (sig_gb_z rw_rat_strict fs))"
+theorem gb_sig_z_is_min_sig_GB:
+  assumes "p \<in> set (fst (gb_sig_z rw_rat_strict fs))" and "q \<in> set (fst (gb_sig_z rw_rat_strict fs))"
     and "p \<noteq> q" and "punit.lt (snd p) adds punit.lt (snd q)"
   shows "punit.lt (snd p) \<oplus> fst q \<prec>\<^sub>t punit.lt (snd q) \<oplus> fst p"
 proof -
@@ -9805,14 +9802,14 @@ proof -
   note rw_rat_strict_is_strict_rewrite_ord this
   moreover have "distinct fs1" and "0 \<notin> set fs1" by (simp_all add: fs1_def)
   moreover note refl assms
-  ultimately show ?thesis unfolding sig_gb_def sig_gb_z_def fst_conv fs1_def Let_def by (rule rb_spp_aux)
+  ultimately show ?thesis unfolding gb_sig_z_def fst_conv fs1_def Let_def by (rule rb_spp_aux)
 qed
 
 text \<open>Summarizing, these are the four main results proved in this theory:
-  \<^item> @{thm sig_gb_isGB},
-  \<^item> @{thm sig_gb_ideal},
-  \<^item> @{thm sig_gb_no_zero_red}, and
-  \<^item> @{thm sig_gb_is_min_sig_GB}.\<close>
+  \<^item> @{thm gb_sig_isGB},
+  \<^item> @{thm gb_sig_ideal},
+  \<^item> @{thm gb_sig_no_zero_red}, and
+  \<^item> @{thm gb_sig_z_is_min_sig_GB}.\<close>
 
 end (* qpm_inf_term *)
 

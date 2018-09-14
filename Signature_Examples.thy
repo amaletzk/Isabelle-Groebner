@@ -227,8 +227,8 @@ global_interpretation pprod': qpm_nat_inf_term to
   and new_syz_sigs_spp_pprod = pprod'.aux.new_syz_sigs_spp
   and rb_spp_body_pprod = pprod'.aux.rb_spp_body
   and rb_spp_aux_pprod = pprod'.aux.rb_spp_aux
-  and sig_gb_z_pprod' = pprod'.aux.sig_gb_z
-  and sig_gb_pprod' = pprod'.aux.sig_gb
+  and gb_sig_z_pprod' = pprod'.aux.gb_sig_z
+  and gb_sig_pprod' = pprod'.aux.gb_sig
   and rw_rat_strict_pprod = pprod'.aux.rw_rat_strict
   and rw_add_strict_pprod = pprod'.aux.rw_add_strict
   subgoal by (rule qpm_nat_inf_term.intro, fact gd_nat_term_id)
@@ -328,32 +328,32 @@ qed
 corollary is_pot_ord_POT: "is_pot_ord_pprod (POT to)"
   by (simp only: compute_is_pot_ord)
 
-definition "sig_gb_z_pprod to rword_strict fs \<equiv>
-                  (let res = sig_gb_z_pprod' to (rword_strict to) (map (change_ord (proj_ord to)) fs) in
+definition "gb_sig_z_pprod to rword_strict fs \<equiv>
+                  (let res = gb_sig_z_pprod' to (rword_strict to) (map (change_ord (proj_ord to)) fs) in
                     (length (fst res), snd res))"
 
-definition "sig_gb_pprod to rword_strict fs \<equiv> sig_gb_pprod' to (rword_strict to) (map (change_ord (proj_ord to)) fs)"
+definition "gb_sig_pprod to rword_strict fs \<equiv> gb_sig_pprod' to (rword_strict to) (map (change_ord (proj_ord to)) fs)"
 
-lemma snd_sig_gb_z_pprod'_eq_sig_gb_z_pprod:
-  "snd (sig_gb_z_pprod' to (rword_strict to) fs) = snd (sig_gb_z_pprod to rword_strict fs)"
-  by (simp add: sig_gb_z_pprod_def change_ord_def Let_def)
+lemma snd_gb_sig_z_pprod'_eq_gb_sig_z_pprod:
+  "snd (gb_sig_z_pprod' to (rword_strict to) fs) = snd (gb_sig_z_pprod to rword_strict fs)"
+  by (simp add: gb_sig_z_pprod_def change_ord_def Let_def)
 
-lemma sig_gb_pprod'_eq_sig_gb_pprod:
-  "sig_gb_pprod' to (rword_strict to) fs = sig_gb_pprod to rword_strict fs"
-  by (simp add: sig_gb_pprod_def change_ord_def)
+lemma gb_sig_pprod'_eq_gb_sig_pprod:
+  "gb_sig_pprod' to (rword_strict to) fs = gb_sig_pprod to rword_strict fs"
+  by (simp add: gb_sig_pprod_def change_ord_def)
 
-thm pprod'.aux.sig_gb_isGB[OF pprod'.aux.rw_rat_strict_is_strict_rewrite_ord, simplified sig_gb_pprod'_eq_sig_gb_pprod]
-thm pprod'.aux.sig_gb_no_zero_red[OF pprod'.aux.rw_rat_strict_is_strict_rewrite_ord is_pot_ord_POT, simplified snd_sig_gb_z_pprod'_eq_sig_gb_z_pprod]
+thm pprod'.aux.gb_sig_isGB[OF pprod'.aux.rw_rat_strict_is_strict_rewrite_ord, simplified gb_sig_pprod'_eq_gb_sig_pprod]
+thm pprod'.aux.gb_sig_no_zero_red[OF pprod'.aux.rw_rat_strict_is_strict_rewrite_ord is_pot_ord_POT, simplified snd_gb_sig_z_pprod'_eq_gb_sig_z_pprod]
 
 (*
-lemma sig_gb_spp_body_pprod_code_print [code]:
-  "sig_gb_spp_body_pprod to fs rword_strict ((bs, ss, p # ps), z) =
-  (let ss' = new_syz_sigs_spp_pprod to fs ss bs p
+lemma rb_spp_body_pprod_code_print [code]:
+  "rb_spp_body_pprod to fs rword_strict ((bs, ss, p # ps), z) =
+  (let ss' = new_syz_sigs_spp_pprod to ss bs p
   in if sig_crit_spp_pprod to rword_strict bs ss' p then ((bs, ss', ps), z)
      else let p' = sig_trd_spp_pprod to bs (spp_of_pair_pprod to fs p)
           in if snd p' = 0 then print ''0'' ((bs, fst p' # ss', ps), Suc z)
               else ((p' # bs, ss', add_spairs_spp_pprod to ps bs p'), z))"
-  "sig_gb_spp_body_pprod to fs rword_strict ((bs, ss, []), z) = ((bs, ss, []), z)"
+  "rb_spp_body_pprod to fs rword_strict ((bs, ss, []), z) = ((bs, ss, []), z)"
   by (simp_all add: Let_def)
 *)
 
@@ -379,19 +379,17 @@ value [code] "rw_rat_strict_pprod DRLEX ((0, 0), poly1) ((0, 0), poly2)"
 
 value [code] "rw_add_strict_pprod DRLEX ((0, 0), poly1) ((0, 0), poly2)"
 
-value [code] "sig_gb_spp_body_pprod DRLEX ((cyclic DRLEX 2)::(_ \<Rightarrow>\<^sub>0 rat) list) (rw_rat_strict_pprod DRLEX) (([], [], [Inr 0, Inr 1]), 0)"
+value [code] "rb_spp_body_pprod DRLEX ((cyclic DRLEX 2)::(_ \<Rightarrow>\<^sub>0 rat) list) (rw_rat_strict_pprod DRLEX) (([], [], [Inr 0, Inr 1]), 0)"
 
-text \<open>We restrict computations of (signature) Gr\"obner bases to @{const rw_rat_strict_pprod}, because
-  according to @{thm pprod'.aux.sig_gb_aux_is_min_sig_GB} this rewrite-order is optimal.\<close>
+value [code] "gb_sig_z_pprod DRLEX rw_rat_strict_pprod [poly1, poly2]"
 
-value [code] "sig_gb_pprod DRLEX rw_rat_strict_pprod [poly1, poly2]"
-
-value [code] "timing ((sig_gb_z_pprod (POT DRLEX) rw_rat_strict_pprod ((cyclic DRLEX 1)::(_ \<Rightarrow>\<^sub>0 rat) list)))"
+value [code] "timing ((gb_sig_z_pprod (POT DRLEX) rw_rat_strict_pprod ((katsura DRLEX 1)::(_ \<Rightarrow>\<^sub>0 gf32003) list)))"
 
 (*
 Timings on benchmark problems
 =============================
 ATTENTION! The "katsura n" here corresponds to "Katsura (n-1)" in "Buchberger_Examples" etc.!
+ATTENTION! "d-pot" in [Eder+Faugere 2017] is NOT the same as "DEG POT!"
 
 All tests have been performed with "POT DRLEX" and "rw_rat_strict_pprod".
 
@@ -406,6 +404,7 @@ Cyclic-7        500.0         749          36
 Katsura-5         0.0          16           0
 Katsura-6         0.5          32           0
 Katsura-7        10.0          64           0
+Katsura-8       403.0         128           0
 Eco-8             0.5          76           0
 Eco-9             3.0         143           0
 Eco-10           32.0         282           0
