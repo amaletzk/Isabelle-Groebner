@@ -3,7 +3,7 @@
 section \<open>Sample Computations with Buchberger's Algorithm\<close>
 
 theory Buchberger_Examples
-  imports Groebner_Bases.Buchberger Groebner_Bases.Algorithm_Schema_Impl Groebner_Bases.Code_Target_Rat "../Print"
+  imports Groebner_Bases.Buchberger Groebner_Bases.Algorithm_Schema_Impl Groebner_Bases.Code_Target_Rat "../Print" "../Benchmarks"
 begin
 
 subsection \<open>Scalar Polynomials\<close>
@@ -106,6 +106,8 @@ definition "chain_ocrit_punit_print to =
 
 definition "trdsp_punit_timing to = (\<lambda>bs p. timing_lbl ''trdsp'' (trd_punit to bs (spoly_punit to (fst (fst p)) (fst (snd p)))))"
 
+definition "trdsp_punit_print to = (\<lambda>bs p. (let res = trd_punit to bs (spoly_punit to (fst (fst p)) (fst (snd p))) in if res = 0 then print ''0'' res else res))"
+
 definition "add_pairs_punit_timing =
   (\<lambda>np icrit ncrit ocrit comb gs bs ps hs data.
       timing_lbl ''ap''
@@ -114,9 +116,10 @@ definition "add_pairs_punit_timing =
 
 definition "add_pairs_punit_print =
   (\<lambda>np icrit ncrit ocrit comb gs bs ps hs data.
-      (let ps1 = apply_ncrit_punit ncrit data gs bs hs (apply_icrit_punit icrit data gs bs hs (np gs bs hs data));
+      (let ps0 = np gs bs hs data;
+           ps1 = apply_ncrit_punit ncrit data gs bs hs (apply_icrit_punit icrit data gs bs hs ps0);
            ps2 = apply_ocrit_punit ocrit data hs ps1 ps;
-           ps3 = [x\<leftarrow>ps1 . \<not> fst x] in print (length ps2 + length ps3) (comb (map snd ps3) ps2)))"
+           ps3 = [x\<leftarrow>ps1 . \<not> fst x] in print ((length ps + length ps0) - (length ps2 + length ps3)) (comb (map snd ps3) ps2)))"
 
 definition "add_basis_sorted_print =
   (\<lambda>rel gs bs ns data. (if length ns = 0 then (\<lambda>_ x. x) else print) (length bs + length ns, map (card_keys \<circ> fst) ns) (merge_wrt (rel data) bs ns))"
@@ -136,19 +139,10 @@ lemma chain_ncrit_punit_print [simp]: "chain_ncrit_punit_print = chain_ncrit_pun
 lemma chain_ocrit_punit_print [simp]: "chain_ocrit_punit_print = chain_ocrit_punit"
   by (rule ext, simp add: chain_ocrit_punit_print_def)
 
-(*
-lemma pc_crit_punit_print [code_abbrev]: "pc_crit_punit_print = pc_crit_punit"
-  by (simp add: pc_crit_punit_print_def punit'.punit.pc_crit_def)
-*)
 
 (*
 lemma gb_sel_punit_print [code_abbrev]: "gb_sel_punit_print = gb_sel_punit"
   apply (simp add: gb_sel_punit_print_def Let_def) sorry
-*)
-
-(*
-lemma pc_crit_punit_timing [code_abbrev]: "pc_crit_punit_timing = pc_crit_punit"
-  sorry
 *)
 
 (*
@@ -187,6 +181,12 @@ lemma trdsp_punit_timing [code_abbrev]: "trdsp_punit_timing = trdsp_punit"
   sorry
 *)
 
+(*
+lemma trdsp_punit_print [code_abbrev]: "trdsp_punit_print = trdsp_punit"
+  sorry
+*)
+
+(*
 experiment begin interpretation trivariate\<^sub>0_rat .
 
 subsubsection \<open>Computations\<close>
@@ -274,24 +274,9 @@ lemma
   by eval
 
 end
+*)
 
-definition "gb_cyclic to n = (gb_punit to (map (\<lambda>p. (p, ())) (rev ((cyclic to n)::(_ \<Rightarrow>\<^sub>0 rat) list))) ())"
-
-value [code] "timing (length (gb_punit DRLEX (map (\<lambda>p. (p, ())) (Katsura DRLEX 2)) ()))"
-
-value [code] "timing (length (gb_cyclic DRLEX 5))"
-
-function repeat :: "(natural \<Rightarrow> 'c) \<Rightarrow> natural \<Rightarrow> 'c" where
-  "repeat f n = (if n = 0 then f 0 else (let _ = f n in repeat f (n - 1)))"
-  by auto
-termination sorry
-
-value [code] "let r1 = (1587403220023648961010354787510025/754422498806579781314598530046874)::rat;
-                  r2 = (1587410325684552047810144874/8455657518197317514479580621624761948498527639189070213488573493541897381325890539198611871410797366962398562593692460878056090389366922786523226701592701116126522722087517900268748285083392130388459943058915232146768)::rat in
-                timing_nores (repeat (\<lambda>i. r1 + r2) (natural_of_nat 1000))"
-
-(* The same computation takes 0.004 seconds with Ratio.ratio in OCaml!
-  The denominator of r2 with 200+ digits actually appears in the computation of cyclic-6. *)
+value [code] "timing (length (gb_punit DRLEX (map (\<lambda>p. (p, ())) ((eco DRLEX 8)::(_ \<Rightarrow>\<^sub>0 rat) list)) ()))"
 
 subsection \<open>Vector Polynomials\<close>
 
