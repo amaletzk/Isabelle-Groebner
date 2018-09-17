@@ -335,6 +335,27 @@ lemma lt_minus_eqI: "lt p \<prec>\<^sub>t lt q \<Longrightarrow> lt (p - q) = lt
 lemma lt_minus_eqI_2: "lt q \<prec>\<^sub>t lt p \<Longrightarrow> lt (p - q) = lt p" for p q :: "'t \<Rightarrow>\<^sub>0 'b::ab_group_add"
   by (metis lt_minus_eqI lt_uminus minus_diff_eq)
 
+lemma lt_minus_eqI_3:
+  assumes "lt q = lt p" and "lc q \<noteq> lc p"
+  shows "lt (p - q) = lt (p::'t \<Rightarrow>\<^sub>0 'b::ab_group_add)"
+proof (rule lt_eqI)
+  from assms(2) show "lookup (p - q) (lt p) \<noteq> 0" by (simp add: lookup_minus lc_def assms(1))
+next
+  fix u
+  assume "lookup (p - q) u \<noteq> 0"
+  hence "lookup p u \<noteq> lookup q u" by (simp add: lookup_minus)
+  hence "lookup p u \<noteq> 0 \<or> lookup q u \<noteq> 0" by auto
+  thus "u \<preceq>\<^sub>t lt p"
+  proof
+    assume "lookup p u \<noteq> 0"
+    thus ?thesis by (rule lt_max)
+  next
+    assume "lookup q u \<noteq> 0"
+    hence "u \<preceq>\<^sub>t lt q" by (rule lt_max)
+    thus ?thesis by (simp only: assms(1))
+  qed
+qed
+
 lemma lt_minus_distinct_eq_max:
   assumes "lt p \<noteq> lt (q::'t \<Rightarrow>\<^sub>0 'b::ab_group_add)"
   shows "lt (p - q) = ord_term_lin.max (lt p) (lt q)"
@@ -2457,6 +2478,119 @@ proof -
     by (rule sig_red_zeroE)
   from this(2) assms(2) have "r \<noteq> s" by auto
   with * show ?thesis by (induct rule: converse_rtranclp_induct, auto simp: is_sig_red_def)
+qed
+
+lemma is_sig_red_sing_top_is_red_zero:
+  assumes "dickson_grading d" and "is_sig_GB_upt d G u" and "a \<in> dgrad_sig_set d" and "lt a = u"
+    and "is_sig_red (=) (=) G a" and "\<not> is_sig_red (\<prec>\<^sub>t) (=) G a"
+  shows "sig_red_zero (\<preceq>\<^sub>t) G a"
+proof -
+  from assms(5) obtain g where "g \<in> G" and "rep_list g \<noteq> 0" and "rep_list a \<noteq> 0"
+    and 1: "punit.lt (rep_list g) adds punit.lt (rep_list a)"
+    and 2: "punit.lt (rep_list a) \<oplus> lt g = punit.lt (rep_list g) \<oplus> lt a"
+    by (rule is_sig_red_top_addsE)
+  from this(2, 3) have "g \<noteq> 0" and "a \<noteq> 0" by (auto simp: rep_list_zero)
+  hence "lc g \<noteq> 0" and "lc a \<noteq> 0" using lc_not_0 by blast+
+  from 1 have 3: "(punit.lt (rep_list a) - punit.lt (rep_list g)) \<oplus> lt g = lt a"
+    by (simp add: term_is_le_rel_minus 2)
+  define g' where "g' = monom_mult (lc a / lc g) (punit.lt (rep_list a) - punit.lt (rep_list g)) g"
+  from \<open>g \<noteq> 0\<close> \<open>lc a \<noteq> 0\<close> \<open>lc g \<noteq> 0\<close> have lt_g': "lt g' = lt a" by (simp add: g'_def lt_monom_mult 3)
+  from \<open>lc g \<noteq> 0\<close> have lc_g': "lc g' = lc a" by (simp add: g'_def)
+  from assms(1) have "g' \<in> dgrad_sig_set d" unfolding g'_def
+  proof (rule dgrad_sig_set_closed_monom_mult)
+    from assms(1) 1 have "d (punit.lt (rep_list a) - punit.lt (rep_list g)) \<le> d (punit.lt (rep_list a))"
+      by (rule dickson_grading_minus)
+    also from assms(1, 3) have "... \<le> dgrad_max d" by (rule dgrad_sig_setD_rep_list_lt)
+    finally show "d (punit.lt (rep_list a) - punit.lt (rep_list g)) \<le> dgrad_max d" .
+  next
+    from assms(2) have "G \<subseteq> dgrad_sig_set d" by (rule is_sig_GB_uptD1)
+    with \<open>g \<in> G\<close> show "g \<in> dgrad_sig_set d" ..
+  qed
+  with assms(3) have b_in: "a - g' \<in> dgrad_sig_set d" (is "?b \<in> _")
+    by (rule dgrad_sig_set_closed_minus)
+  from 1 have 4: "punit.lt (rep_list a) - punit.lt (rep_list g) + punit.lt (rep_list g) =
+                  punit.lt (rep_list a)"
+    by (rule adds_minus)
+
+  show ?thesis
+  proof (cases "lc a / lc g = punit.lc (rep_list a) / punit.lc (rep_list g)")
+    case True
+    have "sig_red_single (=) (=) a ?b g (punit.lt (rep_list a) - punit.lt (rep_list g))"
+    proof (rule sig_red_singleI)
+      show "punit.lt (rep_list a) - punit.lt (rep_list g) + punit.lt (rep_list g) \<in> keys (rep_list a)"
+        unfolding 4 using \<open>rep_list a \<noteq> 0\<close> by (rule punit.lt_in_keys)
+    next
+      show "?b =
+            a - monom_mult
+             (lookup (rep_list a) (punit.lt (rep_list a) - punit.lt (rep_list g) + punit.lt (rep_list g)) /
+              punit.lc (rep_list g))
+             (punit.lt (rep_list a) - punit.lt (rep_list g)) g"
+        by (simp add: g'_def 4 punit.lc_def True)
+    qed (simp_all add: 3 4 \<open>rep_list g \<noteq> 0\<close>)
+    hence "sig_red (=) (=) G a ?b" unfolding sig_red_def using \<open>g \<in> G\<close> by blast
+    hence "sig_red (\<preceq>\<^sub>t) (\<preceq>) G a ?b" by (auto dest: sig_red_sing_regI sig_red_top_tailI)
+    hence 5: "(sig_red (\<preceq>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* a ?b" ..
+    show ?thesis
+    proof (cases "?b = 0")
+      case True
+      hence "rep_list ?b = 0" by (simp only: rep_list_zero)
+      with 5 show ?thesis by (rule sig_red_zeroI)
+    next
+      case False
+      hence "lt ?b \<prec>\<^sub>t lt a" using lt_g' lc_g' by (rule lt_minus_lessI)
+      hence "lt ?b \<prec>\<^sub>t u" by (simp only: assms(4))
+      with assms(2) b_in have "sig_red_zero (\<preceq>\<^sub>t) G ?b" by (rule is_sig_GB_uptD3)
+      then obtain s where "(sig_red (\<preceq>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* ?b s" and "rep_list s = 0" by (rule sig_red_zeroE)
+      from 5 this(1) have "(sig_red (\<preceq>\<^sub>t) (\<preceq>) G)\<^sup>*\<^sup>* a s" by (rule rtranclp_trans)
+      thus ?thesis using \<open>rep_list s = 0\<close> by (rule sig_red_zeroI)
+    qed
+  next
+    case False
+    from \<open>rep_list g \<noteq> 0\<close> \<open>lc g \<noteq> 0\<close> \<open>lc a \<noteq> 0\<close> have 5: "punit.lt (rep_list g') = punit.lt (rep_list a)"
+      by (simp add: g'_def rep_list_monom_mult punit.lt_monom_mult 4)
+    have 6: "punit.lc (rep_list g') = (lc a / lc g) * punit.lc (rep_list g)"
+      by (simp add: g'_def rep_list_monom_mult)
+    also have 7: "... \<noteq> punit.lc (rep_list a)"
+    proof
+      assume "lc a / lc g * punit.lc (rep_list g) = punit.lc (rep_list a)"
+      moreover from \<open>rep_list g \<noteq> 0\<close> have "punit.lc (rep_list g) \<noteq> 0" by (rule punit.lc_not_0)
+      ultimately have "lc a / lc g = punit.lc (rep_list a) / punit.lc (rep_list g)"
+        by (simp add: field_simps)
+      with False show False ..
+    qed
+    finally have "punit.lc (rep_list g') \<noteq> punit.lc (rep_list a)" .
+    with 5 have 8: "punit.lt (rep_list ?b) = punit.lt (rep_list a)" unfolding rep_list_minus
+      by (rule punit.lt_minus_eqI_3)
+    hence "punit.lc (rep_list ?b) = punit.lc (rep_list a) - (lc a / lc g) * punit.lc (rep_list g)"
+      unfolding 6[symmetric] by (simp only: punit.lc_def lookup_minus rep_list_minus 5)
+    also have "... \<noteq> 0"
+    proof
+      assume "punit.lc (rep_list a) - lc a / lc g * punit.lc (rep_list g) = 0"
+      hence "lc a / lc g * punit.lc (rep_list g) = punit.lc (rep_list a)" by simp
+      with 7 show False ..
+    qed
+    finally have "rep_list ?b \<noteq> 0" by (simp add: punit.lc_eq_zero_iff)
+    hence "?b \<noteq> 0" by (auto simp: rep_list_zero)
+    hence "lt ?b \<prec>\<^sub>t lt a" using lt_g' lc_g' by (rule lt_minus_lessI)
+    hence "lt ?b \<prec>\<^sub>t u" by (simp only: assms(4))
+    with assms(2) b_in have "sig_red_zero (\<preceq>\<^sub>t) G ?b" by (rule is_sig_GB_uptD3)
+    moreover note \<open>rep_list ?b \<noteq> 0\<close>
+    moreover have "(\<preceq>\<^sub>t) = (\<preceq>\<^sub>t) \<or> (\<preceq>\<^sub>t) = (\<prec>\<^sub>t)" by simp
+    ultimately have "is_sig_red (\<preceq>\<^sub>t) (=) G ?b" by (rule sig_red_zero_nonzero)
+    then obtain g0 where "g0 \<in> G" and "rep_list g0 \<noteq> 0"
+      and 9: "punit.lt (rep_list g0) adds punit.lt (rep_list ?b)"
+      and 10: "punit.lt (rep_list ?b) \<oplus> lt g0 \<preceq>\<^sub>t punit.lt (rep_list g0) \<oplus> lt ?b"
+      by (rule is_sig_red_top_addsE)
+    from 9 have "punit.lt (rep_list g0) adds punit.lt (rep_list a)" by (simp only: 8)
+    from 10 have "punit.lt (rep_list a) \<oplus> lt g0 \<preceq>\<^sub>t punit.lt (rep_list g0) \<oplus> lt ?b" by (simp only: 8)
+    also from \<open>lt ?b \<prec>\<^sub>t lt a\<close> have "... \<prec>\<^sub>t punit.lt (rep_list g0) \<oplus> lt a" by (rule splus_mono_strict)
+    finally have "punit.lt (rep_list a) \<oplus> lt g0 \<prec>\<^sub>t punit.lt (rep_list g0) \<oplus> lt a" .
+    have "is_sig_red (\<prec>\<^sub>t) (=) G a"
+    proof (rule is_sig_red_top_addsI)
+      show "ord_term_lin.is_le_rel (\<prec>\<^sub>t)" by simp
+    qed fact+
+    with assms(6) show ?thesis ..
+  qed
 qed
 
 lemma sig_regular_reduced_unique:
