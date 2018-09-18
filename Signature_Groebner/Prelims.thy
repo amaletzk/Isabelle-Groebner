@@ -816,4 +816,143 @@ end (* recursive *)
 interpretation tailrec: recursive "\<lambda>x. x" undefined
   by (standard, fact refl)
 
+subsection \<open>Binary Relations\<close>
+
+lemma finite_minimalE:
+  assumes "finite A" and "A \<noteq> {}" and "irreflp rel" and "transp rel"
+  obtains a where "a \<in> A" and "\<And>b. rel b a \<Longrightarrow> b \<notin> A"
+  using assms(1, 2)
+proof (induct arbitrary: thesis)
+  case empty
+  from empty(2) show ?case by simp
+next
+  case (insert a A)
+  show ?case
+  proof (cases "A = {}")
+    case True
+    show ?thesis
+    proof (rule insert(4))
+      fix b
+      assume "rel b a"
+      with assms(3) show "b \<notin> insert a A" by (auto simp: True irreflp_def)
+    qed simp
+  next
+    case False
+    with insert(3) obtain z where "z \<in> A" and *: "\<And>b. rel b z \<Longrightarrow> b \<notin> A" by blast
+    show ?thesis
+    proof (cases "rel a z")
+      case True
+      show ?thesis
+      proof (rule insert(4))
+        fix b
+        assume "rel b a"
+        with assms(4) have "rel b z" using \<open>rel a z\<close> by (rule transpD)
+        hence "b \<notin> A" by (rule *)
+        moreover from \<open>rel b a\<close> assms(3) have "b \<noteq> a" by (auto simp: irreflp_def)
+        ultimately show "b \<notin> insert a A" by simp
+      qed simp
+    next
+      case False
+      show ?thesis
+      proof (rule insert(4))
+        fix b
+        assume "rel b z"
+        hence "b \<notin> A" by (rule *)
+        moreover from \<open>rel b z\<close> False have "b \<noteq> a" by blast
+        ultimately show "b \<notin> insert a A" by simp
+      next
+        from \<open>z \<in> A\<close> show "z \<in> insert a A" by simp
+      qed
+    qed
+  qed
+qed
+
+lemma almost_full_on_Int:
+  assumes "almost_full_on P1 A1" and "almost_full_on P2 A2"
+  shows "almost_full_on (\<lambda>x y. P1 x y \<and> P2 x y) (A1 \<inter> A2)" (is "almost_full_on ?P ?A")
+proof (rule almost_full_onI)
+  fix f :: "nat \<Rightarrow> 'a"
+  assume a: "\<forall>i. f i \<in> ?A"
+  define g where "g = (\<lambda>i. (f i, f i))"
+  from assms have "almost_full_on (prod_le P1 P2) (A1 \<times> A2)" by (rule almost_full_on_Sigma)
+  moreover from a have "\<And>i. g i \<in> A1 \<times> A2" by (simp add: g_def)
+  ultimately obtain i j where "i < j" and "prod_le P1 P2 (g i) (g j)" by (rule almost_full_onD)
+  from this(2) have "?P (f i) (f j)" by (simp add: g_def prod_le_def)
+  with \<open>i < j\<close> show "good ?P f" by (rule goodI)
+qed
+
+corollary almost_full_on_same:
+  assumes "almost_full_on P1 A" and "almost_full_on P2 A"
+  shows "almost_full_on (\<lambda>x y. P1 x y \<and> P2 x y) A"
+proof -
+  from assms have "almost_full_on (\<lambda>x y. P1 x y \<and> P2 x y) (A \<inter> A)" by (rule almost_full_on_Int)
+  thus ?thesis by simp
+qed
+
+context ord
+begin
+
+definition is_le_rel :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> bool"
+  where "is_le_rel rel = (rel = (=) \<or> rel = (\<le>) \<or> rel = (<))"
+
+lemma is_le_relI [simp]: "is_le_rel (=)" "is_le_rel (\<le>)" "is_le_rel (<)"
+  by (simp_all add: is_le_rel_def)
+
+lemma is_le_relE:
+  assumes "is_le_rel rel"
+  obtains "rel = (=)" | "rel = (\<le>)" | "rel = (<)"
+  using assms unfolding is_le_rel_def by blast
+
+end (* ord *)
+
+context preorder
+begin
+
+lemma is_le_rel_le:
+  assumes "is_le_rel rel"
+  shows "rel x y \<Longrightarrow> x \<le> y"
+  using assms by (rule is_le_relE, auto dest: less_imp_le)
+
+lemma is_le_rel_trans:
+  assumes "is_le_rel rel"
+  shows "rel x y \<Longrightarrow> rel y z \<Longrightarrow> rel x z"
+  using assms by (rule is_le_relE, auto dest: order_trans less_trans)
+
+lemma is_le_rel_trans_le_left:
+  assumes "is_le_rel rel"
+  shows "x \<le> y \<Longrightarrow> rel y z \<Longrightarrow> x \<le> z"
+  using assms by (rule is_le_relE, auto dest: order_trans le_less_trans less_imp_le)
+
+lemma is_le_rel_trans_le_right:
+  assumes "is_le_rel rel"
+  shows "rel x y \<Longrightarrow> y \<le> z \<Longrightarrow> x \<le> z"
+  using assms by (rule is_le_relE, auto dest: order_trans less_le_trans less_imp_le)
+
+lemma is_le_rel_trans_less_left:
+  assumes "is_le_rel rel"
+  shows "x < y \<Longrightarrow> rel y z \<Longrightarrow> x < z"
+  using assms by (rule is_le_relE, auto dest: less_le_trans less_imp_le)
+
+lemma is_le_rel_trans_less_right:
+  assumes "is_le_rel rel"
+  shows "rel x y \<Longrightarrow> y < z \<Longrightarrow> x < z"
+  using assms by (rule is_le_relE, auto dest: le_less_trans less_imp_le)
+
+end (* preorder *)
+
+context order
+begin
+
+lemma is_le_rel_distinct:
+  assumes "is_le_rel rel"
+  shows "rel x y \<Longrightarrow> x \<noteq> y \<Longrightarrow> x < y"
+  using assms by (rule is_le_relE, auto)
+
+lemma is_le_rel_antisym:
+  assumes "is_le_rel rel"
+  shows "rel x y \<Longrightarrow> rel y x \<Longrightarrow> x = y"
+  using assms by (rule is_le_relE, auto)
+
+end (* order *)
+
 end (* theory *)
