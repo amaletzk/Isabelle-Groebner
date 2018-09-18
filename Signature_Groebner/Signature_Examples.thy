@@ -353,6 +353,8 @@ lemma
   "gb_sig_z_pprod DRLEX rw_rat_strict_pprod [X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y, X * Y * Z + 2 * Y\<^sup>2] = (4, 0)"
   by eval
 
+end
+
 lemma
   "gb_sig_z_pprod (POT DRLEX) rw_rat_strict_pprod ((katsura DRLEX 3)::(_ \<Rightarrow>\<^sub>0 rat) list) = (8, 0)"
   by eval
