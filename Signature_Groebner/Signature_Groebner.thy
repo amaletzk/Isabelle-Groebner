@@ -2,8 +2,8 @@
 
 section \<open>Signature-Based Algorithms for Computing Gr\"obner Bases\<close>
 
-theory Signature_Based
-  imports General_Utils Groebner_Bases.Syzygy Quasi_PM_Power_Products
+theory Signature_Groebner
+  imports Prelims Groebner_Bases.Syzygy Quasi_PM_Power_Products
 begin
 
 (* TODO: Add references. *)

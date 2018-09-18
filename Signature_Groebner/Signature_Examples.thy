@@ -3,7 +3,7 @@
 section \<open>Sample Computations with Signature-Based Algorithms\<close>
 
 theory Signature_Examples
-  imports Signature_Based Benchmarks Polynomials.MPoly_Type_Class_OAlist Groebner_Bases.Code_Target_Rat Print
+  imports Signature_Groebner Benchmarks Groebner_Bases.Code_Target_Rat
 begin
 
 subsection \<open>Setup\<close>
@@ -349,56 +349,12 @@ subsection \<open>Computations\<close>
 
 experiment begin interpretation trivariate\<^sub>0_rat .
 
-abbreviation "poly1 \<equiv> change_ord DRLEX (X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y)"
-abbreviation "poly2 \<equiv> change_ord DRLEX (X * Y * Z + 2 * Y\<^sup>2)"
-abbreviation "poly3 \<equiv> change_ord DRLEX (X\<^sup>2 * Z ^ 3)"
+lemma
+  "gb_sig_z_pprod DRLEX rw_rat_strict_pprod [X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y, X * Y * Z + 2 * Y\<^sup>2] = (4, 0)"
+  by eval
 
-value [code] "is_pot_ord_pprod (POT (DRLEX::((nat, nat) pp \<times> nat) nat_term_order))"
-
-value [code] "Koszul_syz_sigs_pprod DRLEX [poly1, poly2]"
-
-value [code] "find_sig_reducer_pprod DRLEX [((0, 0), poly1), ((0, 0), poly2)] (0, 1) (sparse\<^sub>0 [(0, 2), (1, 1), (2, 3)]) 0"
-
-value [code] "sig_trd_spp_body_pprod DRLEX [((0, 0), poly1), ((0, 0), poly2)] (0, 1) (poly3, 0)"
-
-value [code] "sig_trd_spp_pprod DRLEX [((0, 0), poly1), ((0, 0), poly2)] ((0, 1), poly3)"
-
-value [code] "rw_rat_strict_pprod DRLEX ((0, 0), poly1) ((0, 0), poly2)"
-
-value [code] "rw_add_strict_pprod DRLEX ((0, 0), poly1) ((0, 0), poly2)"
-
-value [code] "rb_spp_body_pprod DRLEX ((cyclic DRLEX 2)::(_ \<Rightarrow>\<^sub>0 rat) list) (rw_rat_strict_pprod DRLEX) (([], [], [Inr 0, Inr 1]), 0)"
-
-value [code] "gb_sig_z_pprod DRLEX rw_rat_strict_pprod [poly1, poly2]"
-
-value [code] "timing ((gb_sig_z_pprod (POT DRLEX) rw_rat_strict_pprod ((katsura DRLEX 1)::(_ \<Rightarrow>\<^sub>0 gf32003) list)))"
-
-(*
-Timings on benchmark problems
-=============================
-ATTENTION! "d-pot" in [Eder+Faugere 2017] is NOT the same as "DEG POT!"
-
-All tests were performed with "POT DRLEX" and "rw_rat_strict_pprod".
-
-Rational coefficients, on qftquad4 (katsura on roadrunner):
-
-Problem       Time (s)      #Basis      #0-Reductions
------------------------------------------------------
-Cyclic-4          0.0           7           1
-Cyclic-5          0.1          39           0
-Cyclic-6          2.0         155           8
-Cyclic-7        500.0         749          36
-Katsura-5         0.1          29           0
-Katsura-6         1.0          59           0
-Katsura-7        23.8         117           0
-Katsura-8      1062.5         225           0
-Eco-8             0.5          76           0
-Eco-9             3.0         143           0
-Eco-10           32.0         282           0
-Eco-11          297.2         559           0
-Noon-5            0.9          83           0
-Noon-6            8.8         206           0
-Noon-7          213.5         524           0
-*)
+lemma
+  "gb_sig_z_pprod (POT DRLEX) rw_rat_strict_pprod ((katsura DRLEX 3)::(_ \<Rightarrow>\<^sub>0 rat) list) = (8, 0)"
+  by eval
 
 end (* theory *)
