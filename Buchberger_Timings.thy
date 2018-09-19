@@ -1,5 +1,5 @@
 theory Buchberger_Timings
-  imports Groebner_Bases.Buchberger_Examples "../Print" "../Signature_Groebner/Benchmarks"
+  imports Groebner_Bases.Buchberger_Examples Print "Signature_Groebner/Benchmarks"
 begin
 
 subsection \<open>Scalar Polynomials\<close>

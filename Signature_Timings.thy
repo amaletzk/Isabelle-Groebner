@@ -1,5 +1,5 @@
 theory Signature_Timings
-  imports "../Signature_Groebner/Signature_Examples" "../Finite_Field"
+  imports "Signature_Groebner/Signature_Examples" Finite_Field
 begin
 
 value [code] "timing (gb_sig_z_pprod (POT DRLEX) rw_rat_strict_pprod ((katsura DRLEX 1)::(_ \<Rightarrow>\<^sub>0 rat) list))"
