@@ -4,6 +4,8 @@ theory Finite_Field
   imports "HOL-Computational_Algebra.Euclidean_Algorithm" Int31
 begin
 
+(* Int31 could be replaced by "Native_Word.Word32". *)
+
 text \<open>We introduce types for finite fields of prime order, i.\,e. fields isomorphic to $\mathbb{Z}_p$
   for some prime number $p$.\<close>
 
