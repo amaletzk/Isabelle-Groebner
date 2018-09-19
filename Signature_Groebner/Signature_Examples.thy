@@ -350,13 +350,29 @@ subsection \<open>Computations\<close>
 experiment begin interpretation trivariate\<^sub>0_rat .
 
 lemma
-  "gb_sig_z_pprod DRLEX rw_rat_strict_pprod [X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y, X * Y * Z + 2 * Y\<^sup>2] = (4, 0)"
+  "gb_sig_pprod DRLEX rw_rat_strict_pprod [X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y, X * Y * Z + 2 * Y\<^sup>2] =
+    [C\<^sub>0 (3 / 4) * X ^ 3 * Y\<^sup>2 - 2 * Y ^ 4, - 4 * Y ^ 3 * Z - 3 * X\<^sup>2 * Y\<^sup>2, X * Y * Z + 2 * Y\<^sup>2, X\<^sup>2 * Z ^ 3 + 3 * X\<^sup>2 * Y]"
   by eval
 
 end
 
+text \<open>Recall that the first return value of @{const gb_sig_z_pprod} is the size of the computed
+  Gr\"obner basis, and the second return value is the total number of useless zero-reductions:\<close>
+
 lemma
-  "gb_sig_z_pprod (POT DRLEX) rw_rat_strict_pprod ((katsura DRLEX 3)::(_ \<Rightarrow>\<^sub>0 rat) list) = (8, 0)"
+  "gb_sig_z_pprod (POT DRLEX) rw_rat_strict_pprod ((cyclic DRLEX 6)::(_ \<Rightarrow>\<^sub>0 rat) list) = (155, 8)"
+  by eval
+
+lemma
+  "gb_sig_z_pprod (POT DRLEX) rw_rat_strict_pprod ((katsura DRLEX 5)::(_ \<Rightarrow>\<^sub>0 rat) list) = (29, 0)"
+  by eval
+
+lemma
+  "gb_sig_z_pprod (POT DRLEX) rw_rat_strict_pprod ((eco DRLEX 8)::(_ \<Rightarrow>\<^sub>0 rat) list) = (76, 0)"
+  by eval
+
+lemma
+  "gb_sig_z_pprod (POT DRLEX) rw_rat_strict_pprod ((noon DRLEX 5)::(_ \<Rightarrow>\<^sub>0 rat) list) = (83, 0)"
   by eval
 
 end (* theory *)
