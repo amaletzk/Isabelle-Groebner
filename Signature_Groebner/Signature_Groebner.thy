@@ -6,24 +6,9 @@ theory Signature_Groebner
   imports More_MPoly Groebner_Bases.Syzygy Quasi_PM_Power_Products
 begin
 
-(* TODO: Add references. *)
-
-text \<open>This formalization closely follows Sections 4 to 7 of the excellent survey article @{cite Eder2015}.
-  First, we develop the whole theory for elements of the module $K[X]^r$, i.\,e. objects of type
+text \<open>First, we develop the whole theory for elements of the module $K[X]^r$, i.\,e. objects of type
   @{typ "'t \<Rightarrow>\<^sub>0 'b"}. Later, we transfer all algorithms defined on such objects to algorithms
   efficiently operating on sig-poly-pairs, i.\,e. objects of type @{typ "'t \<times> ('a \<Rightarrow>\<^sub>0 'b)"}.\<close>
-
-text \<open>The highlights of the formalization are as follows:
-  \<^item> It is \<^emph>\<open>generic\<close>, in the sense that it neither fixes the term order nor the rewrite-order.
-  \<^item> It is \<^emph>\<open>efficient\<close>, in the sense that all executable algorithms are defined on sig-poly-pairs
-    rather than module elements, and that polynomials are represented efficiently using ordered
-    associative lists.
-  \<^item> It proves that the signature Gr\"obner bases computed wrt. the `rational' rewrite-order are
-    minimal.
-  \<^item> It proves that if the input is a regular sequence and the term order is a POT order, there
-    are no useless $0$-reductions.
-  \<^item> It features sample computations of benchmark problems to illustrate the practical usability of
-    the verified algorithms.\<close>
 
 subsection \<open>More Preliminaries\<close>
 
@@ -5698,7 +5683,7 @@ lemma rb_spp_aux_Cons [code]:
   by (simp add: rb_spp_aux_def tailrec.simps)
 
 text \<open>The last parameter / return value of @{const rb_spp_aux}, @{term z}, counts the number of
-  $0$-reductions. Below we will prove that this number remains $0$ under certain conditions.\<close>
+  zero-reductions. Below we will prove that this number remains $0$ under certain conditions.\<close>
 
 context
   assumes rword_is_strict_rewrite_ord: "is_strict_rewrite_ord rword_strict"
@@ -7359,8 +7344,8 @@ definition rb :: "('t \<Rightarrow>\<^sub>0 'b) list \<times> nat"
 text \<open>@{const rb} is only an auxiliary function used for stating some theorems about rewrite bases
   and their computation in a readable way. Actual computations (of Gr\"obner bases) are performed
   by function \<open>sig_gb\<close>, defined below.
-  The second return value of @{const rb} is the number of $0$-reductions. It is only needed for
-  proving that under certain assumptions, there are no such $0$-reductions.\<close>
+  The second return value of @{const rb} is the number of zero-reductions. It is only needed for
+  proving that under certain assumptions, there are no such zero-reductions.\<close>
 
 text \<open>Termination\<close>
 
@@ -8116,7 +8101,7 @@ corollary rb_is_min_sig_GB:
   shows "is_min_sig_GB dgrad (set (fst rb))"
   using rb_aux_is_min_sig_GB[OF assms, of 0] by (auto simp: rb_def split: prod.split)
 
-subsubsection \<open>No $0$-Reductions\<close>
+subsubsection \<open>No Zero-Reductions\<close>
 
 fun rb_aux_inv2 :: "(('t \<Rightarrow>\<^sub>0 'b) list \<times> 't list \<times> ((('t \<Rightarrow>\<^sub>0 'b) \<times> ('t \<Rightarrow>\<^sub>0 'b)) + nat) list) \<Rightarrow> bool"
   where "rb_aux_inv2 (bs, ss, ps) =
@@ -9289,7 +9274,7 @@ definition gb_sig_z ::
                    res = rb_spp_aux fs rword_strict (([], Koszul_syz_sigs fs, map Inr [0..<length fs]), 0) in
                   (fst (fst res), snd res))"
 
-text \<open>The second return value of @{const gb_sig_z} is the total number of $0$-reductions.\<close>
+text \<open>The second return value of @{const gb_sig_z} is the total number of zero-reductions.\<close>
 
 definition gb_sig :: "(('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> ('t \<times> ('a \<Rightarrow>\<^sub>0 'b)) \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::field) list"
   where "gb_sig rword_strict fs0 = map snd (fst (gb_sig_z rword_strict fs0))"
