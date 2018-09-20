@@ -40,15 +40,19 @@
 \maketitle
 
 \begin{abstract}
-This entry formalizes signature-based algorithms for efficiently computing Gr\"obner bases. 
-Other algorithms for that purpose exist and have been already formalized in Isabelle/HOL and 
-elsewhere, but signature-based algorithms are currently the most efficient ones. The present 
-formalization is both generic, in the sense that most known variants of signature-based algorithms 
-are covered by it, and effectively executable on concrete input thanks to Isabelle's code generator.
+This article formalizes signature-based algorithms for computing Gr\"obner bases. Such 
+algorithms are, in general, superior to other algorithms in terms of efficiency, and have not been 
+formalized in any proof assistant so far. The present development is both generic, in the sense that 
+most known variants of signature-based algorithms are covered by it, and effectively executable on 
+concrete input thanks to Isabelle's code generator. Sample computations of benchmark problems show 
+that the verified implementation of signature-based algorithms indeed outperforms the existing 
+implementation of Buchberger's algorithm in Isabelle/HOL.
 
-Besides total correctness of the algorithms, the formalization also proves that under certain 
+Besides total correctness of the algorithms, the article also proves that under certain 
 conditions they a-priori detect and avoid all useless zero-reductions, and always return `minimal' 
 (in some sense) Gr\"obner bases if an input parameter is chosen in the right way.
+
+The formalization follows the recent survey article by Eder and Faug\`ere.
 \end{abstract}
 
 \tableofcontents
