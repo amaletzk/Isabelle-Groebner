@@ -4,7 +4,7 @@ theory MPoly_PM
   imports Polynomials.MPoly_Type_Class
 begin
 
-text \<open>Many notions introduced in this theory for type @{typ "('n \<Rightarrow>\<^sub>0 'a) \<Rightarrow>\<^sub>0 'b"} closely resemble
+text \<open>Many notions introduced in this theory for type @{typ "('x \<Rightarrow>\<^sub>0 'a) \<Rightarrow>\<^sub>0 'b"} closely resemble
   those introduced in @{theory Polynomials.MPoly_Type} for type @{typ "'a mpoly"}.\<close>
 
 lemma monomial_single_power:
@@ -96,13 +96,13 @@ lemma adds_pm: "s adds t \<longleftrightarrow> s \<unlhd> t"
 
 subsection \<open>Degree\<close>
 
-definition poly_deg :: "(('n \<Rightarrow>\<^sub>0 'a::add_linorder) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> 'a" where
+definition poly_deg :: "(('x \<Rightarrow>\<^sub>0 'a::add_linorder) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> 'a" where
   "poly_deg p = (if keys p = {} then 0 else Max (deg_pm ` keys p))"
 
-definition maxdeg :: "(('n \<Rightarrow>\<^sub>0 'a::add_linorder) \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> 'a" where
+definition maxdeg :: "(('x \<Rightarrow>\<^sub>0 'a::add_linorder) \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> 'a" where
   "maxdeg A = Max (poly_deg ` A)"
   
-definition mindeg :: "(('n \<Rightarrow>\<^sub>0 'a::add_linorder) \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> 'a" where
+definition mindeg :: "(('x \<Rightarrow>\<^sub>0 'a::add_linorder) \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> 'a" where
   "mindeg A = Min (poly_deg ` A)"
 
 lemma poly_deg_monomial: "poly_deg (monomial c t) = (if c = 0 then 0 else deg_pm t)"
@@ -281,7 +281,7 @@ lemma mindeg_min:
 
 subsection \<open>Indeterminates\<close>
 
-definition indets :: "(('n \<Rightarrow>\<^sub>0 'a::zero) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> 'n set"
+definition indets :: "(('x \<Rightarrow>\<^sub>0 'a::zero) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> 'x set"
   where "indets p = UNION (keys p) keys"
 
 lemma in_indetsI:
@@ -398,7 +398,7 @@ proof -
 qed
 
 lemma indets_monom_mult:
-  assumes "c \<noteq> 0" and "p \<noteq> (0::('n \<Rightarrow>\<^sub>0 'a::{comm_powerprod,ninv_comm_monoid_add}) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)"
+  assumes "c \<noteq> 0" and "p \<noteq> (0::('x \<Rightarrow>\<^sub>0 'a::{comm_powerprod,ninv_comm_monoid_add}) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)"
   shows "indets (punit.monom_mult c t p) = keys t \<union> indets p"
 proof (rule, fact indets_monom_mult_subset, rule)
   fix x
@@ -469,9 +469,9 @@ next
   thus ?thesis by simp
 qed
 
-lemma indets_power_subset: "indets (p ^ n) \<subseteq> indets (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_semiring_1)"
+lemma indets_power_subset: "indets (p ^ n) \<subseteq> indets (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_semiring_1)"
 proof -
-  have "p ^ n = (\<Prod>i=0..<n. p)" by (simp add: prod_constant)
+  have "p ^ n = (\<Prod>i=0..<n. p)" by simp
   also have "indets ... \<subseteq> (\<Union>i\<in>{0..<n}. indets p)" by (fact indets_prod_subset)
   also have "... \<subseteq> indets p" by simp
   finally show ?thesis .
@@ -496,10 +496,10 @@ text \<open>The substitution homomorphisms defined here are more general than @{
   they replace indeterminates by @{emph \<open>polynomials\<close>} rather than coefficients, and therefore
   construct new polynomials.\<close>
 
-definition subst_pp :: "('n \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a)) \<Rightarrow> ('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::comm_semiring_1)"
+definition subst_pp :: "('x \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a)) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::comm_semiring_1)"
   where "subst_pp f t = (\<Prod>x\<in>keys t. (f x) ^ (lookup t x))"
 
-definition poly_subst :: "('n \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a)) \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::comm_semiring_1)"
+definition poly_subst :: "('x \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a)) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::comm_semiring_1)"
   where "poly_subst f p = (\<Sum>t\<in>keys p. punit.monom_mult (lookup p t) 0 (subst_pp f t))"
 
 lemma subst_pp_alt: "subst_pp f t = (\<Prod>x. (f x) ^ (lookup t x))"
@@ -515,15 +515,15 @@ lemma subst_pp_zero [simp]: "subst_pp f 0 = 1"
 
 lemma subst_pp_trivial_not_zero:
   assumes "t \<noteq> 0"
-  shows "subst_pp (\<lambda>_. 0) t = (0::(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_semiring_1))"
+  shows "subst_pp (\<lambda>_. 0) t = (0::(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_semiring_1))"
   unfolding subst_pp_def using finite_keys
 proof (rule prod_zero)
   from assms have "keys t \<noteq> {}" by simp
   then obtain x where "x \<in> keys t" by blast
-  thus "\<exists>x\<in>keys t. 0 ^ lookup t x = (0::(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b))"
+  thus "\<exists>x\<in>keys t. 0 ^ lookup t x = (0::(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b))"
   proof
     from \<open>x \<in> keys t\<close> have "0 < lookup t x" by (simp add: in_keys_iff)
-    thus "0 ^ lookup t x = (0::(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b))" by (rule Power.semiring_1_class.zero_power)
+    thus "0 ^ lookup t x = (0::(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b))" by (rule Power.semiring_1_class.zero_power)
   qed
 qed
 
@@ -575,7 +575,7 @@ qed
 
 lemma poly_deg_subst_pp_eq_zeroI:
   assumes "\<And>x. x \<in> keys t \<Longrightarrow> poly_deg (f x) = 0"
-  shows "poly_deg (subst_pp f (t::'n \<Rightarrow>\<^sub>0 nat)) = 0"
+  shows "poly_deg (subst_pp f (t::'x \<Rightarrow>\<^sub>0 nat)) = 0"
 proof -
   have "poly_deg (subst_pp f t) \<le> (\<Sum>x\<in>keys t. poly_deg ((f x) ^ (lookup t x)))"
     unfolding subst_pp_def by (fact poly_deg_prod_le)
@@ -584,7 +584,7 @@ proof -
     fix x
     assume "x \<in> keys t"
     hence "poly_deg (f x) = 0" by (rule assms)
-    have "f x ^ lookup t x = (\<Prod>i=0..<lookup t x. f x)" by (simp add: prod_constant)
+    have "f x ^ lookup t x = (\<Prod>i=0..<lookup t x. f x)" by simp
     also have "poly_deg ... \<le> (\<Sum>i=0..<lookup t x. poly_deg (f x))" by (rule poly_deg_prod_le)
     also have "... = 0" by (simp add: \<open>poly_deg (f x) = 0\<close>)
     finally show "poly_deg (f x ^ lookup t x) = 0" by simp
@@ -594,7 +594,7 @@ qed
 
 lemma poly_deg_subst_pp_le:
   assumes "\<And>x. x \<in> keys t \<Longrightarrow> poly_deg (f x) \<le> 1"
-  shows "poly_deg (subst_pp f (t::'n \<Rightarrow>\<^sub>0 nat)) \<le> deg_pm t"
+  shows "poly_deg (subst_pp f (t::'x \<Rightarrow>\<^sub>0 nat)) \<le> deg_pm t"
 proof -
   have "poly_deg (subst_pp f t) \<le> (\<Sum>x\<in>keys t. poly_deg ((f x) ^ (lookup t x)))"
     unfolding subst_pp_def by (fact poly_deg_prod_le)
@@ -603,7 +603,7 @@ proof -
     fix x
     assume "x \<in> keys t"
     hence "poly_deg (f x) \<le> 1" by (rule assms)
-    have "f x ^ lookup t x = (\<Prod>i=0..<lookup t x. f x)" by (simp add: prod_constant)
+    have "f x ^ lookup t x = (\<Prod>i=0..<lookup t x. f x)" by simp
     also have "poly_deg ... \<le> (\<Sum>i=0..<lookup t x. poly_deg (f x))" by (rule poly_deg_prod_le)
     also from \<open>poly_deg (f x) \<le> 1\<close> have "... \<le> (\<Sum>i=0..<lookup t x. 1)" by (rule sum_mono)
     finally show "poly_deg (f x ^ lookup t x) \<le> lookup t x" by simp
@@ -621,39 +621,40 @@ proof -
 qed
 
 lemma poly_subst_trivial [simp]: "poly_subst (\<lambda>_. 0) p = monomial (lookup p 0) 0"
-  apply (simp add: poly_subst_def subst_pp_trivial if_distrib)
-  apply (simp cong: if_cong)
-  apply (metis mult.right_neutral times_monomial_left)
-  done
+  by (simp add: poly_subst_def subst_pp_trivial if_distrib cong: if_cong)
+      (metis mult.right_neutral times_monomial_left)
 
 lemma poly_subst_zero [simp]: "poly_subst f 0 = 0"
   by (simp add: poly_subst_def)
 
-lemma monom_mult_lookup_not_zero_subset_keys: "{t. punit.monom_mult (lookup p t) 0 (subst_pp f t) \<noteq> 0} \<subseteq> keys p"
+lemma monom_mult_lookup_not_zero_subset_keys:
+  "{t. punit.monom_mult (lookup p t) 0 (subst_pp f t) \<noteq> 0} \<subseteq> keys p"
 proof (rule, simp)
   fix t
   assume "punit.monom_mult (lookup p t) 0 (subst_pp f t) \<noteq> 0"
   thus "t \<in> keys p" unfolding in_keys_iff by (metis punit.monom_mult_zero_left)
 qed
 
-corollary finite_monom_mult_lookup_not_zero: "finite {t. punit.monom_mult (lookup p t) 0 (subst_pp f t) \<noteq> 0}"
+corollary finite_monom_mult_lookup_not_zero:
+  "finite {t. punit.monom_mult (lookup p t) 0 (subst_pp f t) \<noteq> 0}"
   by (rule finite_subset, fact monom_mult_lookup_not_zero_subset_keys, fact finite_keys)
 
 lemma poly_subst_plus: "poly_subst f (p + q) = poly_subst f p + poly_subst f q"
   by (simp add: poly_subst_alt lookup_add punit.monom_mult_dist_left, rule Sum_any.distrib,
       (fact finite_monom_mult_lookup_not_zero)+)
 
-lemma poly_subst_uminus: "poly_subst f (-p) = - poly_subst f (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_ring_1)"
+lemma poly_subst_uminus: "poly_subst f (-p) = - poly_subst f (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_ring_1)"
   by (simp add: poly_subst_def keys_uminus punit.monom_mult_uminus_left sum_negf)
 
-lemma poly_subst_minus: "poly_subst f (p - q) = poly_subst f p - poly_subst f (q::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_ring_1)"
+lemma poly_subst_minus:
+  "poly_subst f (p - q) = poly_subst f p - poly_subst f (q::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_ring_1)"
 proof -
   have "poly_subst f (p + (-q)) = poly_subst f p + poly_subst f (-q)" by (fact poly_subst_plus)
   thus ?thesis by (simp add: poly_subst_uminus)
 qed
 
 lemma poly_subst_monomial: "poly_subst f (monomial c t) = punit.monom_mult c 0 (subst_pp f t)"
-  by (simp add: poly_subst_def lookup_single punit.monom_mult_zero_left)
+  by (simp add: poly_subst_def lookup_single)
 
 corollary poly_subst_one [simp]: "poly_subst f 1 = 1"
   by (simp add: single_one[symmetric] poly_subst_monomial punit.monom_mult_monomial del: single_one)
@@ -689,25 +690,25 @@ proof -
     by (simp add: Sum_any_right_distrib[OF fin_2] punit.monom_mult_Sum_any_left[OF fin_3] mult_when punit.when_monom_mult)
   also have "\<dots> = (\<Sum>t. (\<Sum>(u, v). (punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f t)) when t = u + v))"
     apply (subst (2) Sum_any.cartesian_product [of "?P \<times> ?Q"])
-    apply (auto simp add: in_keys_iff punit.monom_mult_zero_left simp del: lookup_not_eq_zero_eq_in_keys)
+    apply (auto simp add: in_keys_iff simp del: lookup_not_eq_zero_eq_in_keys)
     done
   also have "\<dots> = (\<Sum>(t, u, v). punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f t) when t = u + v)"
     apply (subst Sum_any.cartesian_product [of "?PQ \<times> (?P \<times> ?Q)"])
-    apply (auto simp add: fin_PQ in_keys_iff punit.monom_mult_zero_left simp del: lookup_not_eq_zero_eq_in_keys)
+    apply (auto simp add: fin_PQ in_keys_iff simp del: lookup_not_eq_zero_eq_in_keys)
     apply (metis monomial_0I mult_not_zero times_monomial_left)
     done
   also have "\<dots> = (\<Sum>(u, v, t). punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f t) when t = u + v)"
     using bij by (rule Sum_any.reindex_cong [of "\<lambda>(u, v, t). (t, u, v)"]) (simp add: fun_eq_iff)
   also have "\<dots> = (\<Sum>(u, v). \<Sum>t. punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f t) when t = u + v)"
     apply (subst Sum_any.cartesian_product2 [of "(?P \<times> ?Q) \<times> ?PQ"])
-    apply (auto simp add: fin_PQ in_keys_iff punit.monom_mult_zero_left simp del: lookup_not_eq_zero_eq_in_keys)
+    apply (auto simp add: fin_PQ in_keys_iff simp del: lookup_not_eq_zero_eq_in_keys)
     apply (metis monomial_0I mult_not_zero times_monomial_left)
     done
   also have "\<dots> = (\<Sum>(u, v). punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f u * subst_pp f v))"
     by (simp add: subst_pp_plus)
   also have "\<dots> = (\<Sum>u. \<Sum>v. punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f u * subst_pp f v))"
     apply (subst Sum_any.cartesian_product [of "?P \<times> ?Q"])
-    apply (auto simp add: in_keys_iff punit.monom_mult_zero_left simp del: lookup_not_eq_zero_eq_in_keys)
+    apply (auto simp add: in_keys_iff simp del: lookup_not_eq_zero_eq_in_keys)
     done
   also have "\<dots> = (\<Sum>u. \<Sum>v. (punit.monom_mult (lookup p u) 0 (subst_pp f u)) * (punit.monom_mult (lookup q v) 0 (subst_pp f v)))"
     by (simp add: times_monomial_left[symmetric] ac_simps mult_single)
@@ -770,7 +771,7 @@ qed
 
 lemma poly_deg_poly_subst_eq_zeroI:
   assumes "\<And>x. x \<in> indets p \<Longrightarrow> poly_deg (f x) = 0"
-  shows "poly_deg (poly_subst f (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_semiring_1)) = 0"
+  shows "poly_deg (poly_subst f (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_semiring_1)) = 0"
 proof (cases "p = 0")
   case True
   thus ?thesis by simp
@@ -789,7 +790,7 @@ next
     assume "d \<in> poly_deg ` (\<lambda>t. punit.monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p"
     then obtain t where "t \<in> keys p" and d: "d = poly_deg (punit.monom_mult (lookup p t) 0 (subst_pp f t))"
       by fastforce
-    have "d \<le> deg_pm (0::'n \<Rightarrow>\<^sub>0 nat) + poly_deg (subst_pp f t)"
+    have "d \<le> deg_pm (0::'x \<Rightarrow>\<^sub>0 nat) + poly_deg (subst_pp f t)"
       unfolding d by (fact poly_deg_monom_mult_le)
     also have "... = poly_deg (subst_pp f t)" by simp
     also have "... = 0" by (rule poly_deg_subst_pp_eq_zeroI, rule assms, erule in_indetsI, fact)
@@ -800,7 +801,7 @@ qed
 
 lemma poly_deg_poly_subst_le:
   assumes "\<And>x. x \<in> indets p \<Longrightarrow> poly_deg (f x) \<le> 1"
-  shows "poly_deg (poly_subst f (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_semiring_1)) \<le> poly_deg p"
+  shows "poly_deg (poly_subst f (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_semiring_1)) \<le> poly_deg p"
 proof (cases "p = 0")
   case True
   thus ?thesis by simp
@@ -819,7 +820,7 @@ next
     assume "d \<in> poly_deg ` (\<lambda>t. punit.monom_mult (lookup p t) 0 (subst_pp f t)) ` keys p"
     then obtain t where "t \<in> keys p" and d: "d = poly_deg (punit.monom_mult (lookup p t) 0 (subst_pp f t))"
       by fastforce
-    have "d \<le> deg_pm (0::'n \<Rightarrow>\<^sub>0 nat) + poly_deg (subst_pp f t)"
+    have "d \<le> deg_pm (0::'x \<Rightarrow>\<^sub>0 nat) + poly_deg (subst_pp f t)"
       unfolding d by (fact poly_deg_monom_mult_le)
     also have "... = poly_deg (subst_pp f t)" by simp
     also have "... \<le> deg_pm t" by (rule poly_deg_subst_pp_le, rule assms, erule in_indetsI, fact)
@@ -829,11 +830,121 @@ next
   finally show ?thesis by simp
 qed
 
+subsection \<open>Degree-Sections of Power-Products\<close>
+
+definition deg_sect :: "nat \<Rightarrow> nat \<Rightarrow> ('x::countable \<Rightarrow>\<^sub>0 nat) set"
+  where "deg_sect n d = {t. varnum t \<le> n \<and> deg_pm t = d}"
+
+definition deg_le_sect :: "nat \<Rightarrow> nat \<Rightarrow> ('x::countable \<Rightarrow>\<^sub>0 nat) set"
+  where "deg_le_sect n d = (\<Union>d0\<le>d. deg_sect n d0)"
+
+lemma deg_le_sect_alt: "deg_le_sect n d = {t. varnum t \<le> n \<and> deg_pm t \<le> d}"
+  by (auto simp: deg_le_sect_def deg_sect_def)
+
+lemma deg_sect_zero [simp]: "deg_sect n 0 = {0}"
+  by (auto simp: deg_sect_def)
+
+lemma deg_le_sect_zero [simp]: "deg_le_sect 0 d = {0}" "deg_le_sect n 0 = {0}"
+  subgoal by (auto simp: deg_le_sect_alt varnum_eq_zero_iff)
+  subgoal by (auto simp: deg_le_sect_def)
+  done
+
+lemma deg_sect_mono: "n1 \<le> n2 \<Longrightarrow> deg_sect n1 d \<subseteq> deg_sect n2 d"
+  by (auto simp: deg_sect_def)
+
+lemma deg_le_sect_mono_1: "n1 \<le> n2 \<Longrightarrow> deg_le_sect n1 d \<subseteq> deg_le_sect n2 d"
+  by (auto simp: deg_le_sect_alt)
+
+lemma deg_le_sect_mono_2: "d1 \<le> d2 \<Longrightarrow> deg_le_sect n d1 \<subseteq> deg_le_sect n d2"
+  by (auto simp: deg_le_sect_alt)
+
+lemma zero_in_deg_set: "0 \<in> deg_le_sect n d"
+  by (simp add: deg_le_sect_alt)
+
+lemma deg_sect_disjoint: "d1 \<noteq> d2 \<Longrightarrow> deg_sect n1 d1 \<inter> deg_sect n2 d2 = {}"
+  by (auto simp: deg_sect_def)
+
+lemma deg_sect_Suc:
+  "deg_sect n (Suc d) = (\<Union>x\<in>{y. elem_index y < n}. (+) (Poly_Mapping.single x 1) ` deg_sect n d)"
+  sorry
+
+lemma deg_le_sect_Suc: "deg_le_sect n (Suc d) = deg_le_sect n d \<union> deg_sect n (Suc d)"
+  by (simp add: deg_le_sect_def atMost_Suc Un_commute)
+
+lemma deg_le_sect_Suc_2:
+  "deg_le_sect n (Suc d) = insert 0 (\<Union>x\<in>{y. elem_index y < n}. (+) (Poly_Mapping.single x 1) ` deg_le_sect n d)"
+  sorry
+
+lemma finite_deg_sect: "finite ((deg_sect n d)::('x::countable \<Rightarrow>\<^sub>0 nat) set)"
+  sorry
+
+lemma finite_deg_le_sect: "finite ((deg_le_sect n d)::('x::countable \<Rightarrow>\<^sub>0 nat) set)"
+proof (induct d)
+  case 0
+  show ?case by (simp add: deg_le_sect_alt)
+next
+  case (Suc d)
+  have eq: "deg_le_sect n (Suc d) = deg_le_sect n d \<union> {t::'x \<Rightarrow>\<^sub>0 nat. varnum t \<le> n \<and> deg_pm t = Suc d}"
+    (is "_ = _ \<union> ?A") by (auto simp add: deg_le_sect_alt)
+  have "?A \<subseteq> (\<Union>x\<in>{y::'x. elem_index y < n}. (+) (Poly_Mapping.single x 1) ` deg_le_sect n d)" (is "_ \<subseteq> ?B")
+  proof (rule, simp, elim conjE)
+    fix t::"'x \<Rightarrow>\<^sub>0 nat"
+    assume "varnum t \<le> n" and "deg_pm t = Suc d"
+    from this(2) have "deg_pm t \<noteq> 0" by simp
+    hence "keys t \<noteq> {}" by simp
+    then obtain x where "x \<in> keys t" by blast
+    hence "lookup t x \<noteq> 0" by (simp only: lookup_not_eq_zero_eq_in_keys)
+    then obtain d' where "lookup t x = Suc d'" using not0_implies_Suc by blast
+    show "\<exists>x. elem_index x < n \<and> t \<in> (+) (Poly_Mapping.single x (Suc 0)) ` deg_le_sect n d"
+    proof (intro exI conjI)
+      from \<open>x \<in> keys t\<close> have "elem_index x < varnum t" by (rule elem_index_less_varnum)
+      from this \<open>varnum t \<le> n\<close> show "elem_index x < n" by simp
+    next
+      let ?x = "Poly_Mapping.single x (Suc 0)"
+      have "deg_pm ?x = (\<Sum>k\<in>keys ?x. lookup ?x k)"
+        by (rule deg_pm_superset, fact subset_refl, fact finite_keys)
+      hence "deg_pm ?x = Suc 0" by simp
+      have "?x adds t"
+      proof (rule adds_pmI, rule le_pmI, simp add: lookup_single when_def, rule impI)
+        fix y
+        assume "x = y"
+        with \<open>lookup t x = Suc d'\<close> have "lookup t y = Suc d'" by simp
+        thus "Suc 0 \<le> lookup t y" by simp
+      qed
+      show "t \<in> (+) (monomial (Suc 0) x) ` deg_le_sect n d"
+      proof
+        from \<open>?x adds t\<close> show "t = Poly_Mapping.single x (Suc 0) + (t - ?x)"
+          by (metis add.commute adds_minus)
+      next
+        show "t - ?x \<in> deg_le_sect n d"
+        proof (simp add: deg_le_sect_alt, rule)
+          from dickson_grading_varnum \<open>?x adds t\<close> have "varnum (t - ?x) \<le> varnum t"
+            by (rule dickson_grading_minus)
+          from this \<open>varnum t \<le> n\<close> show "varnum (t - ?x) \<le> n" by (rule le_trans)
+        next
+          from \<open>?x adds t\<close> obtain s where "t = ?x + s" ..
+          have "Suc d = deg_pm t" by (simp only: \<open>deg_pm t = Suc d\<close>)
+          also have "... = deg_pm ?x + deg_pm s" by (simp add: \<open>t = ?x + s\<close> deg_pm_plus)
+          also have "... = Suc (deg_pm s)" by (simp add: \<open>deg_pm ?x = Suc 0\<close>)
+          finally show "deg_pm (t - ?x) \<le> d" by (simp add: \<open>t = ?x + s\<close>)
+        qed
+      qed
+    qed
+  qed
+  moreover from finite_nat_seg have "finite ?B"
+  proof (rule finite_UN_I)
+    fix x :: 'x
+    from Suc show "finite ((+) (Poly_Mapping.single x 1) ` deg_le_sect n d)" by (rule finite_imageI)
+  qed
+  ultimately have "finite ?A" by (rule finite_subset)
+  with Suc show ?case by (simp add: eq)
+qed
+
 subsection \<open>Locale @{term pm_powerprod}\<close>
 
 locale pm_powerprod =
   ordered_powerprod ord ord_strict
-  for ord::"('n::countable \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)
+  for ord::"('x::countable \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)
   and ord_strict (infixl "\<prec>" 50)
 begin
 

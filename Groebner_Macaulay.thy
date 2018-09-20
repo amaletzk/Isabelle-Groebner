@@ -200,96 +200,28 @@ begin
 
 abbreviation Polys where "Polys n \<equiv> punit.dgrad_p_set varnum n"
 
-definition deg_set :: "nat \<Rightarrow> nat \<Rightarrow> ('n \<Rightarrow>\<^sub>0 nat) set"
-  where "deg_set n d = {t. varnum t \<le> n \<and> deg_pm t \<le> d}"
-
-definition deg_shifts :: "nat \<Rightarrow> nat \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_1) list"
-  where "deg_shifts n d fs = concat (map (\<lambda>f. (map (\<lambda>t. punit.monom_mult 1 t f) (punit.pps_to_list (deg_set n d)))) fs)"
-
-lemma keys_subset_deg_setI:
+lemma keys_subset_deg_le_sectI:
   assumes "p \<in> Polys n" and "poly_deg p \<le> d"
-  shows "keys p \<subseteq> deg_set n d"
+  shows "keys p \<subseteq> deg_le_sect n d"
 proof
   fix t
   assume "t \<in> keys p"
   hence "deg_pm t \<le> poly_deg p" by (rule poly_deg_max_keys)
   from this assms(2) have "deg_pm t \<le> d" by (rule le_trans)
   moreover from assms(1) \<open>t \<in> keys p\<close> have "varnum t \<le> n" by (rule punit.dgrad_p_setD[simplified])
-  ultimately show "t \<in> deg_set n d" by (simp add: deg_set_def)
+  ultimately show "t \<in> deg_le_sect n d" by (simp add: deg_le_sect_alt)
 qed
 
-lemma finite_deg_set: "finite (deg_set n d)"
-proof (induct d)
-  case 0
-  show ?case by (simp add: deg_set_def)
-next
-  case (Suc d)
-  have eq: "deg_set n (Suc d) = deg_set n d \<union> {t. varnum t \<le> n \<and> deg_pm t = Suc d}" (is "_ = _ \<union> ?A")
-    by (auto simp add: deg_set_def)
-  have "?A \<subseteq> (\<Union>x\<in>{y. elem_index y < n}. (+) (Poly_Mapping.single x 1) ` deg_set n d)" (is "_ \<subseteq> ?B")
-  proof (rule, simp, elim conjE)
-    fix t::"'n \<Rightarrow>\<^sub>0 nat"
-    assume "varnum t \<le> n" and "deg_pm t = Suc d"
-    from this(2) have "deg_pm t \<noteq> 0" by simp
-    hence "keys t \<noteq> {}" by simp
-    then obtain x where "x \<in> keys t" by blast
-    hence "lookup t x \<noteq> 0" by (simp only: lookup_not_eq_zero_eq_in_keys)
-    then obtain d' where "lookup t x = Suc d'" using not0_implies_Suc by blast
-    show "\<exists>x. elem_index x < n \<and> t \<in> (+) (Poly_Mapping.single x (Suc 0)) ` deg_set n d"
-    proof (intro exI conjI)
-      from \<open>x \<in> keys t\<close> have "elem_index x < varnum t" by (rule elem_index_less_varnum)
-      from this \<open>varnum t \<le> n\<close> show "elem_index x < n" by simp
-    next
-      let ?x = "Poly_Mapping.single x (Suc 0)"
-      have "deg_pm ?x = (\<Sum>k\<in>keys ?x. lookup ?x k)"
-        by (rule deg_pm_superset, fact subset_refl, fact finite_keys)
-      hence "deg_pm ?x = Suc 0" by simp
-      have "?x adds t"
-      proof (rule adds_pmI, rule le_pmI, simp add: lookup_single when_def, rule impI)
-        fix y
-        assume "x = y"
-        with \<open>lookup t x = Suc d'\<close> have "lookup t y = Suc d'" by simp
-        thus "Suc 0 \<le> lookup t y" by simp
-      qed
-      show "t \<in> (+) (monomial (Suc 0) x) ` deg_set n d"
-      proof
-        from \<open>?x adds t\<close> show "t = Poly_Mapping.single x (Suc 0) + (t - ?x)"
-          by (metis add.commute adds_minus)
-      next
-        show "t - ?x \<in> deg_set n d"
-        proof (simp add: deg_set_def, rule)
-          from dickson_grading_varnum \<open>?x adds t\<close> have "varnum (t - ?x) \<le> varnum t"
-            by (rule dickson_grading_minus)
-          from this \<open>varnum t \<le> n\<close> show "varnum (t - ?x) \<le> n" by (rule le_trans)
-        next
-          from \<open>?x adds t\<close> obtain s where "t = ?x + s" ..
-          have "Suc d = deg_pm t" by (simp only: \<open>deg_pm t = Suc d\<close>)
-          also have "... = deg_pm ?x + deg_pm s" by (simp add: \<open>t = ?x + s\<close> deg_pm_plus)
-          also have "... = Suc (deg_pm s)" by (simp add: \<open>deg_pm ?x = Suc 0\<close>)
-          finally show "deg_pm (t - ?x) \<le> d" by (simp add: \<open>t = ?x + s\<close>)
-        qed
-      qed
-    qed
-  qed
-  moreover from finite_nat_seg have "finite ?B"
-  proof (rule finite_UN_I)
-    fix x
-    from Suc show "finite ((+) (Poly_Mapping.single x 1) ` deg_set n d)" by (rule finite_imageI)
-  qed
-  ultimately have "finite ?A" by (rule finite_subset)
-  with Suc show ?case by (simp add: eq)
-qed
+definition deg_shifts :: "nat \<Rightarrow> nat \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_1) list"
+  where "deg_shifts n d fs = concat (map (\<lambda>f. (map (\<lambda>t. punit.monom_mult 1 t f) (punit.pps_to_list (deg_le_sect n d)))) fs)"
 
-lemma zero_in_deg_set: "0 \<in> deg_set n d"
-  by (simp add: deg_set_def)
+lemma set_deg_shifts: "set (deg_shifts n d fs) = (\<Union>f\<in>set fs. (\<lambda>t. punit.monom_mult 1 t f) ` (deg_le_sect n d))"
+  by (simp add: deg_shifts_def punit.set_pps_to_list[OF finite_deg_le_sect])
 
-lemma set_deg_shifts: "set (deg_shifts n d fs) = (\<Union>f\<in>set fs. (\<lambda>t. punit.monom_mult 1 t f) ` (deg_set n d))"
-  by (simp add: deg_shifts_def punit.set_pps_to_list[OF finite_deg_set])
-
-lemma set_deg_shifts_2: "set (deg_shifts n d fs) = (\<Union>t\<in>deg_set n d. punit.monom_mult 1 t ` set fs)"
+lemma set_deg_shifts_2: "set (deg_shifts n d fs) = (\<Union>t\<in>deg_le_sect n d. punit.monom_mult 1 t ` set fs)"
   by (auto simp add: set_deg_shifts)
 
-corollary set_deg_shifts_singleton: "set (deg_shifts n d [f]) = (\<lambda>t. punit.monom_mult 1 t f) ` (deg_set n d)"
+corollary set_deg_shifts_singleton: "set (deg_shifts n d [f]) = (\<lambda>t. punit.monom_mult 1 t f) ` (deg_le_sect n d)"
   by (simp add: set_deg_shifts)
 
 lemma deg_shifts_superset: "set fs \<subseteq> set (deg_shifts n d fs)"
@@ -315,17 +247,14 @@ next
     by (rule ideal.module_mono)
 qed
 
-definition is_cofactor_bound :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::ring_1) set \<Rightarrow> nat \<Rightarrow> bool"
+definition is_cofactor_bound :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::ring_1) set \<Rightarrow> nat \<Rightarrow> bool"
   where "is_cofactor_bound F b \<longleftrightarrow>
     (\<forall>p\<in>ideal F. \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg p + b))"
 
 text \<open>Note that @{const is_cofactor_bound} is only true for @{emph \<open>finite\<close>} sets \<open>F\<close>.\<close>
 
-definition is_GB_bound :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::field) set \<Rightarrow> nat \<Rightarrow> bool"
+definition is_GB_bound :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::field) set \<Rightarrow> nat \<Rightarrow> bool"
   where "is_GB_bound F b \<longleftrightarrow> (\<forall>g\<in>punit.reduced_GB F. poly_deg g \<le> b)"
-
-definition truncate_p :: "('n \<Rightarrow>\<^sub>0 nat) set \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b)"
-  where "truncate_p V p = p"
 
 lemma is_cofactor_boundI:
   assumes "\<And>p. p \<in> ideal F \<Longrightarrow> \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg p + b)"
@@ -333,13 +262,13 @@ lemma is_cofactor_boundI:
   unfolding is_cofactor_bound_def using assms by blast
 
 lemma is_cofactor_boundE:
-  assumes "is_cofactor_bound F b" and "(p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_ring_1) \<in> ideal F"
+  assumes "is_cofactor_bound F b" and "(p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_ring_1) \<in> ideal F"
   obtains q where "p = (\<Sum>f\<in>F. q f * f)"
     and "\<And>f. f \<in> F \<Longrightarrow> q f \<noteq> 0 \<Longrightarrow>
              punit.dgrad_p_set_le varnum {q f} (insert p F) \<and> poly_deg (q f) \<le> poly_deg p + b"
 proof (cases "p = 0")
   case True
-  define q where "q = (\<lambda>f::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b. 0::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b)"
+  define q where "q = (\<lambda>f::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b. 0::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b)"
   show ?thesis
   proof
     show "p = (\<Sum>f\<in>F. q f * f)" by (simp add: True q_def)
@@ -355,7 +284,7 @@ next
     where p: "p = (\<Sum>f\<in>F. q0 f * f)"
     and q0: "\<And>f. f \<in> F \<Longrightarrow> q0 f \<noteq> 0 \<Longrightarrow> poly_deg (q0 f) \<le> poly_deg p + b"
     using assms unfolding is_cofactor_bound_def by blast
-  define sub where "sub = (\<lambda>x::'n. if x \<in> (\<Union>t\<in>Keys (insert p F). keys t) then
+  define sub where "sub = (\<lambda>x::'x. if x \<in> (\<Union>t\<in>Keys (insert p F). keys t) then
                                      monomial (1::'b) (Poly_Mapping.single x (1::nat))
                                    else 1)"
   have 1: "x \<in> indets p \<Longrightarrow> sub x = monomial 1 (monomial 1 x)" for x
@@ -491,16 +420,16 @@ proof (rule punit.reduced_Macaulay_list_is_reduced_GB)
         hence "q f \<in> Polys n" by simp
         from assms(3) \<open>g \<in> punit.reduced_GB (set fs)\<close> have "poly_deg g \<le> b2" by (rule is_GB_boundE)
         with \<open>poly_deg (q f) \<le> poly_deg g + b1\<close> have "poly_deg (q f) \<le> b1 + b2" by simp
-        with \<open>q f \<in> Polys n\<close> have "keys (q f) \<subseteq> deg_set n (b1 + b2)" by (rule keys_subset_deg_setI)
-        with finite_deg_set have "q f * f = (\<Sum>t\<in>deg_set n (b1 + b2). punit.monom_mult (lookup (q f) t) t f)"
+        with \<open>q f \<in> Polys n\<close> have "keys (q f) \<subseteq> deg_le_sect n (b1 + b2)" by (rule keys_subset_deg_le_sectI)
+        with finite_deg_le_sect have "q f * f = (\<Sum>t\<in>deg_le_sect n (b1 + b2). punit.monom_mult (lookup (q f) t) t f)"
           unfolding punit.mult_scalar_sum_monomials[simplified]
         proof (rule sum.mono_neutral_left)
-          show "\<forall>t\<in>deg_set n (b1 + b2) - keys (q f). punit.monom_mult (lookup (q f) t) t f = 0"
+          show "\<forall>t\<in>deg_le_sect n (b1 + b2) - keys (q f). punit.monom_mult (lookup (q f) t) t f = 0"
             by (rule, simp)
         qed
-        also have "... = (\<Sum>t\<in>deg_set n (b1 + b2). punit.monom_mult (lookup (q f) t) 0 (punit.monom_mult 1 t f))"
+        also have "... = (\<Sum>t\<in>deg_le_sect n (b1 + b2). punit.monom_mult (lookup (q f) t) 0 (punit.monom_mult 1 t f))"
           by (simp add: punit.monom_mult_assoc)
-        also have "... = (\<Sum>t\<in>deg_set n (b1 + b2).
+        also have "... = (\<Sum>t\<in>deg_le_sect n (b1 + b2).
                     ((\<lambda>f0. punit.monom_mult (lookup (q f) (punit.lp f0 - punit.lp f)) 0 f0) \<circ> (\<lambda>t. punit.monom_mult 1 t f)) t)"
           by (rule sum.cong, fact refl, simp add: punit.lt_monom_mult[OF \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close>])
         also have "... = (\<Sum>f0\<in>set (deg_shifts n (b1 + b2) [f]).
@@ -545,12 +474,12 @@ qed
 
 theorem Hermann_bound:
   assumes "finite F" and "F \<subseteq> Polys n"
-  shows "is_cofactor_bound F (\<Sum>j=0..<n. (card F * maxdeg F)^(2^j))"
+  shows "is_cofactor_bound F (\<Sum>j=0..<n. (card F * maxdeg F) ^ (2 ^ j))"
   sorry
 
 theorem Dube_bound:
   assumes "finite F" and "F \<subseteq> Polys n"
-  shows "is_GB_bound F (2 * ((maxdeg F)^2 div 2 + maxdeg F)^(2^(n - 1)))"
+  shows "is_GB_bound F (2 * ((maxdeg F)\<^sup>2 div 2 + maxdeg F) ^ (2 ^ (n - 1)))"
   sorry
 
 end (* pm_powerprod *)

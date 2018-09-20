@@ -69,7 +69,7 @@ begin
   
 subsubsection \<open>associated\<close>
 
-definition associated :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> ('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow> nat \<Rightarrow> bool"
+definition associated :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> nat \<Rightarrow> bool"
   where "associated q s t k \<longleftrightarrow> (t + k \<cdot> (lp q) = s + k \<cdot> (tp q))"
 
 lemma associatedI:
@@ -338,7 +338,7 @@ lemma associated_monomial:
   shows "s = t"
 proof (cases "c = 0")
   case True
-  from assms have "associated (0::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) s t k" by (simp add: True monomial_0I)
+  from assms have "associated (0::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) s t k" by (simp add: True monomial_0I)
   thus ?thesis by (rule associated_0_left)
 next
   case False
@@ -496,7 +496,7 @@ proof (rule associatedI, simp add: scalar_distrib_right)
 qed
 
 lemma associated_adds_obtains_cofactor_keys:
-  assumes "punit.is_binomial p" and "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
+  assumes "punit.is_binomial p" and "associated (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
     and "lp p adds s" and "tp p adds t"
   obtains q where "keys (q * p) = {s, t}"
 proof (cases "is_monomial p")
@@ -567,7 +567,7 @@ next
 qed
 
 lemma associated_adds_obtains_cofactor_binomial_lc:
-  assumes "punit.is_proper_binomial p" and "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
+  assumes "punit.is_proper_binomial p" and "associated (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
     and "lp p adds s" and "tp p adds t" and "c \<noteq> 0"
   obtains q d where "q * p = punit.binomial c s d t" and "punit.is_obd c s d t"
 proof -
@@ -604,7 +604,7 @@ proof -
 qed
 
 lemma associated_adds_obtains_cofactor_binomial_tc:
-  assumes "punit.is_proper_binomial p" and "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
+  assumes "punit.is_proper_binomial p" and "associated (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k" and "k \<noteq> 0"
     and "lp p adds s" and "tp p adds t" and "d \<noteq> 0"
   obtains q c where "q * p = punit.binomial c s d t" and "punit.is_obd c s d t"
 proof -
@@ -631,7 +631,7 @@ qed
 
 subsection \<open>associated_poly\<close>
   
-definition associated_poly :: "(('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_0) \<Rightarrow> (('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> bool"
+definition associated_poly :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_0) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> bool"
   where "associated_poly p q \<longleftrightarrow>
     ((\<forall>s\<in>(keys q). \<forall>t\<in>(keys q). t \<prec> s \<longrightarrow> associated p s t (card {u\<in>(keys q). u \<prec> s \<and> t \<preceq> u})) \<and>
     (\<forall>s\<in>(keys q). tp q \<prec> s \<longrightarrow> lookup q s * tc p + lc (punit.lower q s) * lc p = 0))"
@@ -974,7 +974,7 @@ proof -
 qed
 
 lemma associated_associated_poly:
-  assumes "associated (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k"
+  assumes "associated (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) s t k"
   obtains q where "q \<noteq> 0" and "lp q = s" and "tp q = t" and "associated_poly p q"
 proof (cases "punit.has_bounded_keys 1 p")
   assume rl: "(\<And>q. q \<noteq> 0 \<Longrightarrow> lp q = s \<Longrightarrow> tp q = t \<Longrightarrow> associated_poly p q \<Longrightarrow> thesis)"
@@ -1061,7 +1061,7 @@ proof -
 qed
 
 lemma associated_poly_times_binomial_keys:
-  assumes "punit.is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)" and "q \<noteq> 0"
+  assumes "punit.is_proper_binomial (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)" and "q \<noteq> 0"
     and "associated_poly p q"
   shows "keys (q * p) = {lp q + lp p, tp q + tp p}"
   using assms(2) assms(3)
@@ -1146,7 +1146,7 @@ next
 qed
 
 lemma times_binomial_keys_associated_poly:
-  assumes "punit.is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)"
+  assumes "punit.is_proper_binomial (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)"
     and "keys (q * p) = {lp q + lp p, tp q + tp p}"
   shows "associated_poly p q"
   using assms(2)
@@ -1332,7 +1332,7 @@ next
 qed
 
 lemma times_binomial_lp_not_in_keys:
-  assumes "punit.is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + lp p \<notin> keys (q * p)"
+  assumes "punit.is_proper_binomial (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + lp p \<notin> keys (q * p)"
   obtains v' where "v' \<in> keys q" and "v \<prec> v'" and "v' + tp p = v + lp p" and "lookup q v' * tc p = -(lookup q v * lc p)"
 proof (cases "\<exists>v'\<in>(keys q). v' + tp p = v + lp p")
   case True
@@ -1369,7 +1369,7 @@ next
 qed
 
 lemma times_binomial_tp_not_in_keys:
-  assumes "punit.is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + tp p \<notin> keys (q * p)"
+  assumes "punit.is_proper_binomial (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + tp p \<notin> keys (q * p)"
   obtains v' where "v' \<in> keys q" and "v' \<prec> v" and "v' + lp p = v + tp p" and "lookup q v' * lc p = -(lookup q v * tc p)"
 proof (cases "\<exists>v'\<in>(keys q). v' + lp p = v + tp p")
   case True
@@ -1406,7 +1406,7 @@ next
 qed
 
 lemma binomial_mult_shape_lp':
-  assumes "punit.is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + lp p \<in> keys (q * p)"
+  assumes "punit.is_proper_binomial (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + lp p \<in> keys (q * p)"
   obtains q' where "q' \<noteq> 0" and "punit.subpoly q' q" and "lp q' = v" and "associated_poly p q'" and "tp q' + tp p \<in> keys (q * p)"
   using assms(2) assms(3)
 proof (induct q arbitrary: thesis v rule: poly_mapping_except_induct')
@@ -1507,7 +1507,7 @@ proof (induct q arbitrary: thesis v rule: poly_mapping_except_induct')
 qed
   
 lemma binomial_mult_shape_lp:
-  assumes "punit.is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + lp p \<in> keys (q * p)"
+  assumes "punit.is_proper_binomial (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + lp p \<in> keys (q * p)"
   obtains q' where "q' \<noteq> 0" and "punit.subpoly q' q" and "lp q' = v" and "keys (q' * p) = {v + lp p, tp q' + tp p}"
     and "tp q' + tp p \<in> keys (q * p)"
 proof -
@@ -1523,7 +1523,7 @@ qed
 text \<open>If the following lemma shall be proved in the same style as the one above, the analogue of
   @{thm associated_poly_recI} for @{term higher} instead of @{term tail} is needed.\<close>
 lemma binomial_mult_shape_tp:
-  assumes "punit.is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + tp p \<in> keys (q * p)"
+  assumes "punit.is_proper_binomial (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + tp p \<in> keys (q * p)"
   obtains q' where "q' \<noteq> 0" and "punit.subpoly q' q" and "tp q' = v" and "keys (q' * p) = {lp q' + lp p, v + tp p}"
     and "lp q' + lp p \<in> keys (q * p)"
   using assms(2) assms(3)
@@ -1669,7 +1669,7 @@ next
 qed
 
 lemma binomial_mult_shape_tp':
-  assumes "punit.is_proper_binomial (p::('n \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + tp p \<in> keys (q * p)"
+  assumes "punit.is_proper_binomial (p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::idom)" and "v \<in> keys q" and "v + tp p \<in> keys (q * p)"
   obtains q' where "q' \<noteq> 0" and "punit.subpoly q' q" and "tp q' = v" and "associated_poly p q'" and "lp q' + lp p \<in> keys (q * p)"
 proof -
   from assms obtain q' where 1: "q' \<noteq> 0" and 2: "punit.subpoly q' q" and 3: "tp q' = v"
@@ -1683,5 +1683,5 @@ proof -
 qed
 
 end (* fun_powerprod *)
-  
+
 end (* theory *)
