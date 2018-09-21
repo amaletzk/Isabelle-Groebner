@@ -198,55 +198,6 @@ subsection \<open>Bounds\<close>
 context pm_powerprod
 begin
 
-abbreviation Polys where "Polys n \<equiv> punit.dgrad_p_set varnum n"
-
-lemma keys_subset_deg_le_sectI:
-  assumes "p \<in> Polys n" and "poly_deg p \<le> d"
-  shows "keys p \<subseteq> deg_le_sect n d"
-proof
-  fix t
-  assume "t \<in> keys p"
-  hence "deg_pm t \<le> poly_deg p" by (rule poly_deg_max_keys)
-  from this assms(2) have "deg_pm t \<le> d" by (rule le_trans)
-  moreover from assms(1) \<open>t \<in> keys p\<close> have "varnum t \<le> n" by (rule punit.dgrad_p_setD[simplified])
-  ultimately show "t \<in> deg_le_sect n d" by (simp add: deg_le_sect_alt)
-qed
-
-definition deg_shifts :: "nat \<Rightarrow> nat \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_1) list"
-  where "deg_shifts n d fs = concat (map (\<lambda>f. (map (\<lambda>t. punit.monom_mult 1 t f) (punit.pps_to_list (deg_le_sect n d)))) fs)"
-
-lemma set_deg_shifts: "set (deg_shifts n d fs) = (\<Union>f\<in>set fs. (\<lambda>t. punit.monom_mult 1 t f) ` (deg_le_sect n d))"
-  by (simp add: deg_shifts_def punit.set_pps_to_list[OF finite_deg_le_sect])
-
-lemma set_deg_shifts_2: "set (deg_shifts n d fs) = (\<Union>t\<in>deg_le_sect n d. punit.monom_mult 1 t ` set fs)"
-  by (auto simp add: set_deg_shifts)
-
-corollary set_deg_shifts_singleton: "set (deg_shifts n d [f]) = (\<lambda>t. punit.monom_mult 1 t f) ` (deg_le_sect n d)"
-  by (simp add: set_deg_shifts)
-
-lemma deg_shifts_superset: "set fs \<subseteq> set (deg_shifts n d fs)"
-proof -
-  have "set fs = (punit.monom_mult 1 0) ` set fs" by (simp add: image_cong)
-  also from zero_in_deg_set have "... \<subseteq> set (deg_shifts n d fs)"
-    by (simp only: set_deg_shifts_2, rule UN_upper)
-  finally show ?thesis .
-qed
-
-lemma deg_shifts_mono:
-  assumes "set fs \<subseteq> set gs"
-  shows "set (deg_shifts n d fs) \<subseteq> set (deg_shifts n d gs)"
-  using assms by (auto simp add: set_deg_shifts)
-
-lemma pideal_deg_shifts [simp]: "ideal (set (deg_shifts n d fs)) = ideal (set fs)"
-proof
-  show "ideal (set (deg_shifts n d fs)) \<subseteq> ideal (set fs)"
-    by (rule ideal.module_subset_moduleI, simp add: set_deg_shifts_2 UN_subset_iff,
-        intro ballI image_subsetI, metis ideal.smult_in_module times_monomial_left)
-next
-  from deg_shifts_superset show "ideal (set fs) \<subseteq> ideal (set (deg_shifts n d fs))"
-    by (rule ideal.module_mono)
-qed
-
 definition is_cofactor_bound :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::ring_1) set \<Rightarrow> nat \<Rightarrow> bool"
   where "is_cofactor_bound F b \<longleftrightarrow>
     (\<forall>p\<in>ideal F. \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg p + b))"
@@ -265,7 +216,7 @@ lemma is_cofactor_boundE:
   assumes "is_cofactor_bound F b" and "(p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_ring_1) \<in> ideal F"
   obtains q where "p = (\<Sum>f\<in>F. q f * f)"
     and "\<And>f. f \<in> F \<Longrightarrow> q f \<noteq> 0 \<Longrightarrow>
-             punit.dgrad_p_set_le varnum {q f} (insert p F) \<and> poly_deg (q f) \<le> poly_deg p + b"
+             indets (q f) \<subseteq> UNION (insert p F) indets \<and> poly_deg (q f) \<le> poly_deg p + b"
 proof (cases "p = 0")
   case True
   define q where "q = (\<lambda>f::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b. 0::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b)"
@@ -275,7 +226,7 @@ proof (cases "p = 0")
   next
     fix f
     assume "q f \<noteq> 0"
-    thus "punit.dgrad_p_set_le varnum {q f} (insert p F) \<and> poly_deg (q f) \<le> poly_deg p + b"
+    thus "indets (q f) \<subseteq> UNION (insert p F) indets \<and> poly_deg (q f) \<le> poly_deg p + b"
       by (simp only: q_def)
   qed
 next
@@ -324,34 +275,18 @@ next
   next
     fix f
     assume "f \<in> F" and "q f \<noteq> 0"
-    show "punit.dgrad_p_set_le varnum {q f} (insert p F) \<and> poly_deg (q f) \<le> poly_deg p + b"
+    show "indets (q f) \<subseteq> UNION (insert p F) indets \<and> poly_deg (q f) \<le> poly_deg p + b"
     proof
-      show "punit.dgrad_p_set_le varnum {q f} (insert p F)"
-      proof (simp add: punit.dgrad_p_set_le_def Keys_insert[of "q f"], rule dgrad_set_leI, rule ccontr)
-        fix s
-        assume "s \<in> keys (q f)"
-        assume "\<not> (\<exists>t\<in>Keys (insert p F). varnum s \<le> varnum t)"
-        hence *: "t \<in> Keys (insert p F) \<Longrightarrow> varnum t < varnum s" for t by auto
-        have "keys s \<noteq> {}"
-        proof
-          assume "keys s = {}"
-          hence "varnum s = 0" by (simp add: varnum_def)
-          hence "Keys (insert p F) = {}" using * by auto
-          hence "keys p = {}" by (simp add: Keys_insert)
-          with False show False by simp
-        qed
-        then obtain x where "x \<in> keys s" and "varnum s = Suc (elem_index x)" unfolding varnum_def
-          by (metis (mono_tags, lifting) Max_in finite_imageI image_iff image_is_empty finite_keys)
-        from \<open>x \<in> keys s\<close> \<open>s \<in> keys (q f)\<close> have "x \<in> indets (q f)" by (rule in_indetsI)
+      show "indets (q f) \<subseteq> UNION (insert p F) indets"
+      proof
+        fix x
+        assume "x \<in> indets (q f)"
         then obtain y where "x \<in> indets (sub y)" unfolding q_def by (rule in_indets_poly_substE)
-        hence "x \<in> (\<Union>t\<in>Keys (insert p F). keys t)"
-          by (simp add: sub_def indets_monomial split: if_split_asm)
-        then obtain t where "t \<in> Keys (insert p F)" and "x \<in> keys t" by blast
-        from this(2) have "Suc (elem_index x) \<le> varnum t" unfolding varnum_def
-          using finite_keys by auto
-        also from \<open>t \<in> Keys (insert p F)\<close> have "... < varnum s" by (rule *)
-        also have "... = Suc (elem_index x)" by fact
-        finally show False ..
+        hence y: "y \<in> UNION (Keys (insert p F)) keys"
+          and "x \<in> indets (monomial (1::'b) (monomial (1::nat) y))"
+          by (simp_all add: sub_def split: if_splits)
+        from this(2) have "x = y" by (simp add: indets_monomial)
+        with y show "x \<in> UNION (insert p F) indets" by (simp add: indets_def Keys_def)
       qed
     next
       have "poly_deg (q f) \<le> poly_deg (q0 f)" unfolding q_def
@@ -378,25 +313,104 @@ lemma is_GB_boundE:
   shows "poly_deg g \<le> b"
   using assms unfolding is_GB_bound_def by blast
 
+context
+  fixes X :: "'x set"
+  assumes fin_X: "finite X"
+begin
+
+definition deg_shifts :: "nat \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_1) list"
+  where "deg_shifts d fs = concat (map (\<lambda>f. (map (\<lambda>t. punit.monom_mult 1 t f) (punit.pps_to_list (deg_le_sect X d)))) fs)"
+
+lemma set_deg_shifts:
+  shows "set (deg_shifts d fs) = (\<Union>f\<in>set fs. (\<lambda>t. punit.monom_mult 1 t f) ` (deg_le_sect X d))"
+proof -
+  from fin_X have *: "finite (deg_le_sect X d)" by (rule finite_deg_le_sect)
+  show ?thesis by (simp add: deg_shifts_def punit.set_pps_to_list[OF *])
+qed
+
+lemma set_deg_shifts_2: "set (deg_shifts d fs) = (\<Union>t\<in>deg_le_sect X d. punit.monom_mult 1 t ` set fs)"
+  by (auto simp add: set_deg_shifts)
+
+corollary set_deg_shifts_singleton:
+  "set (deg_shifts d [f]) = (\<lambda>t. punit.monom_mult 1 t f) ` (deg_le_sect X d)"
+  by (simp add: set_deg_shifts)
+
+lemma deg_shifts_superset: "set fs \<subseteq> set (deg_shifts d fs)"
+proof -
+  have "set fs = (punit.monom_mult 1 0) ` set fs" by (simp add: image_cong)
+  also from zero_in_deg_set have "... \<subseteq> set (deg_shifts d fs)"
+    by (simp only: set_deg_shifts_2, rule UN_upper)
+  finally show ?thesis .
+qed
+
+lemma deg_shifts_mono:
+  assumes "set fs \<subseteq> set gs"
+  shows "set (deg_shifts d fs) \<subseteq> set (deg_shifts d gs)"
+  using assms by (auto simp add: set_deg_shifts)
+
+lemma pideal_deg_shifts [simp]: "ideal (set (deg_shifts d fs)) = ideal (set fs)"
+proof
+  show "ideal (set (deg_shifts d fs)) \<subseteq> ideal (set fs)"
+    by (rule ideal.module_subset_moduleI, simp add: set_deg_shifts_2 UN_subset_iff,
+        intro ballI image_subsetI, metis ideal.smult_in_module times_monomial_left)
+next
+  from deg_shifts_superset show "ideal (set fs) \<subseteq> ideal (set (deg_shifts d fs))"
+    by (rule ideal.module_mono)
+qed
+
+lemma PPs_eq_dgrad_set:
+  assumes "elem_index ` X = {..<n}"
+  shows ".[X] = dgrad_set varnum n"
+proof -
+  have "varnum t \<le> n" if "keys t \<subseteq> X" for t::"'x \<Rightarrow>\<^sub>0 nat"
+  proof (cases "keys t = {}")
+    case True
+    thus ?thesis by (simp add: varnum_def)
+  next
+    case False
+    moreover {
+      fix x
+      assume "x \<in> keys t"
+      hence "x \<in> X" using that ..
+      hence "elem_index x \<in> elem_index ` X" by (rule imageI)
+      hence "elem_index x < n" by (simp add: assms)
+    }
+    ultimately show ?thesis by (simp add: varnum_def Suc_le_eq)
+  qed
+  moreover have "x \<in> X" if "varnum t \<le> n" and "x \<in> keys t" for x and t::"'x \<Rightarrow>\<^sub>0 nat"
+  proof -
+    from that(2) have "keys t \<noteq> {}" by blast
+    with that(1) have "\<forall>x\<in>keys t. elem_index x < n" by (simp add: varnum_def Suc_le_eq)
+    hence "elem_index x < n" using that(2) ..
+    hence "elem_index x \<in> elem_index ` X" by (simp add: assms)
+    thus ?thesis by (simp only: inj_image_mem_iff[OF inj_elem_index])
+  qed
+  ultimately show ?thesis by (auto simp: PPs_def dgrad_set_def)
+qed
+
+corollary Polys_eq_dgrad_p_set: "elem_index ` X = {..<n} \<Longrightarrow> P[X] = punit.dgrad_p_set varnum n"
+  by (simp add: Polys_def punit.dgrad_p_set_def PPs_eq_dgrad_set)
+
 theorem thm_2_3_6:
-  assumes "set fs \<subseteq> Polys n" and "is_cofactor_bound (set fs) b1" and "is_GB_bound (set fs) b2"
-  shows "set (punit.reduced_Macaulay_list (deg_shifts n (b1 + b2) fs)) = punit.reduced_GB (set fs)"
+  assumes "elem_index ` X = {..<n}" and "set fs \<subseteq> P[X]" and "is_cofactor_bound (set fs) b1"
+    and "is_GB_bound (set fs) b2"
+  shows "set (punit.reduced_Macaulay_list (deg_shifts (b1 + b2) fs)) = punit.reduced_GB (set fs)"
 proof (rule punit.reduced_Macaulay_list_is_reduced_GB)
-  let ?H = "punit.phull (set (deg_shifts n (b1 + b2) fs))"
+  let ?H = "punit.phull (set (deg_shifts (b1 + b2) fs))"
   have "1 \<noteq> (0::'a)" by simp
   note dickson_grading_varnum
   moreover have "finite (punit.component_of_term ` Keys (set fs))" by simp
-  ultimately have "punit.reduced_GB (set fs) \<subseteq> Polys n" using assms(1)
-    by (rule punit.reduced_GB_dgrad_p_set)
+  ultimately have "punit.reduced_GB (set fs) \<subseteq> P[X]"
+    using assms(2) unfolding Polys_eq_dgrad_p_set[OF assms(1)] by (rule punit.reduced_GB_dgrad_p_set)
   show "punit.reduced_GB (set fs) \<subseteq> ?H"
   proof
     fix g
     assume "g \<in> punit.reduced_GB (set fs)"
     hence "g \<in> ideal (punit.reduced_GB (set fs))" by (rule ideal.generator_in_module)
     hence "g \<in> ideal (set fs)" using punit.reduced_GB_pmdl_finite by auto
-    with assms(2) obtain q where g: "g = (\<Sum>f\<in>(set fs). q f * f)"
+    with assms(3) obtain q where g: "g = (\<Sum>f\<in>(set fs). q f * f)"
       and 1: "\<And>f. f \<in> set fs \<Longrightarrow> q f \<noteq> 0 \<Longrightarrow>
-                punit.dgrad_p_set_le varnum {q f} (insert g (set fs)) \<and> poly_deg (q f) \<le> poly_deg g + b1"
+                indets (q f) \<subseteq> UNION (insert g (set fs)) indets \<and> poly_deg (q f) \<le> poly_deg g + b1"
       by (rule is_cofactor_boundE, blast)
     show "g \<in> ?H" unfolding g
     proof (rule punit.phull.module_closed_sum)
@@ -410,36 +424,45 @@ proof (rule punit.reduced_Macaulay_list_is_reduced_GB)
         case False
         hence "f \<noteq> 0" and "q f \<noteq> 0" by simp_all
         from \<open>f \<in> set fs\<close> this(2)
-        have "punit.dgrad_p_set_le varnum {q f} (insert g (set fs)) \<and> poly_deg (q f) \<le> poly_deg g + b1"
+        have "indets (q f) \<subseteq> UNION (insert g (set fs)) indets \<and> poly_deg (q f) \<le> poly_deg g + b1"
           by (rule 1)
-        hence "punit.dgrad_p_set_le varnum {q f} (insert g (set fs))" and "poly_deg (q f) \<le> poly_deg g + b1"
+        hence "indets (q f) \<subseteq> UNION (insert g (set fs)) indets" and "poly_deg (q f) \<le> poly_deg g + b1"
           by simp_all
         note this(1)
-        moreover have "insert g (set fs) \<subseteq> Polys n" by (rule insert_subsetI, rule set_rev_mp, fact+)
-        ultimately have "{q f} \<subseteq> Polys n" by (rule punit.dgrad_p_set_le_dgrad_p_set)
-        hence "q f \<in> Polys n" by simp
-        from assms(3) \<open>g \<in> punit.reduced_GB (set fs)\<close> have "poly_deg g \<le> b2" by (rule is_GB_boundE)
+        also have "UNION (insert g (set fs)) indets \<subseteq> X"
+        proof
+          fix x
+          assume "x \<in> UNION (insert g (set fs)) indets"
+          then obtain p where "p \<in> insert g (set fs)" and "x \<in> indets p" ..
+          note this(1)
+          also have "insert g (set fs) \<subseteq> P[X]" by (rule insert_subsetI, rule set_rev_mp, fact+)
+          finally have "indets p \<subseteq> X" by (rule PolysD)
+          with \<open>x \<in> indets p\<close> show "x \<in> X" ..
+        qed
+        finally have "q f \<in> P[X]" by (rule PolysI_alt)
+        from assms(4) \<open>g \<in> punit.reduced_GB (set fs)\<close> have "poly_deg g \<le> b2" by (rule is_GB_boundE)
         with \<open>poly_deg (q f) \<le> poly_deg g + b1\<close> have "poly_deg (q f) \<le> b1 + b2" by simp
-        with \<open>q f \<in> Polys n\<close> have "keys (q f) \<subseteq> deg_le_sect n (b1 + b2)" by (rule keys_subset_deg_le_sectI)
-        with finite_deg_le_sect have "q f * f = (\<Sum>t\<in>deg_le_sect n (b1 + b2). punit.monom_mult (lookup (q f) t) t f)"
+        with \<open>q f \<in> P[X]\<close> have "keys (q f) \<subseteq> deg_le_sect X (b1 + b2)" by (rule keys_subset_deg_le_sectI)
+        with finite_deg_le_sect[OF fin_X]
+        have "q f * f = (\<Sum>t\<in>deg_le_sect X (b1 + b2). punit.monom_mult (lookup (q f) t) t f)"
           unfolding punit.mult_scalar_sum_monomials[simplified]
         proof (rule sum.mono_neutral_left)
-          show "\<forall>t\<in>deg_le_sect n (b1 + b2) - keys (q f). punit.monom_mult (lookup (q f) t) t f = 0"
+          show "\<forall>t\<in>deg_le_sect X (b1 + b2) - keys (q f). punit.monom_mult (lookup (q f) t) t f = 0"
             by (rule, simp)
         qed
-        also have "... = (\<Sum>t\<in>deg_le_sect n (b1 + b2). punit.monom_mult (lookup (q f) t) 0 (punit.monom_mult 1 t f))"
+        also have "... = (\<Sum>t\<in>deg_le_sect X (b1 + b2). punit.monom_mult (lookup (q f) t) 0 (punit.monom_mult 1 t f))"
           by (simp add: punit.monom_mult_assoc)
-        also have "... = (\<Sum>t\<in>deg_le_sect n (b1 + b2).
+        also have "... = (\<Sum>t\<in>deg_le_sect X (b1 + b2).
                     ((\<lambda>f0. punit.monom_mult (lookup (q f) (punit.lp f0 - punit.lp f)) 0 f0) \<circ> (\<lambda>t. punit.monom_mult 1 t f)) t)"
           by (rule sum.cong, fact refl, simp add: punit.lt_monom_mult[OF \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close>])
-        also have "... = (\<Sum>f0\<in>set (deg_shifts n (b1 + b2) [f]).
+        also have "... = (\<Sum>f0\<in>set (deg_shifts (b1 + b2) [f]).
                                         punit.monom_mult (lookup (q f) (punit.lp f0 - punit.lp f)) 0 f0)"
         proof (simp only: set_deg_shifts_singleton, rule sum.reindex[symmetric], rule inj_onI)
           fix s t
           assume "punit.monom_mult 1 s f = punit.monom_mult 1 t f"
           thus "s = t" using \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close> by (rule punit.monom_mult_inj_2)
         qed
-        finally have "q f * f \<in> punit.phull (set (deg_shifts n (b1 + b2) [f]))"
+        finally have "q f * f \<in> punit.phull (set (deg_shifts (b1 + b2) [f]))"
           by (simp add: punit.phull.sum_in_moduleI)
         also have "... \<subseteq> ?H" by (rule punit.phull.module_mono, rule deg_shifts_mono, simp add: \<open>f \<in> set fs\<close>)
         finally show ?thesis .
@@ -449,38 +472,45 @@ proof (rule punit.reduced_Macaulay_list_is_reduced_GB)
 qed simp_all
 
 theorem thm_2_3_7:
-  assumes "set fs \<subseteq> Polys n" and "is_cofactor_bound (set fs) b"
-  shows "1 \<in> ideal (set fs) \<longleftrightarrow> 1 \<in> set (punit.Macaulay_list (deg_shifts n b fs))" (is "?L \<longleftrightarrow> ?R")
+  assumes "elem_index ` X = {..<n}" and "set fs \<subseteq> P[X]" and "is_cofactor_bound (set fs) b"
+  shows "1 \<in> ideal (set fs) \<longleftrightarrow> 1 \<in> set (punit.Macaulay_list (deg_shifts b fs))" (is "?L \<longleftrightarrow> ?R")
 proof
+  from assms(1, 2) have *: "set fs \<subseteq> punit.dgrad_p_set varnum n" by (simp only: Polys_eq_dgrad_p_set)
   assume ?L
   hence "ideal (set fs) = UNIV" by (simp only: ideal_eq_UNIV_iff_contains_one)
   hence eq: "punit.reduced_GB (set fs) = {1}"
-    by (simp only: ideal_eq_UNIV_iff_reduced_GB_eq_one_dgrad_p_set[OF dickson_grading_varnum assms(1)])
+    by (simp only: ideal_eq_UNIV_iff_reduced_GB_eq_one_dgrad_p_set[OF dickson_grading_varnum *])
   have "is_GB_bound (set fs) 0" by (rule is_GB_boundI, simp add: eq poly_deg_def)
-  with assms have "set (punit.reduced_Macaulay_list (deg_shifts n (b + 0) fs)) = punit.reduced_GB (set fs)"
+  with assms have "set (punit.reduced_Macaulay_list (deg_shifts (b + 0) fs)) = punit.reduced_GB (set fs)"
     by (rule thm_2_3_6)
-  hence "{1} = set (punit.reduced_Macaulay_list (deg_shifts n b fs))" by (simp add: eq)
-  also have "... \<subseteq> set (punit.Macaulay_list (deg_shifts n b fs))"
+  hence "{1} = set (punit.reduced_Macaulay_list (deg_shifts b fs))" by (simp add: eq)
+  also have "... \<subseteq> set (punit.Macaulay_list (deg_shifts b fs))"
     by (fact punit.reduced_Macaulay_list_subset_Macaulay_list)
   finally show ?R by simp
 next
   assume ?R
-  also have "... \<subseteq> punit.phull (set (punit.Macaulay_list (deg_shifts n b fs)))"
+  also have "... \<subseteq> punit.phull (set (punit.Macaulay_list (deg_shifts b fs)))"
     by (rule punit.phull.generator_subset_module)
-  also have "... = punit.phull (set (deg_shifts n b fs))" by (fact punit.phull_Macaulay_list)
-  also have "... \<subseteq> ideal (set (deg_shifts n b fs))" using punit.phull_subset_module by force
+  also have "... = punit.phull (set (deg_shifts b fs))" by (fact punit.phull_Macaulay_list)
+  also have "... \<subseteq> ideal (set (deg_shifts b fs))" using punit.phull_subset_module by force
   finally show ?L by simp
 qed
 
+text \<open>The first assumptions of Theorems \<open>thm_2_3_6\<close> and \<open>thm_2_3_7\<close>, @{prop "elem_index ` X = {..<n}"},
+  could be avoided if Lemma \<open>reduced_GB_dgrad_p_set\<close> were known for arbitrary sets of indeterminates,
+  not only for sets of that particular shape.\<close>
+
 theorem Hermann_bound:
-  assumes "finite F" and "F \<subseteq> Polys n"
+  assumes "finite F" and "F \<subseteq> P[X]"
   shows "is_cofactor_bound F (\<Sum>j=0..<n. (card F * maxdeg F) ^ (2 ^ j))"
   sorry
 
 theorem Dube_bound:
-  assumes "finite F" and "F \<subseteq> Polys n"
+  assumes "finite F" and "F \<subseteq> P[X]"
   shows "is_GB_bound F (2 * ((maxdeg F)\<^sup>2 div 2 + maxdeg F) ^ (2 ^ (n - 1)))"
   sorry
+
+end
 
 end (* pm_powerprod *)
 

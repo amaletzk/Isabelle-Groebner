@@ -281,8 +281,16 @@ lemma mindeg_min:
 
 subsection \<open>Indeterminates\<close>
 
-definition indets :: "(('x \<Rightarrow>\<^sub>0 'a::zero) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> 'x set"
+definition indets :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> 'x set"
   where "indets p = UNION (keys p) keys"
+
+definition PPs :: "'x set \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) set"  (".[(_)]")
+  where "PPs X = {t. keys t \<subseteq> X}"
+
+definition Polys :: "'x set \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) set"  ("P[(_)]")
+  where "Polys X = {p. keys p \<subseteq> .[X]}"
+
+subsubsection \<open>@{const indets}\<close>
 
 lemma in_indetsI:
   assumes "x \<in> keys t" and "t \<in> keys p"
@@ -398,7 +406,7 @@ proof -
 qed
 
 lemma indets_monom_mult:
-  assumes "c \<noteq> 0" and "p \<noteq> (0::('x \<Rightarrow>\<^sub>0 'a::{comm_powerprod,ninv_comm_monoid_add}) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)"
+  assumes "c \<noteq> 0" and "p \<noteq> (0::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)"
   shows "indets (punit.monom_mult c t p) = keys t \<union> indets p"
 proof (rule, fact indets_monom_mult_subset, rule)
   fix x
@@ -477,7 +485,7 @@ proof -
   finally show ?thesis .
 qed
 
-lemma indets_empty_iff_poly_deg_zero: "indets p = {} \<longleftrightarrow> poly_deg p = (0::'a::add_linorder_min)"
+lemma indets_empty_iff_poly_deg_zero: "indets p = {} \<longleftrightarrow> poly_deg p = 0"
 proof
   assume "indets p = {}"
   hence "monomial (lookup p 0) 0 = p" by (rule indets_empty_imp_monomial)
@@ -488,6 +496,522 @@ next
   hence "monomial (lookup p 0) 0 = p" by (rule poly_deg_zero_imp_monomial)
   moreover have "indets (monomial (lookup p 0) 0) = {}" by simp
   ultimately show "indets p = {}" by metis
+qed
+
+subsubsection \<open>@{const PPs}\<close>
+
+lemma PPsI: "keys t \<subseteq> X \<Longrightarrow> t \<in> .[X]"
+  by (simp add: PPs_def)
+
+lemma PPsD: "t \<in> .[X] \<Longrightarrow> keys t \<subseteq> X"
+  by (simp add: PPs_def)
+
+lemma PPs_empty [simp]: ".[{}] = {0}"
+  by (simp add: PPs_def)
+
+lemma PPs_singleton: ".[{x}] = range (Poly_Mapping.single x)"
+proof (rule set_eqI)
+  fix t
+  show "t \<in> .[{x}] \<longleftrightarrow> t \<in> range (Poly_Mapping.single x)"
+  proof
+    assume "t \<in> .[{x}]"
+    hence "keys t \<subseteq> {x}" by (rule PPsD)
+    hence "Poly_Mapping.single x (lookup t x) = t" by (rule keys_subset_singleton_imp_monomial)
+    from this[symmetric] UNIV_I show "t \<in> range (Poly_Mapping.single x)" ..
+  next
+    assume "t \<in> range (Poly_Mapping.single x)"
+    then obtain e where "t = Poly_Mapping.single x e" ..
+    thus "t \<in> .[{x}]" by (simp add: PPs_def)
+  qed
+qed
+
+lemma zero_in_PPs: "0 \<in> .[X]"
+  by (simp add: PPs_def)
+
+lemma PPs_mono: "X \<subseteq> Y \<Longrightarrow> .[X] \<subseteq> .[Y]"
+  by (auto simp: PPs_def)
+
+lemma PPs_closed_single:
+  assumes "x \<in> X"
+  shows "Poly_Mapping.single x e \<in> .[X]"
+proof (rule PPsI)
+  have "keys (Poly_Mapping.single x e) \<subseteq> {x}" by simp
+  also from assms have "... \<subseteq> X" by simp
+  finally show "keys (Poly_Mapping.single x e) \<subseteq> X" .
+qed
+
+lemma PPs_closed_plus:
+  assumes "s \<in> .[X]" and "t \<in> .[X]"
+  shows "s + t \<in> .[X]"
+proof -
+  have "keys (s + t) \<subseteq> keys s \<union> keys t" by (fact keys_add_subset)
+  also from assms have "... \<subseteq> X" by (simp add: PPs_def)
+  finally show ?thesis by (rule PPsI)
+qed
+
+lemma PPs_closed_minus:
+  assumes "s \<in> .[X]"
+  shows "s - t \<in> .[X]"
+proof -
+  have "keys (s - t) \<subseteq> keys s" by (metis lookup_minus lookup_not_eq_zero_eq_in_keys subsetI zero_diff)
+  also from assms have "... \<subseteq> X" by (rule PPsD)
+  finally show ?thesis by (rule PPsI)
+qed
+
+lemma PPs_closed_adds:
+  assumes "s \<in> .[X]" and "t adds s"
+  shows "t \<in> .[X]"
+proof -
+  from assms(2) have "s - (s - t) = t" by (metis add_minus_2 adds_minus)
+  moreover from assms(1) have "s - (s - t) \<in> .[X]" by (rule PPs_closed_minus)
+  ultimately show ?thesis by simp
+qed
+
+lemma PPs_closed_gcs:
+  assumes "s \<in> .[X]"
+  shows "gcs s t \<in> .[X]"
+  using assms gcs_adds by (rule PPs_closed_adds)
+
+lemma PPs_closed_lcs:
+  assumes "s \<in> .[X]" and "t \<in> .[X]"
+  shows "lcs s t \<in> .[X]"
+proof -
+  from assms have "s + t \<in> .[X]" by (rule PPs_closed_plus)
+  hence "(s + t) - gcs s t \<in> .[X]" by (rule PPs_closed_minus)
+  thus ?thesis by (simp add: gcs_plus_lcs[of s t, symmetric])
+qed
+
+lemma PPs_UnI:
+  assumes "tx \<in> .[X]" and "ty \<in> .[Y]" and "t = tx + ty"
+  shows "t \<in> .[X \<union> Y]"
+proof -
+  from assms(1) have "tx \<in> .[X \<union> Y]" by rule (simp add: PPs_mono)
+  moreover from assms(2) have "ty \<in> .[X \<union> Y]" by rule (simp add: PPs_mono)
+  ultimately show ?thesis unfolding assms(3) by (rule PPs_closed_plus)
+qed
+
+lemma PPs_UnE:
+  assumes "t \<in> .[X \<union> Y]"
+  obtains tx ty where "tx \<in> .[X]" and "ty \<in> .[Y]" and "t = tx + ty"
+proof -
+  from assms have "keys t \<subseteq> X \<union> Y" by (rule PPsD)
+  define tx where "tx = truncate_poly_mapping X t"
+  from sub_keys_truncate have "keys tx \<subseteq> X" unfolding tx_def sub_keys_def .
+  hence "tx \<in> .[X]" by (simp add: PPs_def)
+  have "tx adds t"
+    by (simp add: tx_def adds_poly_mappingI le_fun_def lookup_truncate_fun truncate_fun_def)
+  from adds_minus[OF this] have "t = tx + (t - tx)" by (simp only: ac_simps)
+  have "t - tx \<in> .[Y]"
+  proof (rule PPsI, rule)
+    fix x
+    assume "x \<in> keys (t - tx)"
+    also have "... \<subseteq> keys t \<union> keys tx" by (rule keys_minus)
+    also from \<open>keys t \<subseteq> X \<union> Y\<close> \<open>keys tx \<subseteq> X\<close> have "... \<subseteq> X \<union> Y" by blast
+    finally show "x \<in> Y"
+    proof
+      assume "x \<in> X"
+      hence "x \<notin> keys (t - tx)"
+        by (simp add: tx_def lookup_truncate_fun truncate_fun_def lookup_minus)
+      thus ?thesis using \<open>x \<in> keys (t - tx)\<close> ..
+    qed
+  qed
+  with \<open>tx \<in> .[X]\<close> show ?thesis using \<open>t = tx + (t - tx)\<close> ..
+qed
+
+lemma PPs_Un: ".[X \<union> Y] = (\<Union>t\<in>.[X]. (+) t ` .[Y])"  (is "?A = ?B")
+proof (rule set_eqI)
+  fix t
+  show "t \<in> ?A \<longleftrightarrow> t \<in> ?B"
+  proof
+    assume "t \<in> ?A"
+    then obtain tx ty where "tx \<in> .[X]" and "ty \<in> .[Y]" and "t = tx + ty" by (rule PPs_UnE)
+    from this(2) have "t \<in> (+) tx ` .[Y]" unfolding \<open>t = tx + ty\<close> by (rule imageI)
+    with \<open>tx \<in> .[X]\<close> show "t \<in> ?B" ..
+  next
+    assume "t \<in> ?B"
+    then obtain tx where "tx \<in> .[X]" and "t \<in> (+) tx ` .[Y]" ..
+    from this(2) obtain ty where "ty \<in> .[Y]" and "t = tx + ty" ..
+    with \<open>tx \<in> .[X]\<close> show "t \<in> ?A" by (rule PPs_UnI)
+  qed
+qed
+
+corollary PPs_insert: ".[insert x X] = (\<Union>e. (+) (Poly_Mapping.single x e) ` .[X])"
+proof -
+  have ".[insert x X] = .[{x} \<union> X]" by simp
+  also have "... = (\<Union>t\<in>.[{x}]. (+) t ` .[X])" by (fact PPs_Un)
+  also have "... = (\<Union>e. (+) (Poly_Mapping.single x e) ` .[X])" by (simp add: PPs_singleton)
+  finally show ?thesis .
+qed
+
+corollary PPs_insertI:
+  assumes "tx \<in> .[X]" and "t = Poly_Mapping.single x e + tx"
+  shows "t \<in> .[insert x X]"
+proof -
+  from assms(1) have "t \<in> (+) (Poly_Mapping.single x e) ` .[X]" unfolding assms(2) by (rule imageI)
+  with UNIV_I show ?thesis unfolding PPs_insert by (rule UN_I)
+qed
+
+corollary PPs_insertE:
+  assumes "t \<in> .[insert x X]"
+  obtains e tx where "tx \<in> .[X]" and "t = Poly_Mapping.single x e + tx"
+proof -
+  from assms obtain e where "t \<in> (+) (Poly_Mapping.single x e) ` .[X]" unfolding PPs_insert ..
+  then obtain tx where "tx \<in> .[X]" and "t = Poly_Mapping.single x e + tx" ..
+  thus ?thesis ..
+qed
+
+subsubsection \<open>@{const Polys}\<close>
+
+lemma Polys_alt: "P[X] = {p. indets p \<subseteq> X}"
+  by (auto simp: Polys_def PPs_def indets_def)
+
+lemma PolysI: "keys p \<subseteq> .[X] \<Longrightarrow> p \<in> P[X]"
+  by (simp add: Polys_def)
+
+lemma PolysI_alt: "indets p \<subseteq> X \<Longrightarrow> p \<in> P[X]"
+  by (simp add: Polys_alt)
+
+lemma PolysD:
+  assumes "p \<in> P[X]"
+  shows "keys p \<subseteq> .[X]" and "indets p \<subseteq> X"
+  using assms by (simp add: Polys_def, simp add: Polys_alt)
+
+lemma Polys_empty: "P[{}] = ((range (Poly_Mapping.single 0))::(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) set)"
+proof (rule set_eqI)
+  fix p :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero"
+  show "p \<in> P[{}] \<longleftrightarrow> p \<in> range (Poly_Mapping.single 0)"
+  proof
+    assume "p \<in> P[{}]"
+    hence "keys p \<subseteq> .[{}]" by (rule PolysD)
+    also have "... = {0}" by simp
+    finally have "keys p \<subseteq> {0}" .
+    hence "Poly_Mapping.single 0 (lookup p 0) = p" by (rule keys_subset_singleton_imp_monomial)
+    from this[symmetric] UNIV_I show "p \<in> range (Poly_Mapping.single 0)" ..
+  next
+    assume "p \<in> range (Poly_Mapping.single 0)"
+    then obtain c where "p = monomial c 0" ..
+    thus "p \<in> P[{}]" by (simp add: Polys_def)
+  qed
+qed
+
+lemma zero_in_Polys: "0 \<in> P[X]"
+  by (simp add: Polys_def)
+
+lemma Polys_mono: "X \<subseteq> Y \<Longrightarrow> P[X] \<subseteq> P[Y]"
+  by (auto simp: Polys_alt)
+
+lemma Polys_closed_monomial: "t \<in> .[X] \<Longrightarrow> monomial c t \<in> P[X]"
+  using indets_monomial_subset[where c=c and t=t] by (auto simp: Polys_alt PPs_def)
+
+lemma Polys_closed_plus: "p \<in> P[X] \<Longrightarrow> q \<in> P[X] \<Longrightarrow> p + q \<in> P[X]"
+  using indets_plus_subset[of p q] by (auto simp: Polys_alt PPs_def)
+
+lemma Polys_closed_uminus: "p \<in> P[X] \<Longrightarrow> -p \<in> P[X]"
+  by (simp add: Polys_def keys_uminus)
+
+lemma Polys_closed_minus: "p \<in> P[X] \<Longrightarrow> q \<in> P[X] \<Longrightarrow> p - q \<in> P[X]"
+  using indets_minus_subset[of p q] by (auto simp: Polys_alt PPs_def)
+
+lemma Polys_closed_monom_mult: "t \<in> .[X] \<Longrightarrow> p \<in> P[X] \<Longrightarrow> punit.monom_mult c t p \<in> P[X]"
+  using indets_monom_mult_subset[of c t p] by (auto simp: Polys_alt PPs_def)
+
+lemma Polys_closed_times: "p \<in> P[X] \<Longrightarrow> q \<in> P[X] \<Longrightarrow> p * q \<in> P[X]"
+  using indets_times_subset[of p q] by (auto simp: Polys_alt PPs_def)
+
+subsection \<open>Degree-Sections of Power-Products\<close>
+
+definition deg_sect :: "'x set \<Rightarrow> nat \<Rightarrow> ('x::countable \<Rightarrow>\<^sub>0 nat) set"
+  where "deg_sect X d = .[X] \<inter> {t. deg_pm t = d}"
+
+definition deg_le_sect :: "'x set \<Rightarrow> nat \<Rightarrow> ('x::countable \<Rightarrow>\<^sub>0 nat) set"
+  where "deg_le_sect X d = (\<Union>d0\<le>d. deg_sect X d0)"
+
+lemma deg_sectI: "t \<in> .[X] \<Longrightarrow> deg_pm t = d \<Longrightarrow> t \<in> deg_sect X d"
+  by (simp add: deg_sect_def)
+
+lemma deg_sectD:
+  assumes "t \<in> deg_sect X d"
+  shows "t \<in> .[X]" and "deg_pm t = d"
+  using assms by (simp_all add: deg_sect_def)
+
+lemma deg_le_sect_alt: "deg_le_sect X d = .[X] \<inter> {t. deg_pm t \<le> d}"
+  by (auto simp: deg_le_sect_def deg_sect_def)
+
+lemma deg_le_sectI: "t \<in> .[X] \<Longrightarrow> deg_pm t \<le> d \<Longrightarrow> t \<in> deg_le_sect X d"
+  by (simp add: deg_le_sect_alt)
+
+lemma deg_le_sectD:
+  assumes "t \<in> deg_le_sect X d"
+  shows "t \<in> .[X]" and "deg_pm t \<le> d"
+  using assms by (simp_all add: deg_le_sect_alt)
+
+lemma deg_sect_zero [simp]: "deg_sect X 0 = {0}"
+  by (auto simp: deg_sect_def zero_in_PPs)
+
+lemma deg_sect_empty: "deg_sect {} d = (if d = 0 then {0} else {})"
+  by (auto simp: deg_sect_def)
+
+lemma deg_sect_singleton [simp]: "deg_sect {x} d = {Poly_Mapping.single x d}"
+  by (auto simp: deg_sect_def deg_pm_single PPs_singleton)
+
+lemma deg_le_sect_zero [simp]: "deg_le_sect X 0 = {0}"
+  by (auto simp: deg_le_sect_def)
+
+lemma deg_le_sect_empty [simp]: "deg_le_sect {} d = {0}"
+  by (auto simp: deg_le_sect_alt varnum_eq_zero_iff)
+
+lemma deg_le_sect_singleton: "deg_le_sect {x} d = Poly_Mapping.single x ` {..d}"
+  by (auto simp: deg_le_sect_alt deg_pm_single PPs_singleton)
+
+lemma deg_sect_mono: "X \<subseteq> Y \<Longrightarrow> deg_sect X d \<subseteq> deg_sect Y d"
+  by (auto simp: deg_sect_def dest: PPs_mono)
+
+lemma deg_le_sect_mono_1: "X \<subseteq> Y \<Longrightarrow> deg_le_sect X d \<subseteq> deg_le_sect Y d"
+  by (auto simp: deg_le_sect_alt dest: PPs_mono)
+
+lemma deg_le_sect_mono_2: "d1 \<le> d2 \<Longrightarrow> deg_le_sect X d1 \<subseteq> deg_le_sect X d2"
+  by (auto simp: deg_le_sect_alt)
+
+lemma zero_in_deg_set: "0 \<in> deg_le_sect n d"
+  by (simp add: deg_le_sect_alt zero_in_PPs)
+
+lemma deg_sect_disjoint: "d1 \<noteq> d2 \<Longrightarrow> deg_sect X d1 \<inter> deg_sect Y d2 = {}"
+  by (auto simp: deg_sect_def)
+
+lemma deg_le_sect_deg_sect_disjoint: "d1 < d2 \<Longrightarrow> deg_le_sect Y d1 \<inter> deg_sect X d2 = {}"
+  by (auto simp: deg_sect_def deg_le_sect_alt)
+
+lemma deg_sect_Suc:
+  "deg_sect X (Suc d) = (\<Union>x\<in>X. (+) (Poly_Mapping.single x 1) ` deg_sect X d)" (is "?A = ?B")
+proof (rule set_eqI)
+  fix t
+  show "t \<in> ?A \<longleftrightarrow> t \<in> ?B"
+  proof
+    assume "t \<in> ?A"
+    hence "t \<in> .[X]" and "deg_pm t = Suc d" by (rule deg_sectD)+
+    from this(2) have "keys t \<noteq> {}" by auto
+    then obtain x where "x \<in> keys t" by blast
+    hence "1 \<le> lookup t x" by (simp add: in_keys_iff)
+    from \<open>t \<in> .[X]\<close> have "keys t \<subseteq> X" by (rule PPsD)
+    with \<open>x \<in> keys t\<close> have "x \<in> X" ..
+    let ?s = "Poly_Mapping.single x (1::nat)"
+    from \<open>1 \<le> lookup t x\<close> have "?s adds t"
+      by (auto simp: lookup_single when_def intro!: adds_poly_mappingI le_funI)
+    hence t: "?s + (t - ?s) = t" by (metis add.commute adds_minus)
+    have "t - ?s \<in> deg_sect X d"
+    proof (rule deg_sectI)
+      from \<open>t \<in> .[X]\<close> show "t - ?s \<in> .[X]" by (rule PPs_closed_minus)
+    next
+      from deg_pm_plus[of ?s "t - ?s"] have "deg_pm t = Suc (deg_pm (t - ?s))"
+        by (simp only: t deg_pm_single)
+      thus "deg_pm (t - ?s) = d" by (simp add: \<open>deg_pm t = Suc d\<close>)
+    qed
+    hence "?s + (t - ?s) \<in> (+) ?s ` deg_sect X d" by (rule imageI)
+    hence "t \<in> (+) ?s ` deg_sect X d" by (simp only: t)
+    with \<open>x \<in> X\<close> show "t \<in> ?B" ..
+  next
+    assume "t \<in> ?B"
+    then obtain x where "x \<in> X" and "t \<in> (+) (Poly_Mapping.single x 1) ` deg_sect X d" ..
+    from this(2) obtain s where s: "s \<in> deg_sect X d"
+      and t: "t = Poly_Mapping.single x 1 + s" (is "t = ?s + s") ..
+    show "t \<in> ?A"
+    proof (rule deg_sectI)
+      from \<open>x \<in> X\<close> have "?s \<in> .[X]" by (rule PPs_closed_single)
+      moreover from s have "s \<in> .[X]" by (rule deg_sectD)
+      ultimately show "t \<in> .[X]" unfolding t by (rule PPs_closed_plus)
+    next
+      from s have "deg_pm s = d" by (rule deg_sectD)
+      thus "deg_pm t = Suc d" by (simp add: t deg_pm_single deg_pm_plus)
+    qed
+  qed
+qed
+
+lemma deg_sect_insert:
+  "deg_sect (insert x X) d = (\<Union>d0\<le>d. (+) (Poly_Mapping.single x (d - d0)) ` deg_sect X d0)"
+    (is "?A = ?B")
+proof (rule set_eqI)
+  fix t
+  show "t \<in> ?A \<longleftrightarrow> t \<in> ?B"
+  proof
+    assume "t \<in> ?A"
+    hence "t \<in> .[insert x X]" and "deg_pm t = d" by (rule deg_sectD)+
+    from this(1) obtain e tx where "tx \<in> .[X]" and t: "t = Poly_Mapping.single x e + tx"
+      by (rule PPs_insertE)
+    have "e + deg_pm tx = deg_pm t" by (simp add: t deg_pm_plus deg_pm_single)
+    hence "e + deg_pm tx = d" by (simp only: \<open>deg_pm t = d\<close>)
+    hence "deg_pm tx \<in> {..d}" and e: "e = d - deg_pm tx" by simp_all
+    from \<open>tx \<in> .[X]\<close> refl have "tx \<in> deg_sect X (deg_pm tx)" by (rule deg_sectI)
+    hence "t \<in> (+) (Poly_Mapping.single x (d - deg_pm tx)) ` deg_sect X (deg_pm tx)"
+      unfolding t e by (rule imageI)
+    with \<open>deg_pm tx \<in> {..d}\<close> show "t \<in> ?B" ..
+  next
+    assume "t \<in> ?B"
+    then obtain d0 where "d0 \<in> {..d}" and "t \<in> (+) (Poly_Mapping.single x (d - d0)) ` deg_sect X d0" ..
+    from this(2) obtain s where s: "s \<in> deg_sect X d0"
+      and t: "t = Poly_Mapping.single x (d - d0) + s" (is "t = ?s + s") ..
+    show "t \<in> ?A"
+    proof (rule deg_sectI)
+      have "?s \<in> .[insert x X]" by (rule PPs_closed_single, simp)
+      from s have "s \<in> .[X]" by (rule deg_sectD)
+      also have "... \<subseteq> .[insert x X]" by (rule PPs_mono, blast)
+      finally have "s \<in> .[insert x X]" .
+      with \<open>?s \<in> .[insert x X]\<close> show "t \<in> .[insert x X]" unfolding t by (rule PPs_closed_plus)
+    next
+      from s have "deg_pm s = d0" by (rule deg_sectD)
+      moreover from \<open>d0 \<in> {..d}\<close> have "d0 \<le> d" by simp
+      ultimately show "deg_pm t = d" by (simp add: t deg_pm_single deg_pm_plus)
+    qed
+  qed
+qed
+
+lemma deg_le_sect_Suc: "deg_le_sect X (Suc d) = deg_le_sect X d \<union> deg_sect X (Suc d)"
+  by (simp add: deg_le_sect_def atMost_Suc Un_commute)
+
+lemma deg_le_sect_Suc_2:
+  "deg_le_sect X (Suc d) = insert 0 (\<Union>x\<in>X. (+) (Poly_Mapping.single x 1) ` deg_le_sect X d)"
+    (is "?A = ?B")
+proof -
+  have eq1: "{Suc 0..Suc d} = Suc ` {..d}" by (simp add: image_Suc_atMost)
+  have "insert 0 {1..Suc d} = {..Suc d}" by fastforce
+  hence "?A = (\<Union>d0\<in>insert 0 {1..Suc d}. deg_sect X d0)" by (simp add: deg_le_sect_def)
+  also have "... = insert 0 (\<Union>d0\<le>d. deg_sect X (Suc d0))" by (simp add: eq1)
+  also have "... = insert 0 (\<Union>d0\<le>d. (\<Union>x\<in>X. (+) (Poly_Mapping.single x 1) ` deg_sect X d0))"
+    by (simp only: deg_sect_Suc)
+  also have "... = insert 0 (\<Union>x\<in>X. (+) (Poly_Mapping.single x 1) ` (\<Union>d0\<le>d. deg_sect X d0))"
+    by fastforce
+  also have "... = ?B" by (simp only: deg_le_sect_def)
+  finally show ?thesis .
+qed
+
+lemma finite_deg_sect:
+  assumes "finite X"
+  shows "finite ((deg_sect X d)::('x::countable \<Rightarrow>\<^sub>0 nat) set)"
+proof (induct d)
+  case 0
+  show ?case by simp
+next
+  case (Suc d)
+  with assms show ?case by (simp add: deg_sect_Suc)
+qed
+
+corollary finite_deg_le_sect: "finite X \<Longrightarrow> finite ((deg_le_sect X d)::('x::countable \<Rightarrow>\<^sub>0 nat) set)"
+  by (simp add: deg_le_sect_def finite_deg_sect)
+
+lemma keys_subset_deg_le_sectI:
+  assumes "p \<in> P[X]" and "poly_deg p \<le> d"
+  shows "keys p \<subseteq> deg_le_sect X d"
+proof
+  fix t
+  assume "t \<in> keys p"
+  also from assms(1) have "... \<subseteq> .[X]" by (rule PolysD)
+  finally have "t \<in> .[X]" .
+  from \<open>t \<in> keys p\<close> have "deg_pm t \<le> poly_deg p" by (rule poly_deg_max_keys)
+  from this assms(2) have "deg_pm t \<le> d" by (rule le_trans)
+  with \<open>t \<in> .[X]\<close> show "t \<in> deg_le_sect X d" by (rule deg_le_sectI)
+qed
+
+lemma card_deg_sect:
+  assumes "finite X" and "X \<noteq> {}"
+  shows "card (deg_sect X d) = (card X + d - 1) choose d"
+  using assms
+proof (induct X arbitrary: d)
+  case empty
+  thus ?case by simp
+next
+  case (insert x X)
+  from insert(1, 2) have eq1: "card (insert x X) = Suc (card X)" by simp
+  show ?case
+  proof (cases "X = {}")
+    case True
+    thus ?thesis by simp
+  next
+    case False
+    with insert.hyps(1) have "0 < card X" by (simp add: card_gt_0_iff)
+    let ?f = "\<lambda>d0. Poly_Mapping.single x (d - d0)"
+    have eq2: "card (deg_sect X d0) = (card X - 1) + d0 choose d0" for d0
+    proof -
+      from False have "card (deg_sect X d0) = card X + d0 - 1 choose d0" by (rule insert.hyps)
+      also from \<open>0 < card X\<close> have "... = (card X - 1) + d0 choose d0" by simp
+      finally show ?thesis .
+    qed
+    have "finite {..d}" by simp
+    moreover from insert.hyps(1) have "\<forall>d0\<in>{..d}. finite ((+) (?f d0) ` deg_sect X d0)"
+      by (simp add: finite_deg_sect)
+    moreover have "\<forall>d0\<in>{..d}. \<forall>d1\<in>{..d}. d0 \<noteq> d1 \<longrightarrow>
+                          ((+) (?f d0) ` deg_sect X d0) \<inter> ((+) (?f d1) ` deg_sect X d1) = {}"
+    proof (intro ballI impI, rule ccontr)
+      fix d1 d2 :: nat
+      assume "d1 \<noteq> d2"
+      assume "((+) (?f d1) ` deg_sect X d1) \<inter> ((+) (?f d2) ` deg_sect X d2) \<noteq> {}"
+      then obtain t where "t \<in> ((+) (?f d1) ` deg_sect X d1) \<inter> ((+) (?f d2) ` deg_sect X d2)"
+        by blast
+      hence t1: "t \<in> (+) (?f d1) ` deg_sect X d1" and t2: "t \<in> (+) (?f d2) ` deg_sect X d2" by simp_all
+      from t1 obtain s1 where "s1 \<in> deg_sect X d1" and s1: "t = ?f d1 + s1" ..
+      from this(1) have "s1 \<in> .[X]" by (rule deg_sectD)
+      hence "keys s1 \<subseteq> X" by (rule PPsD)
+      with insert.hyps(2) have eq3: "lookup s1 x = 0" by auto
+      from t2 obtain s2 where "s2 \<in> deg_sect X d2" and s2: "t = ?f d2 + s2" ..
+      from this(1) have "s2 \<in> .[X]" by (rule deg_sectD)
+      hence "keys s2 \<subseteq> X" by (rule PPsD)
+      with insert.hyps(2) have eq4: "lookup s2 x = 0" by auto
+      from s2 have "lookup (?f d1 + s1) x = lookup (?f d2 + s2) x" by (simp only: s1)
+      hence "d - d1 = d - d2" by (simp add: lookup_add eq3 eq4)
+      moreover assume "d1 \<in> {..d}" and "d2 \<in> {..d}"
+      ultimately have "d1 = d2" by simp
+      with \<open>d1 \<noteq> d2\<close> show False ..
+    qed
+    ultimately have "card (deg_sect (insert x X) d) =
+                       (\<Sum>d0\<le>d. card ((+) (monomial (d - d0) x) ` deg_sect X d0))"
+      unfolding deg_sect_insert by (rule card_UN_disjoint)
+    also from refl have "... = (\<Sum>d0\<le>d. card (deg_sect X d0))"
+    proof (rule sum.cong)
+      fix d0
+      have "inj_on ((+) (monomial (d - d0) x)) (deg_sect X d0)" by (rule, rule add_left_imp_eq)
+      thus "card ((+) (monomial (d - d0) x) ` deg_sect X d0) = card (deg_sect X d0)"
+        by (rule card_image)
+    qed
+    also have "... = (\<Sum>d0\<le>d. (card X - 1) + d0 choose d0)" by (simp only: eq2)
+    also have "... = Suc ((card X - 1) + d) choose d" by (rule sum_choose_lower)
+    also from \<open>0 < card X\<close> have "... = card (insert x X) + d - 1 choose d" by (simp add: eq1)
+    finally show ?thesis .
+  qed
+qed
+
+corollary card_deg_sect_Suc:
+  assumes "finite X"
+  shows "card (deg_sect X (Suc d)) = (card X + d) choose Suc d"
+proof (cases "X = {}")
+  case True
+  thus ?thesis by (simp add: deg_sect_empty)
+next
+  case False
+  with assms have "card (deg_sect X (Suc d)) = (card X + (Suc d) - 1) choose (Suc d)"
+    by (rule card_deg_sect)
+  also have "... = (card X + d) choose (Suc d)" by simp
+  finally show ?thesis .
+qed
+
+lemma binomial_symmetric_plus: "(n + k) choose n = (n + k) choose k"
+  by (metis add_diff_cancel_left' binomial_symmetric le_add1)
+
+corollary card_deg_le_sect:
+  assumes "finite X"
+  shows "card (deg_le_sect X d) = (card X + d) choose card X"
+proof (induct d)
+  case 0
+  show ?case by simp
+next
+  case (Suc d)
+  from assms have "finite (deg_le_sect X d)" by (rule finite_deg_le_sect)
+  moreover from assms have "finite (deg_sect X (Suc d))" by (rule finite_deg_sect)
+  moreover from lessI have "deg_le_sect X d \<inter> deg_sect X (Suc d) = {}"
+    by (rule deg_le_sect_deg_sect_disjoint)
+  ultimately have "card (deg_le_sect X (Suc d)) = card (deg_le_sect X d) + card (deg_sect X (Suc d))"
+    unfolding deg_le_sect_Suc by (rule card_Un_disjoint)
+  also from assms have "... = (card X + Suc d) choose Suc d"
+    by (simp add: Suc.hyps card_deg_sect_Suc binomial_symmetric_plus)
+  also have "... = (card X + Suc d) choose card X" by (rule sym, rule binomial_symmetric_plus)
+  finally show ?case .
 qed
 
 subsection \<open>Substitution Homomorphisms\<close>
@@ -828,116 +1352,6 @@ next
     finally show "d \<le> poly_deg p" .
   qed
   finally show ?thesis by simp
-qed
-
-subsection \<open>Degree-Sections of Power-Products\<close>
-
-definition deg_sect :: "nat \<Rightarrow> nat \<Rightarrow> ('x::countable \<Rightarrow>\<^sub>0 nat) set"
-  where "deg_sect n d = {t. varnum t \<le> n \<and> deg_pm t = d}"
-
-definition deg_le_sect :: "nat \<Rightarrow> nat \<Rightarrow> ('x::countable \<Rightarrow>\<^sub>0 nat) set"
-  where "deg_le_sect n d = (\<Union>d0\<le>d. deg_sect n d0)"
-
-lemma deg_le_sect_alt: "deg_le_sect n d = {t. varnum t \<le> n \<and> deg_pm t \<le> d}"
-  by (auto simp: deg_le_sect_def deg_sect_def)
-
-lemma deg_sect_zero [simp]: "deg_sect n 0 = {0}"
-  by (auto simp: deg_sect_def)
-
-lemma deg_le_sect_zero [simp]: "deg_le_sect 0 d = {0}" "deg_le_sect n 0 = {0}"
-  subgoal by (auto simp: deg_le_sect_alt varnum_eq_zero_iff)
-  subgoal by (auto simp: deg_le_sect_def)
-  done
-
-lemma deg_sect_mono: "n1 \<le> n2 \<Longrightarrow> deg_sect n1 d \<subseteq> deg_sect n2 d"
-  by (auto simp: deg_sect_def)
-
-lemma deg_le_sect_mono_1: "n1 \<le> n2 \<Longrightarrow> deg_le_sect n1 d \<subseteq> deg_le_sect n2 d"
-  by (auto simp: deg_le_sect_alt)
-
-lemma deg_le_sect_mono_2: "d1 \<le> d2 \<Longrightarrow> deg_le_sect n d1 \<subseteq> deg_le_sect n d2"
-  by (auto simp: deg_le_sect_alt)
-
-lemma zero_in_deg_set: "0 \<in> deg_le_sect n d"
-  by (simp add: deg_le_sect_alt)
-
-lemma deg_sect_disjoint: "d1 \<noteq> d2 \<Longrightarrow> deg_sect n1 d1 \<inter> deg_sect n2 d2 = {}"
-  by (auto simp: deg_sect_def)
-
-lemma deg_sect_Suc:
-  "deg_sect n (Suc d) = (\<Union>x\<in>{y. elem_index y < n}. (+) (Poly_Mapping.single x 1) ` deg_sect n d)"
-  sorry
-
-lemma deg_le_sect_Suc: "deg_le_sect n (Suc d) = deg_le_sect n d \<union> deg_sect n (Suc d)"
-  by (simp add: deg_le_sect_def atMost_Suc Un_commute)
-
-lemma deg_le_sect_Suc_2:
-  "deg_le_sect n (Suc d) = insert 0 (\<Union>x\<in>{y. elem_index y < n}. (+) (Poly_Mapping.single x 1) ` deg_le_sect n d)"
-  sorry
-
-lemma finite_deg_sect: "finite ((deg_sect n d)::('x::countable \<Rightarrow>\<^sub>0 nat) set)"
-  sorry
-
-lemma finite_deg_le_sect: "finite ((deg_le_sect n d)::('x::countable \<Rightarrow>\<^sub>0 nat) set)"
-proof (induct d)
-  case 0
-  show ?case by (simp add: deg_le_sect_alt)
-next
-  case (Suc d)
-  have eq: "deg_le_sect n (Suc d) = deg_le_sect n d \<union> {t::'x \<Rightarrow>\<^sub>0 nat. varnum t \<le> n \<and> deg_pm t = Suc d}"
-    (is "_ = _ \<union> ?A") by (auto simp add: deg_le_sect_alt)
-  have "?A \<subseteq> (\<Union>x\<in>{y::'x. elem_index y < n}. (+) (Poly_Mapping.single x 1) ` deg_le_sect n d)" (is "_ \<subseteq> ?B")
-  proof (rule, simp, elim conjE)
-    fix t::"'x \<Rightarrow>\<^sub>0 nat"
-    assume "varnum t \<le> n" and "deg_pm t = Suc d"
-    from this(2) have "deg_pm t \<noteq> 0" by simp
-    hence "keys t \<noteq> {}" by simp
-    then obtain x where "x \<in> keys t" by blast
-    hence "lookup t x \<noteq> 0" by (simp only: lookup_not_eq_zero_eq_in_keys)
-    then obtain d' where "lookup t x = Suc d'" using not0_implies_Suc by blast
-    show "\<exists>x. elem_index x < n \<and> t \<in> (+) (Poly_Mapping.single x (Suc 0)) ` deg_le_sect n d"
-    proof (intro exI conjI)
-      from \<open>x \<in> keys t\<close> have "elem_index x < varnum t" by (rule elem_index_less_varnum)
-      from this \<open>varnum t \<le> n\<close> show "elem_index x < n" by simp
-    next
-      let ?x = "Poly_Mapping.single x (Suc 0)"
-      have "deg_pm ?x = (\<Sum>k\<in>keys ?x. lookup ?x k)"
-        by (rule deg_pm_superset, fact subset_refl, fact finite_keys)
-      hence "deg_pm ?x = Suc 0" by simp
-      have "?x adds t"
-      proof (rule adds_pmI, rule le_pmI, simp add: lookup_single when_def, rule impI)
-        fix y
-        assume "x = y"
-        with \<open>lookup t x = Suc d'\<close> have "lookup t y = Suc d'" by simp
-        thus "Suc 0 \<le> lookup t y" by simp
-      qed
-      show "t \<in> (+) (monomial (Suc 0) x) ` deg_le_sect n d"
-      proof
-        from \<open>?x adds t\<close> show "t = Poly_Mapping.single x (Suc 0) + (t - ?x)"
-          by (metis add.commute adds_minus)
-      next
-        show "t - ?x \<in> deg_le_sect n d"
-        proof (simp add: deg_le_sect_alt, rule)
-          from dickson_grading_varnum \<open>?x adds t\<close> have "varnum (t - ?x) \<le> varnum t"
-            by (rule dickson_grading_minus)
-          from this \<open>varnum t \<le> n\<close> show "varnum (t - ?x) \<le> n" by (rule le_trans)
-        next
-          from \<open>?x adds t\<close> obtain s where "t = ?x + s" ..
-          have "Suc d = deg_pm t" by (simp only: \<open>deg_pm t = Suc d\<close>)
-          also have "... = deg_pm ?x + deg_pm s" by (simp add: \<open>t = ?x + s\<close> deg_pm_plus)
-          also have "... = Suc (deg_pm s)" by (simp add: \<open>deg_pm ?x = Suc 0\<close>)
-          finally show "deg_pm (t - ?x) \<le> d" by (simp add: \<open>t = ?x + s\<close>)
-        qed
-      qed
-    qed
-  qed
-  moreover from finite_nat_seg have "finite ?B"
-  proof (rule finite_UN_I)
-    fix x :: 'x
-    from Suc show "finite ((+) (Poly_Mapping.single x 1) ` deg_le_sect n d)" by (rule finite_imageI)
-  qed
-  ultimately have "finite ?A" by (rule finite_subset)
-  with Suc show ?case by (simp add: eq)
 qed
 
 subsection \<open>Locale @{term pm_powerprod}\<close>
