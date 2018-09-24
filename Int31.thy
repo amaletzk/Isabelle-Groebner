@@ -3,7 +3,7 @@
 section \<open>31-Bit Machine Integers\<close>
 
 theory Int31
-  imports "HOL-Library.Code_Target_Numeral" "Signature_Groebner/Prelims" Print
+  imports "HOL-Library.Code_Target_Numeral" Signature_Groebner.Prelims Print
 begin
 
 subsection \<open>Carrier Sets for Arbitrary Bit-Size\<close>
