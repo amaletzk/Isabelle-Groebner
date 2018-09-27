@@ -910,9 +910,12 @@ proof
   with \<open>t \<in> .[X]\<close> show "t \<in> deg_le_sect X d" by (rule deg_le_sectI)
 qed
 
+lemma binomial_symmetric_plus: "(n + k) choose n = (n + k) choose k"
+  by (metis add_diff_cancel_left' binomial_symmetric le_add1)
+
 lemma card_deg_sect:
   assumes "finite X" and "X \<noteq> {}"
-  shows "card (deg_sect X d) = (card X + d - 1) choose d"
+  shows "card (deg_sect X d) = (d + (card X - 1)) choose (card X - 1)"
   using assms
 proof (induct X arbitrary: d)
   case empty
@@ -928,12 +931,8 @@ next
     case False
     with insert.hyps(1) have "0 < card X" by (simp add: card_gt_0_iff)
     let ?f = "\<lambda>d0. Poly_Mapping.single x (d - d0)"
-    have eq2: "card (deg_sect X d0) = (card X - 1) + d0 choose d0" for d0
-    proof -
-      from False have "card (deg_sect X d0) = card X + d0 - 1 choose d0" by (rule insert.hyps)
-      also from \<open>0 < card X\<close> have "... = (card X - 1) + d0 choose d0" by simp
-      finally show ?thesis .
-    qed
+    from False have eq2: "card (deg_sect X d0) = d0 + (card X - 1) choose (card X - 1)" for d0
+      by (rule insert.hyps)
     have "finite {..d}" by simp
     moreover from insert.hyps(1) have "\<forall>d0\<in>{..d}. finite ((+) (?f d0) ` deg_sect X d0)"
       by (simp add: finite_deg_sect)
@@ -970,33 +969,36 @@ next
       thus "card ((+) (monomial (d - d0) x) ` deg_sect X d0) = card (deg_sect X d0)"
         by (rule card_image)
     qed
-    also have "... = (\<Sum>d0\<le>d. (card X - 1) + d0 choose d0)" by (simp only: eq2)
+    also have "... = (\<Sum>d0\<le>d. (card X - 1) + d0 choose (card X - 1))" by (simp only: eq2 add.commute)
+    also have "... = (\<Sum>d0\<le>d. (card X - 1) + d0 choose d0)" by (simp only: binomial_symmetric_plus)
     also have "... = Suc ((card X - 1) + d) choose d" by (rule sum_choose_lower)
-    also from \<open>0 < card X\<close> have "... = card (insert x X) + d - 1 choose d" by (simp add: eq1)
+    also from \<open>0 < card X\<close> have "... = d + (card (insert x X) - 1) choose d"
+      by (simp add: eq1 add.commute)
+    also have "... = d + (card (insert x X) - 1) choose (card (insert x X) - 1)"
+      by (fact binomial_symmetric_plus)
     finally show ?thesis .
   qed
 qed
 
 corollary card_deg_sect_Suc:
   assumes "finite X"
-  shows "card (deg_sect X (Suc d)) = (card X + d) choose Suc d"
+  shows "card (deg_sect X (Suc d)) = (d + card X) choose (Suc d)"
 proof (cases "X = {}")
   case True
   thus ?thesis by (simp add: deg_sect_empty)
 next
   case False
-  with assms have "card (deg_sect X (Suc d)) = (card X + (Suc d) - 1) choose (Suc d)"
+  with assms have "0 < card X" by (simp add: card_gt_0_iff)
+  from assms False have "card (deg_sect X (Suc d)) = (Suc d + (card X - 1)) choose (card X - 1)"
     by (rule card_deg_sect)
-  also have "... = (card X + d) choose (Suc d)" by simp
+  also have "... = (Suc d + (card X - 1)) choose (Suc d)" by (rule sym, rule binomial_symmetric_plus)
+  also from \<open>0 < card X\<close> have "... = (d + card X) choose (Suc d)" by simp
   finally show ?thesis .
 qed
 
-lemma binomial_symmetric_plus: "(n + k) choose n = (n + k) choose k"
-  by (metis add_diff_cancel_left' binomial_symmetric le_add1)
-
 corollary card_deg_le_sect:
   assumes "finite X"
-  shows "card (deg_le_sect X d) = (card X + d) choose card X"
+  shows "card (deg_le_sect X d) = (d + card X) choose card X"
 proof (induct d)
   case 0
   show ?case by simp
@@ -1008,9 +1010,9 @@ next
     by (rule deg_le_sect_deg_sect_disjoint)
   ultimately have "card (deg_le_sect X (Suc d)) = card (deg_le_sect X d) + card (deg_sect X (Suc d))"
     unfolding deg_le_sect_Suc by (rule card_Un_disjoint)
-  also from assms have "... = (card X + Suc d) choose Suc d"
-    by (simp add: Suc.hyps card_deg_sect_Suc binomial_symmetric_plus)
-  also have "... = (card X + Suc d) choose card X" by (rule sym, rule binomial_symmetric_plus)
+  also from assms have "... = (Suc d + card X) choose Suc d"
+    by (simp add: Suc.hyps card_deg_sect_Suc binomial_symmetric_plus[of d])
+  also have "... = (Suc d + card X) choose card X" by (rule binomial_symmetric_plus)
   finally show ?case .
 qed
 
