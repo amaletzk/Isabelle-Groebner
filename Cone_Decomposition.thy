@@ -1536,4 +1536,787 @@ next
   }
   thus "cone t U \<inter> I = {}" by blast
 qed
+
+subsection \<open>Function \<open>split\<close>\<close>
+
+definition max_subset :: "'a set \<Rightarrow> ('a set \<Rightarrow> bool) \<Rightarrow> 'a set"
+  where "max_subset A P = (ARG_MAX card B. B \<subseteq> A \<and> P B)"
+
+lemma max_subset:
+  assumes "finite A" and "B \<subseteq> A" and "P B"
+  shows "max_subset A P \<subseteq> A" (is ?thesis1)
+    and "P (max_subset A P)" (is ?thesis2)
+    and "card B \<le> card (max_subset A P)" (is ?thesis3)
+proof -
+  from assms(2, 3) have "B \<subseteq> A \<and> P B" by simp
+  moreover have "\<forall>C. C \<subseteq> A \<and> P C \<longrightarrow> card C < Suc (card A)"
+  proof (intro allI impI, elim conjE)
+    fix C
+    assume "C \<subseteq> A"
+    with assms(1) have "card C \<le> card A" by (rule card_mono)
+    thus "card C < Suc (card A)" by simp
+  qed
+  ultimately have "?thesis1 \<and> ?thesis2" and ?thesis3 unfolding max_subset_def
+    by (rule arg_max_natI, rule arg_max_nat_le)
+  thus ?thesis1 and ?thesis2 and ?thesis3 by simp_all
+qed
+
+function (domintros) split :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> 'x set \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) set \<Rightarrow>
+                                (((('x \<Rightarrow>\<^sub>0 nat) \<times> ('x set)) set) \<times> ((('x \<Rightarrow>\<^sub>0 nat) \<times> ('x set)) set))"
+  where
+    "split t U F =
+      (if 0 \<in> F then
+        ({(t, U)}, {})
+      else if F \<inter> .[U] = {} then
+        ({}, {(t, U)})
+      else
+        let x = SOME x'. x' \<in> U - (max_subset U (\<lambda>V. F \<inter> .[V] = {}));
+            (P0, Q0) = split t (U - {x}) F;
+            (P1, Q1) = split (Poly_Mapping.single x 1 + t) U ((\<lambda>f. f - Poly_Mapping.single x 1) ` F) in
+          (P0 \<union> P1, Q0 \<union> Q1))"
+  by auto
+
+text \<open>Function @{const split} is not executable, because this is not necessary.
+  With some effort, it could be made executable, though.\<close>
+
+(* TODO: Remove. *)
+lemma sum_image_le':
+  fixes g :: "'a \<Rightarrow> 'b::ordered_comm_monoid_add"
+  assumes "finite I" and "\<And>i. i \<in> I \<Longrightarrow> 0 \<le> g(f i)"
+    shows "sum g (f ` I) \<le> sum (g \<circ> f) I"
+  using assms
+proof induction
+  case empty
+  then show ?case by auto
+next
+  case (insert x F)
+  from insertI1 have "0 \<le> g (f x)" by (rule insert)
+  hence 1: "sum g (f ` F) \<le> g (f x) + sum g (f ` F)" using add_increasing by blast
+  from insert have 2: "sum g (f ` F) \<le> sum (g \<circ> f) F" by blast
+  have "sum g (f ` insert x F) = sum g (insert (f x) (f ` F))" by simp
+  also have "\<dots> \<le> g (f x) + sum g (f ` F)"
+    by (simp add: 1 insert sum.insert_if)
+  also from 2 have "\<dots> \<le> g (f x) + sum (g \<circ> f) F" by (rule add_left_mono)
+  also from insert(1, 2) have "\<dots> = sum (g \<circ> f) (insert x F)" by (simp add: sum.insert_if)
+  finally show ?case .
+qed
+
+lemma split_domI':
+  assumes "finite X" and "fst (snd args) \<subseteq> X" and "finite (snd (snd args))"
+  shows "split_dom args"
+proof -
+  let ?m = "\<lambda>args'. card (fst (snd args')) + sum deg_pm (snd (snd args'))"
+  from wf_measure[of ?m] assms(2, 3) show ?thesis
+  proof (induct args)
+    case (less args)
+    obtain t U F where args: "args = (t, U, F)" using prod.exhaust by metis
+    from less.prems have "U \<subseteq> X" and "finite F" by (simp_all only: args fst_conv snd_conv)
+    from this(1) assms(1) have "finite U" by (rule finite_subset)
+    have IH: "split_dom (t', U', F')"
+      if "U' \<subseteq> X" and "finite F'" and "card U' + sum deg_pm F' < card U + sum deg_pm F"
+      for t' U' F'
+      using less.hyps that by (simp add: args)
+
+    define S where "S = max_subset U (\<lambda>V. F \<inter> .[V] = {})"
+    define x where "x = (SOME x'. x' \<in> U \<and> x' \<notin> S)"
+    show ?case unfolding args
+    proof (rule split.domintros, simp_all only: x_def[symmetric] S_def[symmetric])
+      fix f
+      assume "0 \<notin> F" and "f \<in> F" and "f \<in> .[U]"
+      from this(1) have "F \<inter> .[{}] = {}" by simp
+      with \<open>finite U\<close> empty_subsetI have "S \<subseteq> U" and "F \<inter> .[S] = {}"
+        unfolding S_def by (rule max_subset)+
+      have "x \<in> U \<and> x \<notin> S" unfolding x_def
+      proof (rule someI_ex)
+        from \<open>f \<in> F\<close> \<open>f \<in> .[U]\<close> \<open>F \<inter> .[S] = {}\<close> have "S \<noteq> U" by blast
+        with \<open>S \<subseteq> U\<close> show "\<exists>y. y \<in> U \<and> y \<notin> S" by blast
+      qed
+      hence "x \<in> U" and "x \<notin> S" by simp_all
+      {
+        assume "\<not> split_dom (t, U - {x}, F)"
+        moreover from _ \<open>finite F\<close> have "split_dom (t, U - {x}, F)"
+        proof (rule IH)
+          from \<open>U \<subseteq> X\<close> show "U - {x} \<subseteq> X" by blast
+        next
+          from \<open>finite U\<close> \<open>x \<in> U\<close> have "card (U - {x}) < card U" by (rule card_Diff1_less)
+          thus "card (U - {x}) + sum deg_pm F < card U + sum deg_pm F" by simp
+        qed
+        ultimately show False ..
+      }
+      {
+        let ?args = "(Poly_Mapping.single x (Suc 0) + t, U, (\<lambda>f. f - Poly_Mapping.single x (Suc 0)) ` F)"
+        assume "\<not> split_dom ?args"
+        moreover from \<open>U \<subseteq> X\<close> have "split_dom ?args"
+        proof (rule IH)
+          from \<open>finite F\<close> show "finite ((\<lambda>f. f - Poly_Mapping.single x (Suc 0)) ` F)"
+            by (rule finite_imageI)
+        next
+          have "sum deg_pm ((\<lambda>f. f - Poly_Mapping.single x (Suc 0)) ` F) \<le>
+                sum (deg_pm \<circ> (\<lambda>f. f - Poly_Mapping.single x (Suc 0))) F"
+            using \<open>finite F\<close> by (rule sum_image_le') simp
+          also from \<open>finite F\<close> have "\<dots> < sum deg_pm F"
+          proof (rule sum_strict_mono_ex1)
+            show "\<forall>f\<in>F. (deg_pm \<circ> (\<lambda>f. f - Poly_Mapping.single x (Suc 0))) f \<le> deg_pm f"
+              by (simp add: deg_pm_minus_le)
+          next
+            show "\<exists>f\<in>F. (deg_pm \<circ> (\<lambda>f. f - Poly_Mapping.single x (Suc 0))) f < deg_pm f"
+            proof (rule ccontr)
+              assume *: "\<not> (\<exists>f\<in>F. (deg_pm \<circ> (\<lambda>f. f - Poly_Mapping.single x (Suc 0))) f < deg_pm f)"
+              note \<open>finite U\<close>
+              moreover from \<open>x \<in> U\<close> \<open>S \<subseteq> U\<close> have "insert x S \<subseteq> U" by (rule insert_subsetI)
+              moreover have "F \<inter> .[insert x S] = {}"
+              proof -
+                {
+                  fix s
+                  assume "s \<in> F"
+                  with * have "\<not> deg_pm (s - Poly_Mapping.single x (Suc 0)) < deg_pm s" by simp
+                  with deg_pm_minus_le[of s "Poly_Mapping.single x (Suc 0)"]
+                  have "deg_pm (s - Poly_Mapping.single x (Suc 0)) = deg_pm s" by simp
+                  hence "keys s \<inter> keys (Poly_Mapping.single x (Suc 0)) = {}"
+                    by (simp only: deg_pm_minus_id_iff)
+                  hence "x \<notin> keys s" by simp
+                  moreover assume "s \<in> .[insert x S]"
+                  ultimately have "s \<in> .[S]"
+                  by (fastforce simp add: PPs_def simp del: not_in_keys_iff_lookup_eq_zero)
+                  with \<open>s \<in> F\<close> \<open>F \<inter> .[S] = {}\<close> have False by blast
+                }
+                thus ?thesis by blast
+              qed
+              ultimately have "card (insert x S) \<le> card S" unfolding S_def by (rule max_subset)
+              moreover from \<open>S \<subseteq> U\<close> \<open>finite U\<close> have "finite S" by (rule finite_subset)
+              ultimately show False using \<open>x \<notin> S\<close> by simp
+            qed
+          qed
+          finally show "card U + sum deg_pm ((\<lambda>f. f - monomial (Suc 0) x) ` F) < card U + sum deg_pm F"
+            by simp
+        qed
+        ultimately show False ..
+      }
+    qed
+  qed
+qed
+
+corollary split_domI: "finite X \<Longrightarrow> U \<subseteq> X \<Longrightarrow> finite F \<Longrightarrow> split_dom (t, U, F)"
+  using split_domI'[of "(t, U, F)"] by simp
+
+lemma split_induct [consumes 3, case_names base1 base2 step]:
+  fixes P :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> _"
+  assumes "finite X" and "U \<subseteq> X" and "finite F"
+  assumes "\<And>t U F. U \<subseteq> X \<Longrightarrow> finite F \<Longrightarrow> 0 \<in> F \<Longrightarrow> P t U F ({(t, U)}, {})"
+  assumes "\<And>t U F. U \<subseteq> X \<Longrightarrow> finite F \<Longrightarrow> 0 \<notin> F \<Longrightarrow> F \<inter> .[U] = {} \<Longrightarrow> P t U F ({}, {(t, U)})"
+  assumes "\<And>t U F S x P0 P1 Q0 Q1. U \<subseteq> X \<Longrightarrow> finite F \<Longrightarrow> 0 \<notin> F \<Longrightarrow> F \<inter> .[U] \<noteq> {} \<Longrightarrow> S \<subseteq> U \<Longrightarrow>
+              F \<inter> .[S] = {} \<Longrightarrow> (\<And>S'. S' \<subseteq> U \<Longrightarrow> F \<inter> .[S'] = {} \<Longrightarrow> card S' \<le> card S) \<Longrightarrow>
+              x \<in> U \<Longrightarrow> x \<notin> S \<Longrightarrow> S = max_subset U (\<lambda>V. F \<inter> .[V] = {}) \<Longrightarrow> x = (SOME x'. x' \<in> U - S) \<Longrightarrow>
+              (P0, Q0) = split t (U - {x}) F \<Longrightarrow>
+              (P1, Q1) = split (Poly_Mapping.single x 1 + t) U ((\<lambda>f. f - Poly_Mapping.single x 1) ` F) \<Longrightarrow>
+              split t U F = (P0 \<union> P1, Q0 \<union> Q1) \<Longrightarrow>
+              P t (U - {x}) F (P0, Q0) \<Longrightarrow>
+              P (Poly_Mapping.single x 1 + t) U ((\<lambda>f. f - Poly_Mapping.single x 1) ` F) (P1, Q1) \<Longrightarrow>
+              P t U F (P0 \<union> P1, Q0 \<union> Q1)"
+  shows "P t U F (split t U F)"
+proof -
+  from assms(1-3) have "split_dom (t, U, F)" by (rule split_domI)
+  thus ?thesis using assms(2,3)
+  proof (induct t U F rule: split.pinduct)
+    case step: (1 t U F)
+    from step(4) assms(1) have "finite U" by (rule finite_subset)
+    define S where "S = max_subset U (\<lambda>V. F \<inter> .[V] = {})"
+    define x where "x = (SOME x'. x' \<in> U \<and> x' \<notin> S)"
+    show ?case
+    proof (simp add: split.psimps[OF step(1)] S_def[symmetric] x_def[symmetric] split: prod.split, intro allI conjI impI)
+      assume "0 \<in> F"
+      with step(4, 5) show "P t U F ({(t, U)}, {})" by (rule assms(4))
+      thus "P t U F ({(t, U)}, {})" .
+    next
+      assume "0 \<notin> F" and "F \<inter> .[U] = {}"
+      with step(4, 5) show "P t U F ({}, {(t, U)})" by (rule assms(5))
+    next
+      fix P0 Q0 P1 Q1
+      assume "split (Poly_Mapping.single x (Suc 0) + t) U ((\<lambda>f. f - Poly_Mapping.single x (Suc 0)) ` F) = (P1, Q1)"
+      hence PQ1[symmetric]: "split (Poly_Mapping.single x 1 + t) U ((\<lambda>f. f - Poly_Mapping.single x 1) ` F) = (P1, Q1)"
+        by simp
+      assume PQ0[symmetric]: "split t (U - {x}) F = (P0, Q0)"
+      assume "F \<inter> .[U] \<noteq> {}" and "0 \<notin> F"
+      from this(2) have "F \<inter> .[{}] = {}" by simp
+      with \<open>finite U\<close> empty_subsetI have "S \<subseteq> U" and "F \<inter> .[S] = {}"
+        unfolding S_def by (rule max_subset)+
+      have S_max: "card S' \<le> card S" if "S' \<subseteq> U" and "F \<inter> .[S'] = {}" for S'
+        using \<open>finite U\<close> that unfolding S_def by (rule max_subset)
+      have "x \<in> U \<and> x \<notin> S" unfolding x_def
+      proof (rule someI_ex)
+        from \<open>F \<inter> .[U] \<noteq> {}\<close> \<open>F \<inter> .[S] = {}\<close> have "S \<noteq> U" by blast
+        with \<open>S \<subseteq> U\<close> show "\<exists>y. y \<in> U \<and> y \<notin> S" by blast
+      qed
+      hence "x \<in> U" and "x \<notin> S" by simp_all
+      from step(4, 5) \<open>0 \<notin> F\<close> \<open>F \<inter> .[U] \<noteq> {}\<close> \<open>S \<subseteq> U\<close> \<open>F \<inter> .[S] = {}\<close> S_max \<open>x \<in> U\<close> \<open>x \<notin> S\<close> S_def _ PQ0 PQ1
+      show "P t U F (P0 \<union> P1, Q0 \<union> Q1)"
+      proof (rule assms(6))
+        show "P t (U - {x}) F (P0, Q0)"
+          unfolding PQ0 using \<open>0 \<notin> F\<close> \<open>F \<inter> .[U] \<noteq> {}\<close> _ _ step(5)
+        proof (rule step(2))
+          from \<open>U \<subseteq> X\<close> show "U - {x} \<subseteq> X" by fastforce
+        qed (simp add: x_def S_def)
+      next
+        show "P (Poly_Mapping.single x 1 + t) U ((\<lambda>f. f - Poly_Mapping.single x 1) ` F) (P1, Q1)"
+          unfolding PQ1 using \<open>0 \<notin> F\<close> \<open>F \<inter> .[U] \<noteq> {}\<close> _ refl PQ0 \<open>U \<subseteq> X\<close>
+        proof (rule step(3))
+          from \<open>finite F\<close> show "finite ((\<lambda>f. f - Poly_Mapping.single x 1) ` F)" by (rule finite_imageI)
+        qed (simp add: x_def S_def)
+      next
+        show "split t U F = (P0 \<union> P1, Q0 \<union> Q1)" using \<open>0 \<notin> F\<close> \<open>F \<inter> .[U] \<noteq> {}\<close>
+          by (simp add: split.psimps[OF step(1)] Let_def flip: S_def x_def PQ0 PQ1 del: One_nat_def)
+      qed (assumption+, simp add: x_def S_def)
+    qed
+  qed
+qed
+
+lemma finite_decomp_split:
+  assumes "finite X" and "U \<subseteq> X" and "finite F"
+  shows "finite_decomp (fst (split t U F))" and "finite_decomp (snd (split t U F))"
+proof -
+  from assms have "finite_decomp (fst (split t U F)) \<and> finite_decomp (snd (split t U F))"
+  proof (induct t U F rule: split_induct)
+    case (base1 t U F)
+    from base1(1) assms(1) have "finite U" by (rule finite_subset)
+    thus ?case by (simp add: finite_decomp_def)
+  next
+    case (base2 t U F)
+    from base2(1) assms(1) have "finite U" by (rule finite_subset)
+    thus ?case by (simp add: finite_decomp_def)
+  next
+    case (step t U F S x P0 P1 Q0 Q1)
+    from step.hyps(15, 16) show ?case by (simp add: finite_decomp_Un)
+  qed
+  thus "finite_decomp (fst (split t U F))" and "finite_decomp (snd (split t U F))" by simp_all
+qed
+
+lemma split_splits_wrt:
+  assumes "finite X" and "U \<subseteq> X" and "finite F" and "t \<in> .[X]"
+    and "(\<lambda>s. s - t) ` I = (\<Union>f\<in>F. cone f X)" and "ideal_like I"
+  shows "splits_wrt (split t U F) (cone t U) I"
+  using assms(1-5)
+proof (induct t U F rule: split_induct)
+  case (base1 t U F)
+  from base1(3) assms(6) \<open>U \<subseteq> X\<close> \<open>t \<in> .[X]\<close> have "cone t U \<subseteq> I"
+    by (simp only: lem_4_2_1 base1(5))
+  show ?case
+  proof (rule splits_wrtI)
+    fix t0 U0
+    assume "(t0, U0) \<in> {(t, U)}"
+    hence "t0 = t" by simp
+    also have "... \<in> cone t U" by (fact tip_in_cone)
+    also have "... \<subseteq> I" by fact
+    finally show "t0 \<in> I" .
+  qed (simp_all add: assms(6) cone_decomp_singleton \<open>U \<subseteq> X\<close>)
+next
+  case (base2 t U F)
+  from base2(4) assms(6) \<open>U \<subseteq> X\<close> \<open>t \<in> .[X]\<close> have "cone t U \<inter> I = {}"
+    by (simp only: lem_4_2_2 base2(6))
+  show ?case
+  proof (rule splits_wrtI)
+    fix t0 U0 s
+    assume "(t0, U0) \<in> {(t, U)}" and "s \<in> cone t0 U0"
+    hence "s \<in> cone t U" by simp
+    moreover assume "s \<in> I"
+    ultimately have "s \<in> cone t U \<inter> I" by (rule IntI)
+    also have "... = {}" by fact
+    finally show False by simp
+  qed (simp_all add: assms(6) cone_decomp_singleton \<open>U \<subseteq> X\<close>)
+next
+  case (step t U F S x P0 P1 Q0 Q1)
+  from step.hyps(8) have U: "U = insert x (U - {x})" by blast
+  also have "cone t ... = cone t (U - {x}) \<union> cone (Poly_Mapping.single x 1 + t) (insert x (U - {x}))"
+    by (fact cone_insert)
+  finally have eq: "cone t U = cone t (U - {x}) \<union> cone (Poly_Mapping.single x 1 + t) U" by simp
+
+  from step.prems have 0: "splits_wrt (P0, Q0) (cone t ( U - {x})) I" by (rule step.hyps)
+  have 1: "splits_wrt (P1, Q1) (cone (Poly_Mapping.single x 1 + t) U) I"
+  proof (rule step.hyps)
+    from step.hyps(8, 1) have "x \<in> X" ..
+    hence "Poly_Mapping.single x 1 \<in> .[X]" by (rule PPs_closed_single)
+    thus "Poly_Mapping.single x 1 + t \<in> .[X]" using step.prems(1) by (rule PPs_closed_plus)
+  next
+    have "(\<lambda>s. s - (Poly_Mapping.single x 1 + t)) ` I = (\<lambda>s. s - Poly_Mapping.single x 1) ` (\<lambda>s. s - t) ` I"
+      by (simp only: diff_diff_eq add.commute image_image)
+    also have "\<dots> = (\<Union>f\<in>F. (\<lambda>s. s - Poly_Mapping.single x 1) ` cone f X)"
+      by (simp only: step.prems(2) image_UN)
+    also have "\<dots> = (\<Union>f\<in>(\<lambda>f. f - Poly_Mapping.single x 1) ` F. cone f X)"
+      by (simp add: image_minus_cone)
+    finally show "(\<lambda>s. s - (Poly_Mapping.single x 1 + t)) ` I =
+                  (\<Union>f\<in>(\<lambda>f. f - Poly_Mapping.single x 1) ` F. cone f X)" .
+  qed
+
+  show ?case
+  proof (rule splits_wrtI)
+    have "cone t (U - {x}) \<inter> cone (Poly_Mapping.single x 1 + t) (insert x (U - {x})) = {}"
+      by (rule cone_insert_disjoint) simp
+    hence "cone t (U - {x}) \<inter> cone (Poly_Mapping.single x 1 + t) U = {}"
+      by (simp only: U[symmetric])
+    moreover from 0 have "cone_decomp (cone t (U - {x})) (P0 \<union> Q0)" by (rule splits_wrtD)
+    moreover from 1 have "cone_decomp (cone (Poly_Mapping.single x 1 + t) U) (P1 \<union> Q1)"
+      by (rule splits_wrtD)
+    ultimately have "cone_decomp (cone t U) (P0 \<union> Q0 \<union> (P1 \<union> Q1))"
+      unfolding eq by (rule cone_decomp_Un)
+    thus "cone_decomp (cone t U) (P0 \<union> P1 \<union> (Q0 \<union> Q1))" by (simp only: ac_simps)
+  next
+    fix t0 U0
+    assume "(t0, U0) \<in> P0 \<union> P1"
+    hence "cone t0 U0 \<subseteq> I"
+    proof
+      assume "(t0, U0) \<in> P0"
+      with 0 show ?thesis by (rule splits_wrtD)
+    next
+      assume "(t0, U0) \<in> P1"
+      with 1 show ?thesis by (rule splits_wrtD)
+    qed
+    with assms(6) show "U0 \<subseteq> X" and "t0 \<in> I" by (simp_all only: cone_subset_ideal_like_iff)
+  next
+    fix t0 U0
+    assume "(t0, U0) \<in> Q0 \<union> Q1"
+    thus "U0 \<subseteq> X"
+    proof
+      assume "(t0, U0) \<in> Q0"
+      with 0 show ?thesis by (rule splits_wrtD)
+    next
+      assume "(t0, U0) \<in> Q1"
+      with 1 show ?thesis by (rule splits_wrtD)
+    qed
+    from \<open>(t0, U0) \<in> Q0 \<union> Q1\<close> have "cone t0 U0 \<inter> I = {}"
+    proof
+      assume "(t0, U0) \<in> Q0"
+      with 0 show ?thesis by (rule splits_wrtD)
+    next
+      assume "(t0, U0) \<in> Q1"
+      with 1 show ?thesis by (rule splits_wrtD)
+    qed
+    thus "\<And>s. s \<in> cone t0 U0 \<Longrightarrow> s \<in> I \<Longrightarrow> False" by blast
+  qed (fact assms(6))
+qed
+
+lemma lem_4_5:
+  assumes "finite X" and "U \<subseteq> X" and "finite F" and "t \<in> .[X]"
+    and "(\<lambda>s. s - t) ` I = (\<Union>f\<in>F. cone f X)" and "ideal_like I"
+  shows "cone t V \<subseteq> cone t U - I \<longleftrightarrow> V \<subseteq> U \<and> F \<inter> .[V] = {}"
+proof
+  assume "cone t V \<subseteq> cone t U - I"
+  hence "cone t V \<subseteq> cone t U" and *: "cone t V \<inter> I = {}" by blast+
+  from this(1) have "V \<subseteq> U" by (simp only: cone_subsetD)
+  moreover have "F \<inter> .[V] = {}"
+  proof
+    show "F \<inter> .[V] \<subseteq> {}"
+    proof
+      fix f
+      assume "f \<in> F \<inter> .[V]"
+      hence "f \<in> F" and "f \<in> .[V]" by simp_all
+      from refl this(2) have "f + t \<in> cone t V" by (rule coneI)
+      with * have "f + t \<notin> I" by blast
+      with assms(6, 4) have "f \<notin> (\<Union>f\<in>F. cone f X)"
+        by (simp add: ideal_like_image_minus_iff assms(5)[symmetric])
+      moreover from \<open>f \<in> F\<close> tip_in_cone have "f \<in> (\<Union>f\<in>F. cone f X)" by (rule UN_I)
+      ultimately show "f \<in> {}" ..
+    qed
+  qed (fact empty_subsetI)
+  ultimately show "V \<subseteq> U \<and> F \<inter> .[V] = {}" ..
+next
+  assume "V \<subseteq> U \<and> F \<inter> .[V] = {}"
+  hence "V \<subseteq> U" and *: "F \<inter> .[V] = {}" by simp_all
+  from this(1) have "cone t V \<subseteq> cone t U" by (rule cone_mono_2)
+  moreover have "cone t V \<inter> I \<subseteq> {}"
+  proof
+    fix s
+    assume "s \<in> cone t V \<inter> I"
+    hence "s \<in> cone t V" and "s \<in> I" by simp_all
+    from this(1) obtain v where "v \<in> .[V]" and s: "s = v + t" by (rule coneE)
+    from \<open>s \<in> I\<close> have "s - t \<in> (\<lambda>s. s - t) ` I" by (rule imageI)
+    also have "... = (\<Union>f\<in>F. cone f X)" by (fact assms(5))
+    finally have "v \<in> (\<Union>f\<in>F. cone f X)" by (simp add: s)
+    then obtain f where "f \<in> F" and "v \<in> cone f X" ..
+    from this(2) obtain s' where "v = s' + f" by (rule coneE)
+    with \<open>v \<in> .[V]\<close> have "s' + f \<in> .[V]" by (simp only:)
+    hence "s' + f - s' \<in> .[V]" by (rule PPs_closed_minus)
+    hence "f \<in> .[V]" by simp
+    with \<open>f \<in> F\<close> * show "s \<in> {}" by blast
+  qed
+  ultimately show "cone t V \<subseteq> cone t U - I" by blast
+qed
+
+lemma lem_4_6:
+  assumes "finite X" and "U \<subseteq> X" and "finite F" and "t \<in> .[X]"
+    and "(\<lambda>s. s - t) ` I = (\<Union>f\<in>F. cone f X)" and "ideal_like I"
+  assumes "cone t' V \<subseteq> cone t U - I"
+  obtains V' where "(t, V') \<in> snd (split t U F)" and "card V \<le> card V'"
+proof -
+  assume *: "\<And>V'. (t, V') \<in> snd (split t U F) \<Longrightarrow> card V \<le> card V' \<Longrightarrow> thesis"
+  from assms(7) have "cone t' V \<subseteq> cone t U" and "cone t' V \<inter> I = {}" by blast+
+  from this(1) have "V \<subseteq> U" by (rule cone_subsetD)
+  hence "cone t V \<subseteq> cone t U" by (rule cone_mono_2)
+  moreover have "cone t V \<inter> I \<subseteq> {}"
+  proof
+    fix s
+    assume "s \<in> cone t V \<inter> I"
+    hence "s \<in> cone t V" and "s \<in> I" by simp_all
+    from this(1) obtain s0 where "s0 \<in> .[V]" and s: "s = s0 + t" by (rule coneE)
+    from tip_in_cone \<open>cone t' V \<subseteq> cone t U\<close> have "t' \<in> cone t U" ..
+    then obtain s' where "s' \<in> .[U]" and t': "t' = s' + t" by (rule coneE)
+    note this(1)
+    also from assms(2) have ".[U] \<subseteq> .[X]" by (rule PPs_mono)
+    finally have "s' \<in> .[X]" .
+    have "s' + s = s0 + t'" by (simp add: s t' ac_simps)
+    also from refl \<open>s0 \<in> .[V]\<close> have "\<dots> \<in> cone t' V" by (rule coneI)
+    finally have "s' + s \<in> cone t' V" .
+    moreover from assms(6) \<open>s' \<in> .[X]\<close> \<open>s \<in> I\<close> have "s' + s \<in> I" by (rule ideal_likeD)
+    ultimately show "s \<in> {}" using \<open>cone t' V \<inter> I = {}\<close> by blast
+  qed
+  ultimately have "cone t V \<subseteq> cone t U - I" by blast
+  with assms have "V \<subseteq> U" and "F \<inter> .[V] = {}" by (simp_all add: lem_4_5)
+  with assms(1, 2, 3) show ?thesis using *
+  proof (induct t U F arbitrary: V thesis rule: split_induct)
+    case (base1 t U F)
+    from base1.hyps(3) have "0 \<in> F \<inter> .[V]" using zero_in_PPs by (rule IntI)
+    thus ?case by (simp add: base1.prems(2))
+  next
+    case (base2 t U F)
+    show ?case
+    proof (rule base2.prems)
+      show "(t, U) \<in> snd ({}, {(t, U)})" by simp
+    next
+      from base2.hyps(1) assms(1) have "finite U" by (rule finite_subset)
+      thus "card V \<le> card U" using base2.prems(1) by (rule card_mono)
+    qed
+  next
+    case (step t U F S x P0 P1 Q0 Q1)
+    from step.prems(1, 2) have 0: "card V \<le> card S" by (rule step.hyps)
+    from step.hyps(5, 9) have "S \<subseteq> U - {x}" by blast
+    then obtain V' where 1: "(t, V') \<in> snd (P0, Q0)" and 2: "card S \<le> card V'"
+      using step.hyps(6) by (rule step.hyps)
+    show ?case
+    proof (rule step.prems)
+      from 1 show "(t, V') \<in> snd (P0 \<union> P1, Q0 \<union> Q1)" by simp
+    next
+      from 0 2 show "card V \<le> card V'" by (rule le_trans)
+    qed
+  qed
+qed
+
+definition reduced_basis :: "('x \<Rightarrow>\<^sub>0 nat) set \<Rightarrow> bool"
+  where "reduced_basis T \<longleftrightarrow> (\<forall>s\<in>T. \<forall>t\<in>T. s adds t \<longrightarrow> s = t)"
+
+lemma reduced_basisI: "(\<And>s t. s \<in> T \<Longrightarrow> t \<in> T \<Longrightarrow> s adds t \<Longrightarrow> s = t) \<Longrightarrow> reduced_basis T"
+  by (simp add: reduced_basis_def)
+
+lemma reduced_basisD: "reduced_basis T \<Longrightarrow> s \<in> T \<Longrightarrow> t \<in> T \<Longrightarrow> s adds t \<Longrightarrow> s = t"
+  by (simp add: reduced_basis_def)
+
+lemma lem_4_7:
+  assumes "finite X" and "I = (\<Union>f\<in>F. cone f X)" and "reduced_basis F" and "f \<in> F"
+    and "cone_decomp I P"
+  obtains U where "(f, U) \<in> P"
+proof -
+  from assms(4) tip_in_cone have "f \<in> (\<Union>f\<in>F. cone f X)" ..
+  also from assms(5) have "\<dots> = (\<Union>(t, U)\<in>P. cone t U)" unfolding assms(2) by (rule cone_decompD)
+  finally obtain t U where "(t, U) \<in> P" and "f \<in> cone t U" by blast
+  from this(2) obtain s where "f = s + t" by (rule coneE)
+  hence "t adds f" by simp
+  from \<open>(t, U) \<in> P\<close> tip_in_cone have "t \<in> (\<Union>(t, U)\<in>P. cone t U)" by blast
+  also have "\<dots> = (\<Union>f\<in>F. cone f X)"
+    unfolding assms(2)[symmetric] by (rule sym, rule cone_decompD, fact)
+  finally obtain f' where "f' \<in> F" and "t \<in> cone f' X" ..
+  from this(2) obtain s' where "t = s' + f'" by (rule coneE)
+  hence "f' adds t" by simp
+  hence "f' adds f" using \<open>t adds f\<close> by (rule adds_trans)
+  with assms(3) \<open>f' \<in> F\<close> assms(4) have "f' = f" by (rule reduced_basisD)
+  with \<open>f' adds t\<close> have "f adds t" by simp
+  with \<open>t adds f\<close> have "t = f" by (rule adds_antisym)
+  with \<open>(t, U) \<in> P\<close> have "(f, U) \<in> P" by simp
+  thus ?thesis ..
+qed
+
+lemma snd_splitI:
+  assumes "finite X" and "U \<subseteq> X" and "finite F" and "0 \<notin> F"
+  obtains V where "V \<subseteq> U" and "(t, V) \<in> snd (split t U F)"
+  using assms
+proof (induct t U F arbitrary: thesis rule: split_induct)
+  case (base1 t U F)
+  from base1.prems(2) base1.hyps(3) show ?case ..
+next
+  case (base2 t U F)
+  from subset_refl show ?case by (rule base2.prems) simp
+next
+  case (step t U F S x P0 P1 Q0 Q1)
+  from step.hyps(3) obtain V where 1: "V \<subseteq> U - {x}" and 2: "(t, V) \<in> snd (P0, Q0)"
+    using step.hyps(15) by blast
+  show ?case
+  proof (rule step.prems)
+    from 1 show "V \<subseteq> U" by blast
+  next
+    from 2 show "(t, V) \<in> snd (P0 \<union> P1, Q0 \<union> Q1)" by fastforce
+  qed
+qed
+
+lemma fst_splitE:
+  assumes "finite X" and "U \<subseteq> X" and "finite F" and "0 \<notin> F" and "(s, V) \<in> fst (split t U F)"
+  obtains t' x where "t' \<in> .[X]" and "x \<in> X" and "V \<subseteq> U" and "0 \<notin> (\<lambda>s. s - t') ` F"
+    and "s = t' + t + Poly_Mapping.single x 1"
+    and "(s, V) \<in> fst (split (t' + t) V ((\<lambda>s. s - t') ` F))"
+    and "snd (split (t' + t) V ((\<lambda>s. s - t') ` F)) \<subseteq> snd (split t U F)"
+  using assms
+proof (induct t U F arbitrary: thesis rule: split_induct)
+  case (base1 t U F)
+  from base1.prems(2) base1.hyps(3) show ?case ..
+next
+  case (base2 t U F)
+  from base2.prems(3) show ?case by simp
+next
+  case (step t U F S x P0 P1 Q0 Q1)
+  from step.prems(3) have "(s, V) \<in> P0 \<union> P1" by (simp only: fst_conv)
+  thus ?case
+  proof
+    assume "(s, V) \<in> P0"
+    hence "(s, V) \<in> fst (P0, Q0)" by (simp only: fst_conv)
+    with step.hyps(3) obtain t' x' where "t' \<in> .[X]" and "x' \<in> X" and "V \<subseteq> U - {x}" and "0 \<notin> (\<lambda>s. s - t') ` F"
+      and "s = t' + t + Poly_Mapping.single x' 1"
+      and "(s, V) \<in> fst (split (t' + t) V ((\<lambda>s. s - t') ` F))"
+      and "snd (split (t' + t) V ((\<lambda>s. s - t') ` F)) \<subseteq> snd (P0, Q0)"
+      using step.hyps(15) by blast
+    note this(7)
+    also have "snd (P0, Q0) \<subseteq> snd (P0 \<union> P1, Q0 \<union> Q1)" by simp
+    finally have "snd (split (t' + t) V ((\<lambda>s. s - t') ` F)) \<subseteq> snd (P0 \<union> P1, Q0 \<union> Q1)" .
+    from \<open>V \<subseteq> U - {x}\<close> have "V \<subseteq> U" by blast
+    show ?thesis by (rule step.prems) fact+
+  next
+    assume "(s, V) \<in> P1"
+    show ?thesis
+    proof (cases "0 \<in> (\<lambda>f. f - Poly_Mapping.single x 1) ` F")
+      case True
+      from step.hyps(2) have fin: "finite ((\<lambda>f. f - Poly_Mapping.single x 1) ` F)"
+        by (rule finite_imageI)
+      have "split (Poly_Mapping.single x 1 + t) U ((\<lambda>f. f - Poly_Mapping.single x 1) ` F) =
+              ({(Poly_Mapping.single x 1 + t, U)}, {})"
+        by (simp only: split.psimps[OF split_domI, OF assms(1) step.hyps(1) fin] True if_True)
+      hence "P1 = {(Poly_Mapping.single x 1 + t, U)}"
+        by (simp only: step.hyps(13)[symmetric] prod.inject)
+      with \<open>(s, V) \<in> P1\<close> have s: "s = Poly_Mapping.single x 1 + t" and "V = U" by simp_all
+      show ?thesis
+      proof (rule step.prems)
+        show "0 \<in> .[X]" by (fact zero_in_PPs)
+      next
+        from step.hyps(8, 1) show "x \<in> X" ..
+      next
+        show "V \<subseteq> U" by (simp add: \<open>V = U\<close>)
+      next
+        from step.hyps(3) show "0 \<notin> (\<lambda>s. s - 0) ` F" by simp
+      next
+        show "s = 0 + t + Poly_Mapping.single x 1" by (simp add: s add.commute)
+      next
+        from \<open>(s, V) \<in> P1\<close> show "(s, V) \<in> fst (split (0 + t) V ((\<lambda>s. s - 0) ` F))"
+          by (simp add: step.hyps(14) \<open>V = U\<close>)
+      next
+        show "snd (split (0 + t) V ((\<lambda>s. s - 0) ` F)) \<subseteq> snd (P0 \<union> P1, Q0 \<union> Q1)"
+          by (simp add: step.hyps(14) \<open>V = U\<close>)
+      qed
+    next
+      case False
+      moreover from \<open>(s, V) \<in> P1\<close> have "(s, V) \<in> fst (P1, Q1)" by (simp only: fst_conv)
+      ultimately obtain t' x' where "t' \<in> .[X]" and "x' \<in> X" and "V \<subseteq> U"
+        and 1: "0 \<notin> (\<lambda>s. s - t') ` (\<lambda>f. f - Poly_Mapping.single x 1) ` F"
+        and s: "s = t' + (Poly_Mapping.single x 1 + t) + Poly_Mapping.single x' 1"
+        and 2: "(s, V) \<in> fst (split (t' + (Poly_Mapping.single x 1 + t)) V ((\<lambda>s. s - t') ` (\<lambda>f. f - Poly_Mapping.single x 1) ` F))"
+        and 3: "snd (split (t' + (Poly_Mapping.single x 1 + t)) V ((\<lambda>s. s - t') ` (\<lambda>f. f - monomial 1 x) ` F)) \<subseteq> snd (P1, Q1)"
+        using step.hyps(16) by blast
+      have eq: "(\<lambda>s. s - t') ` (\<lambda>f. f - Poly_Mapping.single x 1) ` F =
+                (\<lambda>s. s - (t' + Poly_Mapping.single x 1)) ` F"
+        by (simp add: image_image add.commute diff_diff_eq)
+      show ?thesis
+      proof (rule step.prems)
+        from step.hyps(8, 1) have "x \<in> X" ..
+        hence "Poly_Mapping.single x 1 \<in> .[X]" by (rule PPs_closed_single)
+        with \<open>t' \<in> .[X]\<close> show "t' + Poly_Mapping.single x 1 \<in> .[X]" by (rule PPs_closed_plus)
+      next
+        from 1 show "0 \<notin> (\<lambda>s. s - (t' + Poly_Mapping.single x 1)) ` F"
+          by (simp only: eq not_False_eq_True)
+      next
+        show "s = t' + Poly_Mapping.single x 1 + t + Poly_Mapping.single x' 1" by (simp only: s ac_simps)
+      next
+        show "(s, V) \<in> fst (split (t' + Poly_Mapping.single x 1 + t) V ((\<lambda>s. s - (t' + Poly_Mapping.single x 1)) ` F))"
+          using 2 by (simp only: eq add.assoc)
+      next
+        have "snd (split (t' + Poly_Mapping.single x 1 + t) V ((\<lambda>s. s - (t' + Poly_Mapping.single x 1)) ` F)) \<subseteq>
+              snd (P1, Q1)" (is "?x \<subseteq> _") using 3 by (simp only: eq add.assoc)
+        also have "\<dots> \<subseteq> snd (P0 \<union> P1, Q0 \<union> Q1)" by simp
+        finally show "?x \<subseteq> snd (P0 \<union> P1, Q0 \<union> Q1)" .
+      qed fact+
+    qed
+  qed
+qed
+
+lemma lem_4_8:
+  assumes "finite X" and "finite F" and "reduced_basis R" and "(\<Union>r\<in>R. cone r X) = (\<Union>f\<in>F. cone f X)"
+    and "F \<subseteq> .[X]" and "0 \<notin> F" and "r \<in> R"
+  obtains t U where "U \<subseteq> X" and "(t, U) \<in> snd (split 0 X F)" and "deg_pm r = Suc (deg_pm t)"
+proof -
+  have 1: "f \<in> .[X]" if "f \<in> F" for f using that assms(5) ..
+  note assms(1) subset_refl assms(2) zero_in_PPs
+  moreover have "(\<lambda>s. s - 0) ` (\<Union>f\<in>F. cone f X) = (\<Union>f\<in>F. cone f X)" by simp
+  moreover have "ideal_like (\<Union>f\<in>F. cone f X)" by (rule ideal_like_UN, simp add: ideal_like_cone_iff 1)
+  ultimately have "splits_wrt (split 0 X F) (cone 0 X) (\<Union>f\<in>F. cone f X)" by (rule split_splits_wrt)
+  hence "splits_wrt (fst (split 0 X F), snd (split 0 X F)) .[X] (\<Union>f\<in>F. cone f X)" by simp
+  hence "cone_decomp (.[X] \<inter> (\<Union>f\<in>F. cone f X)) (fst (split 0 X F))" by (rule splits_wrt_cone_decomp_1)
+  hence "cone_decomp (\<Union>f\<in>F. cone f X) (fst (split 0 X F))"
+    by (simp add: PPs_Int_cone 1 flip: UN_simps(5))
+  with assms(1) assms(4)[symmetric] assms(3, 7) obtain U where "(r, U) \<in> fst (split 0 X F)"
+    by (rule lem_4_7)
+  with assms(1) subset_refl assms(2, 6) obtain t' x where "t' \<in> .[X]" and "x \<in> X" and "U \<subseteq> X"
+    and "0 \<notin> (\<lambda>s. s - t') ` F" and r: "r = t' + 0 + Poly_Mapping.single x 1"
+    and "(r, U) \<in> fst (split (t' + 0) U ((\<lambda>s. s - t') ` F))"
+    and "snd (split (t' + 0) U ((\<lambda>s. s - t') ` F)) \<subseteq> snd (split 0 X F)"
+    by (rule fst_splitE)
+  let ?F = "(\<lambda>s. s - t') ` F"
+  from assms(2) have "finite ?F" by (rule finite_imageI)
+  with assms(1) \<open>U \<subseteq> X\<close> obtain V where "V \<subseteq> U" and "(t' + 0, V) \<in> snd (split (t' + 0) U ?F)"
+    using \<open>0 \<notin> ?F\<close> by (rule snd_splitI)
+  note this(2)
+  also have "\<dots> \<subseteq> snd (split 0 X F)" by fact
+  finally have "(t', V) \<in> snd (split 0 X F)" by simp
+  have "deg_pm r = Suc (deg_pm t')" by (simp add: r deg_pm_plus deg_pm_single)
+  from \<open>V \<subseteq> U\<close> \<open>U \<subseteq> X\<close> have "V \<subseteq> X" by (rule subset_trans)
+  show ?thesis by rule fact+
+qed
+
+corollary cor_4_9:
+  assumes "finite X" and "finite F" and "reduced_basis R" and "(\<Union>r\<in>R. cone r X) = (\<Union>f\<in>F. cone f X)"
+    and "F \<subseteq> .[X]" and "r \<in> R"
+  shows "deg_pm r \<le> Suc (Max (deg_pm ` fst ` snd (split 0 X F)))"
+proof (cases "0 \<in> F")
+  case True
+  hence "0 \<in> (\<Union>r\<in>R. cone r X)" unfolding assms(4) using tip_in_cone ..
+  then obtain r' where "r' \<in> R" and "0 \<in> cone r' X" ..
+  from this(2) have "r' = 0" by (simp only: zero_in_cone_iff)
+  hence "r' adds r" by simp
+  with assms(3) \<open>r' \<in> R\<close> assms(6) have "r' = r" by (rule reduced_basisD)
+  hence "r = 0" by (simp only: \<open>r' = 0\<close>)
+  thus ?thesis by simp
+next
+  case False
+  from assms(1) subset_refl assms(2) have "finite_decomp (snd (split 0 X F))"
+    by (rule finite_decomp_split)
+  hence "finite (snd (split 0 X F))" by (rule finite_decompD)
+  hence fin: "finite (deg_pm ` fst ` snd (split 0 X F))" by (intro finite_imageI)
+  obtain t U where "(t, U) \<in> snd (split 0 X F)" and r: "deg_pm r = Suc (deg_pm t)"
+    using assms(1-5) False assms(6) by (rule lem_4_8)
+  from this(1) have "deg_pm (fst (t, U)) \<in> deg_pm ` fst ` snd (split 0 X F)" by (intro imageI)
+  hence "deg_pm t \<in> deg_pm ` fst ` snd (split 0 X F)" by (simp only: fst_conv)
+  with fin have "deg_pm t \<le> Max (deg_pm ` fst ` snd (split 0 X F))"
+    by (rule Max_ge)
+  thus "deg_pm r \<le> Suc (Max (deg_pm ` fst ` snd (split 0 X F)))" by (simp add: r)
+qed
+
+lemma standard_decomp_snd_split:
+  assumes "finite X" and "U \<subseteq> X" and "finite F" and "t \<in> .[X]"
+    and "(\<lambda>s. s - t) ` I = (\<Union>f\<in>F. cone f X)" and "ideal_like I"
+  shows "standard_decomp (deg_pm t) (snd (split t U F))"
+  using assms(1-5)
+proof (induct t U F rule: split_induct)
+  case (base1 t U F)
+  show ?case by (simp add: standard_decomp_empty)
+next
+  case (base2 t U F)
+  show ?case by (simp add: standard_decomp_singleton)
+next
+  case (step t U F S x P0 P1 Q0 Q1)
+  from step.hyps(15) step.prems have Q0: "standard_decomp (deg_pm t) Q0" by (simp only: snd_conv)
+  have "(\<lambda>s. s - (Poly_Mapping.single x 1 + t)) ` I = (\<lambda>s. s - Poly_Mapping.single x 1) ` (\<lambda>s. s - t) ` I"
+    by (simp add: image_image diff_diff_eq add.commute)
+  also have "\<dots> = (\<lambda>s. s - Poly_Mapping.single x 1) ` (\<Union>f\<in>F. cone f X)" by (simp only: step.prems)
+  also have "\<dots> = (\<Union>f\<in>(\<lambda>f. f - Poly_Mapping.single x 1) ` F. cone f X)"
+    by (simp add: image_UN image_minus_cone)
+  finally have "(\<lambda>s. s - (Poly_Mapping.single x 1 + t)) ` I =
+                (\<Union>f\<in>(\<lambda>f. f - Poly_Mapping.single x 1) ` F. cone f X)" .
+  moreover from _ step.prems(1) have "Poly_Mapping.single x 1 + t \<in> .[X]"
+  proof (rule PPs_closed_plus)
+    from step.hyps(8, 1) have "x \<in> X" ..
+    thus "Poly_Mapping.single x 1 \<in> .[X]" by (rule PPs_closed_single)
+  qed
+  ultimately have Q1: "standard_decomp (Suc (deg_pm t)) Q1" using step.hyps(16)
+    by (simp add: deg_pm_plus deg_pm_single)
+  show ?case unfolding snd_conv
+  proof (rule standard_decompI)
+    fix s V
+    assume "(s, V) \<in> (Q0 \<union> Q1)\<^sub>+"
+    hence *: "(s, V) \<in> Q0\<^sub>+ \<union> Q1\<^sub>+" by (simp only: pos_decomp_Un)
+    thus "deg_pm t \<le> deg_pm s"
+    proof
+      assume "(s, V) \<in> Q0\<^sub>+"
+      with Q0 show ?thesis by (rule standard_decompD)
+    next
+      assume "(s, V) \<in> Q1\<^sub>+"
+      with Q1 have "Suc (deg_pm t) \<le> deg_pm s" by (rule standard_decompD)
+      thus ?thesis by simp
+    qed
+
+    fix d
+    assume d1: "deg_pm t \<le> d" and d2: "d \<le> deg_pm s"
+    from * show "\<exists>t' U'. (t', U') \<in> Q0 \<union> Q1 \<and> deg_pm t' = d \<and> card V \<le> card U'"
+    proof
+      assume "(s, V) \<in> Q0\<^sub>+"
+      with Q0 obtain t' U' where "(t', U') \<in> Q0" and "deg_pm t' = d" and "card V \<le> card U'"
+        using d1 d2 by (rule standard_decompE)
+      moreover from this(1) have "(t', U') \<in> Q0 \<union> Q1" by simp
+      ultimately show ?thesis by blast
+    next
+      assume "(s, V) \<in> Q1\<^sub>+"
+      hence "(s, V) \<in> Q1" by (simp add: pos_decomp_def)
+      hence sub: "cone s V \<subseteq> (\<Union>(t', U')\<in>Q1. cone t' U')" by blast
+      from d1 have "deg_pm t = d \<or> Suc (deg_pm t) \<le> d" by auto
+      thus ?thesis
+      proof
+        assume "deg_pm t = d"
+        have "splits_wrt (split t U F) (cone t U) I"
+          using assms(1) step.hyps(1, 2) step.prems(1, 2) assms(6) by (rule split_splits_wrt)
+        hence "splits_wrt (P0 \<union> P1, Q0 \<union> Q1) (cone t U) I" by (simp only: step.hyps(14))
+        hence "cone_decomp (cone t U - I) (Q0 \<union> Q1)" by (rule splits_wrt_cone_decomp_2)
+        hence "cone t U - I = (\<Union>(t', U')\<in>Q0 \<union> Q1. cone t' U')" by (rule cone_decompD)
+        hence "(\<Union>(t', U')\<in>Q1. cone t' U') \<subseteq> cone t U - I" by simp
+        with sub have "cone s V \<subseteq> cone t U - I" by (rule subset_trans)
+        with assms(1) step.hyps(1, 2) step.prems(1, 2) assms(6)
+        obtain U' where "(t, U') \<in> snd (split t U F)" and "card V \<le> card U'"
+          by (rule lem_4_6)
+        from this(1) have "(t, U') \<in> Q0 \<union> Q1" by (simp add: step.hyps(14))
+        thus ?thesis using \<open>deg_pm t = d\<close> \<open>card V \<le> card U'\<close> by blast
+      next
+        assume "Suc (deg_pm t) \<le> d"
+        with Q1 \<open>(s, V) \<in> Q1\<^sub>+\<close> obtain t' U' where "(t', U') \<in> Q1" and "deg_pm t' = d"
+          and "card V \<le> card U'"
+          using d2 by (rule standard_decompE)
+        moreover from this(1) have "(t', U') \<in> Q0 \<union> Q1" by simp
+        ultimately show ?thesis by blast
+      qed
+    qed
+  qed
+qed
+
+theorem standard_cone_decomp_snd_split:
+  assumes "finite X" and "finite F" and "F \<subseteq> .[X]" and "I = (\<Union>f\<in>F. cone f X)"
+  shows "standard_decomp 0 (snd (split 0 X F))" (is ?thesis1)
+    and "cone_decomp (.[X] - I) (snd (split 0 X F))" (is ?thesis2)
+proof -
+  note assms(1) subset_refl assms(2) zero_in_PPs
+  moreover have "(\<lambda>s. s - 0) ` I = (\<Union>f\<in>F. cone f X)" by (simp add: assms(4))
+  moreover have "ideal_like I" unfolding assms(4)
+  proof (rule ideal_like_UN)
+    fix f
+    assume "f \<in> F"
+    hence "f \<in> .[X]" using assms(3) ..
+    thus "ideal_like (cone f X)" by (simp only: ideal_like_cone_iff)
+  qed
+  ultimately have 1: "standard_decomp (deg_pm (0::'x \<Rightarrow>\<^sub>0 nat)) (snd (split 0 X F))"
+    and 2: "splits_wrt (split 0 X F) (cone 0 X) I"
+    by (rule standard_decomp_snd_split, rule split_splits_wrt)
+  from 1 show ?thesis1 by simp
+
+  from 2 have "splits_wrt (fst (split 0 X F), snd (split 0 X F)) .[X] I" by simp
+  thus ?thesis2 by (rule splits_wrt_cone_decomp_2)
+qed
+
+end
+
 end (* theory *)
