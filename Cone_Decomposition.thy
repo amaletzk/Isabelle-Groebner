@@ -1081,4 +1081,459 @@ proof (rule standard_decomp_MaxE)
   from assms(6) show "(MAX i\<in>P. case_prod k i) \<le> d" by blast
 qed blast
 
+subsection \<open>Ideal-like Sets of Power-Products\<close>
+
+context
+  fixes X :: "'x::countable set"
+begin
+
+definition ideal_like :: "('x::countable \<Rightarrow>\<^sub>0 nat) set \<Rightarrow> bool"
+  where "ideal_like T \<longleftrightarrow> T \<subseteq> .[X] \<and> (\<forall>s\<in>.[X]. \<forall>t\<in>T. s + t \<in> T)"
+
+(* OBSOLETE? *)
+definition aideal_like :: "('x::countable \<Rightarrow>\<^sub>0 nat) set \<Rightarrow> bool"
+  where "aideal_like T \<longleftrightarrow> (\<forall>s. \<forall>t\<in>T. s adds t \<longrightarrow> s \<in> T)"
+
+lemma ideal_likeI: "T \<subseteq> .[X] \<Longrightarrow> (\<And>s t. s \<in> .[X] \<Longrightarrow> t \<in> T \<Longrightarrow> s + t \<in> T) \<Longrightarrow> ideal_like T"
+  by (simp add: ideal_like_def)
+
+lemma ideal_likeD:
+  assumes "ideal_like T"
+  shows "T \<subseteq> .[X]" and "\<And>t s. s \<in> .[X] \<Longrightarrow> t \<in> T \<Longrightarrow> s + t \<in> T"
+  using assms by (simp_all add: ideal_like_def)
+
+lemma aideal_likeI: "(\<And>t s. t \<in> T \<Longrightarrow> s adds t \<Longrightarrow> s \<in> T) \<Longrightarrow> aideal_like T"
+  by (simp add: aideal_like_def)
+
+lemma aideal_likeD: "aideal_like T \<Longrightarrow> t \<in> T \<Longrightarrow> s adds t \<Longrightarrow> s \<in> T"
+  unfolding aideal_like_def by blast
+
+lemma ideal_like_Diff:
+  assumes "aideal_like T"
+  shows "ideal_like (.[X] - T)"
+proof (rule ideal_likeI)
+  show ".[X] - T \<subseteq> .[X]" by blast
+next
+  fix s t
+  assume "s \<in> .[X]"
+  assume "t \<in> .[X] - T"
+  hence "t \<in> .[X]" and "t \<notin> T" by simp_all
+  from \<open>s \<in> .[X]\<close> this(1) have "s + t \<in> .[X]" by (rule PPs_closed_plus)
+  moreover have "s + t \<notin> T"
+  proof
+    note assms
+    moreover assume "s + t \<in> T"
+    moreover from add.commute have "t adds s + t" by (rule addsI)
+    ultimately have "t \<in> T" by (rule aideal_likeD)
+    with \<open>t \<notin> T\<close> show False ..
+  qed
+  ultimately show "s + t \<in> .[X] - T" by simp
+qed
+
+lemma aideal_like_Diff:
+  assumes "U \<subseteq> X" and "ideal_like T"
+  shows "aideal_like (.[U] - T)"
+proof (rule aideal_likeI)
+  fix t s
+  assume "t \<in> .[U] - T"
+  hence "t \<in> .[U]" and "t \<notin> T" by simp_all
+  note this(1)
+  moreover assume "s adds t"
+  ultimately have "s \<in> .[U]" by (rule PPs_closed_adds)
+  moreover have "s \<notin> T"
+  proof
+    note assms(2)
+    moreover have "t - s \<in> .[X]"
+    proof
+      from \<open>t \<in> .[U]\<close> show "t - s \<in> .[U]" by (rule PPs_closed_minus)
+    next
+      from assms(1) show ".[U] \<subseteq> .[X]" by (rule PPs_mono)
+    qed
+    moreover assume "s \<in> T"
+    ultimately have "(t - s) + s \<in> T" by (rule ideal_likeD)
+    with \<open>s adds t\<close> have "t \<in> T" by (simp add: adds_minus)
+    with \<open>t \<notin> T\<close> show False ..
+  qed
+  ultimately show "s \<in> .[U] - T" by simp
+qed
+
+lemma cone_subset_ideal_like_iff:
+  assumes "ideal_like T"
+  shows "cone t U \<subseteq> T \<longleftrightarrow> (t \<in> T \<and> U \<subseteq> X)"
+proof
+  assume *: "cone t U \<subseteq> T"
+  show "t \<in> T \<and> U \<subseteq> X"
+  proof (intro conjI subsetI)
+    from tip_in_cone * show "t \<in> T" ..
+  next
+    fix x
+    assume "x \<in> U"
+    hence "Poly_Mapping.single x 1 \<in> .[U]" by (rule PPs_closed_single)
+    with refl have "Poly_Mapping.single x 1 + t \<in> cone t U" by (rule coneI)
+    also note *
+    also from assms have "T \<subseteq> .[X]" by (rule ideal_likeD)
+    finally have "Poly_Mapping.single x 1 + t \<in> .[X]" .
+    hence "Poly_Mapping.single x 1 + t - t \<in> .[X]" by (rule PPs_closed_minus)
+    thus "x \<in> X" by (simp add: PPs_def)
+  qed
+next
+  assume "t \<in> T \<and> U \<subseteq> X"
+  hence "t \<in> T" and "U \<subseteq> X" by simp_all
+  show "cone t U \<subseteq> T"
+  proof
+    fix s
+    assume "s \<in> cone t U"
+    also from \<open>U \<subseteq> X\<close> have "... \<subseteq> cone t X" by (rule cone_mono_2)
+    finally obtain s' where "s' \<in> .[X]" and s: "s = s' + t" by (rule coneE)
+    from assms this(1) \<open>t \<in> T\<close> show "s \<in> T" unfolding s by (rule ideal_likeD)
+  qed
+qed
+
+(* OBSOLETE? *)
+lemma ideal_like_generated:
+  assumes "finite X" and "ideal_like T"
+  obtains S where "finite S" and "S \<subseteq> T" and "T = (\<Union>s\<in>S. cone s X)"
+proof -
+  have refl: "reflp ((adds)::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> _)" by (simp add: reflp_def)
+  define m where "m = Max (elem_index ` X)"
+  from assms(2) have "T \<subseteq> .[X]" by (rule ideal_likeD)
+  also have "... \<subseteq> {t. varnum t \<le> Suc m}" (is "_ \<subseteq> ?Y")
+  proof
+    fix t
+    assume "t \<in> .[X]"
+    from assms(1) have fin: "finite (elem_index ` X)" by (rule finite_imageI)
+    {
+      fix x
+      assume "x \<in> keys t"
+      moreover from \<open>t \<in> .[X]\<close> have "keys t \<subseteq> X" by (rule PPsD)
+      ultimately have "x \<in> X" ..
+      hence "elem_index x \<in> elem_index ` X" by (rule imageI)
+      with fin have "elem_index x \<le> m" unfolding m_def by (rule Max_ge)
+    }
+    hence "varnum t \<le> Suc m" by (simp add: varnum_def)
+    thus "t \<in> ?Y" by simp
+  qed
+  finally have "T \<subseteq> ?Y" .
+  moreover from dickson_grading_varnum have "almost_full_on (adds) ?Y"
+    by (rule dickson_gradingD2)
+  ultimately have "almost_full_on (adds) T" by (rule almost_full_on_subset)
+  with refl obtain S where "finite S" and "S \<subseteq> T" and 1: "\<And>t. t \<in> T \<Longrightarrow> (\<exists>s\<in>S. s adds t)"
+    by (rule almost_full_on_finite_subsetE, blast)
+  from this(1, 2) show ?thesis
+  proof
+    show "T = (\<Union>s\<in>S. cone s X)"
+    proof (rule Set.set_eqI)
+      fix t
+      show "t \<in> T \<longleftrightarrow> t \<in> (\<Union>s\<in>S. cone s X)"
+      proof
+        assume "t \<in> T"
+        hence "\<exists>s\<in>S. s adds t" by (rule 1)
+        then obtain s where "s \<in> S" and "s adds t" ..
+        have "t \<in> cone s X"
+        proof (rule coneI)
+          from \<open>s adds t\<close> show "t = (t - s) + s" by (simp only: adds_minus)
+        next
+          from \<open>t \<in> T\<close> \<open>T \<subseteq> .[X]\<close> have "t \<in> .[X]" ..
+          thus "t - s \<in> .[X]" by (rule PPs_closed_minus)
+        qed
+        with \<open>s \<in> S\<close> show "t \<in> (\<Union>s\<in>S. cone s X)" ..
+      next
+        assume "t \<in> (\<Union>s\<in>S. cone s X)"
+        then obtain s where "s \<in> S" and "t \<in> cone s X" ..
+        from this(2) obtain s' where "s' \<in> .[X]" and t: "t = s' + s" by (rule coneE)
+        note assms(2) this(1)
+        moreover from \<open>s \<in> S\<close> \<open>S \<subseteq> T\<close> have "s \<in> T" ..
+        ultimately show "t \<in> T" unfolding t by (rule ideal_likeD)
+      qed
+    qed
+  qed
+qed
+
+lemma ideal_like_image_minus_iff:
+  assumes "ideal_like I" and "t \<in> .[X]"
+  shows "s \<in> (\<lambda>s. s - t) ` I \<longleftrightarrow> s + t \<in> I"
+proof
+  assume "s \<in> (\<lambda>s. s - t) ` I"
+  then obtain s' where "s' \<in> I" and s: "s = s' - t" ..
+  have "s' adds s + t"
+  proof (rule adds_poly_mappingI)
+    show "lookup s' \<le> lookup (s + t)" unfolding le_fun_def
+    proof
+      fix x
+      from s have "lookup s x = lookup (s' - t) x" by simp
+      thus "lookup s' x \<le> lookup (s + t) x" by (simp add: lookup_minus lookup_add)
+    qed
+  qed
+  hence eq: "(s + t - s') + s' = s + t" by (rule adds_minus)
+  from assms(1) have "I \<subseteq> .[X]" by (rule ideal_likeD)
+  with \<open>s' \<in> I\<close> have "s' \<in> .[X]" ..
+  hence "s \<in> .[X]" unfolding s by (rule PPs_closed_minus)
+  hence "s + t \<in> .[X]" using assms(2) by (rule PPs_closed_plus)
+  hence "s + t - s' \<in> .[X]" by (rule PPs_closed_minus)
+  with assms(1) have "(s + t - s') + s' \<in> I" using \<open>s' \<in> I\<close> by (rule ideal_likeD)
+  thus "s + t \<in> I" by (simp only: eq)
+next
+  assume "s + t \<in> I"
+  hence "(s + t) - t \<in> (\<lambda>s. s - t) ` I" by (rule imageI)
+  thus "s \<in> (\<lambda>s. s - t) ` I" by simp
+qed
+
+lemma ideal_like_cone_iff: "ideal_like (cone t U) \<longleftrightarrow> (t \<in> .[X] \<and> U = X)"
+proof
+  assume *: "ideal_like (cone t U)"
+  hence **: "cone t U \<subseteq> .[X]" by (rule ideal_likeD)
+  also have "\<dots> = cone 0 X" by simp
+  finally have "U \<subseteq> X" by (rule cone_subsetD)
+  moreover have "X \<subseteq> U"
+  proof (rule cone_subsetD)
+    have ".[X] \<subseteq> .[U]"
+    proof
+      fix s
+      assume "s \<in> .[X]"
+      with * have "s + t \<in> cone t U" using tip_in_cone by (rule ideal_likeD)
+      then obtain s' where "s' \<in> .[U]" and "s + t = s' + t" by (rule coneE)
+      from this(2) have "s = s'" by simp
+      with \<open>s' \<in> .[U]\<close> show "s \<in> .[U]" by simp
+    qed
+    thus "cone 0 X \<subseteq> cone 0 U" by simp
+  qed
+  ultimately have "U = X" ..
+  moreover from tip_in_cone ** have "t \<in> .[X]" ..
+  ultimately show "t \<in> .[X] \<and> U = X" by simp
+next
+  assume "t \<in> .[X] \<and> U = X"
+  hence "t \<in> .[X]" and "U = X" by simp_all
+  show "ideal_like (cone t U)" unfolding \<open>U = X\<close>
+  proof (rule ideal_likeI)
+    have "cone t X = cone (t + 0) X" by simp
+    also from \<open>t \<in> .[X]\<close> have "\<dots> \<subseteq> cone 0 X" by (rule cone_mono_1)
+    thus "cone t X \<subseteq> .[X]" by simp
+  next
+    fix s s'
+    assume "s \<in> .[X]"
+    assume "s' \<in> cone t X"
+    then obtain s'' where "s'' \<in> .[X]" and "s' = s'' + t" by (rule coneE)
+    from this(2) have "s + s' = s + s'' + t" by (simp only: add.assoc)
+    moreover from \<open>s \<in> .[X]\<close> \<open>s'' \<in> .[X]\<close> have "s + s'' \<in> .[X]" by (rule PPs_closed_plus)
+    ultimately show "s + s' \<in> cone t X" by (rule coneI)
+  qed
+qed
+
+corollary ideal_like_PPs_iff: "ideal_like .[U] \<longleftrightarrow> U = X"
+proof -
+  have "ideal_like .[U] = ideal_like (cone 0 U)" by simp
+  also have "\<dots> = (0 \<in> .[X] \<and> U = X)" by (simp only: ideal_like_cone_iff)
+  also have "\<dots> = (U = X)" by (simp add: zero_in_PPs)
+  finally show ?thesis .
+qed
+
+lemma ideal_like_UN:
+  assumes "\<And>a. a \<in> A \<Longrightarrow> ideal_like (I a)"
+  shows "ideal_like (\<Union> (I ` A))"
+proof (rule ideal_likeI)
+  show "\<Union> (I ` A) \<subseteq> .[X]"
+  proof
+    fix t
+    assume "t \<in> \<Union> (I ` A)"
+    then obtain a where "a \<in> A" and "t \<in> I a" ..
+    from this(1) have "ideal_like (I a)" by (rule assms)
+    hence "I a \<subseteq> .[X]" by (rule ideal_likeD)
+    with \<open>t \<in> I a\<close> show "t \<in> .[X]" ..
+  qed
+next
+  fix s t
+  assume "s \<in> .[X]"
+  assume "t \<in> \<Union> (I ` A)"
+  then obtain a where "a \<in> A" and "t \<in> I a" ..
+  from this(1) have "ideal_like (I a)" by (rule assms)
+  hence "s + t \<in> I a" using \<open>s \<in> .[X]\<close> \<open>t \<in> I a\<close> by (rule ideal_likeD)
+  with \<open>a \<in> A\<close> show "s + t \<in> \<Union> (I ` A)" ..
+qed
+
+corollary ideal_like_Un:
+  assumes "ideal_like I1" and "ideal_like I2"
+  shows "ideal_like (I1 \<union> I2)"
+proof -
+  have "ideal_like (\<Union> (id ` {I1, I2}))" by (rule ideal_like_UN) (auto simp: assms)
+  thus ?thesis by simp
+qed
+
+subsection \<open>Splitting w.r.t. Ideal-like Sets\<close>
+
+definition splits_wrt :: "((('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<times> (('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set) \<Rightarrow>
+                          ('x \<Rightarrow>\<^sub>0 nat) set \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) set \<Rightarrow> bool"
+  where "splits_wrt PQ T I \<longleftrightarrow> cone_decomp T (fst PQ \<union> snd PQ) \<and> ideal_like I \<and>
+                                (\<forall>(t, U)\<in>fst PQ. cone t U \<subseteq> I) \<and> (\<forall>(t, U)\<in>snd PQ. U \<subseteq> X \<and> cone t U \<inter> I = {})"
+
+lemma splits_wrtI:
+  assumes "cone_decomp T (P \<union> Q)" and "ideal_like I"
+    and "\<And>t U. (t, U) \<in> P \<Longrightarrow> U \<subseteq> X" and "\<And>t U. (t, U) \<in> P \<Longrightarrow> t \<in> I"
+    and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X" and "\<And>t U s. (t, U) \<in> Q \<Longrightarrow> s \<in> cone t U \<Longrightarrow> s \<in> I \<Longrightarrow> False"
+  shows "splits_wrt (P, Q) T I"
+  unfolding splits_wrt_def fst_conv snd_conv
+proof (intro conjI ballI)
+  fix p
+  assume "p \<in> P"
+  moreover obtain t U where p: "p = (t, U)" using prod.exhaust by blast
+  ultimately have "(t, U) \<in> P" by simp
+  hence "U \<subseteq> X" and "t \<in> I" by (rule assms)+
+  have "cone t U \<subseteq> I"
+  proof
+    fix s
+    assume "s \<in> cone t U"
+    then obtain s' where "s' \<in> .[U]" and s: "s = s' + t" by (rule coneE)
+    from \<open>U \<subseteq> X\<close> have ".[U] \<subseteq> .[X]" by (rule PPs_mono)
+    with \<open>s' \<in> .[U]\<close> have "s' \<in> .[X]" ..
+    with assms(2) show "s \<in> I" unfolding s using \<open>t \<in> I\<close> by (rule ideal_likeD)
+  qed
+  thus "case p of (t, U) \<Rightarrow> cone t U \<subseteq> I" by (simp add: p)
+next
+  fix q
+  assume "q \<in> Q"
+  moreover obtain t U where q: "q = (t, U)" using prod.exhaust by blast
+  ultimately have "(t, U) \<in> Q" by simp
+  hence "U \<subseteq> X" and "\<And>s. s \<in> cone t U \<Longrightarrow> s \<in> I \<Longrightarrow> False" by (rule assms)+
+  thus "case q of (t, U) \<Rightarrow> U \<subseteq> X \<and> cone t U \<inter> I = {}" by (fastforce simp: q)
+qed (fact assms)+
+
+lemma splits_wrtD:
+  assumes "splits_wrt (P, Q) T I"
+  shows "cone_decomp T (P \<union> Q)" and "ideal_like I" and "\<And>t U. (t, U) \<in> P \<Longrightarrow> cone t U \<subseteq> I"
+    and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X" and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> cone t U \<inter> I = {}"
+  using assms by (fastforce simp: splits_wrt_def)+
+
+lemma splits_wrt_finite_decomp:
+  assumes "finite X" and "splits_wrt (P, Q) T I"
+  shows "finite_decomp P" and "finite_decomp Q" and "finite_decomp (P \<union> Q)"
+proof -
+  from assms(2) have "cone_decomp T (P \<union> Q)" by (rule splits_wrtD)
+  hence "finite (P \<union> Q)" by (rule cone_decompD)
+  hence "finite P" and "finite Q" by simp_all
+  from this(1) show "finite_decomp P"
+  proof (rule finite_decompI)
+    fix t U
+    assume "(t, U) \<in> P"
+    with assms(2) have "cone t U \<subseteq> I" by (rule splits_wrtD)
+    moreover from assms(2) have "ideal_like I" by (rule splits_wrtD)
+    ultimately have "U \<subseteq> X" by (simp only: cone_subset_ideal_like_iff)
+    thus "finite U" using assms(1) by (rule finite_subset)
+  qed
+  moreover from \<open>finite Q\<close> show "finite_decomp Q"
+  proof (rule finite_decompI)
+    fix t U
+    assume "(t, U) \<in> Q"
+    with assms(2) have "U \<subseteq> X" by (rule splits_wrtD)
+    thus "finite U" using assms(1) by (rule finite_subset)
+  qed
+  ultimately show "finite_decomp (P \<union> Q)" by (rule finite_decomp_Un)
+qed
+
+lemma splits_wrt_cone_decomp_1:
+  assumes "splits_wrt (P, Q) T I"
+  shows "cone_decomp (T \<inter> I) P"
+proof -
+  from assms have *: "cone_decomp T (P \<union> Q)" by (rule splits_wrtD)
+  show ?thesis
+  proof (rule cone_decompI)
+    from * have "finite (P \<union> Q)" by (rule cone_decompD)
+    thus "finite P" by simp
+  next
+    have "cone t U \<inter> I = cone t U" if "(t, U) \<in> P" for t U
+    proof -
+      from assms that have "cone t U \<subseteq> I" by (rule splits_wrtD)
+      thus ?thesis by (rule Int_absorb2)
+    qed
+    hence eq1: "(\<Union>(t, U)\<in>P. cone t U \<inter> I) = (\<Union>(t, U)\<in>P. cone t U)" by blast
+    have "cone t U \<inter> I = {}" if "(t, U) \<in> Q" for t U using assms that by (rule splits_wrtD)
+    hence eq2: "(\<Union>(t, U)\<in>Q. cone t U \<inter> I) = {}" by blast
+    from * have "T = (\<Union>(t, U)\<in>P\<union>Q. cone t U)" by (rule cone_decompD)
+    hence "T \<inter> I = (\<Union>(t, U)\<in>P. cone t U \<inter> I) \<union> (\<Union>(t, U)\<in>Q. cone t U \<inter> I)" by blast
+    also have "... = (\<Union>(t, U)\<in>P. cone t U)" by (simp only: eq1 eq2 Un_empty_right)
+    finally show "T \<inter> I = (\<Union>(t, U)\<in>P. cone t U)" .
+  next
+    fix t1 t2 :: "'x \<Rightarrow>\<^sub>0 nat" and U1 U2 s
+    assume s1: "s \<in> cone t1 U1" and s2: "s \<in> cone t2 U2"
+    assume "(t1, U1) \<in> P" and "(t2, U2) \<in> P"
+    hence "(t1, U1) \<in> P \<union> Q" and "(t2, U2) \<in> P \<union> Q" by simp_all
+    with * show "(t1, U1) = (t2, U2)" using s1 s2 by (rule cone_decompD)
+  qed
+qed
+
+lemma splits_wrt_cone_decomp_2:
+  assumes "splits_wrt (P, Q) T I"
+  shows "cone_decomp (T - I) Q"
+proof -
+  from assms have *: "cone_decomp T (P \<union> Q)" by (rule splits_wrtD)
+  show ?thesis
+  proof (rule cone_decompI)
+    from * have "finite (P \<union> Q)" by (rule cone_decompD)
+    thus "finite Q" by simp
+  next
+    have "cone t U - I = {}" if "(t, U) \<in> P" for t U
+    proof -
+      from assms that have "cone t U \<subseteq> I" by (rule splits_wrtD)
+      thus ?thesis by (simp only: Diff_eq_empty_iff)
+    qed
+    hence eq1: "(\<Union>(t, U)\<in>P. cone t U - I) = {}" by blast
+    have "cone t U - I = cone t U" if "(t, U) \<in> Q" for t U
+    proof -
+      from assms that have "cone t U \<inter> I = {}" by (rule splits_wrtD)
+      thus ?thesis by (rule Diff_triv)
+    qed
+    hence eq2: "(\<Union>(t, U)\<in>Q. cone t U - I) = (\<Union>(t, U)\<in>Q. cone t U)" by blast
+    from * have "T = (\<Union>(t, U)\<in>P\<union>Q. cone t U)" by (rule cone_decompD)
+    hence "T - I = (\<Union>(t, U)\<in>P. cone t U - I) \<union> (\<Union>(t, U)\<in>Q. cone t U - I)" by blast
+    also have "... = (\<Union>(t, U)\<in>Q. cone t U)" by (simp only: eq1 eq2 Un_empty_left)
+    finally show "T - I = (\<Union>(t, U)\<in>Q. cone t U)" .
+  next
+    fix t1 t2 :: "'x \<Rightarrow>\<^sub>0 nat" and U1 U2 s
+    assume s1: "s \<in> cone t1 U1" and s2: "s \<in> cone t2 U2"
+    assume "(t1, U1) \<in> Q" and "(t2, U2) \<in> Q"
+    hence "(t1, U1) \<in> P \<union> Q" and "(t2, U2) \<in> P \<union> Q" by simp_all
+    with * show "(t1, U1) = (t2, U2)" using s1 s2 by (rule cone_decompD)
+  qed
+qed
+
+lemma lem_4_2_1:
+  assumes "ideal_like I" and "U \<subseteq> X" and "t \<in> .[X]" and "(\<lambda>s. s - t) ` I = (\<Union>f\<in>F. cone f X)"
+  shows "cone t U \<subseteq> I \<longleftrightarrow> 0 \<in> F"
+proof -
+  from assms(1, 2) have "cone t U \<subseteq> I \<longleftrightarrow> t \<in> I" by (simp add: cone_subset_ideal_like_iff)
+  also from assms(1, 3) have "... \<longleftrightarrow> 0 \<in> (\<lambda>s. s - t) ` I" by (simp add: ideal_like_image_minus_iff)
+  also have "... \<longleftrightarrow> 0 \<in> F" by (simp add: assms(4) zero_in_cone_iff)
+  finally show ?thesis .
+qed
+
+lemma lem_4_2_2:
+  assumes "ideal_like I" and "U \<subseteq> X" and "t \<in> .[X]" and "(\<lambda>s. s - t) ` I = (\<Union>f\<in>F. cone f X)"
+  shows "cone t U \<inter> I = {} \<longleftrightarrow> F \<inter> .[U] = {}"
+proof
+  assume *: "cone t U \<inter> I = {}"
+  {
+    fix s
+    assume "s \<in> F"
+    hence "s \<in> (\<lambda>s. s - t) ` I" unfolding assms(4) using tip_in_cone ..
+    with assms(1, 3) have "s + t \<in> I" by (simp add: ideal_like_image_minus_iff)
+    assume "s \<in> .[U]"
+    with refl have "s + t \<in> cone t U" by (rule coneI)
+    with * have "s + t \<notin> I" by blast
+    hence False using \<open>s + t \<in> I\<close> ..
+  }
+  thus "F \<inter> .[U] = {}" by blast
+next
+  assume *: "F \<inter> .[U] = {}"
+  {
+    fix s
+    assume "s \<in> cone t U"
+    then obtain s' where "s' \<in> .[U]" and s: "s = s' + t" by (rule coneE)
+    assume "s \<in> I"
+    with assms(1, 3) have "s' \<in> (\<lambda>s. s - t) ` I" by (simp add: s ideal_like_image_minus_iff)
+    then obtain f where "f \<in> F" and "s' \<in> cone f X" unfolding assms(4) ..
+    from this(2) obtain f' where s': "s' = f' + f" by (rule coneE)
+    from \<open>s' \<in> .[U]\<close> have "s' - f' \<in> .[U]" by (rule PPs_closed_minus)
+    hence "f \<in> .[U]" by (simp add: s')
+    with \<open>f \<in> F\<close> * have False by blast
+  }
+  thus "cone t U \<inter> I = {}" by blast
+qed
 end (* theory *)
