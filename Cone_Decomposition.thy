@@ -5,6 +5,103 @@ theory Cone_Decomposition
 begin
 
 subsection \<open>Preliminaries\<close>
+  
+lemma plus_minus_assoc_pm_nat_1: "s + t - u = (s - (u - t)) + (t - (u::_ \<Rightarrow>\<^sub>0 nat))"
+  by (rule poly_mapping_eqI, simp add: lookup_add lookup_minus)
+
+lemma plus_minus_assoc_pm_nat_2:
+  "s + (t - u) = (s + (truncate_poly_mapping (keys s) (u - t))) + t - (u::_ \<Rightarrow>\<^sub>0 nat)"
+proof (rule poly_mapping_eqI)
+  fix x
+  show "lookup (s + (t - u)) x = lookup (s + truncate_poly_mapping (keys s) (u - t) + t - u) x"
+  proof (cases "x \<in> keys s")
+    case True
+    thus ?thesis
+      by (simp add: plus_minus_assoc_pm_nat_1 lookup_truncate_fun truncate_fun_def lookup_add lookup_minus)
+  next
+    case False
+    hence "lookup s x = 0" by simp
+    with False show ?thesis
+      by (simp add: lookup_add lookup_minus lookup_truncate_fun truncate_fun_def del: not_in_keys_iff_lookup_eq_zero)
+  qed
+qed
+
+lemma deg_pm_mono: "s adds t \<Longrightarrow> deg_pm s \<le> deg_pm (t::_ \<Rightarrow>\<^sub>0 _::add_linorder_min)"
+  unfolding adds_poly_mapping by (transfer) (auto intro!: deg_fun_leq simp: supp_fun_def)
+
+lemma deg_pm_minus:
+  assumes "s adds (t::_ \<Rightarrow>\<^sub>0 _::comm_monoid_add)"
+  shows "deg_pm (t - s) = deg_pm t - deg_pm s"
+proof -
+  from assms have "(t - s) + s = t" by (rule adds_minus)
+  hence "deg_pm t = deg_pm ((t - s) + s)" by simp
+  also have "\<dots> = deg_pm (t - s) + deg_pm s" by (simp only: deg_pm_plus)
+  finally show ?thesis by simp
+qed
+
+lemma deg_pm_minus_le: "deg_pm (t - s) \<le> deg_pm (t::_ \<Rightarrow>\<^sub>0 nat)"
+proof -
+  have "keys (t - s) \<subseteq> keys t" by (rule, simp add: lookup_minus in_keys_iff)
+  hence "deg_pm (t - s) = (\<Sum>x\<in>keys t. lookup (t - s) x)" using finite_keys by (rule deg_pm_superset)
+  also have "\<dots> \<le> (\<Sum>x\<in>keys t. lookup t x)" by (rule sum_mono) (simp add: lookup_minus)
+  also have "\<dots> = deg_pm t" by (rule sym, rule deg_pm_superset, fact subset_refl, fact finite_keys)
+  finally show ?thesis .
+qed
+
+lemma minus_id_iff: "t - s = t \<longleftrightarrow> keys t \<inter> keys (s::_ \<Rightarrow>\<^sub>0 nat) = {}"
+proof
+  assume "t - s = t"
+  {
+    fix x
+    assume "x \<in> keys t" and "x \<in> keys s"
+    hence "0 < lookup t x" and "0 < lookup s x" by (simp_all add: in_keys_iff)
+    hence "lookup (t - s) x \<noteq> lookup t x" by (simp add: lookup_minus)
+    with \<open>t - s = t\<close> have False by simp
+  }
+  thus "keys t \<inter> keys s = {}" by blast
+next
+  assume *: "keys t \<inter> keys s = {}"
+  show "t - s = t"
+  proof (rule poly_mapping_eqI)
+    fix x
+    have "lookup t x - lookup s x = lookup t x"
+    proof (cases "x \<in> keys t")
+      case True
+      with * have "x \<notin> keys s" by blast
+      thus ?thesis by simp
+    next
+      case False
+      thus ?thesis by simp
+    qed
+    thus "lookup (t - s) x = lookup t x" by (simp only: lookup_minus)
+  qed
+qed
+
+lemma deg_pm_minus_id_iff: "deg_pm (t - s) = deg_pm t \<longleftrightarrow> keys t \<inter> keys (s::_ \<Rightarrow>\<^sub>0 nat) = {}"
+proof
+  assume eq: "deg_pm (t - s) = deg_pm t"
+  {
+    fix x
+    assume "x \<in> keys t" and "x \<in> keys s"
+    hence "0 < lookup t x" and "0 < lookup s x" by (simp_all add: in_keys_iff)
+    hence *: "lookup (t - s) x < lookup t x" by (simp add: lookup_minus)
+    have "keys (t - s) \<subseteq> keys t" by (rule, simp add: lookup_minus in_keys_iff)
+    hence "deg_pm (t - s) = (\<Sum>x\<in>keys t. lookup (t - s) x)" using finite_keys by (rule deg_pm_superset)
+    also from finite_keys have "\<dots> < (\<Sum>x\<in>keys t. lookup t x)"
+    proof (rule sum_strict_mono_ex1)
+      show "\<forall>x\<in>keys t. lookup (t - s) x \<le> lookup t x" by (simp add: lookup_minus)
+    next
+      from \<open>x \<in> keys t\<close> * show "\<exists>x\<in>keys t. lookup (t - s) x < lookup t x" ..
+    qed
+    also have "\<dots> = deg_pm t" by (rule sym, rule deg_pm_superset, fact subset_refl, fact finite_keys)
+    finally have False by (simp add: eq)
+  }
+  thus "keys t \<inter> keys s = {}" by blast
+next
+  assume "keys t \<inter> keys s = {}"
+  hence "t - s = t" by (simp only: minus_id_iff)
+  thus "deg_pm (t - s) = deg_pm t" by (simp only:)
+qed
 
 subsubsection \<open>Direct Decompositions\<close>
 
@@ -14,7 +111,7 @@ definition direct_decomposition :: "'a set \<Rightarrow> 'a::comm_monoid_add set
             (\<forall>P' f'. finite P' \<longrightarrow> P' \<subseteq> Q \<longrightarrow> (\<forall>p\<in>P'. f' p \<in> p \<and> f' p \<noteq> 0) \<longrightarrow> a = sum f' P' \<longrightarrow>
               (P' = P \<and> (\<forall>p\<in>P. f' p = f p))))"
 
-subsection \<open>Power-Products\<close>
+subsection \<open>Basic Cone Decompositions\<close>
 
 definition Hilbert_fun :: "('x::countable \<Rightarrow>\<^sub>0 nat) set \<Rightarrow> nat \<Rightarrow> nat"
   where "Hilbert_fun T d = card {t \<in> T. deg_pm t = d}"
@@ -36,6 +133,16 @@ lemma cone_empty [simp]: "cone t {} = {t}"
 lemma cone_zero [simp]: "cone 0 U = .[U]"
   by (simp add: cone_def)
 
+lemma zero_in_cone_iff: "0 \<in> cone t U \<longleftrightarrow> t = 0"
+proof
+  assume "0 \<in> cone t U"
+  then obtain s where "0 = s + t" by (rule coneE)
+  thus "t = 0" using plus_eq_zero_2 by auto
+qed (simp add: zero_in_PPs)
+
+lemma tip_in_cone: "t \<in> cone t U"
+  using _ zero_in_PPs by (rule coneI) simp
+
 lemma cone_mono_1:
   assumes "s \<in> .[U]"
   shows "cone (s + t) U \<subseteq> cone t U"
@@ -46,6 +153,17 @@ proof
   from this(2) have "v = s' + s + t" by (simp only: add.assoc)
   moreover from \<open>s' \<in> .[U]\<close> assms have "s' + s \<in> .[U]" by (rule PPs_closed_plus)
   ultimately show "v \<in> cone t U" by (rule coneI)
+qed
+
+lemma cone_mono_1':
+  assumes "t adds s" and "s \<in> .[U]"
+  shows "cone s U \<subseteq> cone t U"
+proof -
+  from assms(1) obtain s' where s: "s = s' + t" unfolding add.commute[of _ t] ..
+  with assms(2) have "s' + t \<in> .[U]" by simp
+  hence "s' + t - t \<in> .[U]" by (rule PPs_closed_minus)
+  hence "s' \<in> .[U]" by simp
+  thus ?thesis unfolding s by (rule cone_mono_1)
 qed
 
 lemma cone_mono_2:
@@ -59,6 +177,31 @@ proof
   note this(2)
   moreover from \<open>s \<in> .[U1]\<close> \<open>.[U1] \<subseteq> .[U2]\<close> have "s \<in> .[U2]" ..
   ultimately show "v \<in> cone t U2" by (rule coneI)
+qed
+
+lemma cone_subsetD:
+  assumes "cone t1 U1 \<subseteq> cone t2 U2"
+  shows "t2 adds t1" and "U1 \<subseteq> U2"
+proof -
+  from tip_in_cone assms have "t1 \<in> cone t2 U2" ..
+  then obtain t1' where "t1' \<in> .[U2]" and t1: "t1 = t1' + t2" by (rule coneE)
+  from this(2) have "t1 = t2 + t1'" by (simp only: add.commute)
+  thus "t2 adds t1" ..
+  show "U1 \<subseteq> U2"
+  proof
+    fix x
+    assume "x \<in> U1"
+    hence "Poly_Mapping.single x 1 \<in> .[U1]" (is "?s \<in> _") by (rule PPs_closed_single)
+    with refl have "?s + t1 \<in> cone t1 U1" by (rule coneI)
+    hence "?s + t1 \<in> cone t2 U2" using assms ..
+    then obtain s where "s \<in> .[U2]" and "?s + t1 = s + t2" by (rule coneE)
+    from this(2) have "(?s + t1') + t2 = s + t2" by (simp only: t1 ac_simps)
+    hence "?s + t1' = s" by simp
+    with \<open>s \<in> .[U2]\<close> have "?s + t1' \<in> .[U2]" by simp
+    hence "?s + t1' - t1' \<in> .[U2]" by (rule PPs_closed_minus)
+    hence "?s \<in> .[U2]" by simp
+    thus "x \<in> U2" by (simp add: PPs_def)
+  qed
 qed
 
 lemma cone_insert:
@@ -128,9 +271,6 @@ proof -
   thus ?thesis by blast
 qed
 
-lemma tip_in_cone: "t \<in> cone t U"
-  using _ zero_in_PPs by (rule coneI) simp
-
 lemma cone_indets:
   assumes "cone t U \<subseteq> .[X]"
   shows "t \<in> .[X]" and "U \<subseteq> X"
@@ -150,8 +290,85 @@ proof -
   qed
 qed
 
+lemma PPs_Int_cone: ".[X] \<inter> cone t U = (if t \<in> .[X] then cone t (X \<inter> U) else {})"
+proof (cases "t \<in> .[X]")
+  case True
+  have ".[X] \<inter> cone t U = cone t (X \<inter> U)"
+  proof (rule Set.set_eqI)
+    fix s
+    show "s \<in> .[X] \<inter> cone t U \<longleftrightarrow> s \<in> cone t (X \<inter> U)"
+    proof
+      assume "s \<in> .[X] \<inter> cone t U"
+      hence "s \<in> .[X]" and "s \<in> cone t U" by simp_all
+      from this(2) obtain s' where "s' \<in> .[U]" and s: "s = s' + t" by (rule coneE)
+      from \<open>s \<in> .[X]\<close> have "s' + t \<in> .[X]" by (simp only: s)
+      hence "s' + t - t \<in> .[X]" by (rule PPs_closed_minus)
+      hence "keys s' \<subseteq> X" by (simp add: PPs_def)
+      moreover from \<open>s' \<in> .[U]\<close> have "keys s' \<subseteq> U" by (rule PPsD)
+      ultimately have "keys s' \<subseteq> X \<inter> U" by blast
+      hence "s' \<in> .[X \<inter> U]" by (rule PPsI)
+      with s show "s \<in> cone t (X \<inter> U)" by (rule coneI)
+    next
+      assume "s \<in> cone t (X \<inter> U)"
+      then obtain s' where "s' \<in> .[X \<inter> U]" and s: "s = s' + t" by (rule coneE)
+      from this(1) have "s' \<in> .[X]" and "s' \<in> .[U]" by (simp_all add: PPs_def)
+      from this(1) True have "s \<in> .[X]" unfolding s by (rule PPs_closed_plus)
+      moreover from s \<open>s' \<in> .[U]\<close> have "s \<in> cone t U" by (rule coneI)
+      ultimately show "s \<in> .[X] \<inter> cone t U" ..
+    qed
+  qed
+  with True show ?thesis by simp
+next
+  case False
+  {
+    fix s
+    assume "s \<in> cone t U"
+    then obtain s' where "s = s' + t" by (rule coneE)
+    moreover assume "s \<in> .[X]"
+    ultimately have "s' + t \<in> .[X]" by simp
+    hence "(s' + t) - s' \<in> .[X]" by (rule PPs_closed_minus)
+    hence "t \<in> .[X]" by simp
+    with False have False ..
+  }
+  hence ".[X] \<inter> cone t U = {}" by blast
+  with False show ?thesis by simp
+qed
+
 lemma image_plus_cone: "(+) s ` cone t U = cone (s + t) U"
   by (auto simp: cone_def ac_simps image_image)
+
+lemma image_minus_cone: "(\<lambda>s. s - v) ` cone t U = cone (t - v) U"
+proof (rule Set.set_eqI)
+  fix u
+  show "u \<in> (\<lambda>s. s - v) ` cone t U \<longleftrightarrow> u \<in> cone (t - v) U"
+  proof
+    assume "u \<in> (\<lambda>s. s - v) ` cone t U"
+    then obtain s where "s \<in> cone t U" and u: "u = s - v" ..
+    from this(1) obtain s' where "s' \<in> .[U]" and s: "s = s' + t" by (rule coneE)
+    show "u \<in> cone (t - v) U"
+    proof (rule coneI)
+      show "u = s' - (v - t) + (t - v)" by (simp add: u s plus_minus_assoc_pm_nat_1)
+    next
+      from \<open>s' \<in> .[U]\<close> show "s' - (v - t) \<in> .[U]" by (rule PPs_closed_minus)
+    qed
+  next
+    assume "u \<in> cone (t - v) U"
+    then obtain s' where "s' \<in> .[U]" and u: "u = s' + (t - v)" by (rule coneE)
+    from this(2) have "u = (s' + (v - t)) + t - v" by (simp add: plus_minus_assoc_pm_nat_1)
+    have "u = (s' + (truncate_poly_mapping (keys s') (v - t))) + t - v"
+      unfolding u by (fact plus_minus_assoc_pm_nat_2)
+    moreover from refl have "(s' + (truncate_poly_mapping (keys s') (v - t))) + t \<in> cone t U"
+    proof (rule coneI)
+      from sub_keys_truncate[of "keys s'" "v - t"]
+      have "keys (truncate_poly_mapping (keys s') (v - t)) \<subseteq> keys s'" by (simp only: sub_keys_def)
+      also from \<open>s' \<in> .[U]\<close> have "\<dots> \<subseteq> U" by (rule PPsD)
+      finally have "truncate_poly_mapping (keys s') (v - t) \<in> .[U]" by (rule PPsI)
+      with \<open>s' \<in> .[U]\<close> show "s' + truncate_poly_mapping (keys s') (v - t) \<in> .[U]"
+        by (rule PPs_closed_plus)
+    qed
+    ultimately show "u \<in> (\<lambda>s. s - v) ` cone t U" by (rule image_eqI)
+  qed
+qed
 
 lemma inj_on_minus_cone:
   assumes "A \<subseteq> cone t U"
@@ -168,10 +385,10 @@ proof
   thus "v1 = v2" by (simp add: v1 v2)
 qed
 
-lemma image_minus_cone: "(\<lambda>s. s - t) ` cone t U = .[U]"
+lemma image_minus_tip_cone: "(\<lambda>s. s - t) ` cone t U = .[U]"
   by (auto simp: cone_def image_comp)
 
-lemma image_minus_cone_deg_sect:
+lemma image_minus_tip_cone_deg_sect:
   "(\<lambda>s. s - t) ` {v \<in> cone t U. deg_pm v = deg_pm t + d} = deg_sect U d"
 proof
   show "deg_sect U d \<subseteq> (\<lambda>s. s - t) ` {v \<in> cone t U. deg_pm v = deg_pm t + d}" (is "_ \<subseteq> _ ` ?A")
@@ -187,7 +404,7 @@ proof
   qed
 qed (auto simp: cone_def deg_pm_plus deg_sect_def)
 
-lemma image_minus_cone_deg_le_sect:
+lemma image_minus_tip_cone_deg_le_sect:
   "(\<lambda>s. s - t) ` {v \<in> cone t U. deg_pm v \<le> deg_pm t + d} = deg_le_sect U d"
 proof
   show "deg_le_sect U d \<subseteq> (\<lambda>s. s - t) ` {v \<in> cone t U. deg_pm v \<le> deg_pm t + d}" (is "_ \<subseteq> _ ` ?A")
@@ -229,7 +446,7 @@ proof (cases "deg_pm t \<le> z")
   then obtain d where z: "z = deg_pm t + d" using le_imp_add by blast
   from assms have "finite (deg_sect U d)" by (rule finite_deg_sect)
   hence "finite ((\<lambda>s. s - t) ` {v \<in> cone t U. deg_pm v = z})"
-    by (simp only: z image_minus_cone_deg_sect)
+    by (simp only: z image_minus_tip_cone_deg_sect)
   moreover have "inj_on (\<lambda>s. s - t) {v \<in> cone t U. deg_pm v = z}"
     by (rule inj_on_minus_cone) blast
   ultimately show ?thesis by (rule finite_imageD)
@@ -254,7 +471,7 @@ proof (cases "deg_pm t \<le> z")
   proof (rule sym, rule card_image, rule inj_on_minus_cone)
     show "{v \<in> cone t U. deg_pm v = z} \<subseteq> cone t U" by blast
   qed
-  also have "... = card (deg_sect U d)" by (simp only: z image_minus_cone_deg_sect)
+  also have "... = card (deg_sect U d)" by (simp only: z image_minus_tip_cone_deg_sect)
   also from assms have "... = (d + (card U - 1)) choose (card U - 1)" by (rule card_deg_sect)
   finally show ?thesis by (simp add: True z)
 next
