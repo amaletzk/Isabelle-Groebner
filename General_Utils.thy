@@ -106,6 +106,43 @@ lemma image_Collect_eqI:
 lemma image_image_Collect:
   "f ` {g x | x. P x} = {f (g x) | x. P x}"
   by auto
+
+lemma card_le_1I:
+  assumes "\<And>a b. a \<in> A \<Longrightarrow> b \<in> A \<Longrightarrow> a = b"
+  shows "card A \<le> 1"
+proof (cases "A = {}")
+  case True
+  thus ?thesis by simp
+next
+  case False
+  then obtain a where "a \<in> A" by blast
+  have "finite {a}" by simp
+  moreover have "A \<subseteq> {a}"
+  proof
+    fix b
+    assume "b \<in> A"
+    hence "b = a" using \<open>a \<in> A\<close> by (rule assms)
+    thus "b \<in> {a}" by simp
+  qed
+  ultimately have "card A \<le> card {a}" by (rule card_mono)
+  thus ?thesis by simp
+qed
+
+lemma card_le_1D:
+  assumes "finite A" and "card A \<le> 1" and "a \<in> A" and "b \<in> A"
+  shows "a = b"
+  using assms
+proof (induct A)
+  case empty
+  thus ?case by simp
+next
+  case (insert a0 A)
+  from insert.hyps(1, 2) insert.prems(1) have "A = {}" by simp
+  with insert.prems(2, 3) show ?case by simp
+qed
+
+lemma card_le_1_iff: "finite A \<Longrightarrow> card A \<le> Suc 0 \<longleftrightarrow> (\<forall>a\<in>A. \<forall>b\<in>A. a = b)"
+  using card_le_1D card_le_1I by (metis One_nat_def)
     
 section \<open>Lists\<close>
 
