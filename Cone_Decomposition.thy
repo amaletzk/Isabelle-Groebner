@@ -1579,28 +1579,6 @@ function (domintros) split :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> 'x s
 text \<open>Function @{const split} is not executable, because this is not necessary.
   With some effort, it could be made executable, though.\<close>
 
-(* TODO: Remove. *)
-lemma sum_image_le':
-  fixes g :: "'a \<Rightarrow> 'b::ordered_comm_monoid_add"
-  assumes "finite I" and "\<And>i. i \<in> I \<Longrightarrow> 0 \<le> g(f i)"
-    shows "sum g (f ` I) \<le> sum (g \<circ> f) I"
-  using assms
-proof induction
-  case empty
-  then show ?case by auto
-next
-  case (insert x F)
-  from insertI1 have "0 \<le> g (f x)" by (rule insert)
-  hence 1: "sum g (f ` F) \<le> g (f x) + sum g (f ` F)" using add_increasing by blast
-  from insert have 2: "sum g (f ` F) \<le> sum (g \<circ> f) F" by blast
-  have "sum g (f ` insert x F) = sum g (insert (f x) (f ` F))" by simp
-  also have "\<dots> \<le> g (f x) + sum g (f ` F)"
-    by (simp add: 1 insert sum.insert_if)
-  also from 2 have "\<dots> \<le> g (f x) + sum (g \<circ> f) F" by (rule add_left_mono)
-  also from insert(1, 2) have "\<dots> = sum (g \<circ> f) (insert x F)" by (simp add: sum.insert_if)
-  finally show ?case .
-qed
-
 lemma split_domI':
   assumes "finite X" and "fst (snd args) \<subseteq> X" and "finite (snd (snd args))"
   shows "split_dom args"
@@ -1653,7 +1631,7 @@ proof -
         next
           have "sum deg_pm ((\<lambda>f. f - Poly_Mapping.single x (Suc 0)) ` F) \<le>
                 sum (deg_pm \<circ> (\<lambda>f. f - Poly_Mapping.single x (Suc 0))) F"
-            using \<open>finite F\<close> by (rule sum_image_le') simp
+            using \<open>finite F\<close> by (rule sum_image_le) simp
           also from \<open>finite F\<close> have "\<dots> < sum deg_pm F"
           proof (rule sum_strict_mono_ex1)
             show "\<forall>f\<in>F. (deg_pm \<circ> (\<lambda>f. f - Poly_Mapping.single x (Suc 0))) f \<le> deg_pm f"

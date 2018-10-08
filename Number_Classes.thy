@@ -370,7 +370,7 @@ end (* number_ring *)
 
 subsection \<open>Class @{term number_field}\<close>
   
-sublocale linordered_field \<subseteq> div_semiring 1 "( * )" "(\<le>)" "(<)" "(+)" 0 "(/)" "(/)"
+sublocale linordered_field \<subseteq> div_semiring 1 "(*)" "(\<le>)" "(<)" "(+)" 0 "(/)" "(/)"
 by (standard, simp_all add: mult_imp_div_pos_le neg_divide_le_eq mult_imp_le_div_pos neg_le_divide_eq  mult_commute)
   
 class number_field = div_semiring + linordered_field
