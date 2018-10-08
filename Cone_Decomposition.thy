@@ -1,7 +1,7 @@
 section \<open>Cone Decompositions\<close>
 
 theory Cone_Decomposition
-  imports MPoly_PM
+  imports General_Utils MPoly_PM
 begin
 
 subsection \<open>Preliminaries\<close>
@@ -807,19 +807,19 @@ qed
 
 lemma standard_decomp_nonempty_unique:
   assumes "finite_decomp P" and "standard_decomp k P" and "P\<^sub>+ \<noteq> {}"
-  shows "k = Min ((deg_pm \<circ> fst) ` P\<^sub>+)"
+  shows "k = Min (deg_pm ` fst ` P\<^sub>+)"
 proof -
-  define m where "m = Min ((deg_pm \<circ> fst) ` P\<^sub>+)"
+  define m where "m = Min (deg_pm ` fst ` P\<^sub>+)"
   from assms(1) have "finite P" by (rule finite_decompD)
   hence "finite (P\<^sub>+)" by (simp add: pos_decomp_def)
-  hence "finite ((deg_pm \<circ> fst) ` P\<^sub>+)" by (rule finite_imageI)
-  moreover from assms(3) have "(deg_pm \<circ> fst) ` P\<^sub>+ \<noteq> {}" by simp
-  ultimately have "m \<in> (deg_pm \<circ> fst) ` P\<^sub>+" unfolding m_def by (rule Min_in)
+  hence "finite (deg_pm ` fst ` P\<^sub>+)" by (intro finite_imageI)
+  moreover from assms(3) have "deg_pm ` fst ` P\<^sub>+ \<noteq> {}" by simp
+  ultimately have "m \<in> deg_pm ` fst ` P\<^sub>+" unfolding m_def by (rule Min_in)
   then obtain t U where "(t, U) \<in> P\<^sub>+" and m: "m = deg_pm t" by fastforce
   have m_min: "m \<le> deg_pm t'" if "(t', U') \<in> P\<^sub>+" for t' U'
   proof -
-    from that have "(deg_pm \<circ> fst) (t', U') \<in> (deg_pm \<circ> fst) ` P\<^sub>+" by (rule imageI)
-    with \<open>finite ((deg_pm \<circ> fst) ` P\<^sub>+)\<close> have "m \<le> (deg_pm \<circ> fst) (t', U')"
+    from that have "deg_pm (fst (t', U')) \<in> deg_pm ` fst ` P\<^sub>+" by (intro imageI)
+    with \<open>finite (deg_pm ` fst ` P\<^sub>+)\<close> have "m \<le> deg_pm (fst (t', U'))"
       unfolding m_def by (rule Min_le)
     thus ?thesis by simp
   qed
@@ -2315,6 +2315,1343 @@ proof -
 
   from 2 have "splits_wrt (fst (split 0 X F), snd (split 0 X F)) .[X] I" by simp
   thus ?thesis2 by (rule splits_wrt_cone_decomp_2)
+qed
+
+subsection \<open>Exact Cone Decompositions\<close>
+
+definition exact_decomp :: "nat \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<Rightarrow> bool"
+  where "exact_decomp m P \<longleftrightarrow> (\<forall>(t, U)\<in>P. U \<subseteq> X) \<and>
+                              (\<forall>(t, U)\<in>P. \<forall>(t', U')\<in>P. deg_pm t = deg_pm t' \<longrightarrow>
+                                          m < card U \<longrightarrow> m < card U' \<longrightarrow> (t, U) = (t', U'))"
+
+lemma exact_decompI:
+  "(\<And>t U. (t, U) \<in> P \<Longrightarrow> U \<subseteq> X) \<Longrightarrow>
+    (\<And>t t' U U'. (t, U) \<in> P \<Longrightarrow> (t', U') \<in> P \<Longrightarrow> deg_pm t = deg_pm t' \<Longrightarrow>
+            m < card U \<Longrightarrow> m < card U' \<Longrightarrow> (t, U) = (t', U')) \<Longrightarrow>
+    exact_decomp m P"
+  unfolding exact_decomp_def by fastforce
+
+lemma exact_decompD:
+  assumes "exact_decomp m P" and "(t, U) \<in> P"
+  shows "U \<subseteq> X"
+    and "(t', U') \<in> P \<Longrightarrow> deg_pm t = deg_pm t' \<Longrightarrow> m < card U \<Longrightarrow> m < card U' \<Longrightarrow> (t, U) = (t', U')"
+  using assms unfolding exact_decomp_def by fastforce+
+
+lemma exact_decompI_zero:
+  assumes "\<And>t U. (t, U) \<in> P \<Longrightarrow> U \<subseteq> X"
+    and "\<And>t t' U U'. (t, U) \<in> P\<^sub>+ \<Longrightarrow> (t', U') \<in> P\<^sub>+ \<Longrightarrow> deg_pm t = deg_pm t' \<Longrightarrow> (t, U) = (t', U')"
+  shows "exact_decomp 0 P"
+  using assms(1)
+proof (rule exact_decompI)
+  fix t t' and U U' :: "'x set"
+  assume "0 < card U"
+  hence "U \<noteq> {}" by auto
+  moreover assume "(t, U) \<in> P"
+  ultimately have "(t, U) \<in> P\<^sub>+" by (simp add: pos_decomp_def)
+  assume "0 < card U'"
+  hence "U' \<noteq> {}" by auto
+  moreover assume "(t', U') \<in> P"
+  ultimately have "(t', U') \<in> P\<^sub>+" by (simp add: pos_decomp_def)
+  assume "deg_pm t = deg_pm t'"
+  with \<open>(t, U) \<in> P\<^sub>+\<close> \<open>(t', U') \<in> P\<^sub>+\<close> show "(t, U) = (t', U')" by (rule assms(2))
+qed
+
+lemma exact_decompD_zero:
+  assumes "finite X" and "exact_decomp 0 P" and "(t, U) \<in> P\<^sub>+" and "(t', U') \<in> P\<^sub>+"
+    and "deg_pm t = deg_pm t'"
+  shows "(t, U) = (t', U')"
+proof -
+  from assms(3) have "(t, U) \<in> P" and "U \<noteq> {}" by (simp_all add: pos_decomp_def)
+  from assms(2) this(1) have "U \<subseteq> X" by (rule exact_decompD)
+  hence "finite U" using assms(1) by (rule finite_subset)
+  with \<open>U \<noteq> {}\<close> have "0 < card U" by (simp add: card_gt_0_iff)
+  from assms(4) have "(t', U') \<in> P" and "U' \<noteq> {}" by (simp_all add: pos_decomp_def)
+  from assms(2) this(1) have "U' \<subseteq> X" by (rule exact_decompD)
+  hence "finite U'" using assms(1) by (rule finite_subset)
+  with \<open>U' \<noteq> {}\<close> have "0 < card U'" by (simp add: card_gt_0_iff)
+  show ?thesis by (rule exact_decompD) fact+
+qed
+
+lemma exact_decomp_imp_finite_decomp:
+  assumes "finite X" and "exact_decomp m P" and "finite P"
+  shows "finite_decomp P"
+  using assms(3)
+proof (rule finite_decompI)
+  fix t U
+  assume "(t, U) \<in> P"
+  with assms(2) have "U \<subseteq> X" by (rule exact_decompD)
+  thus "finite U" using assms(1) by (rule finite_subset)
+qed
+
+lemma exact_decomp_card_X:
+  assumes "finite X" and "\<And>t U. (t, U) \<in> P \<Longrightarrow> U \<subseteq> X" and "card X \<le> m"
+  shows "exact_decomp m P"
+  using assms(2)
+proof (rule exact_decompI)
+  fix t1 t2 U1 U2
+  assume "(t1, U1) \<in> P"
+  hence "U1 \<subseteq> X" by (rule assms(2))
+  with assms(1) have "card U1 \<le> card X" by (rule card_mono)
+  also have "\<dots> \<le> m" by (fact assms(3))
+  also assume "m < card U1"
+  finally show "(t1, U1) = (t2, U2)" by simp
+qed
+
+qualified definition \<a> :: "(('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<Rightarrow> nat"
+  where "\<a> P = (LEAST k. standard_decomp k P)"
+
+qualified definition \<b> :: "(('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<Rightarrow> nat \<Rightarrow> nat"
+  where "\<b> P i = (LEAST d. \<a> P \<le> d \<and> (\<forall>(t, U)\<in>P. i \<le> card U \<longrightarrow> deg_pm t < d))"
+
+lemma \<a>: "standard_decomp k P \<Longrightarrow> standard_decomp (\<a> P) P"
+  unfolding \<a>_def by (rule LeastI)
+
+lemma \<a>_empty:
+  assumes "P\<^sub>+ = {}"
+  shows "\<a> P = 0"
+proof -
+  from assms have "standard_decomp 0 P" by (rule standard_decomp_empty)
+  thus ?thesis unfolding \<a>_def by (rule Least_eq_0)
+qed
+
+lemma \<a>_nonempty:
+  assumes "finite_decomp P" and "standard_decomp k P" and "P\<^sub>+ \<noteq> {}"
+  shows "\<a> P = Min (deg_pm ` fst ` P\<^sub>+)"
+  using assms(1) _ assms(3)
+proof (rule standard_decomp_nonempty_unique)
+  from assms(2) show "standard_decomp (\<a> P) P" by (rule \<a>)
+qed
+
+lemma \<a>_nonempty_unique:
+  assumes "finite_decomp P" and "standard_decomp k P" and "P\<^sub>+ \<noteq> {}"
+  shows "\<a> P = k"
+proof -
+  from assms have "\<a> P = Min (deg_pm ` fst ` P\<^sub>+)" by (rule \<a>_nonempty)
+  moreover from assms have "k = Min (deg_pm ` fst ` P\<^sub>+)" by (rule standard_decomp_nonempty_unique)
+  ultimately show ?thesis by simp
+qed
+
+lemma \<b>:
+  assumes "finite P"
+  shows "\<a> P \<le> \<b> P i" and "(t, U) \<in> P \<Longrightarrow> i \<le> card U \<Longrightarrow> deg_pm t < \<b> P i"
+proof -
+  let ?A = "deg_pm ` fst ` P"
+  define A where "A = insert (\<a> P) ?A"
+  define m where "m = Suc (Max A)"
+  from assms have "finite ?A" by (intro finite_imageI)
+  hence "finite A" by (simp add: A_def)
+  have "\<a> P \<le> \<b> P i \<and> (\<forall>(t', U')\<in>P. i \<le> card U' \<longrightarrow> deg_pm t' < \<b> P i)" unfolding \<b>_def
+  proof (rule LeastI)
+    have "\<a> P \<in> A" by (simp add: A_def)
+    with \<open>finite A\<close> have "\<a> P \<le> Max A" by (rule Max_ge)
+    hence "\<a> P \<le> m" by (simp add: m_def)
+    moreover {
+      fix t U
+      assume "(t, U) \<in> P"
+      hence "deg_pm (fst (t, U)) \<in> ?A" by (intro imageI)
+      hence "deg_pm t \<in> A" by (simp add: A_def)
+      with \<open>finite A\<close> have "deg_pm t \<le> Max A" by (rule Max_ge)
+      hence "deg_pm t < m" by (simp add: m_def)
+    }
+    ultimately show "\<a> P \<le> m \<and> (\<forall>(t, U)\<in>P. i \<le> card U \<longrightarrow> deg_pm t < m)" by blast
+  qed
+  thus "\<a> P \<le> \<b> P i" and "(t, U) \<in> P \<Longrightarrow> i \<le> card U \<Longrightarrow> deg_pm t < \<b> P i" by blast+
+qed
+
+lemma \<b>_le: "\<a> P \<le> d \<Longrightarrow> (\<And>t' U'. (t', U') \<in> P \<Longrightarrow> i \<le> card U' \<Longrightarrow> deg_pm t' < d) \<Longrightarrow> \<b> P i \<le> d"
+  unfolding \<b>_def by (intro Least_le) blast
+
+lemma \<b>_decreasing:
+  assumes "finite P" and "i \<le> j"
+  shows "\<b> P j \<le> \<b> P i"
+proof (rule \<b>_le)
+  from assms(1) show "\<a> P \<le> \<b> P i" by (rule \<b>)
+next
+  fix t U
+  assume "(t, U) \<in> P"
+  assume "j \<le> card U"
+  with assms(2) have "i \<le> card U" by (rule le_trans)
+  with assms(1) \<open>(t, U) \<in> P\<close> show "deg_pm t < \<b> P i" by (rule \<b>)
+qed
+
+lemma \<b>_empty:
+  assumes "P\<^sub>+ = {}" and "Suc 0 \<le> i"
+  shows "\<b> P i = 0"
+  unfolding \<b>_def
+proof (rule Least_eq_0)
+  from assms(1) have "\<a> P = 0" by (rule \<a>_empty)
+  moreover {
+    fix t and U::"'x set"
+    note assms(2)
+    also assume "i \<le> card U"
+    finally have "U \<noteq> {}" by auto
+    moreover assume "(t, U) \<in> P"
+    ultimately have "(t, U) \<in> P\<^sub>+" by (simp add: pos_decomp_def)
+    hence False by (simp add: assms)
+  }
+  ultimately show "\<a> P \<le> 0 \<and> (\<forall>(t, U)\<in>P. i \<le> card U \<longrightarrow> deg_pm t < 0)" by blast
+qed
+
+lemma \<b>_zero:
+  assumes "finite P" and "P \<noteq> {}"
+  shows "Suc (Max (deg_pm ` fst ` P)) \<le> \<b> P 0"
+proof -
+  from assms(1) have "finite (deg_pm ` fst ` P)" by (intro finite_imageI)
+  moreover from assms(2) have "deg_pm ` fst ` P \<noteq> {}" by simp
+  moreover have "\<forall>a\<in>deg_pm ` fst ` P. a < \<b> P 0"
+  proof
+    fix d
+    assume "d \<in> deg_pm ` fst ` P"
+    then obtain p where "p \<in> P" and "d = deg_pm (fst p)" by blast
+    moreover obtain t U where "p = (t, U)" using prod.exhaust by blast
+    ultimately have "(t, U) \<in> P" and d: "d = deg_pm t" by simp_all
+    from assms(1) this(1) le0 show "d < \<b> P 0" unfolding d by (rule \<b>)
+  qed
+  ultimately have "Max (deg_pm ` fst ` P) < \<b> P 0" by simp
+  thus ?thesis by simp
+qed
+
+lemma \<b>_one:
+  assumes "finite_decomp P" and "standard_decomp k P"
+  shows "\<b> P (Suc 0) = (if P\<^sub>+ = {} then 0 else Suc (Max (deg_pm ` fst ` P\<^sub>+)))"
+proof (cases "P\<^sub>+ = {}")
+  case True
+  hence "\<b> P (Suc 0) = 0" using le_refl by (rule \<b>_empty)
+  with True show ?thesis by simp
+next
+  case False
+  with assms have aP: "\<a> P = Min (deg_pm ` fst ` P\<^sub>+)" (is "_ = Min ?A") by (rule \<a>_nonempty)
+  have "P\<^sub>+ \<subseteq> P" by (auto simp: pos_decomp_def)
+  moreover from assms(1) have "finite P" by (rule finite_decompD)
+  ultimately have "finite (P\<^sub>+)" by (rule finite_subset)
+  hence "finite ?A" by (intro finite_imageI)
+  from False have "?A \<noteq> {}" by simp
+  have "\<b> P (Suc 0) = Suc (Max ?A)" unfolding \<b>_def
+  proof (rule Least_equality)
+    from \<open>finite ?A\<close> \<open>?A \<noteq> {}\<close> have "\<a> P \<in> ?A" unfolding aP by (rule Min_in)
+    with \<open>finite ?A\<close> have "\<a> P \<le> Max ?A" by (rule Max_ge)
+    hence "\<a> P \<le> Suc (Max ?A)" by simp
+    moreover {
+      fix t U
+      assume "(t, U) \<in> P"
+      with assms(1) have "finite U" by (rule finite_decompD)
+      moreover assume "Suc 0 \<le> card U"
+      ultimately have "U \<noteq> {}" by auto
+      with \<open>(t, U) \<in> P\<close> have "(t, U) \<in> P\<^sub>+" by (simp add: pos_decomp_def)
+      hence "deg_pm (fst (t, U)) \<in> ?A" by (intro imageI)
+      hence "deg_pm t \<in> ?A" by (simp only: fst_conv)
+      with \<open>finite ?A\<close> have "deg_pm t \<le> Max ?A" by (rule Max_ge)
+      hence "deg_pm t < Suc (Max ?A)" by simp
+    }
+    ultimately show "\<a> P \<le> Suc (Max ?A) \<and> (\<forall>(t, U)\<in>P. Suc 0 \<le> card U \<longrightarrow> deg_pm t < Suc (Max ?A))"
+      by blast
+  next
+    fix d
+    assume "\<a> P \<le> d \<and> (\<forall>(t, U)\<in>P. Suc 0 \<le> card U \<longrightarrow> deg_pm t < d)"
+    hence rl: "deg_pm t < d" if "(t, U) \<in> P" and "0 < card U" for t U using that by auto
+    have "Max ?A < d" unfolding Max_less_iff[OF \<open>finite ?A\<close> \<open>?A \<noteq> {}\<close>]
+    proof
+      fix d0
+      assume "d0 \<in> deg_pm ` fst ` P\<^sub>+"
+      then obtain t U where "(t, U) \<in> P\<^sub>+" and d0: "d0 = deg_pm t" by auto
+      from this(1) have "(t, U) \<in> P" and "U \<noteq> {}" by (simp_all add: pos_decomp_def)
+      from assms(1) this(1) have "finite U" by (rule finite_decompD)
+      with \<open>U \<noteq> {}\<close> have "0 < card U" by (simp add: card_gt_0_iff)
+      with \<open>(t, U) \<in> P\<close> show "d0 < d" unfolding d0 by (rule rl)
+    qed
+    thus "Suc (Max ?A) \<le> d" by simp
+  qed
+  with False show ?thesis by simp
+qed
+
+lemma \<b>_card_X:
+  assumes "finite X" and "exact_decomp m P" and "Suc (card X) \<le> i"
+  shows "\<b> P i = \<a> P"
+  unfolding \<b>_def
+proof (rule Least_equality)
+  {
+    fix t U
+    assume "(t, U) \<in> P"
+    with assms(2) have "U \<subseteq> X" by (rule exact_decompD)
+    note assms(3)
+    also assume "i \<le> card U"
+    finally have "card X < card U" by simp
+    with assms(1) have "\<not> U \<subseteq> X" by (auto dest: card_mono leD)
+    hence False using \<open>U \<subseteq> X\<close> ..
+  }
+  thus "\<a> P \<le> \<a> P \<and> (\<forall>(t, U)\<in>P. i \<le> card U \<longrightarrow> deg_pm t < \<a> P)" by blast
+qed simp
+
+lemma lem_6_1_1:
+  assumes "finite P" and "standard_decomp k P" and "exact_decomp m P" and "Suc 0 \<le> i"
+    and "i \<le> card X" and "\<b> P (Suc i) \<le> d" and "d < \<b> P i"
+  obtains t U where "(t, U) \<in> P\<^sub>+" and "deg_pm t = d" and "card U = i"
+proof -
+  have "P\<^sub>+ \<noteq> {}"
+  proof
+    assume "P\<^sub>+ = {}"
+    hence "\<b> P i = 0" using assms(4) by (rule \<b>_empty)
+    with assms(7) show False by simp
+  qed
+  from assms(4, 5) have "Suc 0 \<le> card X" by (rule le_trans)
+  hence "finite X" by (simp add: card_ge_0_finite)
+  hence eq1: "\<b> P (Suc (card X)) = \<a> P" using assms(3) le_refl by (rule \<b>_card_X)
+  from assms(2) have std: "standard_decomp (\<b> P (Suc (card X))) P" unfolding eq1 by (rule \<a>)
+  from assms(5) have "Suc i \<le> Suc (card X)" ..
+  with assms(1) have "\<b> P (Suc (card X)) \<le> \<b> P (Suc i)" by (rule \<b>_decreasing)
+  hence "\<a> P \<le> \<b> P (Suc i)" by (simp only: eq1)
+  have "\<exists>t U. (t, U) \<in> P \<and> i \<le> card U \<and> \<b> P i \<le> Suc (deg_pm t)"
+  proof (rule ccontr)
+    assume *: "\<nexists>t U. (t, U) \<in> P \<and> i \<le> card U \<and> \<b> P i \<le> Suc (deg_pm t)"
+    note \<open>\<a> P \<le> \<b> P (Suc i)\<close>
+    also from assms(6, 7) have "\<b> P (Suc i) < \<b> P i" by (rule le_less_trans)
+    finally have "\<a> P < \<b> P i" .
+    hence "\<a> P \<le> \<b> P i - 1" by simp
+    hence "\<b> P i \<le> \<b> P i - 1"
+    proof (rule \<b>_le)
+      fix t U
+      assume "(t, U) \<in> P" and "i \<le> card U"
+      show "deg_pm t < \<b> P i - 1"
+      proof (rule ccontr)
+        assume "\<not> deg_pm t < \<b> P i - 1"
+        hence "\<b> P i \<le> Suc (deg_pm t)" by simp
+        with * \<open>(t, U) \<in> P\<close> \<open>i \<le> card U\<close> show False by auto
+      qed
+    qed
+    thus False using \<open>\<a> P < \<b> P i\<close> by linarith
+  qed
+  then obtain t U where "(t, U) \<in> P" and "i \<le> card U" and "\<b> P i \<le> Suc (deg_pm t)" by blast
+  from assms(4) this(2) have "U \<noteq> {}" by auto
+  with \<open>(t, U) \<in> P\<close> have "(t, U) \<in> P\<^sub>+" by (simp add: pos_decomp_def)
+  note std this
+  moreover have "\<b> P (Suc (card X)) \<le> d" unfolding eq1 using \<open>\<a> P \<le> \<b> P (Suc i)\<close> assms(6)
+    by (rule le_trans)
+  moreover have "d \<le> deg_pm t"
+  proof -
+    from assms(7) \<open>\<b> P i \<le> Suc (deg_pm t)\<close> have "d < Suc (deg_pm t)" by (rule less_le_trans)
+    thus ?thesis by simp
+  qed
+  ultimately obtain t' U' where "(t', U') \<in> P" and d: "deg_pm t' = d" and "card U \<le> card U'"
+    by (rule standard_decompE)
+  from \<open>i \<le> card U\<close> this(3) have "i \<le> card U'" by (rule le_trans)
+  with assms(4) have "U' \<noteq> {}" by auto
+  with \<open>(t', U') \<in> P\<close> have "(t', U') \<in> P\<^sub>+" by (simp add: pos_decomp_def)
+  moreover note \<open>deg_pm t' = d\<close>
+  moreover have "card U' = i"
+  proof (rule ccontr)
+    assume "card U' \<noteq> i"
+    with \<open>i \<le> card U'\<close> have "Suc i \<le> card U'" by simp
+    with assms(1) \<open>(t', U') \<in> P\<close> have "deg_pm t' < \<b> P (Suc i)" by (rule \<b>)
+    with assms(6) show False by (simp add: d)
+  qed
+  ultimately show ?thesis ..
+qed
+
+lemma lem_6_1_2:
+  assumes "exact_decomp 0 P" and "Suc 0 \<le> i" and "i \<le> card X"
+  assumes "(t1, U1) \<in> P\<^sub>+" and "(t2, U2) \<in> P\<^sub>+" and "deg_pm t1 = deg_pm t2"
+  shows "(t1, U1) = (t2, U2)"
+  using _ assms(1, 4, 5, 6)
+proof (rule exact_decompD_zero)
+  from assms(2, 3) have "Suc 0 \<le> card X" by (rule le_trans)
+  thus "finite X" by (simp add: card_ge_0_finite)
+qed
+
+lemma lem_6_2_1:
+  assumes "standard_decomp k P" and "(t1, U1) \<in> P" and "(t2, U2) \<in> P" and "deg_pm t1 = deg_pm t2"
+    and "card U2 \<le> card U1" and "(t1, U1) \<noteq> (t2, U2)" and "x \<in> U2"
+  shows "standard_decomp k (insert (Poly_Mapping.single x 1 + t2, U2) (insert (t2, U2 - {x}) (P - {(t2, U2)})))"
+    (is "standard_decomp _ (insert ?p1 (insert ?p2 ?Q))")
+proof (rule standard_decompI)
+  fix t U
+  assume "(t, U) \<in> (insert ?p1 (insert ?p2 ?Q))\<^sub>+"
+  hence disj: "(t, U) = ?p1 \<or> ((t, U) = ?p2 \<and> U2 - {x} \<noteq> {}) \<or> (t, U) \<in> P\<^sub>+"
+    by (auto simp: pos_decomp_def)
+  from assms(7) have "U2 \<noteq> {}" by blast
+  with assms(3) have "(t2, U2) \<in> P\<^sub>+" by (simp add: pos_decomp_def)
+  with assms(1) have k_le: "k \<le> deg_pm t2" by (rule standard_decompD)
+
+  from disj show "k \<le> deg_pm t"
+  proof (elim disjE)
+    assume "(t, U) = ?p1"
+    hence t: "t = Poly_Mapping.single x 1 + t2" by simp
+    note k_le
+    also have "deg_pm t2 \<le> deg_pm t" by (simp add: t deg_pm_plus)
+    finally show ?thesis .
+  next
+    assume "(t, U) = ?p2 \<and> U2 - {x} \<noteq> {}"
+    with k_le show ?thesis by simp
+  next
+    assume "(t, U) \<in> P\<^sub>+"
+    with assms(1) show ?thesis by (rule standard_decompD)
+  qed
+
+  fix d
+  assume "k \<le> d" and "d \<le> deg_pm t"
+  from disj obtain t' U' where 1: "(t', U') \<in> insert ?p1 P" and "deg_pm t' = d"
+    and "card U \<le> card U'"
+  proof (elim disjE)
+    assume "(t, U) = ?p1"
+    hence t: "t = Poly_Mapping.single x 1 + t2" and "U = U2" by simp_all
+    from \<open>d \<le> deg_pm t\<close> have "d \<le> deg_pm t2 \<or> deg_pm t = d"
+      by (auto simp: t deg_pm_plus deg_pm_single)
+    thus ?thesis
+    proof
+      assume "d \<le> deg_pm t2"
+      with assms(1) \<open>(t2, U2) \<in> P\<^sub>+\<close> \<open>k \<le> d\<close> obtain t' U'
+        where "(t', U') \<in> P" and "deg_pm t' = d" and "card U2 \<le> card U'" by (rule standard_decompE)
+      from this(1) have "(t', U') \<in> insert ?p1 P" by simp
+      moreover note \<open>deg_pm t' = d\<close>
+      moreover from \<open>card U2 \<le> card U'\<close> have "card U \<le> card U'" by (simp only: \<open>U = U2\<close>)
+      ultimately show ?thesis ..
+    next
+      have "(t, U) \<in> insert ?p1 P" by (simp add: \<open>(t, U) = ?p1\<close>)
+      moreover assume "deg_pm t = d"
+      ultimately show ?thesis using le_refl ..
+    qed
+  next
+    assume "(t, U) = ?p2 \<and> U2 - {x} \<noteq> {}"
+    hence "t = t2" and U: "U = U2 - {x}" by simp_all
+    from \<open>d \<le> deg_pm t\<close> this(1) have "d \<le> deg_pm t2" by simp
+    with assms(1) \<open>(t2, U2) \<in> P\<^sub>+\<close> \<open>k \<le> d\<close> obtain t' U'
+      where "(t', U') \<in> P" and "deg_pm t' = d" and "card U2 \<le> card U'" by (rule standard_decompE)
+    from this(1) have "(t', U') \<in> insert ?p1 P" by simp
+    moreover note \<open>deg_pm t' = d\<close>
+    moreover from _ \<open>card U2 \<le> card U'\<close> have "card U \<le> card U'" unfolding U
+      by (rule le_trans) (metis Diff_empty card_Diff1_le card_infinite finite_Diff_insert order_refl)
+    ultimately show ?thesis ..
+  next
+    assume "(t, U) \<in> P\<^sub>+"
+    from assms(1) this \<open>k \<le> d\<close> \<open>d \<le> deg_pm t\<close> obtain t' U'
+      where "(t', U') \<in> P" and "deg_pm t' = d" and "card U \<le> card U'" by (rule standard_decompE)
+    from this(1) have "(t', U') \<in> insert ?p1 P" by simp
+    thus ?thesis using \<open>deg_pm t' = d\<close> \<open>card U \<le> card U'\<close> ..
+  qed
+  show "\<exists>t' U'. (t', U') \<in> insert ?p1 (insert ?p2 ?Q) \<and> deg_pm t' = d \<and> card U \<le> card U'"
+  proof (cases "(t', U') = (t2, U2)")
+    case True
+    hence "t' = t2" and "U' = U2" by simp_all
+    from assms(2, 6) have "(t1, U1) \<in> insert ?p1 (insert ?p2 ?Q)" by simp
+    moreover from \<open>deg_pm t' = d\<close> have "deg_pm t1 = d" by (simp only: \<open>t' = t2\<close> assms(4))
+    moreover from \<open>card U \<le> card U'\<close> assms(5) have "card U \<le> card U1" by (simp add: \<open>U' = U2\<close>)
+    ultimately show ?thesis by blast
+  next
+    case False
+    with 1 have "(t', U') \<in> insert ?p1 (insert ?p2 ?Q)" by blast
+    thus ?thesis using \<open>deg_pm t' = d\<close> \<open>card U \<le> card U'\<close> by blast
+  qed
+qed
+
+lemma lem_6_2_2:
+  assumes "cone_decomp T P" and "(t, U) \<in> P" and "x \<in> U"
+  shows "cone_decomp T (insert (Poly_Mapping.single x 1 + t, U) (insert (t, U - {x}) (P - {(t, U)})))"
+    (is "cone_decomp _ (insert ?p1 (insert ?p2 ?Q))")
+proof (rule cone_decompI)
+  from assms(1) have "finite P" by (rule cone_decompD)
+  thus "finite (insert ?p1 (insert ?p2 ?Q))" by simp
+next
+  from assms(3) have eq0: "insert x (U - {x}) = U" by blast
+  hence "cone t U = cone t (insert x (U - {x}))" by simp
+  also have "\<dots> = cone t (U - {x}) \<union> cone (Poly_Mapping.single x 1 + t) (insert x (U - {x}))"
+    by (fact cone_insert)
+  finally have eq1: "cone t U = cone t (U - {x}) \<union> cone (Poly_Mapping.single x 1 + t) U"
+    by (simp only: eq0)
+  from assms(2) have eq2: "insert (t, U) ?Q = P" by blast
+  from assms(1) have "T = (\<Union>(t, U)\<in>P. cone t U)" by (rule cone_decompD)
+  also have "\<dots> = (\<Union>(t, U)\<in>insert (t, U) ?Q. cone t U)" by (simp only: eq2)
+  also have "\<dots> = cone t (U - {x}) \<union> cone (Poly_Mapping.single x 1 + t) U \<union> (\<Union>(t, U)\<in>?Q. cone t U)"
+    by (simp only: UN_insert eq1 prod.case)
+  also have "\<dots> = (\<Union>(t, U)\<in>(insert ?p1 (insert ?p2 ?Q)). cone t U)" by (simp add: ac_simps)
+  finally show "T = (\<Union>(t, U)\<in>(insert ?p1 (insert ?p2 ?Q)). cone t U)" .
+next
+  fix t1 t2 U1 U2 s
+  assume t1: "(t1, U1) \<in> insert ?p1 (insert ?p2 ?Q)" and t2: "(t2, U2) \<in> insert ?p1 (insert ?p2 ?Q)"
+  assume s1: "s \<in> cone t1 U1" and s2: "s \<in> cone t2 U2"
+  from assms(3) have eq0: "insert x (U - {x}) = U" by blast
+  have "x \<notin> U - {x}" by simp
+  hence "cone t (U - {x}) \<inter> cone (Poly_Mapping.single x 1 + t) (insert x (U - {x})) = {}"
+    by (rule cone_insert_disjoint)
+  hence "cone t (U - {x}) \<inter> cone (Poly_Mapping.single x 1 + t) U = {}"
+    by (simp only: eq0)
+  moreover have "cone t (U - {x}) \<inter> cone t' U' = {}" if "(t', U') \<in> ?Q" for t' U'
+  proof -
+    from that have "(t', U') \<in> P" and "(t', U') \<noteq> (t, U)" by simp_all
+    {
+      fix s'
+      assume "s' \<in> cone t' U'"
+      assume "s' \<in> cone t (U - {x})"
+      also from Diff_subset have "\<dots> \<subseteq> cone t U" by (rule cone_mono_2)
+      finally have "s' \<in> cone t U" .
+      with assms(1) \<open>(t', U') \<in> P\<close> assms(2) \<open>s' \<in> cone t' U'\<close> have "(t', U') = (t, U)"
+        by (rule cone_decompD)
+      with \<open>(t', U') \<noteq> (t, U)\<close> have False ..
+    }
+    thus ?thesis by blast
+  qed
+  moreover have "cone (Poly_Mapping.single x 1 + t) U \<inter> cone t' U' = {}" if "(t', U') \<in> ?Q" for t' U'
+  proof -
+    from that have "(t', U') \<in> P" and "(t', U') \<noteq> (t, U)" by simp_all
+    {
+      fix s'
+      assume "s' \<in> cone t' U'"
+      assume "s' \<in> cone (Poly_Mapping.single x 1 + t) U"
+      also have "\<dots> \<subseteq> cone t U" by (rule cone_mono_1, rule PPs_closed_single, fact)
+      finally have "s' \<in> cone t U" .
+      with assms(1) \<open>(t', U') \<in> P\<close> assms(2) \<open>s' \<in> cone t' U'\<close> have "(t', U') = (t, U)"
+        by (rule cone_decompD)
+      with \<open>(t', U') \<noteq> (t, U)\<close> have False ..
+    }
+    thus ?thesis by blast
+  qed
+  moreover from assms(1) _ _ s1 s2 have "(t1, U1) = (t2, U2)" if "(t1, U1) \<in> ?Q" and "(t2, U2) \<in> ?Q"
+  proof (rule cone_decompD)
+    from that(1) show "(t1, U1) \<in> P" by simp
+  next
+    from that(2) show "(t2, U2) \<in> P" by simp
+  qed
+  ultimately show "(t1, U1) = (t2, U2)" using t1 t2 s1 s2
+    by (smt insertE insert_disjoint(1) mk_disjoint_insert prod.sel)
+qed
+
+subsection \<open>Functions \<open>shift\<close> and \<open>exact\<close>\<close>
+
+context
+  fixes k m :: nat
+begin
+
+context
+  fixes d :: nat
+begin
+
+definition shift2_inv :: "(('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<Rightarrow> bool" where
+  "shift2_inv Q \<longleftrightarrow> finite Q \<and> standard_decomp k Q \<and> exact_decomp (Suc m) Q \<and>
+                         (\<forall>d0<d. card {q \<in> Q. deg_pm (fst q) = d0 \<and> m < card (snd q)} \<le> 1)"
+
+fun shift1_inv :: "((('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<times> (('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set) \<Rightarrow> bool" where
+  "shift1_inv (Q, B) \<longleftrightarrow> B = {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)} \<and> shift2_inv Q"
+
+lemma shift2_invI:
+  "finite Q \<Longrightarrow> standard_decomp k Q \<Longrightarrow> exact_decomp (Suc m) Q \<Longrightarrow>
+    (\<And>d0. d0 < d \<Longrightarrow> card {q \<in> Q. deg_pm (fst q) = d0 \<and> m < card (snd q)} \<le> 1) \<Longrightarrow>
+    shift2_inv Q"
+  by (simp add: shift2_inv_def)
+
+lemma shift2_invD:
+  assumes "shift2_inv Q"
+  shows "finite Q" and "standard_decomp k Q" and "exact_decomp (Suc m) Q"
+    and "d0 < d \<Longrightarrow> card {q \<in> Q. deg_pm (fst q) = d0 \<and> m < card (snd q)} \<le> 1"
+  using assms by (simp_all add: shift2_inv_def)
+
+lemma shift1_invI:
+  "B = {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)} \<Longrightarrow> shift2_inv Q \<Longrightarrow> shift1_inv (Q, B)"
+  by simp
+
+lemma shift1_invD:
+  assumes "shift1_inv (Q, B)"
+  shows "B = {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)}" and "shift2_inv Q"
+  using assms by simp_all
+
+declare shift1_inv.simps[simp del]
+
+lemma shift1_inv_finite_snd:
+  assumes "shift1_inv (Q, B)"
+  shows "finite B"
+proof (rule finite_subset)
+  from assms have "B = {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)}" by (rule shift1_invD)
+  also have "\<dots> \<subseteq> Q" by blast
+  finally show "B \<subseteq> Q" .
+next
+  from assms have "shift2_inv Q" by (rule shift1_invD)
+  thus "finite Q" by (rule shift2_invD)
+qed
+
+lemma shift1_inv_some_snd:
+  assumes "shift1_inv (Q, B)" and "1 < card B" and "(t, U) = (SOME b. b \<in> B \<and> card (snd b) = Suc m)"
+  shows "(t, U) \<in> B" and "(t, U) \<in> Q" and "deg_pm t = d" and "card U = Suc m"
+proof -
+  define A where "A = {q \<in> B. card (snd q) = Suc m}"
+  define Y where "Y = {q \<in> Q. deg_pm (fst q) = d \<and> Suc m < card (snd q)}"
+  from assms(1) have B: "B = {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)}" and inv2: "shift2_inv Q"
+    by (rule shift1_invD)+
+  have B': "B = A \<union> Y" by (auto simp: B A_def Y_def)
+  have "finite A"
+  proof (rule finite_subset)
+    show "A \<subseteq> B" unfolding A_def by blast
+  next
+    from assms(1) show "finite B" by (rule shift1_inv_finite_snd)
+  qed
+  moreover have "finite Y"
+  proof (rule finite_subset)
+    show "Y \<subseteq> Q" unfolding Y_def by blast
+  next
+    from inv2 show "finite Q" by (rule shift2_invD)
+  qed
+  moreover have "A \<inter> Y = {}" by (auto simp: A_def Y_def)
+  ultimately have "card (A \<union> Y) = card A + card Y" by (rule card_Un_disjoint)
+  with assms(2) have "1 < card A + card Y" by (simp only: B')
+  moreover have "card Y \<le> 1"
+  proof (rule card_le_1I)
+    fix q1 q2 :: "('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set"
+    obtain t1 U1 where q1: "q1 = (t1, U1)" using prod.exhaust by blast
+    obtain t2 U2 where q2: "q2 = (t2, U2)" using prod.exhaust by blast
+    assume "q1 \<in> Y"
+    hence "(t1, U1) \<in> Q" and "deg_pm t1 = d" and "Suc m < card U1" by (simp_all add: q1 Y_def)
+    assume "q2 \<in> Y"
+    hence "(t2, U2) \<in> Q" and "deg_pm t2 = d" and "Suc m < card U2" by (simp_all add: q2 Y_def)
+    from this(2) have "deg_pm t1 = deg_pm t2" by (simp only: \<open>deg_pm t1 = d\<close>)
+    from inv2 have "exact_decomp (Suc m) Q" by (rule shift2_invD)
+    thus "q1 = q2" unfolding q1 q2 by (rule exact_decompD) fact+
+  qed
+  ultimately have "0 < card A" by simp
+  hence "A \<noteq> {}" by auto
+  then obtain a where "a \<in> A" by blast
+  have "(t, U) \<in> B \<and> card (snd (t, U)) = Suc m" unfolding assms(3)
+  proof (rule someI)
+    from \<open>a \<in> A\<close> show "a \<in> B \<and> card (snd a) = Suc m" by (simp add: A_def)
+  qed
+  thus "(t, U) \<in> B" and "card U = Suc m" by simp_all
+  from this(1) show "(t, U) \<in> Q" and "deg_pm t = d" by (simp_all add: B)
+qed
+
+lemma shift1_inv_preserved:
+  assumes "shift1_inv (Q, B)" and "1 < card B" and "(t, U) = (SOME b. b \<in> B \<and> card (snd b) = Suc m)"
+    and "x = (SOME y. y \<in> U)"
+  shows "shift1_inv (insert (Poly_Mapping.single x 1 + t, U) (insert (t, U - {x}) (Q - {(t, U)})), B - {(t, U)})"
+      (is "shift1_inv (insert ?p1 (insert ?p2 ?Q), ?B)")
+proof -
+  from assms(1, 2, 3) have "(t, U) \<in> B" and "(t, U) \<in> Q" and deg_t: "deg_pm t = d"
+    and card_U: "card U = Suc m" by (rule shift1_inv_some_snd)+
+  from card_U have "U \<noteq> {}" by auto
+  then obtain y where "y \<in> U" by blast
+  hence "x \<in> U" unfolding assms(4) by (rule someI)
+  with card_U have card_Ux: "card (U - {x}) = m"
+    by (metis card_Diff_singleton card_infinite diff_Suc_1 nat.simps(3))
+  from assms(1) have B: "B = {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)}" and inv2: "shift2_inv Q"
+    by (rule shift1_invD)+
+  from inv2 have "finite Q" by (rule shift2_invD)
+  show ?thesis
+  proof (intro shift1_invI shift2_invI)
+    show "?B = {q \<in> insert ?p1 (insert ?p2 ?Q). deg_pm (fst q) = d \<and> m < card (snd q)}" (is "_ = ?C")
+    proof (rule Set.set_eqI)
+      fix b
+      show "b \<in> ?B \<longleftrightarrow> b \<in> ?C"
+      proof
+        assume "b \<in> ?C"
+        hence "b \<in> insert ?p1 (insert ?p2 ?Q)" and b1: "deg_pm (fst b) = d" and b2: "m < card (snd b)"
+          by simp_all
+        from this(1) show "b \<in> ?B"
+        proof (elim insertE)
+          assume "b = ?p1"
+          hence "deg_pm (fst b) = Suc d" by (simp add: deg_pm_plus deg_pm_single deg_t)
+          thus ?thesis by (simp add: b1)
+        next
+          assume "b = ?p2"
+          hence "card (snd b) = m" by (simp add: card_Ux)
+          with b2 show ?thesis by simp
+        next
+          assume "b \<in> ?Q"
+          with b1 b2 show ?thesis by (auto simp: B)
+        qed
+      qed (auto simp: B)
+    qed
+  next
+    from inv2 have "finite Q" by (rule shift2_invD)
+    thus "finite (insert ?p1 (insert ?p2 ?Q))" by simp
+  next
+    from inv2 have std: "standard_decomp k Q" by (rule shift2_invD)
+    have "?B \<noteq> {}"
+    proof
+      assume "?B = {}"
+      hence "B \<subseteq> {(t, U)}" by simp
+      with _ have "card B \<le> card {(t, U)}" by (rule card_mono) simp
+      with assms(2) show False by simp
+    qed
+    then obtain t' U' where "(t', U') \<in> B" and "(t', U') \<noteq> (t, U)" by auto
+    from this(1) have "(t', U') \<in> Q" and "deg_pm t' = d" and "Suc m \<le> card U'" by (simp_all add: B)
+    note std this(1) \<open>(t, U) \<in> Q\<close>
+    moreover from \<open>deg_pm t' = d\<close> have "deg_pm t' = deg_pm t" by (simp only: deg_t)
+    moreover from \<open>Suc m \<le> card U'\<close> have "card U \<le> card U'" by (simp only: card_U)
+    ultimately show "standard_decomp k (insert ?p1 (insert ?p2 ?Q))" by (rule lem_6_2_1) fact+
+  next
+    from inv2 have exct: "exact_decomp (Suc m) Q" by (rule shift2_invD)
+    show "exact_decomp (Suc m) (insert ?p1 (insert ?p2 ?Q))"
+    proof (rule exact_decompI)
+      fix t' U'
+      assume "(t', U') \<in> insert ?p1 (insert ?p2 ?Q)"
+      thus "U' \<subseteq> X"
+      proof (elim insertE)
+        assume "(t', U') = ?p1"
+        hence "U' = U" by simp
+        also from exct \<open>(t, U) \<in> Q\<close> have "\<dots> \<subseteq> X" by (rule exact_decompD)
+        finally show ?thesis .
+      next
+        assume "(t', U') = ?p2"
+        hence "U' = U - {x}" by simp
+        also have "\<dots> \<subseteq> U" by blast
+        also from exct \<open>(t, U) \<in> Q\<close> have "\<dots> \<subseteq> X" by (rule exact_decompD)
+        finally show ?thesis .
+      next
+        assume "(t', U') \<in> ?Q"
+        hence "(t', U') \<in> Q" by simp
+        with exct show ?thesis by (rule exact_decompD)
+      qed
+    next
+      fix t1 t2 U1 U2
+      assume "(t1, U1) \<in> insert ?p1 (insert ?p2 ?Q)" and "Suc m < card U1"
+      hence "(t1, U1) \<in> Q" using card_U card_Ux by auto
+      assume "(t2, U2) \<in> insert ?p1 (insert ?p2 ?Q)" and "Suc m < card U2"
+      hence "(t2, U2) \<in> Q" using card_U card_Ux by auto
+      assume "deg_pm t1 = deg_pm t2"
+      from exct show "(t1, U1) = (t2, U2)" by (rule exact_decompD) fact+
+    qed
+  next
+    fix d0
+    assume "d0 < d"
+    from _ \<open>finite Q\<close> have "finite {q \<in> Q. deg_pm (fst q) = d0 \<and> m < card (snd q)}" (is "finite ?A")
+      by (rule finite_subset) blast
+    moreover have "{q \<in> insert ?p1 (insert ?p2 ?Q). deg_pm (fst q) = d0 \<and> m < card (snd q)} \<subseteq> ?A"
+      (is "?C \<subseteq> _")
+    proof
+      fix q
+      assume "q \<in> ?C"
+      hence "q = ?p1 \<or> q = ?p2 \<or> q \<in> ?Q" and 1: "deg_pm (fst q) = d0" and 2: "m < card (snd q)"
+        by simp_all
+      from this(1) show "q \<in> ?A"
+      proof (elim disjE)
+        assume "q = ?p1"
+        hence "d \<le> deg_pm (fst q)" by (simp add: deg_pm_plus deg_t)
+        with \<open>d0 < d\<close> show ?thesis by (simp only: 1)
+      next
+        assume "q = ?p2"
+        hence "d \<le> deg_pm (fst q)" by (simp add: deg_pm_plus deg_t)
+        with \<open>d0 < d\<close> show ?thesis by (simp only: 1)
+      next
+        assume "q \<in> ?Q"
+        with 1 2 show ?thesis by simp
+      qed
+    qed
+    ultimately have "card ?C \<le> card ?A" by (rule card_mono)
+    also from inv2 \<open>d0 < d\<close> have "\<dots> \<le> 1" by (rule shift2_invD)
+    finally show "card ?C \<le> 1" .
+  qed
+qed
+
+function (domintros) shift1 :: "((('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<times> (('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set) \<Rightarrow>
+                                ((('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<times> (('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set)" where
+  "shift1 (Q, B) =
+      (if 1 < card B then
+        let (t, U) = SOME b. b \<in> B \<and> card (snd b) = Suc m; x = SOME y. y \<in> U in
+          shift1 (insert (Poly_Mapping.single x 1 + t, U) (insert (t, U - {x}) (Q - {(t, U)})), B - {(t, U)})
+      else (Q, B))"
+  by auto
+
+lemma shift1_domI:
+  assumes "shift1_inv args"
+  shows "shift1_dom args"
+proof -
+  from wf_measure[of "card \<circ> snd"] show ?thesis using assms
+  proof (induct)
+    case (less args)
+    obtain Q B where args: "args = (Q, B)" using prod.exhaust by blast
+    have IH: "shift1_dom (Q0, B0)" if "card B0 < card B" and "shift1_inv (Q0, B0)" for Q0 B0
+      using _ that(2)
+    proof (rule less)
+      from that(1) show "((Q0, B0), args) \<in> measure (card \<circ> snd)" by (simp add: args)
+    qed
+    from less(2) have inv: "shift1_inv (Q, B)" by (simp only: args)
+    show ?case unfolding args
+    proof (rule shift1.domintros)
+      fix t U
+      assume tU: "(t, U) = (SOME b. b \<in> B \<and> card (snd b) = Suc m)"
+      define x where "x = (SOME y. y \<in> U)"
+      assume "Suc 0 < card B"
+      hence "1 < card B" by simp
+      have "shift1_dom
+              (insert (Poly_Mapping.single x 1 + t, U) (insert (t, U - {x}) (Q - {(t, U)})),
+              B - {(t, U)})" (is "shift1_dom (insert ?p1 (insert ?p2 ?Q), ?B)")
+      proof (rule IH)
+        from inv have "finite B" by (rule shift1_inv_finite_snd)
+        moreover from inv \<open>1 < card B\<close> tU have "(t, U) \<in> B" by (rule shift1_inv_some_snd)
+        ultimately show "card ?B < card B" by (rule card_Diff1_less)
+      next
+        from inv \<open>1 < card B\<close> tU x_def show "shift1_inv (insert ?p1 (insert ?p2 ?Q), ?B)"
+          by (rule shift1_inv_preserved)
+      qed
+      thus "shift1_dom (insert (Poly_Mapping.single x (Suc 0) + t, U)
+                          (insert (t, U - {x}) (Q - {SOME b. b \<in> B \<and> card (snd b) = Suc m})),
+                    B - {SOME b. b \<in> B \<and> card (snd b) = Suc m})" by (simp add: tU)
+    qed
+  qed
+qed
+
+lemma shift1_induct [consumes 1, case_names base step]:
+  assumes "shift1_inv args"
+  assumes "\<And>Q B. shift1_inv (Q, B) \<Longrightarrow> card B \<le> 1 \<Longrightarrow> P (Q, B) (Q, B)"
+  assumes "\<And>Q B t U x. shift1_inv (Q, B) \<Longrightarrow> 1 < card B \<Longrightarrow>
+            (t, U) = (SOME b. b \<in> B \<and> card (snd b) = Suc m) \<Longrightarrow> x = (SOME y. y \<in> U) \<Longrightarrow>
+            finite U \<Longrightarrow> x \<in> U \<Longrightarrow> card (U - {x}) = m \<Longrightarrow>
+            P (insert (Poly_Mapping.single x 1 + t, U) (insert (t, U - {x}) (Q - {(t, U)})), B - {(t, U)})
+                (shift1 (insert (Poly_Mapping.single x 1 + t, U) (insert (t, U - {x}) (Q - {(t, U)})), B - {(t, U)})) \<Longrightarrow>
+            P (Q, B) (shift1 (insert (Poly_Mapping.single x 1 + t, U) (insert (t, U - {x}) (Q - {(t, U)})), B - {(t, U)}))"
+  shows "P args (shift1 args)"
+proof -
+  from assms(1) have "shift1_dom args" by (rule shift1_domI)
+  thus ?thesis using assms(1)
+  proof (induct args rule: shift1.pinduct)
+    case step: (1 Q B)
+    obtain t U where tU: "(t, U) = (SOME b. b \<in> B \<and> card (snd b) = Suc m)" by (smt prod.exhaust)
+    define x where "x = (SOME y. y \<in> U)"
+    show ?case
+    proof (simp add: shift1.psimps[OF step.hyps(1)] tU[symmetric] x_def[symmetric] del: One_nat_def,
+          intro conjI impI)
+      let ?args = "(insert (Poly_Mapping.single x 1 + t, U) (insert (t, U - {x}) (Q - {(t, U)})), B - {(t, U)})"
+      assume "1 < card B"
+      with step.prems have card_U: "card U = Suc m" using tU by (rule shift1_inv_some_snd)
+      from card_U have "finite U" using card_infinite by fastforce
+      from card_U have "U \<noteq> {}" by auto
+      then obtain y where "y \<in> U" by blast
+      hence "x \<in> U" unfolding x_def by (rule someI)
+      with step.prems \<open>1 < card B\<close> tU x_def \<open>finite U\<close> show "P (Q, B) (shift1 ?args)"
+      proof (rule assms(3))
+        from \<open>finite U\<close> \<open>x \<in> U\<close> show "card (U - {x}) = m" by (simp add: card_U)
+      next
+        from \<open>1 < card B\<close> refl tU x_def show "P ?args (shift1 ?args)"
+        proof (rule step.hyps)
+          from step.prems \<open>1 < card B\<close> tU x_def show "shift1_inv ?args" by (rule shift1_inv_preserved)
+        qed
+      qed
+    next
+      assume "\<not> 1 < card B"
+      hence "card B \<le> 1" by simp
+      with step.prems show "P (Q, B) (Q, B)" by (rule assms(2))
+    qed
+  qed
+qed
+
+lemma shift1_1:
+  assumes "shift1_inv args" and "d0 \<le> d"
+  shows "card {q \<in> fst (shift1 args). deg_pm (fst q) = d0 \<and> m < card (snd q)} \<le> 1"
+  using assms(1)
+proof (induct args rule: shift1_induct)
+  case (base Q B)
+  from assms(2) have "d0 < d \<or> d0 = d" by auto
+  thus ?case
+  proof
+    from base(1) have "shift2_inv Q" by (rule shift1_invD)
+    moreover assume "d0 < d"
+    ultimately show ?thesis unfolding fst_conv by (rule shift2_invD)
+  next
+    assume "d0 = d"
+    from base(1) have "B = {q \<in> fst (Q, B). deg_pm (fst q) = d0 \<and> m < card (snd q)}"
+      unfolding fst_conv \<open>d0 = d\<close> by (rule shift1_invD)
+    with base(2) show ?thesis by simp
+  qed
+qed
+
+lemma shift1_2:
+  "shift1_inv args \<Longrightarrow> card {q \<in> fst (shift1 args). m < card (snd q)} \<le> card {q \<in> fst args. m < card (snd q)}"
+proof (induct args rule: shift1_induct)
+  case (base Q B)
+  show ?case ..
+next
+  case (step Q B t U x)
+  let ?p1 = "(Poly_Mapping.single x 1 + t, U)"
+  let ?A = "{q \<in> Q. m < card (snd q)}"
+  from step(1-3) have card_U: "card U = Suc m" and "(t, U) \<in> Q" by (rule shift1_inv_some_snd)+
+  from step(1) have "shift2_inv Q" by (rule shift1_invD)
+  hence "finite Q" by (rule shift2_invD)
+  with _ have fin1: "finite ?A" by (rule finite_subset) blast
+  hence fin2: "finite (insert ?p1 ?A)" by simp
+  from \<open>(t, U) \<in> Q\<close> have tU_in: "(t, U) \<in> insert ?p1 ?A" by (simp add: card_U)
+  have "?p1 \<noteq> (t, U)" by rule (simp add: monomial_0_iff)
+  let ?Q = "insert ?p1 (insert (t, U - {x}) (Q - {(t, U)}))"
+  have "{q \<in> fst (?Q, B - {(t, U)}). m < card (snd q)} = (insert ?p1 ?A) - {(t, U)}"
+    using step(7) card_U \<open>?p1 \<noteq> (t, U)\<close> by force
+  also from fin2 tU_in have "card \<dots> = card (insert ?p1 ?A) - 1" by (simp add: card_Diff_singleton_if)
+  thm card_Diff_singleton_if
+  also from fin1 have "\<dots> \<le> Suc (card ?A) - 1" by (simp add: card_insert_if)
+  also have "\<dots> = card {q \<in> fst (Q, B). m < card (snd q)}" by simp
+  finally have "card {q \<in> fst (?Q, B - {(t, U)}). m < card (snd q)} \<le> card {q \<in> fst (Q, B). m < card (snd q)}" .
+  with step(8) show ?case by (rule le_trans)
+qed
+
+lemma shift1_3: "shift1_inv args \<Longrightarrow> cone_decomp T (fst args) \<Longrightarrow> cone_decomp T (fst (shift1 args))"
+proof (induct args rule: shift1_induct)
+  case (base Q B)
+  from base(3) show ?case .
+next
+  case (step Q B t U x)
+  from step.prems have "cone_decomp T Q" by (simp only: fst_conv)
+  moreover from step.hyps(1-3) have "(t, U) \<in> Q" by (rule shift1_inv_some_snd)
+  ultimately have "cone_decomp T (fst (insert (Poly_Mapping.single x 1 + t, U)
+                      (insert (t, U - {x}) (Q - {(t, U)})), B - {(t, U)}))"
+    unfolding fst_conv using step.hyps(6) by (rule lem_6_2_2)
+  thus ?case by (rule step.hyps(8))
+qed
+
+lemma shift1_4:
+  "shift1_inv args \<Longrightarrow> Max (deg_pm ` fst ` fst args) \<le> Max (deg_pm ` fst ` fst (shift1 args))"
+proof (induct args rule: shift1_induct)
+  case (base Q B)
+  show ?case ..
+next
+  case (step Q B t U x)
+  let ?p1 = "(Poly_Mapping.single x 1 + t, U)"
+  let ?Q = "insert ?p1 (insert (t, U - {x}) (Q - {(t, U)}))"
+  from step(1) have "B = {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)}" and inv2: "shift2_inv Q"
+    by (rule shift1_invD)+
+  from this(1) have "B \<subseteq> Q" by auto
+  with step(2) have "Q \<noteq> {}" by auto
+  from inv2 have "finite Q" by (rule shift2_invD)
+  hence "finite ?Q" by simp
+  hence fin: "finite (deg_pm ` fst ` ?Q)" by (intro finite_imageI)
+  have "Max (deg_pm ` fst ` fst (Q, B)) \<le> Max (deg_pm ` fst ` fst (?Q, B - {(t, U)}))"
+    unfolding fst_conv
+  proof (rule Max.boundedI)
+    from \<open>finite Q\<close> show "finite (deg_pm ` fst ` Q)" by (intro finite_imageI)
+  next
+    from \<open>Q \<noteq> {}\<close> show "deg_pm ` fst ` Q \<noteq> {}" by simp
+  next
+    fix a
+    assume "a \<in> deg_pm ` fst ` Q"
+    then obtain q where "q \<in> Q" and a: "a = deg_pm (fst q)" by blast
+    show "a \<le> Max (deg_pm ` fst ` ?Q)"
+    proof (cases "q = (t, U)")
+      case True
+      hence "a \<le> deg_pm (fst ?p1)" by (simp add: a deg_pm_plus)
+      also from fin have "\<dots> \<le> Max (deg_pm ` fst ` ?Q)"
+      proof (rule Max_ge)
+        have "?p1 \<in> ?Q" by simp
+        thus "deg_pm (fst ?p1) \<in> deg_pm ` fst ` ?Q" by (intro imageI)
+      qed
+      finally show ?thesis .
+    next
+      case False
+      with \<open>q \<in> Q\<close> have "q \<in> ?Q" by simp
+      hence "a \<in> deg_pm ` fst ` ?Q" unfolding a by (intro imageI)
+      with fin show ?thesis by (rule Max_ge)
+    qed
+  qed
+  thus ?case using step(8) by (rule le_trans)
+qed
+
+lemma shift1_5: "shift1_inv args \<Longrightarrow> fst (shift1 args) = {} \<longleftrightarrow> fst args = {}"
+proof (induct args rule: shift1_induct)
+  case (base Q B)
+  show ?case ..
+next
+  case (step Q B t U x)
+  let ?p1 = "(Poly_Mapping.single x 1 + t, U)"
+  let ?Q = "insert ?p1 (insert (t, U - {x}) (Q - {(t, U)}))"
+  from step(1) have "B = {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)}" and inv2: "shift2_inv Q"
+    by (rule shift1_invD)+
+  from this(1) have "B \<subseteq> Q" by auto
+  with step(2) have "Q \<noteq> {}" by auto
+  thm step.hyps
+  moreover have "fst (local.shift1 (?Q, B - {(t, U)})) \<noteq> {}"
+    by (simp add: step.hyps(8) del: One_nat_def)
+  ultimately show ?case by simp
+qed
+
+end
+
+lemma shift2_inv_preserved:
+  assumes "shift2_inv d Q"
+  shows "shift2_inv (Suc d) (fst (shift1 (Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)})))"
+proof -
+  define args where "args = (Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)})"
+  from refl assms have inv1: "shift1_inv d args" unfolding args_def
+    by (rule shift1_invI)
+  hence "shift1_inv d (shift1 args)" by (induct args rule: shift1_induct)
+  hence "shift1_inv d (fst (shift1 args), snd (shift1 args))" by simp
+  hence "shift2_inv d (fst (shift1 args))" by (rule shift1_invD)
+  hence "finite (fst (shift1 args))" and "standard_decomp k (fst (shift1 args))"
+    and "exact_decomp (Suc m) (fst (shift1 args))" by (rule shift2_invD)+
+  thus "shift2_inv (Suc d) (fst (shift1 args))"
+  proof (rule shift2_invI)
+    fix d0
+    assume "d0 < Suc d"
+    hence "d0 \<le> d" by simp
+    with inv1 show "card {q \<in> fst (shift1 args). deg_pm (fst q) = d0 \<and> m < card (snd q)} \<le> 1"
+      by (rule shift1_1)
+  qed
+qed
+
+function shift2 :: "nat \<Rightarrow> nat \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set" where
+  "shift2 c d Q =
+      (if c \<le> d then Q
+      else shift2 c (Suc d) (fst (shift1 (Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)}))))"
+  by auto
+termination proof
+  show "wf (measure (\<lambda>(c, d, _). c - d))" by (fact wf_measure)
+qed simp
+
+lemma shift2_1: "shift2_inv d Q \<Longrightarrow> shift2_inv c (shift2 c d Q)"
+proof (induct c d Q rule: shift2.induct)
+  case IH: (1 c d Q)
+  show ?case
+  proof (subst shift2.simps, simp del: shift2.simps, intro conjI impI)
+    assume "c \<le> d"
+    show "shift2_inv c Q"
+    proof (rule shift2_invI)
+      from IH(2) show "finite Q" and "standard_decomp k Q" and "exact_decomp (Suc m) Q"
+        by (rule shift2_invD)+
+    next
+      fix d0
+      assume "d0 < c"
+      hence "d0 < d" using \<open>c \<le> d\<close> by (rule less_le_trans)
+      with IH(2) show "card {q \<in> Q. deg_pm (fst q) = d0 \<and> m < card (snd q)} \<le> 1" by (rule shift2_invD)
+    qed
+  next
+    assume "\<not> c \<le> d"
+    thus "shift2_inv c (shift2 c (Suc d) (fst (shift1 (Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)}))))"
+    proof (rule IH)
+      from IH(2) show "shift2_inv (Suc d) (fst (shift1 (Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)})))"
+        by (rule shift2_inv_preserved)
+    qed
+  qed
+qed
+
+lemma shift2_2:
+  "shift2_inv d Q \<Longrightarrow> card {q \<in> shift2 c d Q. m < card (snd q)} \<le> card {q \<in> Q. m < card (snd q)}"
+proof (induct c d Q rule: shift2.induct)
+  case IH: (1 c d Q)
+  let ?A = "{q \<in> shift2 c (Suc d) (fst (shift1 (Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)}))). m < card (snd q)}"
+  show ?case
+  proof (subst shift2.simps, simp del: shift2.simps, intro impI)
+    assume "\<not> c \<le> d"
+    hence "card ?A \<le> card {q \<in> fst (shift1 (Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)})). m < card (snd q)}"
+    proof (rule IH)
+      from IH(2) show "shift2_inv (Suc d) (fst (shift1 (Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)})))"
+        by (rule shift2_inv_preserved)
+    qed
+    also from refl IH(2) have "\<dots> \<le> card {q \<in> fst (Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)}). m < card (snd q)}"
+      by (intro shift1_2 shift1_invI)
+    finally show "card ?A \<le> card {q \<in> Q. m < card (snd q)}" by (simp only: fst_conv)
+  qed
+qed
+
+lemma shift2_3: "shift2_inv d Q \<Longrightarrow> cone_decomp T Q \<Longrightarrow> cone_decomp T (shift2 c d Q)"
+proof (induct c d Q rule: shift2.induct)
+  case IH: (1 c d Q)
+  from IH(2) have inv2: "shift2_inv (Suc d) (fst (shift1 (Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)})))"
+    by (rule shift2_inv_preserved)
+  show ?case
+  proof (subst shift2.simps, simp add: IH.prems del: shift2.simps, intro impI)
+    assume "\<not> c \<le> d"
+    moreover note inv2
+    moreover have "cone_decomp T (fst (shift1 (Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)})))"
+    proof (rule shift1_3)
+      from refl IH(2) show "shift1_inv d (Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)})"
+        by (rule shift1_invI)
+    qed (simp add: IH.prems)
+    ultimately show "cone_decomp T (shift2 c (Suc d) (fst (shift1 (Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)}))))"
+      by (rule IH)
+  qed
+qed
+
+lemma shift2_4:
+  "shift2_inv d Q \<Longrightarrow> Max (deg_pm ` fst ` Q) \<le> Max (deg_pm ` fst ` shift2 c d Q)"
+proof (induct c d Q rule: shift2.induct)
+  case IH: (1 c d Q)
+  let ?args = "(Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)})"
+  show ?case
+  proof (subst shift2.simps, simp del: shift2.simps, intro impI)
+    assume "\<not> c \<le> d"
+    from refl IH(2) have "Max (deg_pm ` fst ` fst ?args) \<le> Max (deg_pm ` fst ` fst (shift1 ?args))"
+      by (intro shift1_4 shift1_invI)
+    also from \<open>\<not> c \<le> d\<close> have "\<dots> \<le> Max (deg_pm ` fst ` shift2 c (Suc d) (fst (shift1 ?args)))"
+    proof (rule IH)
+      from IH(2) show "shift2_inv (Suc d) (fst (shift1 ?args))"
+        by (rule shift2_inv_preserved)
+    qed
+    finally show "Max (deg_pm ` fst ` Q) \<le> Max (deg_pm ` fst ` shift2 c (Suc d) (fst (shift1 ?args)))"
+      by (simp only: fst_conv)
+  qed
+qed
+
+lemma shift2_5:
+  "shift2_inv d Q \<Longrightarrow> shift2 c d Q = {} \<longleftrightarrow> Q = {}"
+proof (induct c d Q rule: shift2.induct)
+  case IH: (1 c d Q)
+  let ?args = "(Q, {q \<in> Q. deg_pm (fst q) = d \<and> m < card (snd q)})"
+  show ?case
+  proof (subst shift2.simps, simp del: shift2.simps, intro impI)
+    assume "\<not> c \<le> d"
+    hence "shift2 c (Suc d) (fst (shift1 ?args)) = {} \<longleftrightarrow> fst (shift1 ?args) = {}"
+    proof (rule IH)
+      from IH(2) show "shift2_inv (Suc d) (fst (shift1 ?args))"
+        by (rule shift2_inv_preserved)
+    qed
+    also from refl IH(2) have "\<dots> \<longleftrightarrow> fst ?args = {}" by (intro shift1_5 shift1_invI)
+    finally show "shift2 c (Suc d) (fst (shift1 ?args)) = {} \<longleftrightarrow> Q = {}" by (simp only: fst_conv)
+  qed
+qed
+
+definition shift :: "(('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set"
+  where "shift Q = shift2 (k + card {q \<in> Q. m < card (snd q)}) k Q"
+
+lemma shift2_inv_init:
+  assumes "finite Q" and "standard_decomp k Q" and "exact_decomp (Suc m) Q"
+  shows "shift2_inv k Q"
+  using assms
+proof (rule shift2_invI)
+  fix d0
+  assume "d0 < k"
+  have "{q \<in> Q. deg_pm (fst q) = d0 \<and> m < card (snd q)} = {}"
+  proof -
+    {
+      fix q
+      assume "q \<in> Q"
+      obtain t U where q: "q = (t, U)" using prod.exhaust by blast
+      assume "deg_pm (fst q) = d0" and "m < card (snd q)"
+      hence "deg_pm t < k" and "m < card U" using \<open>d0 < k\<close> by (simp_all add: q)
+      from this(2) have "U \<noteq> {}" by auto
+      with \<open>q \<in> Q\<close> have "(t, U) \<in> Q\<^sub>+" by (simp add: q pos_decomp_def)
+      with assms(2) have "k \<le> deg_pm t" by (rule standard_decompD)
+      with \<open>deg_pm t < k\<close> have False by simp
+    }
+    thus ?thesis by blast
+  qed
+  thus "card {q \<in> Q. deg_pm (fst q) = d0 \<and> m < card (snd q)} \<le> 1" by (simp only: card_empty)
+qed
+
+lemma shift:
+  assumes "finite Q" and "standard_decomp k Q" and "exact_decomp (Suc m) Q"
+  shows "finite (shift Q)" and "standard_decomp k (shift Q)" and "exact_decomp m (shift Q)"
+proof -
+  define c where "c = card {q \<in> Q. m < card (snd q)}"
+  define A where "A = {q \<in> shift Q. m < card (snd q)}"
+  from assms have "shift2_inv k Q" by (rule shift2_inv_init)
+  hence inv2: "shift2_inv (k + c) (shift Q)" and "card A \<le> c"
+    unfolding shift_def c_def A_def by (rule shift2_1, rule shift2_2)
+  from inv2 have fin: "finite (shift Q)" and std: "standard_decomp k (shift Q)"
+    and exct: "exact_decomp (Suc m) (shift Q)"
+    by (rule shift2_invD)+
+  show "finite (shift Q)" and "standard_decomp k (shift Q)" by fact+
+  from _ this(1) have "finite A" unfolding A_def by (rule finite_subset) blast
+
+  show "exact_decomp m (shift Q)"
+  proof (rule exact_decompI)
+    fix t U
+    assume "(t, U) \<in> shift Q"
+    with exct show "U \<subseteq> X" by (rule exact_decompD)
+  next
+    fix t1 t2 U1 U2
+    assume 1: "(t1, U1) \<in> shift Q" and 2: "(t2, U2) \<in> shift Q"
+    assume 3: "deg_pm t1 = deg_pm t2" and 4: "m < card U1" and 5: "m < card U2"
+    from 5 have "U2 \<noteq> {}" by auto
+    with 2 have "(t2, U2) \<in> (shift Q)\<^sub>+" by (simp add: pos_decomp_def)
+    let ?C = "{q \<in> shift Q. deg_pm (fst q) = deg_pm t2 \<and> m < card (snd q)}"
+    define B where "B = {q \<in> A. k \<le> deg_pm (fst q) \<and> deg_pm (fst q) \<le> deg_pm t2}"
+    have "Suc (deg_pm t2) - k \<le> card B"
+    proof -
+      have "B = (\<Union>d0\<in>{k..deg_pm t2}. {q \<in> A. deg_pm (fst q) = d0})" by (auto simp: B_def)
+      also have "card \<dots> = (\<Sum>d0=k..deg_pm t2. card {q \<in> A. deg_pm (fst q) = d0})"
+      proof (intro card_UN_disjoint ballI impI)
+        fix d0
+        from _ \<open>finite A\<close> show "finite {q \<in> A. deg_pm (fst q) = d0}" by (rule finite_subset) blast
+      next
+        fix d0 d1 :: nat
+        assume "d0 \<noteq> d1"
+        thus "{q \<in> A. deg_pm (fst q) = d0} \<inter> {q \<in> A. deg_pm (fst q) = d1} = {}" by blast
+      qed (fact finite_atLeastAtMost)
+      also have "\<dots> \<ge> (\<Sum>d0=k..deg_pm t2. 1)"
+      proof (rule sum_mono)
+        fix d0
+        assume "d0 \<in> {k..deg_pm t2}"
+        hence "k \<le> d0" and "d0 \<le> deg_pm t2" by simp_all
+        with std \<open>(t2, U2) \<in> (shift Q)\<^sub>+\<close> obtain t' U' where "(t', U') \<in> shift Q" and "deg_pm t' = d0"
+          and "card U2 \<le> card U'" by (rule standard_decompE)
+        from 5 this(3) have "m < card U'" by (rule less_le_trans)
+        with \<open>(t', U') \<in> shift Q\<close> have "(t', U') \<in> {q \<in> A. deg_pm (fst q) = d0}"
+          by (simp add: A_def \<open>deg_pm t' = d0\<close>)
+        hence "{q \<in> A. deg_pm (fst q) = d0} \<noteq> {}" by blast
+        moreover from _ \<open>finite A\<close> have "finite {q \<in> A. deg_pm (fst q) = d0}"
+          by (rule finite_subset) blast
+        ultimately show "1 \<le> card {q \<in> A. deg_pm (fst q) = d0}"
+          by (simp add: card_gt_0_iff Suc_le_eq)
+      qed
+      also have "(\<Sum>d0=k..deg_pm t2. 1) = Suc (deg_pm t2) - k" by auto
+      finally show ?thesis .
+    qed
+    also from \<open>finite A\<close> _ have "\<dots> \<le> card A" by (rule card_mono) (auto simp: B_def)
+    also have "\<dots> \<le> c" by fact
+    finally have "deg_pm t2 < k + c" by simp
+    with inv2 have "card ?C \<le> 1" by (rule shift2_invD)
+    from _ fin have "finite ?C" by (rule finite_subset) blast
+    moreover note \<open>card ?C \<le> 1\<close>
+    moreover from 1 3 4 have "(t1, U1) \<in> ?C" by simp
+    moreover from 2 5 have "(t2, U2) \<in> ?C" by simp
+    ultimately show "(t1, U1) = (t2, U2)" by (rule card_le_1D)
+  qed
+qed
+
+lemma cone_decomp_shift:
+  assumes "standard_decomp k Q" and "exact_decomp (Suc m) Q" and "cone_decomp T Q"
+  shows "cone_decomp T (shift Q)"
+proof -
+  from assms(3) have "finite Q" by (rule cone_decompD)
+  hence "shift2_inv k Q" using assms(1, 2) by (rule shift2_inv_init)
+  thus ?thesis unfolding shift_def using assms(3) by (rule shift2_3)
+qed
+
+lemma Max_shift_ge:
+  assumes "finite Q" and "standard_decomp k Q" and "exact_decomp (Suc m) Q"
+  shows "Max (deg_pm ` fst ` Q) \<le> Max (deg_pm ` fst ` shift Q)"
+proof -
+  from assms(1-3) have "shift2_inv k Q" by (rule shift2_inv_init)
+  thus ?thesis unfolding shift_def by (rule shift2_4)
+qed
+
+lemma shift_empty_iff:
+  assumes "finite Q" and "standard_decomp k Q" and "exact_decomp (Suc m) Q"
+  shows "shift Q = {} \<longleftrightarrow> Q = {}"
+proof -
+  from assms(1-3) have "shift2_inv k Q" by (rule shift2_inv_init)
+  thus ?thesis unfolding shift_def by (rule shift2_5)
+qed
+
+end
+
+primrec exact_aux :: "nat \<Rightarrow> nat \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set" where
+  "exact_aux k 0 Q = Q" |
+  "exact_aux k (Suc m) Q = exact_aux k m (shift k m Q)"
+
+lemma exact_aux:
+  assumes "finite Q" and "standard_decomp k Q" and "exact_decomp m Q"
+  shows "finite (exact_aux k m Q)" (is ?thesis1)
+    and "standard_decomp k (exact_aux k m Q)" (is ?thesis2)
+    and "exact_decomp 0 (exact_aux k m Q)" (is ?thesis3)
+proof -
+  from assms have "?thesis1 \<and> ?thesis2 \<and> ?thesis3"
+  proof (induct m arbitrary: Q)
+    case 0
+    thus ?case by simp
+  next
+    case (Suc m)
+    let ?Q = "shift k m Q"
+    have "finite (exact_aux k m ?Q) \<and> standard_decomp k (exact_aux k m ?Q) \<and> exact_decomp 0 (exact_aux k m ?Q)"
+    proof (rule Suc)
+      from Suc.prems show "finite ?Q" and "standard_decomp k ?Q" and "exact_decomp m ?Q"
+        by (rule shift)+
+    qed
+    thus ?case by simp
+  qed
+  thus ?thesis1 and ?thesis2 and ?thesis3 by simp_all
+qed
+
+lemma cone_decomp_exact_aux:
+  assumes "standard_decomp k Q" and "exact_decomp m Q" and "cone_decomp T Q"
+  shows "cone_decomp T (exact_aux k m Q)"
+  using assms
+proof (induct m arbitrary: Q)
+  case 0
+  thus ?case by simp
+next
+  case (Suc m)
+  let ?Q = "shift k m Q"
+  have "cone_decomp T (exact_aux k m ?Q)"
+  proof (rule Suc)
+    from Suc.prems(3) have "finite Q" by (rule cone_decompD)
+    thus "standard_decomp k ?Q" and "exact_decomp m ?Q" using Suc.prems(1, 2)
+      by (rule shift)+
+  next
+    from Suc.prems show "cone_decomp T ?Q" by (rule cone_decomp_shift)
+  qed
+  thus ?case by simp
+qed
+
+lemma Max_exact_aux_ge:
+  assumes "finite Q" and "standard_decomp k Q" and "exact_decomp m Q"
+  shows "Max (deg_pm ` fst ` Q) \<le> Max (deg_pm ` fst ` exact_aux k m Q)"
+  using assms
+proof (induct m arbitrary: Q)
+  case 0
+  thus ?case by simp
+next
+  case (Suc m)
+  let ?Q = "shift k m Q"
+  from Suc.prems have "Max (deg_pm ` fst ` Q) \<le> Max (deg_pm ` fst ` ?Q)" by (rule Max_shift_ge)
+  also have "\<dots> \<le> Max (deg_pm ` fst ` exact_aux k m ?Q)"
+  proof (rule Suc)
+    from Suc.prems show "finite ?Q" and "standard_decomp k ?Q" and "exact_decomp m ?Q"
+      by (rule shift)+
+  qed
+  finally show ?case by simp
+qed
+
+lemma exact_aux_empty_iff:
+  assumes "finite Q" and "standard_decomp k Q" and "exact_decomp m Q"
+  shows "exact_aux k m Q = {} \<longleftrightarrow> Q = {}"
+  using assms
+proof (induct m arbitrary: Q)
+  case 0
+  thus ?case by simp
+next
+  case (Suc m)
+  let ?Q = "shift k m Q"
+  have "exact_aux k m ?Q = {} \<longleftrightarrow> ?Q = {}"
+  proof (rule Suc)
+    from Suc.prems show "finite ?Q" and "standard_decomp k ?Q" and "exact_decomp m ?Q"
+      by (rule shift)+
+  qed
+  also from Suc.prems have "\<dots> \<longleftrightarrow> Q = {}" by (rule shift_empty_iff)
+  finally show ?case by simp
+qed
+
+definition exact :: "nat \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set"
+  where "exact k Q = exact_aux k (card X) Q"
+
+lemma exact:
+  assumes "finite X" and "finite Q" and "standard_decomp k Q" and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
+  shows "finite (exact k Q)" (is ?thesis1)
+    and "standard_decomp k (exact k Q)" (is ?thesis2)
+    and "exact_decomp 0 (exact k Q)" (is ?thesis3)
+proof -
+  from assms(1, 4) le_refl have "exact_decomp (card X) Q" by (rule exact_decomp_card_X)
+  with assms(2, 3) show ?thesis1 and ?thesis2 and ?thesis3 unfolding exact_def by (rule exact_aux)+
+qed
+
+lemma cone_decomp_exact:
+  assumes "finite X" and "standard_decomp k Q" and "cone_decomp T Q"
+    and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
+  shows "cone_decomp T (exact k Q)"
+proof -
+  from assms(1, 4) le_refl have "exact_decomp (card X) Q" by (rule exact_decomp_card_X)
+  with assms(2) show ?thesis unfolding exact_def using assms(3) by (rule cone_decomp_exact_aux)
+qed
+
+lemma Max_exact_ge:
+  assumes "finite X" and "finite Q" and "standard_decomp k Q" and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
+  shows "Max (deg_pm ` fst ` Q) \<le> Max (deg_pm ` fst ` exact k Q)"
+proof -
+  from assms(1, 4) le_refl have "exact_decomp (card X) Q" by (rule exact_decomp_card_X)
+  with assms(2, 3) show ?thesis unfolding exact_def by (rule Max_exact_aux_ge)
+qed
+
+lemma exact_empty_iff:
+  assumes "finite X" and "finite Q" and "standard_decomp k Q" and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
+  shows "exact k Q = {} \<longleftrightarrow> Q = {}"
+proof -
+  from assms(1, 4) le_refl have "exact_decomp (card X) Q" by (rule exact_decomp_card_X)
+  with assms(2, 3) show ?thesis unfolding exact_def by (rule exact_aux_empty_iff)
+qed
+
+corollary \<b>_zero_exact:
+  assumes "finite X" and "finite Q" and "standard_decomp k Q" and "Q \<noteq> {}"
+    and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
+  shows "Suc (Max (deg_pm ` fst ` Q)) \<le> \<b> (exact k Q) 0"
+proof -
+  from assms(1, 2, 3, 5) have "Max (deg_pm ` fst ` Q) \<le> Max (deg_pm ` fst ` exact k Q)"
+    by (rule Max_exact_ge)
+  also have "Suc \<dots> \<le> \<b> (exact k Q) 0"
+  proof (rule \<b>_zero)
+    from assms(1, 2, 3, 5) show "finite (exact k Q)" by (rule exact)
+  next
+    from assms show "exact k Q \<noteq> {}" by (simp add: exact_empty_iff)
+  qed
+  finally show ?thesis by simp
 qed
 
 end
