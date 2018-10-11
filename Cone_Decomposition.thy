@@ -1,7 +1,7 @@
 section \<open>Cone Decompositions\<close>
 
 theory Cone_Decomposition
-  imports General_Utils MPoly_PM
+  imports Binomial_Int General_Utils MPoly_PM
 begin
 
 subsection \<open>Preliminaries\<close>
@@ -711,6 +711,9 @@ definition standard_decomp :: "nat \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat)
 lemma pos_decomp_empty [simp]: "{}\<^sub>+ = {}"
   by (simp add: pos_decomp_def)
 
+lemma pos_decomp_subset: "P\<^sub>+ \<subseteq> P"
+  unfolding pos_decomp_def by blast
+
 lemma pos_decomp_Un: "(P \<union> Q)\<^sub>+ = P\<^sub>+ \<union> Q\<^sub>+"
   by (fastforce simp: pos_decomp_def)
 
@@ -719,6 +722,15 @@ lemma pos_decomp_UN: "(\<Union> A)\<^sub>+ = (\<Union> (pos_decomp ` A))"
 
 lemma pos_decomp_image: "(apfst f ` P)\<^sub>+ = apfst f ` P\<^sub>+"
   by (auto simp: pos_decomp_def)
+
+lemma card_Diff_pos_decomp: "card {(t, U) \<in> Q - Q\<^sub>+. P t} = card {t. (t, {}) \<in> Q \<and> P t}"
+proof -
+  have "{t. (t, {}) \<in> Q \<and> P t} = fst ` {(t, U) \<in> Q - Q\<^sub>+. P t}"
+    by (auto simp: pos_decomp_def image_Collect)
+  also have "card \<dots> = card {(t, U) \<in> Q - Q\<^sub>+. P t}"
+    by (rule card_image, auto simp: pos_decomp_def intro: inj_onI)
+  finally show ?thesis by (rule sym)
+qed
 
 lemma standard_decompI:
   assumes "\<And>t U. (t, U) \<in> P\<^sub>+ \<Longrightarrow> k \<le> deg_pm t"
@@ -2298,12 +2310,12 @@ qed
 subsection \<open>Exact Cone Decompositions\<close>
 
 definition exact_decomp :: "nat \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<Rightarrow> bool"
-  where "exact_decomp m P \<longleftrightarrow> (\<forall>(t, U)\<in>P. U \<subseteq> X) \<and>
+  where "exact_decomp m P \<longleftrightarrow> (\<forall>(t, U)\<in>P. t \<in> .[X] \<and> U \<subseteq> X) \<and>
                               (\<forall>(t, U)\<in>P. \<forall>(t', U')\<in>P. deg_pm t = deg_pm t' \<longrightarrow>
                                           m < card U \<longrightarrow> m < card U' \<longrightarrow> (t, U) = (t', U'))"
 
 lemma exact_decompI:
-  "(\<And>t U. (t, U) \<in> P \<Longrightarrow> U \<subseteq> X) \<Longrightarrow>
+  "(\<And>t U. (t, U) \<in> P \<Longrightarrow> t \<in> .[X]) \<Longrightarrow> (\<And>t U. (t, U) \<in> P \<Longrightarrow> U \<subseteq> X) \<Longrightarrow>
     (\<And>t t' U U'. (t, U) \<in> P \<Longrightarrow> (t', U') \<in> P \<Longrightarrow> deg_pm t = deg_pm t' \<Longrightarrow>
             m < card U \<Longrightarrow> m < card U' \<Longrightarrow> (t, U) = (t', U')) \<Longrightarrow>
     exact_decomp m P"
@@ -2311,15 +2323,15 @@ lemma exact_decompI:
 
 lemma exact_decompD:
   assumes "exact_decomp m P" and "(t, U) \<in> P"
-  shows "U \<subseteq> X"
+  shows "t \<in> .[X]" and "U \<subseteq> X"
     and "(t', U') \<in> P \<Longrightarrow> deg_pm t = deg_pm t' \<Longrightarrow> m < card U \<Longrightarrow> m < card U' \<Longrightarrow> (t, U) = (t', U')"
   using assms unfolding exact_decomp_def by fastforce+
 
 lemma exact_decompI_zero:
-  assumes "\<And>t U. (t, U) \<in> P \<Longrightarrow> U \<subseteq> X"
+  assumes "\<And>t U. (t, U) \<in> P \<Longrightarrow> t \<in> .[X]" and "\<And>t U. (t, U) \<in> P \<Longrightarrow> U \<subseteq> X"
     and "\<And>t t' U U'. (t, U) \<in> P\<^sub>+ \<Longrightarrow> (t', U') \<in> P\<^sub>+ \<Longrightarrow> deg_pm t = deg_pm t' \<Longrightarrow> (t, U) = (t', U')"
   shows "exact_decomp 0 P"
-  using assms(1)
+  using assms(1, 2)
 proof (rule exact_decompI)
   fix t t' and U U' :: "'x set"
   assume "0 < card U"
@@ -2331,7 +2343,7 @@ proof (rule exact_decompI)
   moreover assume "(t', U') \<in> P"
   ultimately have "(t', U') \<in> P\<^sub>+" by (simp add: pos_decomp_def)
   assume "deg_pm t = deg_pm t'"
-  with \<open>(t, U) \<in> P\<^sub>+\<close> \<open>(t', U') \<in> P\<^sub>+\<close> show "(t, U) = (t', U')" by (rule assms(2))
+  with \<open>(t, U) \<in> P\<^sub>+\<close> \<open>(t', U') \<in> P\<^sub>+\<close> show "(t, U) = (t', U')" by (rule assms(3))
 qed
 
 lemma exact_decompD_zero:
@@ -2362,15 +2374,16 @@ proof (rule finite_decompI)
 qed
 
 lemma exact_decomp_card_X:
-  assumes "finite X" and "\<And>t U. (t, U) \<in> P \<Longrightarrow> U \<subseteq> X" and "card X \<le> m"
+  assumes "finite X" and "\<And>t U. (t, U) \<in> P \<Longrightarrow> t \<in> .[X]" and "\<And>t U. (t, U) \<in> P \<Longrightarrow> U \<subseteq> X"
+    and "card X \<le> m"
   shows "exact_decomp m P"
-  using assms(2)
+  using assms(2, 3)
 proof (rule exact_decompI)
   fix t1 t2 U1 U2
   assume "(t1, U1) \<in> P"
-  hence "U1 \<subseteq> X" by (rule assms(2))
+  hence "U1 \<subseteq> X" by (rule assms(3))
   with assms(1) have "card U1 \<le> card X" by (rule card_mono)
-  also have "\<dots> \<le> m" by (fact assms(3))
+  also have "\<dots> \<le> m" by (fact assms(4))
   also assume "m < card U1"
   finally show "(t1, U1) = (t2, U2)" by simp
 qed
@@ -2489,6 +2502,25 @@ proof -
   thus ?thesis by simp
 qed
 
+corollary \<b>_zero_gr:
+  assumes "finite P" and "(t, U) \<in> P"
+  shows "deg_pm t < \<b> P 0"
+proof -
+  have "deg_pm t \<le> Max (deg_pm ` fst ` P)"
+  proof (rule Max_ge)
+    from assms(1) show "finite (deg_pm ` fst ` P)" by (intro finite_imageI)
+  next
+    from assms(2) have "deg_pm (fst (t, U)) \<in> deg_pm ` fst ` P" by (intro imageI)
+    thus "deg_pm t \<in> deg_pm ` fst ` P" by simp
+  qed
+  also have "\<dots> < Suc \<dots>" by simp
+  also from assms(1) have "\<dots> \<le> \<b> P 0"
+  proof (rule \<b>_zero)
+    from assms(2) show "P \<noteq> {}" by blast
+  qed
+  finally show ?thesis .
+qed
+
 lemma \<b>_one:
   assumes "finite_decomp P" and "standard_decomp k P"
   shows "\<b> P (Suc 0) = (if P\<^sub>+ = {} then 0 else Suc (Max (deg_pm ` fst ` P\<^sub>+)))"
@@ -2499,7 +2531,7 @@ proof (cases "P\<^sub>+ = {}")
 next
   case False
   with assms have aP: "\<a> P = Min (deg_pm ` fst ` P\<^sub>+)" (is "_ = Min ?A") by (rule \<a>_nonempty)
-  have "P\<^sub>+ \<subseteq> P" by (auto simp: pos_decomp_def)
+  note pos_decomp_subset
   moreover from assms(1) have "finite P" by (rule finite_decompD)
   ultimately have "finite (P\<^sub>+)" by (rule finite_subset)
   hence "finite ?A" by (intro finite_imageI)
@@ -2540,6 +2572,25 @@ next
     thus "Suc (Max ?A) \<le> d" by simp
   qed
   with False show ?thesis by simp
+qed
+
+corollary \<b>_one_gr:
+  assumes "finite_decomp P" and "standard_decomp k P" and "(t, U) \<in> P\<^sub>+"
+  shows "deg_pm t < \<b> P (Suc 0)"
+proof -
+  from assms(3) have "P\<^sub>+ \<noteq> {}" by blast
+  with assms(1, 2) have eq: "\<b> P (Suc 0) = Suc (Max (deg_pm ` fst ` P\<^sub>+))" by (simp add: \<b>_one)
+  have "deg_pm t \<le> Max (deg_pm ` fst ` P\<^sub>+)"
+  proof (rule Max_ge)
+    from assms(1) have "finite P" by (rule finite_decompD)
+    with pos_decomp_subset have "finite (P\<^sub>+)" by (rule finite_subset)
+    thus "finite (deg_pm ` fst ` P\<^sub>+)" by (intro finite_imageI)
+  next
+    from assms(3) have "deg_pm (fst (t, U)) \<in> deg_pm ` fst ` P\<^sub>+" by (intro imageI)
+    thus "deg_pm t \<in> deg_pm ` fst ` P\<^sub>+" by simp
+  qed
+  also have "\<dots> < \<b> P (Suc 0)" by (simp add: eq)
+  finally show ?thesis .
 qed
 
 lemma \<b>_card_X:
@@ -2633,6 +2684,103 @@ lemma lem_6_1_2:
 proof (rule exact_decompD_zero)
   from assms(2, 3) have "Suc 0 \<le> card X" by (rule le_trans)
   thus "finite X" by (simp add: card_ge_0_finite)
+qed
+
+corollary lem_6_1_3:
+  assumes "finite P" and "standard_decomp k P" and "exact_decomp 0 P" and "Suc 0 \<le> i"
+    and "i \<le> card X" and "\<b> P (Suc i) \<le> d" and "d < \<b> P i"
+  obtains t U where "{(t', U') \<in> P\<^sub>+. deg_pm t' = d} = {(t, U)}" and "card U = i"
+proof -
+  from assms obtain t U where "(t, U) \<in> P\<^sub>+" and "deg_pm t = d" and "card U = i"
+    by (rule lem_6_1_1)
+  hence "{(t, U)} \<subseteq> {(t', U') \<in> P\<^sub>+. deg_pm t' = d}" (is "_ \<subseteq> ?A") by simp
+  moreover have "?A \<subseteq> {(t, U)}"
+  proof
+    fix x
+    assume "x \<in> ?A"
+    then obtain t' U' where "(t', U') \<in> P\<^sub>+" and "deg_pm t' = d" and x: "x = (t', U')"
+      by blast
+    note assms(3, 4, 5) \<open>(t, U) \<in> P\<^sub>+\<close> this(1)
+    moreover have "deg_pm t = deg_pm t'" by (simp only: \<open>deg_pm t = d\<close> \<open>deg_pm t' = d\<close>)
+    ultimately have "(t, U) = (t', U')" by (rule lem_6_1_2)
+    thus "x \<in> {(t, U)}" by (simp add: x)
+  qed
+  ultimately have "{(t, U)} = ?A" ..
+  hence "?A = {(t, U)}" by (rule sym)
+  thus ?thesis using \<open>card U = i\<close> ..
+qed
+
+corollary lem_6_1_3':
+  assumes "finite P" and "standard_decomp k P" and "exact_decomp 0 P" and "Suc 0 \<le> i"
+    and "i \<le> card X" and "\<b> P (Suc i) \<le> d" and "d < \<b> P i"
+  shows "card {(t', U') \<in> P\<^sub>+. deg_pm t' = d} = 1" (is "card ?A = _")
+    and "{(t', U') \<in> P\<^sub>+. deg_pm t' = d \<and> card U' = i} = {(t', U') \<in> P\<^sub>+. deg_pm t' = d}" (is "?B = _")
+    and "card {(t', U') \<in> P\<^sub>+. deg_pm t' = d \<and> card U' = i} = 1"
+proof -
+  from assms obtain t U where "?A = {(t, U)}" and "card U = i" by (rule lem_6_1_3)
+  from this(1) show "card ?A = 1" by simp
+  moreover show "?B = ?A"
+  proof
+    have "(t, U) \<in> ?A" by (simp add: \<open>?A = {(t, U)}\<close>)
+    have "?A = {(t, U)}" by fact
+    also from \<open>(t, U) \<in> ?A\<close> \<open>card U = i\<close> have "\<dots> \<subseteq> ?B" by simp
+    finally show "?A \<subseteq> ?B" .
+  qed blast
+  ultimately show "card ?B = 1" by simp 
+qed
+
+corollary lem_6_1_4:
+  assumes "finite X" and "finite P" and "standard_decomp k P" and "exact_decomp 0 P" and "Suc 0 \<le> i"
+    and "i \<le> card X" and "(t, U) \<in> P\<^sub>+" and "card U = i"
+  shows "\<b> P (Suc i) \<le> deg_pm t"
+proof (rule ccontr)
+  define j where "j = (LEAST j'. \<b> P j' \<le> deg_pm t)"
+  assume "\<not> \<b> P (Suc i) \<le> deg_pm t"
+  hence "deg_pm t < \<b> P (Suc i)" by simp
+  from assms(1, 4) le_refl have "\<b> P (Suc (card X)) = \<a> P" by (rule \<b>_card_X)
+  also from _ assms(7) have "\<dots> \<le> deg_pm t"
+  proof (rule standard_decompD)
+    from assms(3) show "standard_decomp (\<a> P) P" by (rule \<a>)
+  qed
+  finally have "\<b> P (Suc (card X)) \<le> deg_pm t" .
+  hence 1: "\<b> P j \<le> deg_pm t" unfolding j_def by (rule LeastI)
+  have "Suc i < j"
+  proof (rule ccontr)
+    assume "\<not> Suc i < j"
+    hence "j \<le> Suc i" by simp
+    with assms(2) have "\<b> P (Suc i) \<le> \<b> P j" by (rule \<b>_decreasing)
+    also have "\<dots> \<le> deg_pm t" by fact
+    finally show False using \<open>deg_pm t < \<b> P (Suc i)\<close> by simp
+  qed
+  hence eq: "Suc (j - 1) = j" by simp
+  note assms(2-4)
+  moreover from assms(5) have "Suc 0 \<le> j - 1"
+  proof (rule le_trans)
+    from \<open>Suc i < j\<close> show "i \<le> j - 1" by simp
+  qed
+  moreover have "j - 1 \<le> card X"
+  proof -
+    have "j \<le> Suc (card X)" unfolding j_def by (rule Least_le) fact
+    thus ?thesis by simp
+  qed
+  moreover from 1 have "\<b> P (Suc (j - 1)) \<le> deg_pm t" by (simp only: eq)
+  moreover have "deg_pm t < \<b> P (j - 1)"
+  proof (rule ccontr)
+    assume "\<not> deg_pm t < \<b> P (j - 1)"
+    hence "\<b> P (j - 1) \<le> deg_pm t" by simp
+    hence "j \<le> j - 1" unfolding j_def by (rule Least_le)
+    also have "\<dots> < Suc (j - 1)" by simp
+    finally show False by (simp only: eq)
+  qed
+  ultimately obtain t0 U0 where eq1: "{(t', U'). (t', U') \<in> P\<^sub>+ \<and> deg_pm t' = deg_pm t} = {(t0, U0)}"
+    and "card U0 = j - 1" by (rule lem_6_1_3)
+  from assms(7) have "(t, U) \<in> {(t', U'). (t', U') \<in> P\<^sub>+ \<and> deg_pm t' = deg_pm t}" by simp
+  hence "(t, U) \<in> {(t0, U0)}" by (simp only: eq1)
+  hence "U = U0" by simp
+  hence "card U = j - 1" by (simp only: \<open>card U0 = j - 1\<close>)
+  hence "i = j - 1" by (simp only: assms(8))
+  hence "Suc i = j" by (simp only: eq)
+  with \<open>Suc i < j\<close> show False by simp
 qed
 
 lemma lem_6_2_1:
@@ -2955,8 +3103,28 @@ proof -
     show "exact_decomp (Suc m) (insert ?p1 (insert ?p2 ?Q))"
     proof (rule exact_decompI)
       fix t' U'
-      assume "(t', U') \<in> insert ?p1 (insert ?p2 ?Q)"
-      thus "U' \<subseteq> X"
+      assume *: "(t', U') \<in> insert ?p1 (insert ?p2 ?Q)"
+      thus "t' \<in> .[X]"
+      proof (elim insertE)
+        assume "(t', U') = ?p1"
+        hence t': "t' = Poly_Mapping.single x 1 + t" by simp
+        from exct \<open>(t, U) \<in> Q\<close> have "U \<subseteq> X" by (rule exact_decompD)
+        with \<open>x \<in> U\<close> have "x \<in> X" ..
+        hence "Poly_Mapping.single x 1 \<in> .[X]" by (rule PPs_closed_single)
+        moreover from exct \<open>(t, U) \<in> Q\<close> have "t \<in> .[X]" by (rule exact_decompD)
+        ultimately show ?thesis unfolding t' by (rule PPs_closed_plus)
+      next
+        assume "(t', U') = ?p2"
+        hence "t' = t" by simp
+        also from exct \<open>(t, U) \<in> Q\<close> have "\<dots> \<in> .[X]" by (rule exact_decompD)
+        finally show ?thesis .
+      next
+        assume "(t', U') \<in> ?Q"
+        hence "(t', U') \<in> Q" by simp
+        with exct show ?thesis by (rule exact_decompD)
+      qed
+
+      from * show "U' \<subseteq> X"
       proof (elim insertE)
         assume "(t', U') = ?p1"
         hence "U' = U" by simp
@@ -3413,7 +3581,7 @@ proof -
   proof (rule exact_decompI)
     fix t U
     assume "(t, U) \<in> shift Q"
-    with exct show "U \<subseteq> X" by (rule exact_decompD)
+    with exct show "t \<in> .[X]" and "U \<subseteq> X" by (rule exact_decompD)+
   next
     fix t1 t2 U1 U2
     assume 1: "(t1, U1) \<in> shift Q" and 2: "(t2, U2) \<in> shift Q"
@@ -3582,54 +3750,345 @@ definition exact :: "nat \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<times> 
   where "exact k Q = exact_aux k (card X) Q"
 
 lemma exact:
-  assumes "finite X" and "finite Q" and "standard_decomp k Q" and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
+  assumes "finite X" and "finite Q" and "standard_decomp k Q" and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> t \<in> .[X]"
+    and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
   shows "finite (exact k Q)" (is ?thesis1)
     and "standard_decomp k (exact k Q)" (is ?thesis2)
     and "exact_decomp 0 (exact k Q)" (is ?thesis3)
 proof -
-  from assms(1, 4) le_refl have "exact_decomp (card X) Q" by (rule exact_decomp_card_X)
+  from assms(1, 4, 5) le_refl have "exact_decomp (card X) Q" by (rule exact_decomp_card_X)
   with assms(2, 3) show ?thesis1 and ?thesis2 and ?thesis3 unfolding exact_def by (rule exact_aux)+
 qed
 
 lemma cone_decomp_exact:
   assumes "finite X" and "standard_decomp k Q" and "cone_decomp T Q"
-    and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
+    and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> t \<in> .[X]" and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
   shows "cone_decomp T (exact k Q)"
 proof -
-  from assms(1, 4) le_refl have "exact_decomp (card X) Q" by (rule exact_decomp_card_X)
+  from assms(1, 4, 5) le_refl have "exact_decomp (card X) Q" by (rule exact_decomp_card_X)
   with assms(2) show ?thesis unfolding exact_def using assms(3) by (rule cone_decomp_exact_aux)
 qed
 
 lemma Max_exact_ge:
-  assumes "finite X" and "finite Q" and "standard_decomp k Q" and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
+  assumes "finite X" and "finite Q" and "standard_decomp k Q" and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> t \<in> .[X]"
+    and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
   shows "Max (deg_pm ` fst ` Q) \<le> Max (deg_pm ` fst ` exact k Q)"
 proof -
-  from assms(1, 4) le_refl have "exact_decomp (card X) Q" by (rule exact_decomp_card_X)
+  from assms(1, 4, 5) le_refl have "exact_decomp (card X) Q" by (rule exact_decomp_card_X)
   with assms(2, 3) show ?thesis unfolding exact_def by (rule Max_exact_aux_ge)
 qed
 
 lemma exact_empty_iff:
-  assumes "finite X" and "finite Q" and "standard_decomp k Q" and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
+  assumes "finite X" and "finite Q" and "standard_decomp k Q" and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> t \<in> .[X]"
+    and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
   shows "exact k Q = {} \<longleftrightarrow> Q = {}"
 proof -
-  from assms(1, 4) le_refl have "exact_decomp (card X) Q" by (rule exact_decomp_card_X)
+  from assms(1, 4, 5) le_refl have "exact_decomp (card X) Q" by (rule exact_decomp_card_X)
   with assms(2, 3) show ?thesis unfolding exact_def by (rule exact_aux_empty_iff)
 qed
 
 corollary \<b>_zero_exact:
   assumes "finite X" and "finite Q" and "standard_decomp k Q" and "Q \<noteq> {}"
-    and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
+    and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> t \<in> .[X]" and "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
   shows "Suc (Max (deg_pm ` fst ` Q)) \<le> \<b> (exact k Q) 0"
 proof -
-  from assms(1, 2, 3, 5) have "Max (deg_pm ` fst ` Q) \<le> Max (deg_pm ` fst ` exact k Q)"
+  from assms(1, 2, 3, 5, 6) have "Max (deg_pm ` fst ` Q) \<le> Max (deg_pm ` fst ` exact k Q)"
     by (rule Max_exact_ge)
   also have "Suc \<dots> \<le> \<b> (exact k Q) 0"
   proof (rule \<b>_zero)
-    from assms(1, 2, 3, 5) show "finite (exact k Q)" by (rule exact)
+    from assms(1, 2, 3, 5, 6) show "finite (exact k Q)" by (rule exact)
   next
     from assms show "exact k Q \<noteq> {}" by (simp add: exact_empty_iff)
   qed
   finally show ?thesis by simp
+qed
+
+subsection \<open>Hilbert Polynomial\<close>
+
+definition Hilbert_poly :: "(nat \<Rightarrow> nat) \<Rightarrow> int \<Rightarrow> int"
+  where "Hilbert_poly b d =
+                (let n = card X in
+                  ((d - b (Suc n) + n) gchoose n) - 1 - (\<Sum>i=1..n. (d - b i + i - 1) gchoose i))"
+
+definition Hilbert_poly_real :: "(nat \<Rightarrow> nat) \<Rightarrow> real \<Rightarrow> real"
+  where "Hilbert_poly_real b z =
+                (let n = card X in
+                  ((z - b (Suc n) + n) gchoose n) - 1 - (\<Sum>i=1..n. (z - b i + i - 1) gchoose i))"
+
+lemma real_Hilbert_poly: "of_int (Hilbert_poly b d) = Hilbert_poly_real b (real d)"
+  by (simp add: Hilbert_poly_def Hilbert_poly_real_def Let_def of_int_gbinomial)
+
+lemma Hilbert_fun_eq_Hilbert_poly_plus_card:
+  assumes "finite X" and "cone_decomp T P" and "standard_decomp k P" and "exact_decomp 0 P"
+    and "\<b> P (Suc 0) \<le> d"
+  shows "int (Hilbert_fun T d) = card {t. (t, {}) \<in> P \<and> deg_pm t = d} + Hilbert_poly (\<b> P) d"
+proof (cases "X = {}")
+  case True
+  have H: "Hilbert_poly b z = 0" for b z by (simp add: Hilbert_poly_def Let_def) (simp add: True)
+  from assms(2) have T: "T = (\<Union>(t, U)\<in>P. cone t U)" by (rule cone_decompD)
+  have "P \<subseteq> {(0, {})}"
+  proof
+    fix p
+    assume "p \<in> P"
+    moreover obtain t U where p: "p = (t, U)" using prod.exhaust by blast
+    ultimately have "(t, U) \<in> P" by simp
+    with assms(4) have "t \<in> .[X]" and "U \<subseteq> X" by (rule exact_decompD)+
+    thus "p \<in> {(0, {})}" by (simp add: True p)
+  qed
+  hence "P = {} \<or> P = {(0, {})}" by blast
+  thus ?thesis
+  proof
+    assume "P = {}"
+    moreover from this have "T = {}" by (simp add: T)
+    ultimately show ?thesis by (simp add: Hilbert_fun_def H)
+  next
+    assume P: "P = {(0, {})}"
+    hence Pp: "{(0, {})}\<^sub>+ = {}" and T: "T = {0}" by (simp_all add: pos_decomp_def T)
+    show ?thesis
+    proof (cases "d = 0")
+      case True
+      thus ?thesis using card_Suc_eq by (fastforce simp: P Pp T Hilbert_fun_def H)
+    next
+      case False
+      thus ?thesis by (simp add: P Pp T Hilbert_fun_def H)
+    qed
+  qed
+next
+  case False
+  moreover define n where "n = card X"
+  ultimately have "0 < n" using assms(1) by (simp add: card_gt_0_iff)
+  hence "1 \<le> n" and "Suc 0 \<le> n" by simp_all
+  from assms(2) have "finite P" by (rule cone_decompD)
+  with assms(1, 4) have "finite_decomp P" by (rule exact_decomp_imp_finite_decomp)
+  from pos_decomp_subset have eq0: "(P - P\<^sub>+) \<union> P\<^sub>+ = P" by blast
+  from pos_decomp_subset \<open>finite P\<close> have fin1: "finite (P\<^sub>+)" by (rule finite_subset)
+  have "P - P\<^sub>+ \<subseteq> P" by blast
+  hence fin2: "finite (P - P\<^sub>+)" using \<open>finite P\<close> by (rule finite_subset)
+
+  have "(\<Sum>(t, U)\<in>P - P\<^sub>+. Hilbert_fun (cone t U) d) = (\<Sum>(t, U)\<in>P - P\<^sub>+. if deg_pm t = d then 1 else 0)"
+    using refl
+  proof (rule sum.cong)
+    fix x
+    assume "x \<in> P - P\<^sub>+"
+    moreover obtain t U where x: "x = (t, U)" using prod.exhaust by blast
+    ultimately have "U = {}" by (simp add: pos_decomp_def)
+    hence "{s \<in> cone t U. deg_pm s = d} = (if deg_pm t = d then {t} else {})" by (auto simp: Hilbert_fun_def)
+    also have "card \<dots> = (if deg_pm t = d then 1 else 0)" by simp
+    finally have "Hilbert_fun (cone t U) d = (if deg_pm t = d then 1 else 0)" by (simp only: Hilbert_fun_def)
+    thus "(case x of (t, U) \<Rightarrow> Hilbert_fun (cone t U) d) = (case x of (t, U) \<Rightarrow> if deg_pm t = d then 1 else 0)"
+      by (simp add: x)
+  qed
+  also from fin2 have "\<dots> = (\<Sum>(t, U)\<in>{(t', U') \<in> P - P\<^sub>+. deg_pm t' = d}. 1)"
+    by (rule sum.mono_neutral_cong_right) (auto split: if_splits)
+  also have "\<dots> = card {(t, U) \<in> P - P\<^sub>+. deg_pm t = d}" by auto
+  also have "\<dots> = card {t. (t, {}) \<in> P \<and> deg_pm t = d}" by (fact card_Diff_pos_decomp)
+  finally have eq1: "(\<Sum>(t, U)\<in>P - P\<^sub>+. Hilbert_fun (cone t U) d) = card {t. (t, {}) \<in> P \<and> deg_pm t = d}" .
+
+  let ?f = "\<lambda>a b. (int d) - a + b gchoose b"
+  have "int (\<Sum>(t, U)\<in>P\<^sub>+. Hilbert_fun (cone t U) d) = (\<Sum>(t, U)\<in>P\<^sub>+. int (Hilbert_fun (cone t U) d))"
+    by (simp add: int_sum prod.case_distrib)
+  also have "\<dots> = (\<Sum>(t, U)\<in>(\<Union>i\<in>{1..n}. {(t, U) \<in> P\<^sub>+. card U = i}). ?f (deg_pm t) (card U - 1))"
+  proof (rule sum.cong)
+    show "P\<^sub>+ = (\<Union>i\<in>{1..n}. {(t, U). (t, U) \<in> P\<^sub>+ \<and> card U = i})"
+    proof (rule Set.set_eqI, rule)
+      fix x
+      assume "x \<in> P\<^sub>+"
+      moreover obtain t U where x: "x = (t, U)" using prod.exhaust by blast
+      ultimately have "(t, U) \<in> P\<^sub>+" by simp
+      hence "(t, U) \<in> P" and "U \<noteq> {}" by (simp_all add: pos_decomp_def)
+      from assms(4) this(1) have "U \<subseteq> X" by (rule exact_decompD)
+      hence "finite U" using assms(1) by (rule finite_subset)
+      with \<open>U \<noteq> {}\<close> have "0 < card U" by (simp add: card_gt_0_iff)
+      moreover from assms(1) \<open>U \<subseteq> X\<close> have "card U \<le> n" unfolding n_def by (rule card_mono)
+      ultimately have "card U \<in> {1..n}" by simp
+      moreover from \<open>(t, U) \<in> P\<^sub>+\<close> have "(t, U) \<in> {(t', U'). (t', U') \<in> P\<^sub>+ \<and> card U' = card U}"
+        by simp
+      ultimately show "x \<in> (\<Union>i\<in>{1..n}. {(t, U). (t, U) \<in> P\<^sub>+ \<and> card U = i})" by (simp add: x)
+    qed blast
+  next
+    fix x
+    assume "x \<in> (\<Union>i\<in>{1..n}. {(t, U). (t, U) \<in> P\<^sub>+ \<and> card U = i})"
+    then obtain j where "j \<in> {1..n}" and "x \<in> {(t, U). (t, U) \<in> P\<^sub>+ \<and> card U = j}" ..
+    from this(2) obtain t U where "(t, U) \<in> P\<^sub>+" and "card U = j" and x: "x = (t, U)" by blast
+    from \<open>finite_decomp P\<close> assms(3) this(1) have "deg_pm t < \<b> P (Suc 0)" by (rule \<b>_one_gr)
+    also have "\<dots> \<le> d" by fact
+    finally have "deg_pm t < d" .
+    hence int1: "int (d - deg_pm t) = int d - int (deg_pm t)" by simp
+    from \<open>card U = j\<close> \<open>j \<in> {1..n}\<close> have "0 < card U" by simp
+    hence int2: "int (card U - Suc 0) = int (card U) - 1" by simp
+    from \<open>0 < card U\<close> card_ge_0_finite have "finite U" and "U \<noteq> {}" by auto
+    hence "Hilbert_fun (cone t U) d = (if deg_pm t \<le> d then (d - deg_pm t + (card U - 1)) choose (card U - 1) else 0)"
+      by (rule Hilbert_fun_cone)
+    also from \<open>deg_pm t < d\<close> have "\<dots> = (d - deg_pm t + (card U - 1)) choose (card U - 1)" by simp
+    finally
+    have "int (Hilbert_fun (cone t U) d) = (int d - int (deg_pm t) + (int (card U - 1))) gchoose (card U - 1)"
+      by (simp add: int_binomial int1 int2)
+    thus "(case x of (t, U) \<Rightarrow> int (Hilbert_fun (cone t U) d)) =
+          (case x of (t, U) \<Rightarrow> int d - int (deg_pm t) + (int (card U - 1)) gchoose (card U - 1))"
+      by (simp add: x)
+  qed
+  also have "\<dots> = (\<Sum>j=1..n. \<Sum>(t, U)\<in>{(t', U') \<in> P\<^sub>+. card U' = j}. ?f (deg_pm t) (card U - 1))"
+  proof (intro sum.UNION_disjoint ballI)
+    fix j
+    have "{(t, U). (t, U) \<in> P\<^sub>+ \<and> card U = j} \<subseteq> P\<^sub>+" by blast
+    thus "finite {(t, U). (t, U) \<in> P\<^sub>+ \<and> card U = j}" using fin1 by (rule finite_subset)
+  qed blast+
+  also from refl have "\<dots> = (\<Sum>j=1..n. ?f (\<b> P (Suc j)) j - ?f (\<b> P j) j)"
+  proof (rule sum.cong)
+    fix j
+    assume "j \<in> {1..n}"
+    hence "Suc 0 \<le> j" and "0 < j" and "j \<le> n" by simp_all
+    from \<open>finite P\<close> this(1) have "\<b> P j \<le> \<b> P (Suc 0)" by (rule \<b>_decreasing)
+    also have "\<dots> \<le> d" by fact
+    finally have "\<b> P j \<le> d" .
+    from \<open>finite P\<close> have "\<b> P (Suc j) \<le> \<b> P j" by (rule \<b>_decreasing) simp
+    hence "\<b> P (Suc j) \<le> d" using \<open>\<b> P j \<le> d\<close> by (rule le_trans)
+    from \<open>0 < j\<close> have int_j: "int (j - Suc 0) = int j - 1" by simp
+    have "(\<Sum>(t, U)\<in>{(t', U'). (t', U') \<in> P\<^sub>+ \<and> card U' = j}. ?f (deg_pm t) (card U - 1)) =
+         (\<Sum>(t, U)\<in>(\<Union>d0\<in>{\<b> P (Suc j)..int (\<b> P j) - 1}. {(t', U'). (t', U') \<in> P\<^sub>+ \<and> int (deg_pm t') = d0 \<and> card U' = j}).
+            ?f (deg_pm t) (card U - 1))"
+      using _ refl
+    proof (rule sum.cong)
+      show "{(t', U'). (t', U') \<in> P\<^sub>+ \<and> card U' = j} =
+            (\<Union>d0\<in>{\<b> P (Suc j)..int (\<b> P j) - 1}. {(t', U'). (t', U') \<in> P\<^sub>+ \<and> int (deg_pm t') = d0 \<and> card U' = j})"
+      proof (rule Set.set_eqI, rule)
+        fix x
+        assume "x \<in> {(t', U'). (t', U') \<in> P\<^sub>+ \<and> card U' = j}"
+        moreover obtain t U where x: "x = (t, U)" using prod.exhaust by blast
+        ultimately have "(t, U) \<in> P\<^sub>+" and "card U = j" by simp_all
+        with assms(1) \<open>finite P\<close> assms(3, 4) \<open>Suc 0 \<le> j\<close> \<open>j \<le> n\<close> have "\<b> P (Suc j) \<le> deg_pm t"
+          unfolding n_def by (rule lem_6_1_4)
+        moreover from \<open>finite P\<close> have "deg_pm t < \<b> P j"
+        proof (rule \<b>)
+          from \<open>(t, U) \<in> P\<^sub>+\<close> show "(t, U) \<in> P" by (simp add: pos_decomp_def)
+        next
+          show "j \<le> card U" by (simp add: \<open>card U = j\<close>)
+        qed
+        ultimately have "deg_pm t \<in> {\<b> P (Suc j)..int (\<b> P j) - 1}" by simp
+        moreover from \<open>(t, U) \<in> P\<^sub>+\<close> have "(t, U) \<in> {(t', U'). (t', U') \<in> P\<^sub>+ \<and> deg_pm t' = deg_pm t \<and> card U' = card U}"
+          by simp
+        ultimately show "x \<in> (\<Union>d0\<in>{\<b> P (Suc j)..int (\<b> P j) - 1}.
+                                {(t', U'). (t', U') \<in> P\<^sub>+ \<and> int (deg_pm t') = d0 \<and> card U' = j})"
+          by (simp add: x \<open>card U = j\<close>)
+      qed blast
+    qed
+    also have "\<dots> = (\<Sum>d0=\<b> P (Suc j)..int (\<b> P j) - 1.
+                    \<Sum>(t, U)\<in>{(t', U'). (t', U') \<in> P\<^sub>+ \<and> deg_pm t' = d0 \<and> card U' = j}. ?f (deg_pm t) (card U - 1))"
+    proof (intro sum.UNION_disjoint ballI)
+      fix d0::int
+      have "{(t', U'). (t', U') \<in> P\<^sub>+ \<and> deg_pm t' = d0 \<and> card U' = j} \<subseteq> P\<^sub>+" by blast
+      thus "finite {(t', U'). (t', U') \<in> P\<^sub>+ \<and> deg_pm t' = d0 \<and> card U' = j}"
+        using fin1 by (rule finite_subset)
+    qed blast+
+    also from refl have "\<dots> = (\<Sum>d0=\<b> P (Suc j)..int (\<b> P j) - 1. ?f d0 (j - 1))"
+    proof (rule sum.cong)
+      fix d0
+      assume "d0 \<in> {\<b> P (Suc j)..int (\<b> P j) - 1}"
+      hence "\<b> P (Suc j) \<le> d0" and "d0 < int (\<b> P j)" by simp_all
+      hence "\<b> P (Suc j) \<le> nat d0" and "nat d0 < \<b> P j" by simp_all
+      have "(\<Sum>(t, U)\<in>{(t', U'). (t', U') \<in> P\<^sub>+ \<and> deg_pm t' = d0 \<and> card U' = j}. ?f (deg_pm t) (card U - 1)) =
+            (\<Sum>(t, U)\<in>{(t', U'). (t', U') \<in> P\<^sub>+ \<and> deg_pm t' = d0 \<and> card U' = j}. ?f d0 (j - 1))"
+        using refl by (rule sum.cong) auto
+      also have "\<dots> = card {(t', U'). (t', U') \<in> P\<^sub>+ \<and> deg_pm t' = nat d0 \<and> card U' = j} * ?f d0 (j - 1)"
+        using \<open>\<b> P (Suc j) \<le> d0\<close> by (simp add: int_eq_iff)
+      also have "\<dots> = ?f d0 (j - 1)"
+        using \<open>finite P\<close> assms(3, 4) \<open>Suc 0 \<le> j\<close> \<open>j \<le> n\<close> \<open>\<b> P (Suc j) \<le> nat d0\<close> \<open>nat d0 < \<b> P j\<close>
+        by (simp only: n_def lem_6_1_3'(3))
+      finally show "(\<Sum>(t, U)\<in>{(t', U'). (t', U') \<in> P\<^sub>+ \<and> deg_pm t' = d0 \<and> card U' = j}. ?f (deg_pm t) (card U - 1)) =
+                    ?f d0 (j - 1)" .
+    qed
+    also have "\<dots> = (\<Sum>d0\<in>(-) (int d) ` {\<b> P (Suc j)..int (\<b> P j) - 1}. d0 + int (j - 1) gchoose (j - 1))"
+    proof -
+      have "inj_on ((-) (int d)) {\<b> P (Suc j)..int (\<b> P j) - 1}" by (auto simp: inj_on_def)
+      thus ?thesis by (simp only: sum.reindex o_def)
+    qed
+    also have "\<dots> = (\<Sum>d0\<in>{0..int d - (\<b> P (Suc j))}-{0..int d - \<b> P j}. d0 + int (j - 1) gchoose (j - 1))"
+      using _ refl
+    proof (rule sum.cong)
+      have "(-) (int d) ` {\<b> P (Suc j)..int (\<b> P j) - 1} = {int d - (int (\<b> P j) - 1)..int d - int (\<b> P (Suc j))}"
+        by (simp only: image_diff_atLeastAtMost)
+      also have "\<dots> = {0..int d - int (\<b> P (Suc j))} - {0..int d - int (\<b> P j)}"
+      proof -
+        from \<open>\<b> P j \<le> d\<close> have "int (\<b> P j) - 1 \<le> int d" by simp
+        thus ?thesis by auto
+      qed
+      finally show "(-) (int d) ` {\<b> P (Suc j)..int (\<b> P j) - 1} =
+                    {0..int d - int (\<b> P (Suc j))} - {0..int d - int (\<b> P j)}" .
+    qed
+    also have "\<dots> = (\<Sum>d0=0..int d - (\<b> P (Suc j)). d0 + int (j - 1) gchoose (j - 1)) -
+                    (\<Sum>d0=0..int d - \<b> P j. d0 + int (j - 1) gchoose (j - 1))"
+      by (rule sum_diff) (auto simp: \<open>\<b> P (Suc j) \<le> \<b> P j\<close>)
+    also from \<open>\<b> P (Suc j) \<le> d\<close> \<open>\<b> P j \<le> d\<close> have "\<dots> = ?f (\<b> P (Suc j)) j - ?f (\<b> P j) j"
+      by (simp add: gchoose_rising_sum, simp add: int_j ac_simps \<open>0 < j\<close>)
+    finally show "(\<Sum>(t, U)\<in>{(t', U'). (t', U') \<in> P\<^sub>+ \<and> card U' = j}. ?f (deg_pm t) (card U - 1)) =
+                    ?f (\<b> P (Suc j)) j - ?f (\<b> P j) j" .
+  qed
+  also have "\<dots> = (\<Sum>j=1..n. ?f (\<b> P (Suc j)) j) - (\<Sum>j=1..n. ?f (\<b> P j) j)"
+    by (fact sum_subtractf)
+  also have "\<dots> = ?f (\<b> P (Suc n)) n + (\<Sum>j=1..n-1. ?f (\<b> P (Suc j)) j) - (\<Sum>j=1..n. ?f (\<b> P j) j)"
+    by (simp only: sum_tail_nat[OF \<open>0 < n\<close> \<open>1 \<le> n\<close>])
+  also have "\<dots> = ?f (\<b> P (Suc n)) n - ?f (\<b> P 1) 1 +
+                  ((\<Sum>j=1..n-1. ?f (\<b> P (Suc j)) j) - (\<Sum>j=1..n-1. ?f (\<b> P (Suc j)) (Suc j)))"
+    by (simp only: sum_head_Suc[OF \<open>1 \<le> n\<close>] sum_atLeast_Suc_shift[OF \<open>0 < n\<close> \<open>1 \<le> n\<close>])
+  also have "\<dots> = ?f (\<b> P (Suc n)) n - ?f (\<b> P 1) 1 -
+                  (\<Sum>j=1..n-1. ?f (\<b> P (Suc j)) (Suc j) - ?f (\<b> P (Suc j)) j)"
+    by (simp only: sum_subtractf)
+  also have "\<dots> = ?f (\<b> P (Suc n)) n - 1 - ((int d - \<b> P (Suc 0)) gchoose (Suc 0)) -
+                  (\<Sum>j=1..n-1. (int d - \<b> P (Suc j) + j) gchoose (Suc j))"
+  proof -
+    have "?f (\<b> P 1) 1 = 1 + ((int d - \<b> P (Suc 0)) gchoose (Suc 0))"
+      by (simp add: plus_Suc_gbinomial)
+    moreover from refl have "(\<Sum>j=1..n-1. ?f (\<b> P (Suc j)) (Suc j) - ?f (\<b> P (Suc j)) j) =
+                              (\<Sum>j=1..n-1. (int d - \<b> P (Suc j) + j) gchoose (Suc j))"
+      by (rule sum.cong) (simp add: plus_Suc_gbinomial)
+    ultimately show ?thesis by (simp only:)
+  qed
+  also have "\<dots> = ?f (\<b> P (Suc n)) n - 1 - (\<Sum>j=0..n-1. (int d - \<b> P (Suc j) + j) gchoose (Suc j))"
+    by (simp only: sum_head_Suc[OF le0], simp)
+  also have "\<dots> = ?f (\<b> P (Suc n)) n - 1 - (\<Sum>j=Suc 0..Suc (n-1). (int d - \<b> P j + j - 1) gchoose j)"
+    by (simp only: sum_shift_bounds_cl_Suc_ivl, simp add: ac_simps)
+  also have "\<dots> = Hilbert_poly (\<b> P) d" using \<open>0 < n\<close> by (simp add: Hilbert_poly_def Let_def n_def)
+  finally have eq2: "int (\<Sum>(t, U)\<in>P\<^sub>+. Hilbert_fun (cone t U) d) = Hilbert_poly (\<b> P) (int d)" .
+
+  from assms(2) \<open>finite_decomp P\<close> have "Hilbert_fun T d = (\<Sum>(t, U)\<in>P. Hilbert_fun (cone t U) d)"
+    by (rule Hilbert_fun_cone_decomp)
+  also have "\<dots> = (\<Sum>(t, U)\<in>(P - P\<^sub>+) \<union> P\<^sub>+. Hilbert_fun (cone t U) d)" by (simp only: eq0)
+  also have "\<dots> = (\<Sum>(t, U)\<in>P - P\<^sub>+. Hilbert_fun (cone t U) d) + (\<Sum>(t, U)\<in>P\<^sub>+. Hilbert_fun (cone t U) d)"
+    using fin2 fin1 by (rule sum.union_disjoint) blast
+  also have "\<dots> = card {t. (t, {}) \<in> P \<and> deg_pm t = d} + (\<Sum>(t, U)\<in>P\<^sub>+. Hilbert_fun (cone t U) d)"
+    by (simp only: eq1)
+  also have "int \<dots> = card {t. (t, {}) \<in> P \<and> deg_pm t = d} + Hilbert_poly (\<b> P) d"
+    by (simp only: eq2 int_plus)
+  finally show ?thesis .
+qed
+
+corollary Hilbert_fun_eq_Hilbert_poly:
+  assumes "finite X" and "cone_decomp T P" and "standard_decomp k P" and "exact_decomp 0 P"
+    and "\<b> P 0 \<le> d"
+  shows "int (Hilbert_fun T d) = Hilbert_poly (\<b> P) d"
+proof -
+  from assms(2) have "finite P" by (rule cone_decompD)
+  hence "\<b> P (Suc 0) \<le> \<b> P 0" using le0 by (rule \<b>_decreasing)
+  also have "\<dots> \<le> d" by fact
+  finally have "\<b> P (Suc 0) \<le> d" .
+  with assms(1-4) have "int (Hilbert_fun T d) =
+                int (card {t. (t, {}) \<in> P \<and> deg_pm t = d}) + Hilbert_poly (\<b> P) (int d)"
+    by (rule Hilbert_fun_eq_Hilbert_poly_plus_card)
+  also have "\<dots> = Hilbert_poly (\<b> P) (int d)"
+  proof -
+    have eq: "{t. (t, {}) \<in> P \<and> deg_pm t = d} = {}"
+    proof -
+      {
+        fix t
+        assume "(t, {}) \<in> P" and "deg_pm t = d"
+        from \<open>finite P\<close> this(1) le0 have "deg_pm t < \<b> P 0" by (rule \<b>)
+        with assms(5) have False by (simp add: \<open>deg_pm t = d\<close>)
+      }
+      thus ?thesis by blast
+    qed
+    show ?thesis by (simp add: eq)
+  qed
+  finally show ?thesis .
 qed
 
 end
