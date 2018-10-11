@@ -143,6 +143,37 @@ qed
 
 lemma card_le_1_iff: "finite A \<Longrightarrow> card A \<le> Suc 0 \<longleftrightarrow> (\<forall>a\<in>A. \<forall>b\<in>A. a = b)"
   using card_le_1D card_le_1I by (metis One_nat_def)
+
+section \<open>Sums\<close>
+
+lemma sum_head_int: "a \<le> (b::int) \<Longrightarrow> sum f {a..b} = f a + sum f {a + 1..b}"
+  by (smt atLeastAtMost_iff finite_atLeastAtMost_int simp_from_to sum.insert)
+
+lemma sum_tail_int: "a \<le> (b::int) \<Longrightarrow> sum f {a..b} = f b + sum f {a..b - 1}"
+  by (smt Icc_eq_Icc atLeastAtMostPlus1_int_conv finite_atLeastAtMost_int insert_absorb sum.insert)
+
+lemma sum_tail_nat: "0 < b \<Longrightarrow> a \<le> (b::nat) \<Longrightarrow> sum f {a..b} = f b + sum f {a..b - 1}"
+  by (metis One_nat_def Suc_pred add.commute not_le sum_cl_ivl_Suc)
+
+corollary sum_tail_nat': "a < (b::nat) \<Longrightarrow> sum f {a..b} = f b + sum f {a..b - 1}"
+  by (simp add: sum_tail_nat)
+
+lemma sum_atLeast_Suc_shift: "0 < b \<Longrightarrow> a \<le> b \<Longrightarrow> sum f {Suc a..b} = (\<Sum>i=a..b - 1. f (Suc i))"
+  by (metis Suc_diff_1 sum_shift_bounds_cl_Suc_ivl)
+
+corollary sum_atLeast_Suc_shift': "a < b \<Longrightarrow> sum f {Suc a..b} = (\<Sum>i=a..b - 1. f (Suc i))"
+  by (simp add: sum_atLeast_Suc_shift)
+
+thm sum_head_Suc
+
+lemma sum_nat_int_conv: "sum f {a..b} = (\<Sum>i=int a..int b. f (nat i))"
+  by (metis (mono_tags, lifting) comp_def nat_int sum.atLeast_int_atMost_int_shift sum.cong)
+
+lemma sum_int_nat_conv: "0 \<le> a \<Longrightarrow> 0 \<le> b \<Longrightarrow> sum f {a..b} = (\<Sum>i=nat a..nat b. f (int i))"
+  by (smt imageE image_int_atLeastAtMost int_nat_eq nat_int sum.cong sum_nat_int_conv)
+
+lemma sum_int_nat_conv': "0 < a \<Longrightarrow> sum f {a..b} = (\<Sum>i=nat a..nat b. f (int i))"
+  by (smt atLeastAtMost_iff nat_0_iff sum.cong sum.not_neutral_contains_not_neutral sum_int_nat_conv)
     
 section \<open>Lists\<close>
 
