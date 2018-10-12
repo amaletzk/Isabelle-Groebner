@@ -103,14 +103,6 @@ next
   thus "deg_pm (t - s) = deg_pm t" by (simp only:)
 qed
 
-subsubsection \<open>Direct Decompositions\<close>
-
-definition direct_decomposition :: "'a set \<Rightarrow> 'a::comm_monoid_add set set \<Rightarrow> bool"
-  where "direct_decomposition A Q \<longleftrightarrow>
-          (\<forall>a\<in>A. \<exists>P f. finite P \<and> P \<subseteq> Q \<and> (\<forall>p\<in>P. f p \<in> p \<and> f p \<noteq> 0) \<and> a = sum f P \<and>
-            (\<forall>P' f'. finite P' \<longrightarrow> P' \<subseteq> Q \<longrightarrow> (\<forall>p\<in>P'. f' p \<in> p \<and> f' p \<noteq> 0) \<longrightarrow> a = sum f' P' \<longrightarrow>
-              (P' = P \<and> (\<forall>p\<in>P. f' p = f p))))"
-
 subsection \<open>Basic Cone Decompositions\<close>
 
 definition Hilbert_fun :: "('x::countable \<Rightarrow>\<^sub>0 nat) set \<Rightarrow> nat \<Rightarrow> nat"
@@ -1105,10 +1097,6 @@ begin
 definition ideal_like :: "('x::countable \<Rightarrow>\<^sub>0 nat) set \<Rightarrow> bool"
   where "ideal_like T \<longleftrightarrow> T \<subseteq> .[X] \<and> (\<forall>s\<in>.[X]. \<forall>t\<in>T. s + t \<in> T)"
 
-(* OBSOLETE? *)
-definition aideal_like :: "('x::countable \<Rightarrow>\<^sub>0 nat) set \<Rightarrow> bool"
-  where "aideal_like T \<longleftrightarrow> (\<forall>s. \<forall>t\<in>T. s adds t \<longrightarrow> s \<in> T)"
-
 lemma ideal_likeI: "T \<subseteq> .[X] \<Longrightarrow> (\<And>s t. s \<in> .[X] \<Longrightarrow> t \<in> T \<Longrightarrow> s + t \<in> T) \<Longrightarrow> ideal_like T"
   by (simp add: ideal_like_def)
 
@@ -1116,61 +1104,6 @@ lemma ideal_likeD:
   assumes "ideal_like T"
   shows "T \<subseteq> .[X]" and "\<And>t s. s \<in> .[X] \<Longrightarrow> t \<in> T \<Longrightarrow> s + t \<in> T"
   using assms by (simp_all add: ideal_like_def)
-
-lemma aideal_likeI: "(\<And>t s. t \<in> T \<Longrightarrow> s adds t \<Longrightarrow> s \<in> T) \<Longrightarrow> aideal_like T"
-  by (simp add: aideal_like_def)
-
-lemma aideal_likeD: "aideal_like T \<Longrightarrow> t \<in> T \<Longrightarrow> s adds t \<Longrightarrow> s \<in> T"
-  unfolding aideal_like_def by blast
-
-lemma ideal_like_Diff:
-  assumes "aideal_like T"
-  shows "ideal_like (.[X] - T)"
-proof (rule ideal_likeI)
-  show ".[X] - T \<subseteq> .[X]" by blast
-next
-  fix s t
-  assume "s \<in> .[X]"
-  assume "t \<in> .[X] - T"
-  hence "t \<in> .[X]" and "t \<notin> T" by simp_all
-  from \<open>s \<in> .[X]\<close> this(1) have "s + t \<in> .[X]" by (rule PPs_closed_plus)
-  moreover have "s + t \<notin> T"
-  proof
-    note assms
-    moreover assume "s + t \<in> T"
-    moreover from add.commute have "t adds s + t" by (rule addsI)
-    ultimately have "t \<in> T" by (rule aideal_likeD)
-    with \<open>t \<notin> T\<close> show False ..
-  qed
-  ultimately show "s + t \<in> .[X] - T" by simp
-qed
-
-lemma aideal_like_Diff:
-  assumes "U \<subseteq> X" and "ideal_like T"
-  shows "aideal_like (.[U] - T)"
-proof (rule aideal_likeI)
-  fix t s
-  assume "t \<in> .[U] - T"
-  hence "t \<in> .[U]" and "t \<notin> T" by simp_all
-  note this(1)
-  moreover assume "s adds t"
-  ultimately have "s \<in> .[U]" by (rule PPs_closed_adds)
-  moreover have "s \<notin> T"
-  proof
-    note assms(2)
-    moreover have "t - s \<in> .[X]"
-    proof
-      from \<open>t \<in> .[U]\<close> show "t - s \<in> .[U]" by (rule PPs_closed_minus)
-    next
-      from assms(1) show ".[U] \<subseteq> .[X]" by (rule PPs_mono)
-    qed
-    moreover assume "s \<in> T"
-    ultimately have "(t - s) + s \<in> T" by (rule ideal_likeD)
-    with \<open>s adds t\<close> have "t \<in> T" by (simp add: adds_minus)
-    with \<open>t \<notin> T\<close> show False ..
-  qed
-  ultimately show "s \<in> .[U] - T" by simp
-qed
 
 lemma cone_subset_ideal_like_iff:
   assumes "ideal_like T"
@@ -1201,66 +1134,6 @@ next
     also from \<open>U \<subseteq> X\<close> have "... \<subseteq> cone t X" by (rule cone_mono_2)
     finally obtain s' where "s' \<in> .[X]" and s: "s = s' + t" by (rule coneE)
     from assms this(1) \<open>t \<in> T\<close> show "s \<in> T" unfolding s by (rule ideal_likeD)
-  qed
-qed
-
-(* OBSOLETE? *)
-lemma ideal_like_generated:
-  assumes "finite X" and "ideal_like T"
-  obtains S where "finite S" and "S \<subseteq> T" and "T = (\<Union>s\<in>S. cone s X)"
-proof -
-  have refl: "reflp ((adds)::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> _)" by (simp add: reflp_def)
-  define m where "m = Max (elem_index ` X)"
-  from assms(2) have "T \<subseteq> .[X]" by (rule ideal_likeD)
-  also have "... \<subseteq> {t. varnum t \<le> Suc m}" (is "_ \<subseteq> ?Y")
-  proof
-    fix t
-    assume "t \<in> .[X]"
-    from assms(1) have fin: "finite (elem_index ` X)" by (rule finite_imageI)
-    {
-      fix x
-      assume "x \<in> keys t"
-      moreover from \<open>t \<in> .[X]\<close> have "keys t \<subseteq> X" by (rule PPsD)
-      ultimately have "x \<in> X" ..
-      hence "elem_index x \<in> elem_index ` X" by (rule imageI)
-      with fin have "elem_index x \<le> m" unfolding m_def by (rule Max_ge)
-    }
-    hence "varnum t \<le> Suc m" by (simp add: varnum_def)
-    thus "t \<in> ?Y" by simp
-  qed
-  finally have "T \<subseteq> ?Y" .
-  moreover from dickson_grading_varnum have "almost_full_on (adds) ?Y"
-    by (rule dickson_gradingD2)
-  ultimately have "almost_full_on (adds) T" by (rule almost_full_on_subset)
-  with refl obtain S where "finite S" and "S \<subseteq> T" and 1: "\<And>t. t \<in> T \<Longrightarrow> (\<exists>s\<in>S. s adds t)"
-    by (rule almost_full_on_finite_subsetE, blast)
-  from this(1, 2) show ?thesis
-  proof
-    show "T = (\<Union>s\<in>S. cone s X)"
-    proof (rule Set.set_eqI)
-      fix t
-      show "t \<in> T \<longleftrightarrow> t \<in> (\<Union>s\<in>S. cone s X)"
-      proof
-        assume "t \<in> T"
-        hence "\<exists>s\<in>S. s adds t" by (rule 1)
-        then obtain s where "s \<in> S" and "s adds t" ..
-        have "t \<in> cone s X"
-        proof (rule coneI)
-          from \<open>s adds t\<close> show "t = (t - s) + s" by (simp only: adds_minus)
-        next
-          from \<open>t \<in> T\<close> \<open>T \<subseteq> .[X]\<close> have "t \<in> .[X]" ..
-          thus "t - s \<in> .[X]" by (rule PPs_closed_minus)
-        qed
-        with \<open>s \<in> S\<close> show "t \<in> (\<Union>s\<in>S. cone s X)" ..
-      next
-        assume "t \<in> (\<Union>s\<in>S. cone s X)"
-        then obtain s where "s \<in> S" and "t \<in> cone s X" ..
-        from this(2) obtain s' where "s' \<in> .[X]" and t: "t = s' + s" by (rule coneE)
-        note assms(2) this(1)
-        moreover from \<open>s \<in> S\<close> \<open>S \<subseteq> T\<close> have "s \<in> T" ..
-        ultimately show "t \<in> T" unfolding t by (rule ideal_likeD)
-      qed
-    qed
   qed
 qed
 
@@ -3881,17 +3754,10 @@ qed
 subsection \<open>Hilbert Polynomial\<close>
 
 definition Hilbert_poly :: "(nat \<Rightarrow> nat) \<Rightarrow> int \<Rightarrow> int"
-  where "Hilbert_poly b d =
-                (let n = card X in
-                  ((d - b (Suc n) + n) gchoose n) - 1 - (\<Sum>i=1..n. (d - b i + i - 1) gchoose i))"
-
-definition Hilbert_poly_real :: "(nat \<Rightarrow> nat) \<Rightarrow> real \<Rightarrow> real"
-  where "Hilbert_poly_real b z =
-                (let n = card X in
+  where "Hilbert_poly b =
+                (\<lambda>z::int. let n = card X in
                   ((z - b (Suc n) + n) gchoose n) - 1 - (\<Sum>i=1..n. (z - b i + i - 1) gchoose i))"
 
-lemma real_Hilbert_poly: "of_int (Hilbert_poly b d) = Hilbert_poly_real b (real d)"
-  by (simp add: Hilbert_poly_def Hilbert_poly_real_def Let_def of_int_gbinomial)
 
 lemma Hilbert_fun_eq_Hilbert_poly_plus_card:
   assumes "finite X" and "cone_decomp T P" and "standard_decomp k P" and "exact_decomp 0 P"
