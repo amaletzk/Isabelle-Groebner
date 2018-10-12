@@ -1,7 +1,7 @@
 section \<open>Cone Decompositions\<close>
 
 theory Cone_Decomposition
-  imports Binomial_Int General_Utils MPoly_PM
+  imports Poly_Fun General_Utils MPoly_PM
 begin
 
 subsection \<open>Preliminaries\<close>
@@ -515,6 +515,9 @@ lemma finite_decomp_UN: "finite A \<Longrightarrow> (\<And>a. a \<in> A \<Longri
 corollary finite_decomp_UN_prod:
   "finite P \<Longrightarrow> (\<And>t U. (t, U) \<in> P \<Longrightarrow> finite_decomp (f t U)) \<Longrightarrow> finite_decomp (\<Union>(t, U)\<in>P. f t U)"
   by (metis (mono_tags) case_prod_conv finite_decomp_UN prod.exhaust)
+
+lemma finite_decomp_image: "finite_decomp P \<Longrightarrow> finite_decomp (apfst f ` P)"
+  by (auto dest: finite_decompD intro!: finite_decompI)
 
 lemma cone_decompI:
   assumes "finite P" and "T = (\<Union>(t, U)\<in>P. cone t U)"
@@ -1290,6 +1293,30 @@ next
   thus "s \<in> (\<lambda>s. s - t) ` I" by simp
 qed
 
+corollary ideal_like_image_plus_minus_subset:
+  assumes "ideal_like I" and "t \<in> .[X]"
+  shows "(+) t ` (\<lambda>s. s - t) ` I \<subseteq> I"
+proof
+  fix v
+  assume "v \<in> (+) t ` (\<lambda>s. s - t) ` I"
+  then obtain s where "s \<in> (\<lambda>s. s - t) ` I" and v: "v = t + s" ..
+  from assms this(1) have "s + t \<in> I" by (simp only: ideal_like_image_minus_iff)
+  thus "v \<in> I" by (simp only: v add.commute)
+qed
+
+corollary ideal_like_image_plus_minus_superset:
+  assumes "ideal_like I" and "t \<in> .[X]"
+  shows "I \<inter> cone t X \<subseteq> (+) t ` (\<lambda>s. s - t) ` I"
+proof
+  fix v
+  assume "v \<in> I \<inter> cone t X"
+  hence "v \<in> I" and "v \<in> cone t X" by simp_all
+  from this(2) obtain s where "s \<in> .[X]" and v: "v = s + t" by (rule coneE)
+  from \<open>v \<in> I\<close> have "s + t \<in> I" by (simp only: v)
+  with assms have "s \<in> (\<lambda>s. s - t) ` I" by (simp only: ideal_like_image_minus_iff)
+  thus "v \<in> (+) t ` (\<lambda>s. s - t) ` I" by (rule rev_image_eqI) (simp only: v add.commute)
+qed
+
 lemma ideal_like_cone_iff: "ideal_like (cone t U) \<longleftrightarrow> (t \<in> .[X] \<and> U = X)"
 proof
   assume *: "ideal_like (cone t U)"
@@ -1688,6 +1715,15 @@ qed
 
 corollary split_domI: "finite X \<Longrightarrow> U \<subseteq> X \<Longrightarrow> finite F \<Longrightarrow> split_dom (t, U, F)"
   using split_domI'[of "(t, U, F)"] by simp
+
+lemma split_empty:
+  assumes "finite X" and "U \<subseteq> X"
+  shows "split t U {} = ({}, {(t, U)})"
+proof -
+  have "finite {}" ..
+  with assms have "split_dom (t, U, {})" by (rule split_domI)
+  thus ?thesis by (simp add: split.psimps)
+qed
 
 lemma split_induct [consumes 3, case_names base1 base2 step]:
   fixes P :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> _"
@@ -3801,6 +3837,45 @@ proof -
     from assms show "exact k Q \<noteq> {}" by (simp add: exact_empty_iff)
   qed
   finally show ?thesis by simp
+qed
+
+lemma ideal_compl_exact_decompE:
+  assumes "finite X" and "finite F" and "F \<subseteq> .[X]" and "reduced_basis F" and "I = (\<Union>g\<in>F. cone g X)"
+  obtains Q where "standard_decomp 0 Q" and "cone_decomp (.[X] - I) Q" and "exact_decomp 0 Q"
+    and "\<And>f. f \<in> F \<Longrightarrow> deg_pm f \<le> \<b> Q 0"
+proof -
+  define Q where "Q = snd (split 0 X F)"
+  from assms(1, 2, 3, 5) have std: "standard_decomp 0 Q" and cn: "cone_decomp (.[X] - I) Q"
+    unfolding Q_def by (rule standard_cone_decomp_snd_split)+
+  from cn have fin: "finite Q" by (rule cone_decompD)
+  have ".[X] - I \<subseteq> .[X]" by blast
+  moreover from cn have eq: ".[X] - I = (\<Union>(t, U)\<in>Q. cone t U)" by (rule cone_decompD)
+  ultimately have "cone t U \<subseteq> .[X]" if "(t, U) \<in> Q" for t U using that by blast
+  hence 1: "\<And>t U. (t, U) \<in> Q \<Longrightarrow> t \<in> .[X]" and 2: "\<And>t U. (t, U) \<in> Q \<Longrightarrow> U \<subseteq> X"
+    by (auto dest: cone_indets)
+  let ?Q = "exact 0 Q"
+  from assms(1) fin std 1 2 have "standard_decomp 0 ?Q" by (rule exact)
+  moreover from assms(1) std cn 1 2 have "cone_decomp (.[X] - I) ?Q" by (rule cone_decomp_exact)
+  moreover from assms(1) fin std 1 2 have "exact_decomp 0 ?Q" by (rule exact)
+  moreover have "deg_pm f \<le> \<b> ?Q 0" if "f \<in> F" for f
+  proof (cases "Q = {}")
+    case True
+    hence ".[X] - I = {}" by (simp add: eq)
+    hence ".[X] \<subseteq> I" by blast
+    with zero_in_PPs have "0 \<in> I" ..
+    then obtain g where "g \<in> F" and "0 \<in> cone g X" unfolding assms(5) ..
+    from this(2) have "g = 0" by (simp only: zero_in_cone_iff)
+    with \<open>g \<in> F\<close> have "0 \<in> F" by simp
+    with assms(4) have "0 = f" using that zero_adds by (rule reduced_basisD)
+    thus ?thesis by simp
+  next
+    case False
+    from assms(1, 2, 4) refl assms(3) have "deg_pm f \<le> Suc (Max (deg_pm ` fst ` Q))"
+      unfolding Q_def using that by (rule cor_4_9)
+    also from assms(1) fin std False 1 2 have "\<dots> \<le> \<b> ?Q 0" by (rule \<b>_zero_exact)
+    finally show ?thesis .
+  qed
+  ultimately show ?thesis ..
 qed
 
 subsection \<open>Hilbert Polynomial\<close>
