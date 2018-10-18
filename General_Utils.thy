@@ -166,6 +166,10 @@ corollary sum_atLeast_Suc_shift': "a < b \<Longrightarrow> sum f {Suc a..b} = (\
 
 thm sum_head_Suc
 
+lemma sum_split_nat_ivl:
+  "a \<le> Suc j \<Longrightarrow> j \<le> b \<Longrightarrow> sum f {a..j} + sum f {Suc j..b} = sum f {a..b}"
+  by (metis Suc_eq_plus1 le_Suc_ex sum_ub_add_nat)
+
 lemma sum_nat_int_conv: "sum f {a..b} = (\<Sum>i=int a..int b. f (nat i))"
   by (metis (mono_tags, lifting) comp_def nat_int sum.atLeast_int_atMost_int_shift sum.cong)
 

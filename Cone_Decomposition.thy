@@ -105,9 +105,6 @@ qed
 
 subsection \<open>Basic Cone Decompositions\<close>
 
-definition Hilbert_fun :: "('x::countable \<Rightarrow>\<^sub>0 nat) set \<Rightarrow> nat \<Rightarrow> nat"
-  where "Hilbert_fun T d = card {t \<in> T. deg_pm t = d}"
-
 definition cone :: "('x::countable \<Rightarrow>\<^sub>0 nat) \<Rightarrow> 'x set \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) set"
   where "cone t U = (\<lambda>s. s + t) ` .[U]"
 
@@ -134,6 +131,29 @@ qed (simp add: zero_in_PPs)
 
 lemma tip_in_cone: "t \<in> cone t U"
   using _ zero_in_PPs by (rule coneI) simp
+
+lemma coneD:
+  assumes "v \<in> cone t U"
+  shows "t adds v"
+proof -
+  from assms obtain s where "v = s + t" by (rule coneE)
+  hence "v = t + s" by (simp only: add.commute)
+  thus "t adds v" by (rule addsI)
+qed
+
+lemma in_cone_alt:
+  assumes "v \<in> .[U]"
+  shows "v \<in> cone t U \<longleftrightarrow> t adds v"
+proof
+  assume "v \<in> cone t U"
+  thus "t adds v" by (rule coneD)
+next
+  assume "t adds v"
+  hence "(v - t) + t = v" by (rule adds_minus)
+  hence "v = (v - t) + t" by (rule sym)
+  moreover from assms have "v - t \<in> .[U]" by (rule PPs_closed_minus)
+  ultimately show "v \<in> cone t U" by (rule coneI)
+qed
 
 lemma cone_mono_1:
   assumes "s \<in> .[U]"
@@ -450,30 +470,6 @@ next
   finally show ?thesis .
 qed
 
-lemma Hilbert_fun_cone:
-  assumes "finite U" and "U \<noteq> ({}::'x::countable set)"
-  shows "Hilbert_fun (cone t U) z =
-          (if deg_pm t \<le> z then ((z - deg_pm t) + (card U - 1)) choose (card U - 1) else 0)"
-proof (cases "deg_pm t \<le> z")
-  case True
-  then obtain d where z: "z = deg_pm t + d" using le_imp_add by blast
-  have "Hilbert_fun (cone t U) z = card {v \<in> cone t U. deg_pm v = z}"
-    by (simp only: Hilbert_fun_def)
-  also have "... = card ((\<lambda>s. s - t) ` {v \<in> cone t U. deg_pm v = z})"
-  proof (rule sym, rule card_image, rule inj_on_minus_cone)
-    show "{v \<in> cone t U. deg_pm v = z} \<subseteq> cone t U" by blast
-  qed
-  also have "... = card (deg_sect U d)" by (simp only: z image_minus_tip_cone_deg_sect)
-  also from assms have "... = (d + (card U - 1)) choose (card U - 1)" by (rule card_deg_sect)
-  finally show ?thesis by (simp add: True z)
-next
-  case False
-  hence "z < deg_pm t" by simp
-  hence "{v \<in> cone t U. deg_pm v = z} = {}" by (rule cone_deg_empty)
-  hence "card {v \<in> cone t U. deg_pm v = z} = card ({}::('x \<Rightarrow>\<^sub>0 nat) set)" by (rule arg_cong)
-  with False show ?thesis by (simp add: Hilbert_fun_def)
-qed
-
 definition finite_decomp :: "(('x::countable \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<Rightarrow> bool"
   where "finite_decomp P \<longleftrightarrow> (finite P \<and> (\<forall>(t, U)\<in>P. finite U))"
 
@@ -658,41 +654,6 @@ next
   assume "(t, U) \<in> P"
   with assms(3, 2) have "U \<subseteq> X" by (rule cone_decomp_indets)
   thus "finite U" using assms(1) by (rule finite_subset)
-qed
-
-lemma Hilbert_fun_cone_decomp:
-  assumes "cone_decomp T P" and "finite_decomp P"
-  shows "Hilbert_fun T z = (\<Sum>(t, U)\<in>P. Hilbert_fun (cone t U) z)"
-proof -
-  from assms(1) have "T = (\<Union>(t, U)\<in>P. cone t U)" by (rule cone_decompD)
-  hence "{t \<in> T. deg_pm t = z} = (\<Union>p\<in>P. {v \<in> cone (fst p) (snd p). deg_pm v = z})" by fastforce
-  hence "Hilbert_fun T z = card ..." by (simp only: Hilbert_fun_def)
-  also have "... = (\<Sum>p\<in>P. card {v \<in> cone (fst p) (snd p). deg_pm v = z})"
-  proof (rule card_UN_disjoint)
-    from assms(1) show "finite P" by (rule cone_decompD)
-  next
-    {
-      fix t U
-      assume "(t, U) \<in> P"
-      with assms(2) have "finite U" by (rule finite_decompD)
-      hence "finite {v \<in> cone t U. deg_pm v = z}" by (rule finite_cone_deg)
-    }
-    thus "\<forall>p\<in>P. finite {v \<in> cone (fst p) (snd p). deg_pm v = z}" by fastforce
-  next
-    {
-      fix t1 t2 U1 U2 s
-      assume "(t1, U1) \<in> P" and "(t2, U2) \<in> P"
-      assume "s \<in> {v \<in> cone t1 U1. deg_pm v = z} \<inter> {v \<in> cone t2 U2. deg_pm v = z}"
-      hence "s \<in> cone t1 U1" and "s \<in> cone t2 U2" by simp_all
-      with assms(1) \<open>(t1, U1) \<in> P\<close> \<open>(t2, U2) \<in> P\<close> have "(t1, U1) = (t2, U2)" by (rule cone_decompD)
-    }
-    thus "\<forall>p1\<in>P. \<forall>p2\<in>P. p1 \<noteq> p2 \<longrightarrow>
-          {v \<in> cone (fst p1) (snd p1). deg_pm v = z} \<inter> {v \<in> cone (fst p2) (snd p2). deg_pm v = z} = {}"
-      by fastforce
-  qed
-  also have "... = (\<Sum>(t, U)\<in>P. Hilbert_fun (cone t U) z)"
-    by (simp add: case_prod_beta' Hilbert_fun_def)
-  finally show ?thesis .
 qed
 
 definition pos_decomp :: "(('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set" ("(_\<^sub>+)" [1000] 999)
@@ -3751,13 +3712,141 @@ proof -
   ultimately show ?thesis ..
 qed
 
-subsection \<open>Hilbert Polynomial\<close>
+subsection \<open>Hilbert Function and Hilbert Polynomial\<close>
+
+definition Hilbert_fun :: "('x \<Rightarrow>\<^sub>0 nat) set \<Rightarrow> nat \<Rightarrow> nat"
+  where "Hilbert_fun T z = card {t \<in> T. deg_pm t = z}"
+
+lemma Hilbert_fun_empty [simp]: "Hilbert_fun {} = 0"
+  by (rule ext) (simp add: Hilbert_fun_def)
+
+lemma Hilbert_fun_UN:
+  assumes "finite U" and "finite I" and "\<And>i. i \<in> I \<Longrightarrow> T i \<subseteq> .[U]"
+    and "\<And>i j t. i \<in> I \<Longrightarrow> j \<in> I \<Longrightarrow> t \<in> T i \<Longrightarrow> t \<in> T j \<Longrightarrow> i = j"
+  shows "Hilbert_fun (\<Union> (T ` I)) z = (\<Sum>i\<in>I. Hilbert_fun (T i) z)"
+proof -
+  have eq: "{t \<in> (\<Union> (T ` I)). deg_pm t = z} = (\<Union>i\<in>I. {t \<in> T i. deg_pm t = z})" by auto
+  show ?thesis unfolding Hilbert_fun_def eq
+  proof (intro card_UN_disjoint ballI impI assms(2))
+    fix i
+    assume "i \<in> I"
+    hence "T i \<subseteq> .[U]" by (rule assms(3))
+    hence "{t \<in> T i. deg_pm t = z} \<subseteq> {t \<in> .[U]. deg_pm t = z}" by blast
+    moreover have "finite \<dots>" unfolding cone_zero[symmetric] using assms(1)
+      by (rule finite_cone_deg)
+    ultimately show "finite {t \<in> T i. deg_pm t = z}" by (rule finite_subset)
+  next
+    fix i j
+    assume "i \<in> I" and "j \<in> I" and "i \<noteq> j"
+    {
+      fix t
+      assume "t \<in> T i" and "t \<in> T j"
+      with \<open>i \<in> I\<close> \<open>j \<in> I\<close> have "i = j" by (rule assms(4))
+      with \<open>i \<noteq> j\<close> have False ..
+    }
+    thus "{t \<in> T i. deg_pm t = z} \<inter> {t \<in> T j. deg_pm t = z} = {}" by blast
+  qed
+qed
+
+corollary Hilbert_fun_Un:
+  assumes "finite U" and "S \<subseteq> .[U]" and "T \<subseteq> .[U]" and "S \<inter> T = {}"
+  shows "Hilbert_fun (S \<union> T) z = Hilbert_fun S z + Hilbert_fun T z"
+proof (cases "S = T")
+  case True
+  with assms(4) show ?thesis by simp
+next
+  case False
+  from assms(1) have "Hilbert_fun (\<Union> ((\<lambda>x. x) ` {S, T})) z = (\<Sum>x\<in>{S, T}. Hilbert_fun x z)"
+  proof (rule Hilbert_fun_UN)
+    fix x
+    assume "x \<in> {S, T}"
+    with assms(2, 3) show "x \<subseteq> .[U]" by blast
+  next
+    fix x y t
+    assume "x \<in> {S, T}" and "y \<in> {S, T}" and "t \<in> x" and "t \<in> y"
+    with assms(4) show "x = y" by blast
+  qed simp
+  with False show ?thesis by simp
+qed
+
+lemma Hilbert_fun_cone:
+  assumes "finite U" and "U \<noteq> ({}::'x set)"
+  shows "Hilbert_fun (cone t U) z =
+          (if deg_pm t \<le> z then ((z - deg_pm t) + (card U - 1)) choose (card U - 1) else 0)"
+proof (cases "deg_pm t \<le> z")
+  case True
+  then obtain d where z: "z = deg_pm t + d" using le_imp_add by blast
+  have "Hilbert_fun (cone t U) z = card {v \<in> cone t U. deg_pm v = z}"
+    by (simp only: Hilbert_fun_def)
+  also have "... = card ((\<lambda>s. s - t) ` {v \<in> cone t U. deg_pm v = z})"
+  proof (rule sym, rule card_image, rule inj_on_minus_cone)
+    show "{v \<in> cone t U. deg_pm v = z} \<subseteq> cone t U" by blast
+  qed
+  also have "... = card (deg_sect U d)" by (simp only: z image_minus_tip_cone_deg_sect)
+  also from assms have "... = (d + (card U - 1)) choose (card U - 1)" by (rule card_deg_sect)
+  finally show ?thesis by (simp add: True z)
+next
+  case False
+  hence "z < deg_pm t" by simp
+  hence "{v \<in> cone t U. deg_pm v = z} = {}" by (rule cone_deg_empty)
+  hence "card {v \<in> cone t U. deg_pm v = z} = card ({}::('x \<Rightarrow>\<^sub>0 nat) set)" by (rule arg_cong)
+  with False show ?thesis by (simp add: Hilbert_fun_def)
+qed
+
+corollary Hilbert_fun_PPs:
+  assumes "finite U" and "U \<noteq> ({}::'x set)"
+  shows "Hilbert_fun .[U] z = (z + (card U - 1)) choose (card U - 1)"
+proof -
+  let ?t = "0::'x \<Rightarrow>\<^sub>0 nat"
+  have "Hilbert_fun .[U] z = Hilbert_fun (cone 0 U) z" by simp
+  also from assms have "\<dots> = (if deg_pm ?t \<le> z then ((z - deg_pm ?t) + (card U - 1)) choose (card U - 1) else 0)"
+    by (rule Hilbert_fun_cone)
+  also have "\<dots> = (z + (card U - 1)) choose (card U - 1)" by simp
+  finally show ?thesis .
+qed
+
+lemma Hilbert_fun_cone_decomp:
+  assumes "cone_decomp T P" and "finite_decomp P"
+  shows "Hilbert_fun T z = (\<Sum>(t, U)\<in>P. Hilbert_fun (cone t U) z)"
+proof -
+  from assms(1) have "T = (\<Union>(t, U)\<in>P. cone t U)" by (rule cone_decompD)
+  hence "{t \<in> T. deg_pm t = z} = (\<Union>p\<in>P. {v \<in> cone (fst p) (snd p). deg_pm v = z})" by fastforce
+  hence "Hilbert_fun T z = card ..." by (simp only: Hilbert_fun_def)
+  also have "... = (\<Sum>p\<in>P. card {v \<in> cone (fst p) (snd p). deg_pm v = z})"
+  proof (rule card_UN_disjoint)
+    from assms(1) show "finite P" by (rule cone_decompD)
+  next
+    {
+      fix t U
+      assume "(t, U) \<in> P"
+      with assms(2) have "finite U" by (rule finite_decompD)
+      hence "finite {v \<in> cone t U. deg_pm v = z}" by (rule finite_cone_deg)
+    }
+    thus "\<forall>p\<in>P. finite {v \<in> cone (fst p) (snd p). deg_pm v = z}" by fastforce
+  next
+    {
+      fix t1 t2 U1 U2 s
+      assume "(t1, U1) \<in> P" and "(t2, U2) \<in> P"
+      assume "s \<in> {v \<in> cone t1 U1. deg_pm v = z} \<inter> {v \<in> cone t2 U2. deg_pm v = z}"
+      hence "s \<in> cone t1 U1" and "s \<in> cone t2 U2" by simp_all
+      with assms(1) \<open>(t1, U1) \<in> P\<close> \<open>(t2, U2) \<in> P\<close> have "(t1, U1) = (t2, U2)" by (rule cone_decompD)
+    }
+    thus "\<forall>p1\<in>P. \<forall>p2\<in>P. p1 \<noteq> p2 \<longrightarrow>
+          {v \<in> cone (fst p1) (snd p1). deg_pm v = z} \<inter> {v \<in> cone (fst p2) (snd p2). deg_pm v = z} = {}"
+      by fastforce
+  qed
+  also have "... = (\<Sum>(t, U)\<in>P. Hilbert_fun (cone t U) z)"
+    by (simp add: case_prod_beta' Hilbert_fun_def)
+  finally show ?thesis .
+qed
 
 definition Hilbert_poly :: "(nat \<Rightarrow> nat) \<Rightarrow> int \<Rightarrow> int"
   where "Hilbert_poly b =
                 (\<lambda>z::int. let n = card X in
                   ((z - b (Suc n) + n) gchoose n) - 1 - (\<Sum>i=1..n. (z - b i + i - 1) gchoose i))"
 
+lemma poly_fun_Hilbert_poly: "poly_fun (Hilbert_poly b)"
+  by (simp add: Hilbert_poly_def Let_def)
 
 lemma Hilbert_fun_eq_Hilbert_poly_plus_card:
   assumes "finite X" and "cone_decomp T P" and "standard_decomp k P" and "exact_decomp 0 P"
@@ -4031,6 +4120,645 @@ proof -
   qed
   finally show ?thesis .
 qed
+
+subsection \<open>Dub\'{e}'s Bound\<close>
+
+context
+  fixes f :: "'x \<Rightarrow>\<^sub>0 nat"
+  fixes S T :: "('x \<Rightarrow>\<^sub>0 nat) set"
+  fixes P Q :: "(('x \<Rightarrow>\<^sub>0 nat) \<times> ('x set)) set"
+  assumes n_gr_1: "1 < card X" and f_in: "f \<in> .[X]" and S_sub: "S \<subseteq> .[X]" and T_sub: "T \<subseteq> .[X]"
+    and S_ne: "S \<noteq> {}" and d_gr_0: "0 < deg_pm f"
+    and cn_P: "cone_decomp S P" and cn_Q: "cone_decomp T Q"
+    and std_P: "standard_decomp (deg_pm f) P" and std_Q: "standard_decomp 0 Q"
+    and ext_P: "exact_decomp 0 P" and ext_Q: "exact_decomp 0 Q"
+    and PPs_X: ".[X] = cone f X \<union> S \<union> T" and dsjnt1: "cone f X \<inter> S = {}"
+    and dsjnt2: "(cone f X \<union> S) \<inter> T = {}" and ideal_like: "ideal_like (cone f X \<union> S)"
+begin
+
+private abbreviation "n \<equiv> card X"
+private abbreviation "d \<equiv> deg_pm f"
+private definition "aa \<equiv> \<b> P"
+private definition "bb \<equiv> \<b> Q"
+
+lemma n_gr_0: "0 < n"
+  using \<open>1 < n\<close> by simp
+
+corollary int_n_minus_1 [simp]: "int (n - Suc 0) = int n - 1"
+  using n_gr_0 by simp
+
+lemma X_nonempty: "X \<noteq> {}" and fin_X: "finite X"
+  using n_gr_0 by (simp_all add: card_gt_0_iff)
+
+lemma int_n_minus_2 [simp]: "int (n - Suc (Suc 0)) = int n - 2"
+  using n_gr_1 by simp
+
+lemma cone_f_X_sub: "cone f X \<subseteq> .[X]"
+  unfolding cone_zero[symmetric] using zero_adds f_in by (rule cone_mono_1')
+
+lemma P_nonempty: "P\<^sub>+ \<noteq> {}"
+proof
+  assume "P\<^sub>+ = {}"
+  have "P\<^sub>+ \<union> {p \<in> P. snd p = {}} = P" by (auto simp: pos_decomp_def)
+  moreover from cn_P have "S = (\<Union>(t, U)\<in>P. cone t U)" by (rule cone_decompD)
+  ultimately have "S = (\<Union>(t, U)\<in>P\<^sub>+ \<union> {p \<in> P. snd p = {}}. cone t U)" by (simp only:)
+  also have "\<dots> = (\<Union>(t, U)\<in>{p \<in> P. snd p = {}}. {t})" by (auto simp: \<open>P\<^sub>+ = {}\<close>)
+  also have "finite \<dots>"
+  proof (rule finite_UN_I)
+    have "{p \<in> P. snd p = {}} \<subseteq> P" by blast
+    moreover from cn_P have "finite P" by (rule cone_decompD)
+    ultimately show "finite {p \<in> P. snd p = {}}" by (rule finite_subset)
+  qed (simp add: case_prod_beta)
+  finally have "finite S" .
+  from S_ne obtain s where "s \<in> S" by blast
+  with dsjnt1 S_sub have "s \<notin> cone f X" and "s \<in> .[X]" by blast+
+  with f_in have "\<not> f adds s" by (simp add: in_cone_alt)
+  then obtain x where "lookup s x < lookup f x" unfolding adds_poly_mapping le_fun_def
+    using not_less by blast
+  hence "x \<in> keys f" by (simp add: in_keys_iff)
+  also from f_in have "\<dots> \<subseteq> X" by (rule PPsD)
+  finally have "x \<in> X" .
+  with fin_X have "card (X - {x}) = n - 1" by (rule card_Diff_singleton)
+  also have "\<dots> > 0" using n_gr_1 by simp
+  finally have "X - {x} \<noteq> {}" by fastforce
+  then obtain y where "y \<in> X - {x}" by blast
+  hence "y \<in> X" and "y \<noteq> x" by simp_all
+  have "Poly_Mapping.single y k + s \<in> S" for k
+  proof -
+    note ideal_like
+    moreover from \<open>y \<in> X\<close> have "Poly_Mapping.single y k \<in> .[X]" by (rule PPs_closed_single)
+    moreover from \<open>s \<in> S\<close> have "s \<in> cone f X \<union> S" by simp
+    ultimately have "Poly_Mapping.single y k + s \<in> cone f X \<union> S" by (rule ideal_likeD)
+    moreover have "Poly_Mapping.single y k + s \<notin> cone f X"
+    proof
+      assume "Poly_Mapping.single y k + s \<in> cone f X"
+      hence "f adds Poly_Mapping.single y k + s" by (rule coneD)
+      hence "lookup f x \<le> lookup (Poly_Mapping.single y k + s) x"
+        by (simp add: adds_poly_mapping le_fun_def)
+      also from \<open>y \<noteq> x\<close> have "\<dots> = lookup s x" by (simp add: lookup_add lookup_single)
+      finally show False using \<open>lookup s x < lookup f x\<close> by simp
+    qed
+    ultimately show ?thesis by simp
+  qed
+  hence "range (\<lambda>k. Poly_Mapping.single y k + s) \<subseteq> S" by blast
+  moreover have "infinite (range (\<lambda>k. Poly_Mapping.single y k + s))"
+    by (rule range_inj_infinite) (auto simp: inj_on_def dest: monomial_inj)
+  ultimately have "infinite S" by (rule infinite_super)
+  thus False using \<open>finite S\<close> ..
+qed
+
+lemma aa_Suc_n [simp]: "aa (Suc n) = d"
+proof -
+  from cn_P have "finite P" by (rule cone_decompD)
+  with fin_X ext_P have "finite_decomp P" by (rule exact_decomp_imp_finite_decomp)
+  from fin_X ext_P le_refl have "aa (Suc n) = \<a> P" unfolding aa_def by (rule \<b>_card_X)
+  also from \<open>finite_decomp P\<close> std_P P_nonempty have "\<dots> = d" by (rule \<a>_nonempty_unique)
+  finally show ?thesis .
+qed
+
+lemma aa_decreasing:
+  assumes "i \<le> j"
+  shows "aa j \<le> aa i"
+proof -
+  from cn_P have "finite P" by (rule cone_decompD)
+  thus ?thesis unfolding aa_def using assms by (rule \<b>_decreasing)
+qed
+
+lemma bb_Suc_n [simp]: "bb (Suc n) = 0"
+proof -
+  from fin_X ext_Q le_refl have "bb (Suc n) = \<a> Q" unfolding bb_def by (rule \<b>_card_X)
+  also from std_Q have "\<dots> = 0" unfolding \<a>_def by (rule Least_eq_0)
+  finally show ?thesis .
+qed
+
+lemma bb_decreasing:
+  assumes "i \<le> j"
+  shows "bb j \<le> bb i"
+proof -
+  from cn_Q have "finite Q" by (rule cone_decompD)
+  thus ?thesis unfolding bb_def using assms by (rule \<b>_decreasing)
+qed
+
+lemma Hilbert_fun_X:
+  assumes "d \<le> z"
+  shows "Hilbert_fun .[X] z = ((z - d) + (n - 1)) choose (n - 1) + Hilbert_fun S z + Hilbert_fun T z"
+    (is "?l = _")
+proof -
+  have "?l = Hilbert_fun (cone f X \<union> S) z + Hilbert_fun T z"
+    unfolding PPs_X using fin_X _ T_sub dsjnt2
+  proof (rule Hilbert_fun_Un)
+    from cone_f_X_sub S_sub show "cone f X \<union> S \<subseteq> .[X]" by simp
+  qed
+  also have "Hilbert_fun (cone f X \<union> S) z = Hilbert_fun (cone f X) z + Hilbert_fun S z"
+    using fin_X cone_f_X_sub S_sub dsjnt1 by (rule Hilbert_fun_Un)
+  also from fin_X X_nonempty have "Hilbert_fun (cone f X) z = ((z - d) + (n - 1)) choose (n - 1)"
+    by (simp add: Hilbert_fun_cone assms)
+  finally show ?thesis .
+qed
+
+lemma dube_eq_0:
+  "(\<lambda>z::int. (z + int n - 1) gchoose (n - 1)) =
+    (\<lambda>z::int. ((z - d + n - 1) gchoose (n - 1)) + Hilbert_poly aa z + Hilbert_poly bb z)"
+    (is "?f = ?g")
+proof (rule poly_fun_eqI_ge)
+  fix z::int
+  let ?z = "nat z"
+  assume "max (aa 0) (bb 0) \<le> z"
+  hence "aa 0 \<le> nat z" and "bb 0 \<le> nat z" and "0 \<le> z" by simp_all
+  from this(3) have int_z: "int ?z = z" by simp
+  have "d \<le> aa 0" unfolding aa_Suc_n[symmetric] using le0 by (rule aa_decreasing)
+  hence "d \<le> ?z" using \<open>aa 0 \<le> nat z\<close> by (rule le_trans)
+  hence int_zd: "int (?z - d) = z - int d" using int_z by linarith
+  from \<open>d \<le> ?z\<close> have "Hilbert_fun .[X] ?z = ((?z - d) + (n - 1)) choose (n - 1) + Hilbert_fun S ?z + Hilbert_fun T ?z"
+    by (rule Hilbert_fun_X)
+  also have "int \<dots> = (z - d + (n - 1)) gchoose (n - 1) + Hilbert_poly aa z + Hilbert_poly bb z"
+    using fin_X cn_P std_P ext_P \<open>aa 0 \<le> nat z\<close> cn_Q std_Q ext_Q \<open>bb 0 \<le> nat z\<close> \<open>0 \<le> z\<close>
+    by (simp add: Hilbert_fun_eq_Hilbert_poly int_z aa_def bb_def int_binomial int_zd)
+  finally show "?f z = ?g z" using fin_X X_nonempty \<open>0 \<le> z\<close>
+    by (simp add: Hilbert_fun_PPs int_binomial) smt
+qed (simp_all add: poly_fun_Hilbert_poly)
+
+corollary dube_eq_1:
+  "(\<lambda>z::int. (z + int n - 1) gchoose (n - 1)) =
+    (\<lambda>z::int. ((z - d + n - 1) gchoose (n - 1)) + ((z - d + n) gchoose n) + ((z + n) gchoose n) - 2 -
+           (\<Sum>i=1..n. ((z - aa i + i - 1) gchoose i) + ((z - bb i + i - 1) gchoose i)))"
+  by (simp only: dube_eq_0) (auto simp: Hilbert_poly_def Let_def sum.distrib)
+
+lemma dube_eq_2:
+  assumes "j < n"
+  shows "(\<lambda>z::int. (z + int n - int j - 1) gchoose (n - j - 1)) =
+          (\<lambda>z::int. ((z - d + n - int j - 1) gchoose (n - j - 1)) + ((z - d + n - j) gchoose (n - j)) +
+                    ((z + n - j) gchoose (n - j)) - 2 -
+                    (\<Sum>i=Suc j..n. ((z - aa i + i - j - 1) gchoose (i - j)) + ((z - bb i + i - j - 1) gchoose (i - j))))"
+    (is "?f = ?g")
+proof -
+  let ?h = "\<lambda>z i. ((z + (int i - aa i - 1)) gchoose i) + ((z + (int i - bb i - 1)) gchoose i)"
+  let ?hj = "\<lambda>z i. ((z + (int i - aa i - 1) - j) gchoose (i - j)) + ((z + (int i - bb i - 1) - j) gchoose (i - j))"
+  from assms have 1: "j \<le> n - Suc 0" and 2: "j \<le> n" by simp_all
+
+  have eq1: "(bw_diff ^^ j) (\<lambda>z. \<Sum>i=1..j. ?h z i) = (\<lambda>_. if j = 0 then 0 else 2)"
+  proof (cases j)
+    case 0
+    thus ?thesis by simp
+  next
+    case (Suc j0)
+    hence "j \<noteq> 0" by simp
+    have "(\<lambda>z::int. \<Sum>i = 1..j. ?h z i) = (\<lambda>z::int. (\<Sum>i = 1..j0. ?h z i) + ?h z j)"
+      by (simp add: \<open>j = Suc j0\<close>)
+    moreover have "(bw_diff ^^ j) \<dots> = (\<lambda>z::int. (\<Sum>i = 1..j0. (bw_diff ^^ j) (\<lambda>z. ?h z i) z) + 2)"
+      by (simp add: bw_diff_gbinomial_pow)
+    moreover have "(\<Sum>i = 1..j0. (bw_diff ^^ j) (\<lambda>z. ?h z i) z) = (\<Sum>i = 1..j0. 0)" for z::int
+      using refl
+    proof (rule sum.cong)
+      fix i
+      assume "i \<in> {1..j0}"
+      hence "\<not> j \<le> i" by (simp add: \<open>j = Suc j0\<close>)
+      thus "(bw_diff ^^ j) (\<lambda>z. ?h z i) z = 0" by (simp add: bw_diff_gbinomial_pow)
+    qed
+    ultimately show ?thesis by (simp add: \<open>j \<noteq> 0\<close>)
+  qed
+
+  have eq2: "(bw_diff ^^ j) (\<lambda>z. \<Sum>i=Suc j..n. ?h z i) = (\<lambda>z. (\<Sum>i=Suc j..n. ?hj z i))"
+  proof -
+    have "(bw_diff ^^ j) (\<lambda>z. \<Sum>i=Suc j..n. ?h z i) = (\<lambda>z. \<Sum>i=Suc j..n. (bw_diff ^^ j) (\<lambda>z. ?h z i) z)"
+      by simp
+    also have "\<dots> = (\<lambda>z. (\<Sum>i=Suc j..n. ?hj z i))"
+    proof (intro ext sum.cong)
+      fix z i
+      assume "i \<in> {Suc j..n}"
+      hence "j \<le> i" by simp
+      thus "(bw_diff ^^ j) (\<lambda>z. ?h z i) z = ?hj z i" by (simp add: bw_diff_gbinomial_pow)
+    qed (fact refl)
+    finally show ?thesis .
+  qed
+
+  from 1 have "?f = (bw_diff ^^ j) (\<lambda>z::int. (z + (int n - 1)) gchoose (n - 1))"
+    by (simp add: bw_diff_gbinomial_pow) (simp only: algebra_simps)
+  also have "\<dots> = (bw_diff ^^ j) (\<lambda>z::int. (z + int n - 1) gchoose (n - 1))"
+    by (simp only: algebra_simps)
+  also have "\<dots> = (bw_diff ^^ j)
+          (\<lambda>z::int. ((z - d + n - 1) gchoose (n - 1)) + ((z - d + n) gchoose n) + ((z + n) gchoose n) - 2 -
+            (\<Sum>i=1..n. ((z - aa i + i - 1) gchoose i) + ((z - bb i + i - 1) gchoose i)))"
+    by (simp only: dube_eq_1)
+  also have "\<dots> = (bw_diff ^^ j)
+          (\<lambda>z::int. ((z + (int n - d - 1)) gchoose (n - 1)) + ((z + (int n - d)) gchoose n) +
+                    ((z + n) gchoose n) - 2 - (\<Sum>i=1..n. ?h z i))"
+    by (simp only: algebra_simps)
+  also have "\<dots> = (\<lambda>z::int. ((z + (int n - d - 1) - j) gchoose (n - 1 - j)) +
+            ((z + (int n - d) - j) gchoose (n - j)) + ((z + n - j) gchoose (n - j)) - (if j = 0 then 2 else 0) -
+            (bw_diff ^^ j) (\<lambda>z. \<Sum>i=1..n. ?h z i) z)"
+    using 1 2 by (simp add: bw_diff_const_pow bw_diff_gbinomial_pow del: bw_diff_sum_pow)
+  also from \<open>j \<le> n\<close> have "(\<lambda>z. \<Sum>i=1..n. ?h z i) = (\<lambda>z. (\<Sum>i=1..j. ?h z i) + (\<Sum>i=Suc j..n. ?h z i))"
+    by (simp add: sum_split_nat_ivl)
+  also have "(bw_diff ^^ j) \<dots> = (\<lambda>z. (bw_diff ^^ j) (\<lambda>z. \<Sum>i=1..j. ?h z i) z + (bw_diff ^^ j) (\<lambda>z. \<Sum>i=Suc j..n. ?h z i) z)"
+    by (simp only: bw_diff_plus_pow)
+  also have "\<dots> = (\<lambda>z. (if j = 0 then 0 else 2) + (\<Sum>i=Suc j..n. ?hj z i))"
+    by (simp only: eq1 eq2)
+  finally show ?thesis by (simp add: algebra_simps)
+qed
+
+lemma dube_eq_3:
+  assumes "j < n"
+  shows "(1::int) = (- 1)^(n - Suc j) * ((int d - 1) gchoose (n - Suc j)) +
+                    (- 1)^(n - j) * ((int d - 1) gchoose (n - j)) - 1 -
+                    (\<Sum>i=Suc j..n. (- 1)^(i - j) * ((int (aa i) gchoose (i - j)) + (int (bb i) gchoose (i - j))))"
+proof -
+  from assms have 1: "int (n - Suc j) = int n - j - 1" and 2: "int (n - j) = int n - j" by simp_all
+  from assms have "int n - int j - 1 = int (n - j - 1)" by simp
+  hence eq1: "int n - int j - 1 gchoose (n - Suc j) = 1" by simp
+  from assms have "int n - int j = int (n - j)" by simp
+  hence eq2: "int n - int j gchoose (n - j) = 1" by simp
+  have eq3: "int n - d - j - 1 gchoose (n - Suc j) = (- 1)^(n - Suc j) * (int d - 1 gchoose (n - Suc j))"
+    by (simp add: gbinomial_int_negated_upper[of "int n - d - j - 1"] 1)
+  have eq4: "int n - d - j gchoose (n - j) = (- 1)^(n - j) * (int d - 1 gchoose (n - j))"
+    by (simp add: gbinomial_int_negated_upper[of "int n - d - j"] 2)
+  have eq5: "(\<Sum>i = Suc j..n. int i - aa i - j - 1 gchoose (i - j) + (int i - bb i - j - 1 gchoose (i - j))) =
+        (\<Sum>i=Suc j..n. (- 1)^(i - j) * ((int (aa i) gchoose (i - j)) + (int (bb i) gchoose (i - j))))"
+    using refl
+  proof (rule sum.cong)
+    fix i
+    assume "i \<in> {Suc j..n}"
+    hence "j \<le> i" by simp
+    hence 3: "int (i - j) = int i - j" by simp
+    show "int i - aa i - j - 1 gchoose (i - j) + (int i - bb i - j - 1 gchoose (i - j)) =
+          (- 1)^(i - j) * ((int (aa i) gchoose (i - j)) + (int (bb i) gchoose (i - j)))"
+      by (simp add: gbinomial_int_negated_upper[of "int i - aa i - j - 1"]
+            gbinomial_int_negated_upper[of "int i - bb i - j - 1"] 3 distrib_left)
+  qed
+  from fun_cong[OF dube_eq_2, OF assms, of 0] show ?thesis by (simp add: eq1 eq2 eq3 eq4 eq5)
+qed
+
+lemma dube_aux_1:
+  assumes "(t, {}) \<in> P \<union> Q"
+  shows "deg_pm t < max (aa 1) (bb 1)"
+proof (rule ccontr)
+  define z where "z = deg_pm t"
+  assume "\<not> z < max (aa 1) (bb 1)"
+
+  let ?S = "\<lambda>A. {t. (t, {}) \<in> A \<and> deg_pm t = z}"
+  have fin: "finite (?S A)" if "finite A" for A::"(('x \<Rightarrow>\<^sub>0 nat) \<times> 'x set) set"
+  proof -
+    have "(\<lambda>t. (t, {})) ` ?S A \<subseteq> A" by blast
+    hence "finite ((\<lambda>t. (t, {}::'x set)) ` ?S A)" using that by (rule finite_subset)
+    moreover have "inj_on (\<lambda>t. (t, {}::'x set)) (?S A)" by (rule inj_onI) simp
+    ultimately show ?thesis by (rule finite_imageD)
+  qed
+  from cn_P have "finite P" by (rule cone_decompD)
+  hence 1: "finite (?S P)" by (rule fin)
+  from cn_Q have "finite Q" by (rule cone_decompD)
+  hence 2: "finite (?S Q)" by (rule fin)
+
+  from \<open>\<not> z < max (aa 1) (bb 1)\<close> have "aa 1 \<le> z" and "bb 1 \<le> z" by simp_all
+  have "d \<le> aa 1" unfolding aa_Suc_n[symmetric] by (rule aa_decreasing) simp
+  hence "d \<le> z" using \<open>aa 1 \<le> z\<close> by (rule le_trans)
+  hence eq: "int (z - d) = int z - int d" by simp
+  from \<open>d \<le> z\<close> have "Hilbert_fun .[X] z = ((z - d) + (n - 1)) choose (n - 1) + Hilbert_fun S z + Hilbert_fun T z"
+    by (rule Hilbert_fun_X)
+  also have "int \<dots> = ((int z - d + (n - 1)) gchoose (n - 1) + Hilbert_poly aa z + Hilbert_poly bb z) +
+                        (int (card (?S P)) + int (card (?S Q)))"
+    using fin_X cn_P std_P ext_P \<open>aa 1 \<le> z\<close> cn_Q std_Q ext_Q \<open>bb 1 \<le> z\<close>
+    by (simp add: Hilbert_fun_eq_Hilbert_poly_plus_card aa_def bb_def int_binomial eq)
+  finally have "((int z - d + n - 1) gchoose (n - 1) + Hilbert_poly aa z + Hilbert_poly bb z) +
+                  (int (card (?S P)) + int (card (?S Q))) = int z + n - 1 gchoose (n - 1)"
+    using fin_X X_nonempty by (simp add: Hilbert_fun_PPs int_binomial algebra_simps)
+  also have "\<dots> = (int z - d + n - 1) gchoose (n - 1) + Hilbert_poly aa z + Hilbert_poly bb z"
+    by (fact dube_eq_0[THEN fun_cong])
+  finally have "int (card (?S P)) + int (card (?S Q)) = 0" by simp
+  hence "card (?S P) = 0" and "card (?S Q) = 0" by simp_all
+  with 1 2 have "?S (P \<union> Q) = {}" by auto
+  moreover from assms have "t \<in> ?S (P \<union> Q)" by (simp add: z_def)
+  ultimately have "t \<in> {}" by (rule subst)
+  thus False by simp
+qed
+
+lemma
+  shows aa_n: "aa n = d" and bb_n: "bb n = 0" and bb_0: "bb 0 \<le> max (aa 1) (bb 1)"
+proof -
+  let ?j = "n - Suc 0"
+  from n_gr_0 have "?j < n" and eq1: "Suc ?j = n" and eq2: "n - ?j = 1" by simp_all
+  from this(1) have "(1::int) = (- 1)^(n - Suc ?j) * ((int d - 1) gchoose (n - Suc ?j)) +
+                    (- 1)^(n - ?j) * ((int d - 1) gchoose (n - ?j)) - 1 -
+                    (\<Sum>i=Suc ?j..n. (- 1)^(i - ?j) * ((int (aa i) gchoose (i - ?j)) + (int (bb i) gchoose (i - ?j))))"
+    by (rule dube_eq_3)
+  hence eq: "aa n + bb n = d" by (simp add: eq1 eq2)
+  hence "aa n \<le> d" by simp
+  moreover have "d \<le> aa n" unfolding aa_Suc_n[symmetric] by (rule aa_decreasing) simp
+  ultimately show "aa n = d" by (rule antisym)
+  with eq show "bb n = 0" by simp
+
+  have "bb 0 = \<b> Q 0" by (simp only: bb_def)
+  also have "\<dots> \<le> max (aa 1) (bb 1)" (is "_ \<le> ?m")
+  proof (rule \<b>_le)
+    from fin_X ext_Q have "\<a> Q = bb (Suc n)" by (simp add: \<b>_card_X bb_def)
+    also have "\<dots> \<le> bb 1" by (rule bb_decreasing) simp
+    also have "\<dots> \<le> ?m" by (rule max.cobounded2)
+    finally show "\<a> Q \<le> ?m" .
+  next
+    fix t U
+    assume "(t, U) \<in> Q"
+    from cn_Q have "finite Q" by (rule cone_decompD)
+    show "deg_pm t < ?m"
+    proof (cases "card U = 0")
+      case True
+      from fin_X ext_Q \<open>finite Q\<close> have "finite_decomp Q" by (rule exact_decomp_imp_finite_decomp)
+      hence "finite U" using \<open>(t, U) \<in> Q\<close> by (rule finite_decompD)
+      with True have "U = {}" by simp
+      with \<open>(t, U) \<in> Q\<close> have "(t, {}) \<in> P \<union> Q" by simp
+      thus ?thesis by (rule dube_aux_1)
+    next
+      case False
+      hence "1 \<le> card U" by simp
+      with \<open>finite Q\<close> \<open>(t, U) \<in> Q\<close> have "deg_pm t < bb 1" unfolding bb_def by (rule \<b>)
+      also have "\<dots> \<le> ?m" by (rule max.cobounded2)
+      finally show ?thesis .
+    qed
+  qed
+  finally show "bb 0 \<le> ?m" .
+qed
+
+lemma dube_eq_4:
+  assumes "j < n"
+  shows "(1::int) = 2 * (- 1)^(n - Suc j) * ((int d - 1) gchoose (n - Suc j)) - 1 -
+                    (\<Sum>i=Suc j..n-1. (- 1)^(i - j) * ((int (aa i) gchoose (i - j)) + (int (bb i) gchoose (i - j))))"
+proof -
+  from assms have "Suc j \<le> n" and "0 < n" and 1: "Suc (n - Suc j) = n - j" by simp_all
+  have 2: "(- 1) ^ (n - Suc j) = - ((- (1::int)) ^ (n - j))" by (simp flip: 1)
+  from assms have "(1::int) = (- 1)^(n - Suc j) * ((int d - 1) gchoose (n - Suc j)) +
+                    (- 1)^(n - j) * ((int d - 1) gchoose (n - j)) - 1 -
+                    (\<Sum>i=Suc j..n. (- 1)^(i - j) * ((int (aa i) gchoose (i - j)) + (int (bb i) gchoose (i - j))))"
+    by (rule dube_eq_3)
+  also have "\<dots> = (- 1)^(n - Suc j) * ((int d - 1) gchoose (n - Suc j)) +
+                    (- 1)^(n - j) * ((int d - 1) gchoose (n - j)) - 1 -
+                    (- 1)^(n - j) * ((int (aa n) gchoose (n - j)) + (int (bb n) gchoose (n - j))) -
+                    (\<Sum>i=Suc j..n-1. (- 1)^(i - j) * ((int (aa i) gchoose (i - j)) + (int (bb i) gchoose (i - j))))"
+    using \<open>0 < n\<close> \<open>Suc j \<le> n\<close> by (simp only: sum_tail_nat)
+  also have "\<dots> = (- 1)^(n - Suc j) * ((int d - 1) gchoose (n - Suc j)) +
+                    (- 1)^(n - j) * (((int d - 1) gchoose (n - j)) - (int d gchoose (n - j))) - 1 -
+                    (\<Sum>i=Suc j..n-1. (- 1)^(i - j) * ((int (aa i) gchoose (i - j)) + (int (bb i) gchoose (i - j))))"
+    using assms by (simp add: aa_n bb_n gbinomial_0_left right_diff_distrib)
+  also have "(- 1)^(n - j) * (((int d - 1) gchoose (n - j)) - (int d gchoose (n - j))) =
+              (- 1)^(n - Suc j) * (((int d - 1 + 1) gchoose (Suc (n - Suc j))) - ((int d - 1) gchoose (Suc (n - Suc j))))"
+    by (simp add: 1 2 flip: mult_minus_right)
+  also have "\<dots> = (- 1)^(n - Suc j) * ((int d - 1) gchoose (n - Suc j))"
+    by (simp only: gbinomial_int_Suc_Suc, simp)
+  finally show ?thesis by simp
+qed
+
+private abbreviation "cc \<equiv> (\<lambda>i. aa i + bb i)"
+
+lemma cc_Suc:
+  assumes "j < n - 1"
+  shows "int (cc (Suc j)) = 2 + 2 * (- 1)^(n - j) * ((int d - 1) gchoose (n - Suc j)) +
+                   (\<Sum>i=j+2..n-1. (- 1)^(i - j) * ((int (aa i) gchoose (i - j)) + (int (bb i) gchoose (i - j))))"
+proof -
+  from assms have "j < n" and "Suc j \<le> n - 1" by simp_all
+  hence "n - j = Suc (n - Suc j)" by simp
+  hence eq: "(- 1) ^ (n - Suc j) = - ((- (1::int)) ^ (n - j))" by simp
+  from \<open>j < n\<close> have "(1::int) = 2 * (- 1)^(n - Suc j) * ((int d - 1) gchoose (n - Suc j)) - 1 -
+             (\<Sum>i=Suc j..n-1. (- 1)^(i - j) * ((int (aa i) gchoose (i - j)) + (int (bb i) gchoose (i - j))))"
+    by (rule dube_eq_4)
+  also have "\<dots> = cc (Suc j) - 2 * (- 1)^(n - j) * ((int d - 1) gchoose (n - Suc j)) - 1 -
+             (\<Sum>i=j+2..n-1. (- 1)^(i - j) * ((int (aa i) gchoose (i - j)) + (int (bb i) gchoose (i - j))))"
+    using \<open>Suc j \<le> n - 1\<close> by (simp add: sum_head_Suc eq)
+  finally show ?thesis by simp
+qed
+
+lemma cc_n_minus_1: "cc (n - 1) = 2 * d"
+proof -
+  let ?j = "n - 2"
+  from n_gr_1 have 1: "Suc ?j = n - 1" and "?j < n - 1" and 2: "Suc (n - 1) = n"
+    and 3: "n - (n - Suc 0) = Suc 0" and 4: "n - ?j = 2"
+    by simp_all
+  have "int (cc (n - 1)) = int (cc (Suc ?j))" by (simp only: 1)
+  also from \<open>?j < n - 1\<close> have "\<dots> = 2 + 2 * (- 1) ^ (n - ?j) * (int d - 1 gchoose (n - Suc ?j)) +
+         (\<Sum>i = ?j+2..n-1. (- 1) ^ (i - ?j) * (int (aa i) gchoose (i - ?j) + (int (bb i) gchoose (i - ?j))))"
+    by (rule cc_Suc)
+  also have "\<dots> = int (2 * d)" by (simp add: 1 2 3 4)
+  finally show ?thesis by (simp only: int_int_eq)
+qed
+
+corollary Dube_2:
+  assumes "n = 2"
+  shows "\<b> Q 0 \<le> 2 * d"
+proof -
+  have "\<b> Q 0 \<le> max (aa 1) (bb 1)" unfolding bb_def[symmetric] by (fact bb_0)
+  also have "\<dots> \<le> cc (n - 1)" by (simp add: assms)
+  also have "\<dots> = 2 * d" by (fact cc_n_minus_1)
+  finally show ?thesis .
+qed
+
+text \<open>Since the case @{prop "n = 2"} is settled, we can concentrate on @{prop "2 < n"} now.\<close>
+
+context
+  assumes n_gr_2: "2 < n"
+begin
+
+lemma cc_n_minus_2: "cc (n - 2) \<le> d\<^sup>2 + 2 * d"
+proof -
+  let ?j = "n - 3"
+  from n_gr_2 have 1: "Suc ?j = n - 2" and "?j < n - 1" and 2: "Suc (n - 2) = n - Suc 0"
+    and 3: "n - (n - 2) = 2" and 4: "n - ?j = 3"
+    by simp_all
+  have "int (cc (n - 2)) = int (cc (Suc ?j))" by (simp only: 1)
+  also from \<open>?j < n - 1\<close> have "\<dots> = 2 + 2 * (- 1) ^ (n - ?j) * (int d - 1 gchoose (n - Suc ?j)) +
+         (\<Sum>i = ?j+2..n-1. (- 1) ^ (i - ?j) * (int (aa i) gchoose (i - ?j) + (int (bb i) gchoose (i - ?j))))"
+    by (rule cc_Suc)
+  also have "\<dots> = (2 - 2 * (int d - 1 gchoose 2)) + ((int (aa (n - 1)) gchoose 2) + (int (bb (n - 1)) gchoose 2))"
+    by (simp add: 1 2 3 4)
+  also have "\<dots> \<le> (2 - 2 * (int d - 1 gchoose 2)) + (2 * int d gchoose 2)"
+  proof (rule add_left_mono)
+    have "int (aa (n - 1)) gchoose 2 + (int (bb (n - 1)) gchoose 2) \<le> int (aa (n - 1)) + int (bb (n - 1)) gchoose 2"
+      by (rule gbinomial_int_plus_le) simp_all
+    also have "\<dots> = int (2 * d) gchoose 2"  by (simp flip: cc_n_minus_1)
+    also have "\<dots> = 2 * int d gchoose 2"  by (simp add: int_ops(7))
+    finally show "int (aa (n - 1)) gchoose 2 + (int (bb (n - 1)) gchoose 2) \<le> 2 * int d gchoose 2" .
+  qed
+  also have "\<dots> = 2 - fact 2 * (int d - 1 gchoose 2) + (2 * int d gchoose 2)" by (simp only: fact_2)
+  also have "\<dots> = 2 - (int d - 1) * (int d - 2) + (2 * int d gchoose 2)"
+    by (simp only: gbinomial_int_mult_fact) (simp add: numeral_2_eq_2 prod.atLeast0_lessThan_Suc)
+  also have "\<dots> = 2 - (int d - 1) * (int d - 2) + int d * (2 * int d - 1)"
+    by (simp add: gbinomial_prod_rev numeral_2_eq_2 prod.atLeast0_lessThan_Suc)
+  also have "\<dots> = int (d\<^sup>2 + 2 * d)" by (simp add: algebra_simps power2_eq_square)
+  finally show ?thesis by (simp only: int_int_eq)
+qed
+
+corollary Dube_3:
+  assumes "n = 3"
+  shows "\<b> Q 0 \<le> d\<^sup>2 + 2 * d"
+proof -
+  have "\<b> Q 0 \<le> max (aa 1) (bb 1)" unfolding bb_def[symmetric] by (fact bb_0)
+  also have "\<dots> \<le> cc (n - 2)" by (simp add: assms)
+  also have "\<dots> \<le> d\<^sup>2 + 2 * d" by (fact cc_n_minus_2)
+  finally show ?thesis .
+qed
+
+lemma cc_Suc_le:
+  assumes "j < n - 3"
+  shows "int (cc (Suc j)) \<le> 2 + (int (cc (j + 2)) gchoose 2) + (\<Sum>i=j+4..n-1. int (cc i) gchoose (i - j))"
+            \<comment>\<open>Could be proved without coercing to @{typ int}, because everything is non-negative.\<close>
+proof -
+  let ?f = "\<lambda>i j. (int (aa i) gchoose (i - j)) + (int (bb i) gchoose (i - j))"
+  let ?S = "\<lambda>x y. (\<Sum>i=j+x..n-y. (- 1)^(i - j) * ?f i j)"
+  let ?S3 = "\<lambda>x y. (\<Sum>i=j+x..n-y. (int (cc i) gchoose (i - j)))"
+  have ie1: "int (aa i) gchoose k + (int (bb i) gchoose k) \<le> int (cc i) gchoose k" if "0 < k" for i k
+  proof -
+    from that have "int (aa i) gchoose k + (int (bb i) gchoose k) \<le> int (aa i) + int (bb i) gchoose k"
+      by (rule gbinomial_int_plus_le) simp_all
+    also have "\<dots> = int (cc i) gchoose k" by simp
+    finally show ?thesis .
+  qed
+  from d_gr_0 have "0 \<le> int d - 1" by simp
+  from assms have "0 < n - Suc j" by simp
+  have f_nonneg: "0 \<le> ?f i j" for i by (simp add: gbinomial_int_nonneg)
+
+  show ?thesis
+  proof (cases "n = j + 4")
+    case True
+    hence j: "j = n - 4" by simp
+    have 1: "n - Suc j = 3" and "j < n - 1" and 2: "Suc (n - 3) = Suc (Suc j)" and 3: "n - (n - 3) = 3"
+      and 4: "n - j = 4" and 5: "n - Suc 0 = Suc (Suc (Suc j))" and 6: "n - 2 = Suc (Suc j)"
+      by (simp_all add: True)
+    from \<open>j < n - 1\<close> have "int (cc (Suc j)) = 2 + 2 * (- 1) ^ (n - j) * (int d - 1 gchoose (n - Suc j)) +
+           (\<Sum>i = j+2..n-1. (- 1) ^ (i - j) * (int (aa i) gchoose (i - j) + (int (bb i) gchoose (i - j))))"
+      by (rule cc_Suc)
+    also have "\<dots> = (2 + ((int (aa (n - 2)) gchoose 2) + (int (bb (n - 2)) gchoose 2))) +
+                    (2 * (int d - 1 gchoose 3) - ((int (aa (n - 1)) gchoose 3) + (int (bb (n - 1)) gchoose 3)))"
+      by (simp add: 1 2 3 4 5 6)
+    also have "\<dots> \<le> (2 + ((int (aa (n - 2)) gchoose 2) + (int (bb (n - 2)) gchoose 2))) + 0"
+    proof (rule add_left_mono)
+      from cc_n_minus_1 have eq1: "int (aa (n - 1)) + int (bb (n - 1)) = 2 * int d" by simp
+      hence ie2: "int (aa (n - 1)) \<le> 2 * int d" by simp
+      from \<open>0 \<le> int d - 1\<close> have "int d - 1 gchoose 3 \<le> int d gchoose 3" by (rule gbinomial_int_mono) simp
+      hence "2 * (int d - 1 gchoose 3) \<le> 2 * (int d gchoose 3)" by simp
+      also from _ ie2 have "\<dots> \<le> int (aa (n - 1)) gchoose 3 + (2 * int d - int (aa (n - 1)) gchoose 3)"
+        by (rule binomial_int_ineq_3) simp
+      also have "\<dots> = int (aa (n - 1)) gchoose 3 + (int (bb (n - 1)) gchoose 3)" by (simp flip: eq1)
+      finally show "2 * (int d - 1 gchoose 3) - (int (aa (n - 1)) gchoose 3 + (int (bb (n - 1)) gchoose 3)) \<le> 0"
+        by simp
+    qed
+    also have "\<dots> = 2 + ((int (aa (n - 2)) gchoose 2) + (int (bb (n - 2)) gchoose 2))" by simp
+    also from ie1 have "\<dots> \<le> 2 + (int (cc (n - 2)) gchoose 2)" by (rule add_left_mono) simp
+    also have "\<dots> = 2 + (int (cc (j + 2)) gchoose 2) + ?S3 4 1" by (simp add: True)
+    finally show ?thesis .
+  next
+    case False
+    with assms have "j + 4 \<le> n - 1" by simp
+    from n_gr_1 have "0 < n - 1" by simp
+    from assms have "j + 2 \<le> n - 1" and "j + 2 \<le> n - 2" by simp_all
+    hence "n - j = Suc (n - Suc j)" by simp
+    hence 1: "(- 1) ^ (n - Suc j) = - ((- (1::int)) ^ (n - j))" by simp
+    from assms have "j < n - 1" by simp
+    hence "int (cc (Suc j)) = 2 + 2 * (- 1)^(n - j) * ((int d - 1) gchoose (n - Suc j)) + ?S 2 1"
+      by (rule cc_Suc)
+    also have "\<dots> = 2 * (- 1)^(n - j) * ((int d - 1) gchoose (n - Suc j)) +
+                    (- 1)^(n - Suc j) * ((int (aa (n - 1)) gchoose (n - Suc j)) + (int (bb (n - 1)) gchoose (n - Suc j))) +
+                    (2 + ?S 2 2)"
+      using \<open>0 < n - 1\<close> \<open>j + 2 \<le> n - 1\<close> by (simp only: sum_tail_nat) (simp flip: numeral_2_eq_2)
+    also have "\<dots> \<le> (int (cc (n - 1)) gchoose (n - Suc j)) + (2 + ?S 2 2)"
+    proof (rule add_right_mono)
+      have rl: "x - y \<le> x" if "0 \<le> y" for x y :: int using that by simp
+      have "2 * (- 1)^(n - j) * ((int d - 1) gchoose (n - Suc j)) +
+                    (- 1)^(n - Suc j) * ((int (aa (n - 1)) gchoose (n - Suc j)) + (int (bb (n - 1)) gchoose (n - Suc j))) =
+              (-1)^(n - j) * (2 * ((int d - 1) gchoose (n - Suc j)) -
+                    (int (aa (n - 1)) gchoose (n - Suc j)) - (int (bb (n - 1)) gchoose (n - Suc j)))"
+        by (simp add: 1 algebra_simps)
+      also have "\<dots> \<le> (int (cc (n - 1))) gchoose (n - Suc j)"
+      proof (cases "even (n - j)")
+        case True
+        hence "(- 1) ^ (n - j) * (2 * (int d - 1 gchoose (n - Suc j)) - (int (aa (n - 1)) gchoose (n - Suc j)) -
+                (int (bb (n - 1)) gchoose (n - Suc j))) =
+              2 * (int d - 1 gchoose (n - Suc j)) - ((int (aa (n - 1)) gchoose (n - Suc j)) +
+                                                     (int (bb (n - 1)) gchoose (n - Suc j)))"
+          by simp
+        also have "\<dots> \<le> 2 * (int d - 1 gchoose (n - Suc j))" by (rule rl) (simp add: gbinomial_int_nonneg)
+        also have "\<dots> = (int d - 1 gchoose (n - Suc j)) + (int d - 1 gchoose (n - Suc j))" by simp
+        also have "\<dots> \<le> (int d - 1) + (int d - 1) gchoose (n - Suc j)"
+          using \<open>0 < n - Suc j\<close> \<open>0 \<le> int d - 1\<close> \<open>0 \<le> int d - 1\<close> by (rule gbinomial_int_plus_le)
+        also have "\<dots> \<le> 2 * int d gchoose (n - Suc j)"
+        proof (rule gbinomial_int_mono)
+          from \<open>0 \<le> int d - 1\<close> show "0 \<le> int d - 1 + (int d - 1)" by simp
+        qed simp
+        also have "\<dots> = int (cc (n - 1)) gchoose (n - Suc j)" by (simp only: cc_n_minus_1) simp
+        finally show ?thesis .
+      next
+        case False
+        hence "(- 1) ^ (n - j) * (2 * (int d - 1 gchoose (n - Suc j)) - (int (aa (n - 1)) gchoose (n - Suc j)) -
+                (int (bb (n - 1)) gchoose (n - Suc j))) =
+              ((int (aa (n - 1)) gchoose (n - Suc j)) + (int (bb (n - 1)) gchoose (n - Suc j))) -
+                2 * (int d - 1 gchoose (n - Suc j))"
+          by simp
+        also have "\<dots> \<le> (int (aa (n - 1)) gchoose (n - Suc j)) + (int (bb (n - 1)) gchoose (n - Suc j))"
+          by (rule rl) (simp add: gbinomial_int_nonneg d_gr_0)
+        also from \<open>0 < n - Suc j\<close> have "\<dots> \<le> int (cc (n - 1)) gchoose (n - Suc j)" by (rule ie1)
+        finally show ?thesis .
+      qed
+      finally show "2 * (- 1)^(n - j) * ((int d - 1) gchoose (n - Suc j)) +
+                    (- 1)^(n - Suc j) * ((int (aa (n - 1)) gchoose (n - Suc j)) + (int (bb (n - 1)) gchoose (n - Suc j))) \<le>
+                    (int (cc (n - 1))) gchoose (n - Suc j)" .
+    qed
+    also have "\<dots> = 2 + (int (cc (n - 1)) gchoose ((n - 1) - j)) + ((int (aa (j + 2)) gchoose 2) +
+                    (int (bb (j + 2)) gchoose 2)) + ?S 3 2"
+      using \<open>j + 2 \<le> n - 2\<close> by (simp add: sum_head_Suc numeral_3_eq_3)
+    also have "\<dots> \<le> 2 + (int (cc (n - 1)) gchoose ((n - 1) - j)) + ((int (aa (j + 2)) gchoose 2) +
+                    (int (bb (j + 2)) gchoose 2)) + ?S3 4 2"
+    proof (rule add_left_mono)
+      from \<open>j + 4 \<le> n - 1\<close> have "j + 3 \<le> n - 2" by simp
+      hence "?S 3 2 = ?S 4 2 - ?f (j + 3) j" by (simp add: sum_head_Suc add.commute)
+      hence "?S 3 2 \<le> ?S 4 2" using f_nonneg[of "j + 3"] by simp
+      also have "\<dots> \<le> ?S3 4 2"
+      proof (rule sum_mono)
+        fix i
+        assume "i \<in> {j + 4..n - 2}"
+        hence "0 < i - j" by simp
+        from f_nonneg[of i] have "(- 1)^(i - j) * ?f i j \<le> ?f i j"
+          by (smt minus_one_mult_self mult_cancel_right1 pos_zmult_eq_1_iff_lemma zero_less_mult_iff)
+        also from \<open>0 < i - j\<close> have "\<dots> \<le> int (cc i) gchoose (i - j)" by (rule ie1)
+        finally show "(- 1)^(i - j) * ?f i j \<le> int (cc i) gchoose (i - j)" .
+      qed
+      finally show "?S 3 2 \<le> ?S3 4 2" .
+    qed
+    also have "\<dots> = ((int (aa (j + 2)) gchoose 2) + (int (bb (j + 2)) gchoose 2)) + (2 + ?S3 4 1)"
+      using \<open>0 < n - 1\<close> \<open>j + 4 \<le> n - 1\<close> by (simp only: sum_tail_nat) (simp flip: numeral_2_eq_2)
+    also from ie1 have "\<dots> \<le> int (cc (j + 2)) gchoose 2 + (2 + ?S3 4 1)"
+      by (rule add_right_mono) simp
+    also have "\<dots> = 2 + (int (cc (j + 2)) gchoose 2) + ?S3 4 1" by (simp only: ac_simps)
+    finally show ?thesis .
+  qed
+qed
+
+corollary cc_le:
+  assumes "0 < j" and "j < n - 2"
+  shows "int (cc j) \<le> 2 + (int (cc (j + 1)) gchoose 2) + (\<Sum>i=j+3..n-1. int (cc i) gchoose (Suc (i - j)))"
+proof -
+  define j0 where "j0 = j - 1"
+  with assms have j: "j = Suc j0" and "j0 < n - 3" by simp_all
+  have "int (cc j) = int (cc (Suc j0))" by (simp only: j)
+  also have "\<dots> \<le> 2 + (int (cc (j0 + 2)) gchoose 2) + (\<Sum>i=j0+4..n-1. int (cc i) gchoose (i - j0))"
+    using \<open>j0 < n - 3\<close> by (rule cc_Suc_le)
+  also have "\<dots> = 2 + (int (cc (j + 1)) gchoose 2) + (\<Sum>i=j0+4..n-1. int (cc i) gchoose (i - j0))"
+    by (simp add: j)
+  also have "(\<Sum>i=j0+4..n-1. int (cc i) gchoose (i - j0)) = (\<Sum>i=j+3..n-1. int (cc i) gchoose (Suc (i - j)))"
+  proof (rule sum.cong)
+    fix i
+    assume "i \<in> {j + 3..n - 1}"
+    hence "Suc j0 < i" by (simp add: j)
+    hence "i - j0 = Suc (i - j)" by (simp add: j)
+    thus "int (cc i) gchoose (i - j0) = int (cc i) gchoose Suc (i - j)" by simp
+  qed (simp add: j)
+  finally show ?thesis .
+qed
+
+end
+
+theorem Dube_general:
+  "rat_of_nat (\<b> Q 0) \<le> 2 * ((rat_of_nat d)\<^sup>2 / 2 + (rat_of_nat d)) ^ (2 ^ (n - 2))"
+  sorry
+
+end
+
+thm Dube_2
+thm Dube_3
+thm Dube_general
 
 end
 
