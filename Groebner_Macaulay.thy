@@ -1,7 +1,7 @@
 (* Author: Alexander Maletzky *)
 
 theory Groebner_Macaulay
-  imports MPoly_PM Groebner_Bases.Reduced_GB Groebner_Bases.Macaulay_Matrix
+  imports Groebner_Indeterminates Groebner_Bases.Macaulay_Matrix
 begin
 
 text \<open>Relationship between Gr\"obner bases and Macaulay matrices, following
@@ -358,50 +358,13 @@ next
     by (rule ideal.module_mono)
 qed
 
-lemma PPs_eq_dgrad_set:
-  assumes "elem_index ` X = {..<n}"
-  shows ".[X] = dgrad_set varnum n"
-proof -
-  have "varnum t \<le> n" if "keys t \<subseteq> X" for t::"'x \<Rightarrow>\<^sub>0 nat"
-  proof (cases "keys t = {}")
-    case True
-    thus ?thesis by (simp add: varnum_def)
-  next
-    case False
-    moreover {
-      fix x
-      assume "x \<in> keys t"
-      hence "x \<in> X" using that ..
-      hence "elem_index x \<in> elem_index ` X" by (rule imageI)
-      hence "elem_index x < n" by (simp add: assms)
-    }
-    ultimately show ?thesis by (simp add: varnum_def Suc_le_eq)
-  qed
-  moreover have "x \<in> X" if "varnum t \<le> n" and "x \<in> keys t" for x and t::"'x \<Rightarrow>\<^sub>0 nat"
-  proof -
-    from that(2) have "keys t \<noteq> {}" by blast
-    with that(1) have "\<forall>x\<in>keys t. elem_index x < n" by (simp add: varnum_def Suc_le_eq)
-    hence "elem_index x < n" using that(2) ..
-    hence "elem_index x \<in> elem_index ` X" by (simp add: assms)
-    thus ?thesis by (simp only: inj_image_mem_iff[OF inj_elem_index])
-  qed
-  ultimately show ?thesis by (auto simp: PPs_def dgrad_set_def)
-qed
-
-corollary Polys_eq_dgrad_p_set: "elem_index ` X = {..<n} \<Longrightarrow> P[X] = punit.dgrad_p_set varnum n"
-  by (simp add: Polys_def punit.dgrad_p_set_def PPs_eq_dgrad_set)
-
 theorem thm_2_3_6:
-  assumes "elem_index ` X = {..<n}" and "set fs \<subseteq> P[X]" and "is_cofactor_bound (set fs) b1"
-    and "is_GB_bound (set fs) b2"
+  assumes "finite X" and "set fs \<subseteq> P[X]" and "is_cofactor_bound (set fs) b1" and "is_GB_bound (set fs) b2"
   shows "set (punit.reduced_Macaulay_list (deg_shifts (b1 + b2) fs)) = punit.reduced_GB (set fs)"
 proof (rule punit.reduced_Macaulay_list_is_reduced_GB)
   let ?H = "punit.phull (set (deg_shifts (b1 + b2) fs))"
   have "1 \<noteq> (0::'a)" by simp
-  note dickson_grading_varnum
-  moreover have "finite (punit.component_of_term ` Keys (set fs))" by simp
-  ultimately have "punit.reduced_GB (set fs) \<subseteq> P[X]"
-    using assms(2) unfolding Polys_eq_dgrad_p_set[OF assms(1)] by (rule punit.reduced_GB_dgrad_p_set)
+  from assms(1, 2) have "punit.reduced_GB (set fs) \<subseteq> P[X]" by (rule reduced_GB_Polys)
   show "punit.reduced_GB (set fs) \<subseteq> ?H"
   proof
     fix g
@@ -472,14 +435,13 @@ proof (rule punit.reduced_Macaulay_list_is_reduced_GB)
 qed simp_all
 
 theorem thm_2_3_7:
-  assumes "elem_index ` X = {..<n}" and "set fs \<subseteq> P[X]" and "is_cofactor_bound (set fs) b"
+  assumes "finite X" and "set fs \<subseteq> P[X]" and "is_cofactor_bound (set fs) b"
   shows "1 \<in> ideal (set fs) \<longleftrightarrow> 1 \<in> set (punit.Macaulay_list (deg_shifts b fs))" (is "?L \<longleftrightarrow> ?R")
 proof
-  from assms(1, 2) have *: "set fs \<subseteq> punit.dgrad_p_set varnum n" by (simp only: Polys_eq_dgrad_p_set)
   assume ?L
   hence "ideal (set fs) = UNIV" by (simp only: ideal_eq_UNIV_iff_contains_one)
-  hence eq: "punit.reduced_GB (set fs) = {1}"
-    by (simp only: ideal_eq_UNIV_iff_reduced_GB_eq_one_dgrad_p_set[OF dickson_grading_varnum *])
+  with assms(1, 2) have eq: "punit.reduced_GB (set fs) = {1}"
+    by (simp only: ideal_eq_UNIV_iff_reduced_GB_eq_one_Polys)
   have "is_GB_bound (set fs) 0" by (rule is_GB_boundI, simp add: eq poly_deg_def)
   with assms have "set (punit.reduced_Macaulay_list (deg_shifts (b + 0) fs)) = punit.reduced_GB (set fs)"
     by (rule thm_2_3_6)
@@ -495,10 +457,6 @@ next
   also have "... \<subseteq> ideal (set (deg_shifts b fs))" using punit.phull_subset_module by force
   finally show ?L by simp
 qed
-
-text \<open>The first assumptions of Theorems \<open>thm_2_3_6\<close> and \<open>thm_2_3_7\<close>, @{prop "elem_index ` X = {..<n}"},
-  could be avoided if Lemma \<open>reduced_GB_dgrad_p_set\<close> were known for arbitrary sets of indeterminates,
-  not only for sets of that particular shape.\<close>
 
 theorem Hermann_bound:
   assumes "finite F" and "F \<subseteq> P[X]"
