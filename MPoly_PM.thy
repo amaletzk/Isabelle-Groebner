@@ -1467,6 +1467,984 @@ next
   finally show ?thesis by simp
 qed
 
+subsection \<open>Homogeneity\<close>
+
+definition homogeneous :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::zero) \<Rightarrow> bool"
+  where "homogeneous p \<longleftrightarrow> (\<forall>s\<in>keys p. \<forall>t\<in>keys p. deg_pm s = deg_pm t)"
+
+definition hom_component :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<Rightarrow> nat \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::zero)"
+  where "hom_component p n = except p {t. deg_pm t \<noteq> n}"
+
+definition hom_components :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::zero) set"
+  where "hom_components p = hom_component p ` deg_pm ` keys p"
+
+lemma homogeneousI: "(\<And>s t. s \<in> keys p \<Longrightarrow> t \<in> keys p \<Longrightarrow> deg_pm s = deg_pm t) \<Longrightarrow> homogeneous p"
+  unfolding homogeneous_def by blast
+
+lemma homogeneousD: "homogeneous p \<Longrightarrow> s \<in> keys p \<Longrightarrow> t \<in> keys p \<Longrightarrow> deg_pm s = deg_pm t"
+  unfolding homogeneous_def by blast
+
+lemma homogeneousD_poly_deg:
+  assumes "homogeneous p" and "t \<in> keys p"
+  shows "deg_pm t = poly_deg p"
+proof (rule antisym)
+  from assms(2) show "deg_pm t \<le> poly_deg p" by (rule poly_deg_max_keys)
+next
+  show "poly_deg p \<le> deg_pm t"
+  proof (rule poly_deg_leI)
+    fix s
+    assume "s \<in> keys p"
+    with assms(1) have "deg_pm s = deg_pm t" using assms(2) by (rule homogeneousD)
+    thus "deg_pm s \<le> deg_pm t" by simp
+  qed
+qed
+
+lemma homogeneous_monomial [simp]: "homogeneous (monomial c t)"
+  by (auto split: if_split_asm intro: homogeneousI)
+
+corollary homogeneous_zero [simp]: "homogeneous 0" and homogeneous_one [simp]: "homogeneous 1"
+  by (simp_all only: homogeneous_monomial flip: single_zero[of 0] single_one)
+
+lemma homogeneous_uminus_iff [simp]: "homogeneous (- p) \<longleftrightarrow> homogeneous p"
+  by (auto intro!: homogeneousI dest: homogeneousD simp: keys_uminus)
+
+lemma homogeneous_monom_mult: "homogeneous p \<Longrightarrow> homogeneous (punit.monom_mult c t p)"
+  by (auto intro!: homogeneousI elim!: punit.keys_monom_multE simp: deg_pm_plus dest: homogeneousD)
+
+lemma homogeneous_monom_mult_rev:
+  assumes "c \<noteq> (0::'a::semiring_no_zero_divisors)" and "homogeneous (punit.monom_mult c t p)"
+  shows "homogeneous p"
+proof (rule homogeneousI)
+  fix s s'
+  assume "s \<in> keys p"
+  hence 1: "t + s \<in> keys (punit.monom_mult c t p)"
+    using assms(1) by (rule punit.keys_monom_multI[simplified])
+  assume "s' \<in> keys p"
+  hence "t + s' \<in> keys (punit.monom_mult c t p)"
+    using assms(1) by (rule punit.keys_monom_multI[simplified])
+  with assms(2) 1 have "deg_pm (t + s) = deg_pm (t + s')" by (rule homogeneousD)
+  thus "deg_pm s = deg_pm s'" by (simp add: deg_pm_plus)
+qed
+
+lemma homogeneous_times:
+  assumes "homogeneous p" and "homogeneous q"
+  shows "homogeneous (p * q)"
+proof (rule homogeneousI)
+  fix s t
+  assume "s \<in> keys (p * q)"
+  then obtain sp sq where sp: "sp \<in> keys p" and sq: "sq \<in> keys q" and s: "s = sp + sq"
+    by (rule in_keys_timesE)
+  assume "t \<in> keys (p * q)"
+  then obtain tp tq where tp: "tp \<in> keys p" and tq: "tq \<in> keys q" and t: "t = tp + tq"
+    by (rule in_keys_timesE)
+  from assms(1) sp tp have "deg_pm sp = deg_pm tp" by (rule homogeneousD)
+  moreover from assms(2) sq tq have "deg_pm sq = deg_pm tq" by (rule homogeneousD)
+  ultimately show "deg_pm s = deg_pm t" by (simp only: s t deg_pm_plus)
+qed
+
+lemma lookup_hom_component: "lookup (hom_component p n) = (\<lambda>t. lookup p t when deg_pm t = n)"
+  by (rule ext) (simp add: hom_component_def lookup_except)
+
+lemma keys_hom_component: "keys (hom_component p n) = {t. t \<in> keys p \<and> deg_pm t = n}"
+  by (auto simp: hom_component_def keys_except)
+
+lemma keys_hom_componentD:
+  assumes "t \<in> keys (hom_component p n)"
+  shows "t \<in> keys p" and "deg_pm t = n"
+  using assms by (simp_all add: keys_hom_component)
+
+lemma homogeneous_hom_component: "homogeneous (hom_component p n)"
+  by (auto dest: keys_hom_componentD intro: homogeneousI)
+
+lemma hom_component_zero [simp]: "hom_component 0 = 0"
+  by (rule ext) (simp add: hom_component_def)
+
+lemma hom_component_zero_iff: "hom_component p n = 0 \<longleftrightarrow> (\<forall>t\<in>keys p. deg_pm t \<noteq> n)"
+  by (metis (mono_tags, lifting) empty_iff keys_eq_empty_iff keys_hom_component mem_Collect_eq subsetI subset_antisym)
+
+lemma hom_component_uminus [simp]: "hom_component (- p) = - hom_component p"
+  by (intro ext poly_mapping_eqI) (simp add: hom_component_def lookup_except)
+
+lemma hom_component_plus: "hom_component (p + q) n = hom_component p n + hom_component q n"
+  by (rule poly_mapping_eqI) (simp add: hom_component_def lookup_except lookup_add)
+
+lemma hom_component_minus: "hom_component (p - q) n = hom_component p n - hom_component q n"
+  by (rule poly_mapping_eqI) (simp add: hom_component_def lookup_except lookup_minus)
+
+lemma hom_component_monom_mult:
+  "punit.monom_mult c t (hom_component p n) = hom_component (punit.monom_mult c t p) (deg_pm t + n)"
+  by (auto simp: hom_component_def lookup_except punit.lookup_monom_mult deg_pm_minus deg_pm_mono intro!: poly_mapping_eqI)
+
+lemma hom_component_inject:
+  assumes "t \<in> keys p" and "hom_component p (deg_pm t) = hom_component p n"
+  shows "deg_pm t = n"
+proof -
+  from assms(1) have "t \<in> keys (hom_component p (deg_pm t))" by (simp add: keys_hom_component)
+  hence "0 \<noteq> lookup (hom_component p (deg_pm t)) t" by simp
+  also have "lookup (hom_component p (deg_pm t)) t = lookup (hom_component p n) t"
+    by (simp only: assms(2))
+  also have "\<dots> = (lookup p t when deg_pm t = n)" by (simp only: lookup_hom_component)
+  finally show ?thesis by simp
+qed
+
+lemma hom_component_of_homogeneous:
+  assumes "homogeneous p"
+  shows "hom_component p n = (p when n = poly_deg p)"
+proof (cases "n = poly_deg p")
+  case True
+  have "hom_component p n = p"
+  proof (rule poly_mapping_eqI)
+    fix t
+    show "lookup (hom_component p n) t = lookup p t"
+    proof (cases "t \<in> keys p")
+      case True
+      with assms have "deg_pm t = n" unfolding \<open>n = poly_deg p\<close> by (rule homogeneousD_poly_deg)
+      thus ?thesis by (simp add: lookup_hom_component)
+    next
+      case False
+      moreover from this have "t \<notin> keys (hom_component p n)" by (simp add: keys_hom_component)
+      ultimately show ?thesis by simp
+    qed
+  qed
+  with True show ?thesis by simp
+next
+  case False
+  have "hom_component p n = 0" unfolding hom_component_zero_iff
+  proof (intro ballI notI)
+    fix t
+    assume "t \<in> keys p"
+    with assms have "deg_pm t = poly_deg p" by (rule homogeneousD_poly_deg)
+    moreover assume "deg_pm t = n"
+    ultimately show False using False by simp
+  qed
+  with False show ?thesis by simp
+qed
+
+lemma hom_components_zero [simp]: "hom_components 0 = {}"
+  by (simp add: hom_components_def)
+
+lemma hom_components_zero_iff [simp]: "hom_components p = {} \<longleftrightarrow> p = 0"
+  by (simp add: hom_components_def)
+
+lemma hom_components_uminus: "hom_components (- p) = uminus ` hom_components p"
+  by (simp add: hom_components_def keys_uminus image_image)
+
+lemma hom_components_monom_mult:
+  "hom_components (punit.monom_mult c t p) = (if c = 0 then {} else punit.monom_mult c t ` hom_components p)"
+  for c::"'a::semiring_no_zero_divisors"
+  by (simp add: hom_components_def punit.keys_monom_mult image_image deg_pm_plus hom_component_monom_mult)
+
+lemma hom_componentsI: "q = hom_component p (deg_pm t) \<Longrightarrow> t \<in> keys p \<Longrightarrow> q \<in> hom_components p"
+  unfolding hom_components_def by blast
+
+lemma hom_componentsE:
+  assumes "q \<in> hom_components p"
+  obtains t where "t \<in> keys p" and "q = hom_component p (deg_pm t)"
+  using assms unfolding hom_components_def by blast
+
+lemma hom_components_of_homogeneous:
+  assumes "homogeneous p"
+  shows "hom_components p = (if p = 0 then {} else {p})"
+proof (split if_split, intro conjI impI)
+  assume "p \<noteq> 0"
+  have "deg_pm ` keys p = {poly_deg p}"
+  proof (rule set_eqI)
+    fix n
+    have "n \<in> deg_pm ` keys p \<longleftrightarrow> n = poly_deg p"
+    proof
+      assume "n \<in> deg_pm ` keys p"
+      then obtain t where "t \<in> keys p" and "n = deg_pm t" ..
+      from assms this(1) have "deg_pm t = poly_deg p" by (rule homogeneousD_poly_deg)
+      thus "n = poly_deg p" by (simp only: \<open>n = deg_pm t\<close>)
+    next
+      assume "n = poly_deg p"
+      from \<open>p \<noteq> 0\<close> have "keys p \<noteq> {}" by simp
+      then obtain t where "t \<in> keys p" by blast
+      with assms have "deg_pm t = poly_deg p" by (rule homogeneousD_poly_deg)
+      hence "n = deg_pm t" by (simp only: \<open>n = poly_deg p\<close>)
+      with \<open>t \<in> keys p\<close> show "n \<in> deg_pm ` keys p" by (rule rev_image_eqI)
+    qed
+    thus "n \<in> deg_pm ` keys p \<longleftrightarrow> n \<in> {poly_deg p}" by simp
+  qed
+  with assms show "hom_components p = {p}"
+    by (simp add: hom_components_def hom_component_of_homogeneous)
+qed simp
+
+lemma finite_hom_components: "finite (hom_components p)"
+  unfolding hom_components_def using finite_keys by (intro finite_imageI)
+
+lemma hom_components_homogeneous: "q \<in> hom_components p \<Longrightarrow> homogeneous q"
+  by (elim hom_componentsE) (simp only: homogeneous_hom_component)
+
+lemma hom_components_nonzero: "q \<in> hom_components p \<Longrightarrow> q \<noteq> 0"
+  by (auto elim!: hom_componentsE simp: hom_component_zero_iff)
+
+lemma deg_pm_hom_components:
+  assumes "q1 \<in> hom_components p" and "q2 \<in> hom_components p" and "t1 \<in> keys q1" and "t2 \<in> keys q2"
+  shows "deg_pm t1 = deg_pm t2 \<longleftrightarrow> q1 = q2"
+proof -
+  from assms(1) obtain s1 where "s1 \<in> keys p" and q1: "q1 = hom_component p (deg_pm s1)"
+    by (rule hom_componentsE)
+  from assms(3) have t1: "deg_pm t1 = deg_pm s1" unfolding q1 by (rule keys_hom_componentD)
+  from assms(2) obtain s2 where "s2 \<in> keys p" and q2: "q2 = hom_component p (deg_pm s2)"
+    by (rule hom_componentsE)
+  from assms(4) have t2: "deg_pm t2 = deg_pm s2" unfolding q2 by (rule keys_hom_componentD)
+  from \<open>s1 \<in> keys p\<close> show ?thesis by (auto simp: q1 q2 t1 t2 dest: hom_component_inject)
+qed
+
+lemma poly_deg_hom_components:
+  assumes "q1 \<in> hom_components p" and "q2 \<in> hom_components p"
+  shows "poly_deg q1 = poly_deg q2 \<longleftrightarrow> q1 = q2"
+proof -
+  from assms(1) have "homogeneous q1" and "q1 \<noteq> 0"
+    by (rule hom_components_homogeneous, rule hom_components_nonzero)
+  from this(2) have "keys q1 \<noteq> {}" by simp
+  then obtain t1 where "t1 \<in> keys q1" by blast
+  with \<open>homogeneous q1\<close> have t1: "deg_pm t1 = poly_deg q1" by (rule homogeneousD_poly_deg)
+  from assms(2) have "homogeneous q2" and "q2 \<noteq> 0"
+    by (rule hom_components_homogeneous, rule hom_components_nonzero)
+  from this(2) have "keys q2 \<noteq> {}" by simp
+  then obtain t2 where "t2 \<in> keys q2" by blast
+  with \<open>homogeneous q2\<close> have t2: "deg_pm t2 = poly_deg q2" by (rule homogeneousD_poly_deg)
+  from assms \<open>t1 \<in> keys q1\<close> \<open>t2 \<in> keys q2\<close> have "deg_pm t1 = deg_pm t2 \<longleftrightarrow> q1 = q2"
+    by (rule deg_pm_hom_components)
+  thus ?thesis by (simp only: t1 t2)
+qed
+
+lemma hom_components_keys_disjoint:
+  assumes "q1 \<in> hom_components p" and "q2 \<in> hom_components p" and "q1 \<noteq> q2"
+  shows "keys q1 \<inter> keys q2 = {}"
+proof (rule ccontr)
+  assume "keys q1 \<inter> keys q2 \<noteq> {}"
+  then obtain t where "t \<in> keys q1" and "t \<in> keys q2" by blast
+  with assms(1, 2) have "deg_pm t = deg_pm t \<longleftrightarrow> q1 = q2" by (rule deg_pm_hom_components)
+  with assms(3) show False by simp
+qed
+
+lemma Keys_hom_components: "Keys (hom_components p) = keys p"
+  by (auto simp: Keys_def hom_components_def keys_hom_component)
+
+lemma lookup_hom_components: "q \<in> hom_components p \<Longrightarrow> t \<in> keys q \<Longrightarrow> lookup q t = lookup p t"
+  by (auto elim!: hom_componentsE simp: keys_hom_component lookup_hom_component)
+
+lemma poly_deg_hom_components_le:
+  assumes "q \<in> hom_components p"
+  shows "poly_deg q \<le> poly_deg p"
+proof (rule poly_deg_leI)
+  fix t
+  assume "t \<in> keys q"
+  also from assms have "\<dots> \<subseteq> Keys (hom_components p)" by (rule keys_subset_Keys)
+  also have "\<dots> = keys p" by (fact Keys_hom_components)
+  finally show "deg_pm t \<le> poly_deg p" by (rule poly_deg_max_keys)
+qed
+
+lemma sum_hom_components: "\<Sum>(hom_components p) = p"
+proof (rule poly_mapping_eqI)
+  fix t
+  show "lookup (\<Sum>(hom_components p)) t = lookup p t" unfolding lookup_sum
+  proof (cases "t \<in> keys p")
+    case True
+    also have "keys p = Keys (hom_components p)" by (simp only: Keys_hom_components)
+    finally obtain q where q: "q \<in> hom_components p" and t: "t \<in> keys q" by (rule in_KeysE)
+    from this(1) have "(\<Sum>q0\<in>hom_components p. lookup q0 t) =
+                        (\<Sum>q0\<in>insert q (hom_components p). lookup q0 t)"
+      by (simp only: insert_absorb)
+    also from finite_hom_components have "\<dots> = lookup q t + (\<Sum>q0\<in>hom_components p - {q}. lookup q0 t)"
+      by (rule sum.insert_remove)
+    also from q t have "\<dots> = lookup p t + (\<Sum>q0\<in>hom_components p - {q}. lookup q0 t)"
+      by (simp only: lookup_hom_components)
+    also have "(\<Sum>q0\<in>hom_components p - {q}. lookup q0 t) = 0"
+    proof (intro sum.neutral ballI)
+      fix q0
+      assume "q0 \<in> hom_components p - {q}"
+      hence "q0 \<in> hom_components p" and "q \<noteq> q0" by blast+
+      with q have "keys q \<inter> keys q0 = {}" by (rule hom_components_keys_disjoint)
+      with t have "t \<notin> keys q0" by blast
+      thus "lookup q0 t = 0" by simp
+    qed
+    finally show "(\<Sum>q\<in>hom_components p. lookup q t) = lookup p t" by simp
+  next
+    case False
+    hence "t \<notin> Keys (hom_components p)" by (simp add: Keys_hom_components)
+    hence "\<forall>q\<in>hom_components p. lookup q t = 0" by (simp add: Keys_def)
+    hence "(\<Sum>q\<in>hom_components p. lookup q t) = 0" by (rule sum.neutral)
+    also from False have "\<dots> = lookup p t" by simp
+    finally show "(\<Sum>q\<in>hom_components p. lookup q t) = lookup p t" .
+  qed
+qed
+
+lemma homogeneous_ideal:
+  assumes "\<And>f. f \<in> F \<Longrightarrow> homogeneous f" and "p \<in> ideal F"
+  shows "hom_component p n \<in> ideal F"
+proof -
+  from assms(2) have "p \<in> punit.pmdl F" by simp
+  thus ?thesis
+  proof (induct p rule: punit.pmdl_induct)
+    case module_0
+    show ?case by (simp add: ideal.module_0)
+  next
+    case (module_plus a f c t)
+    let ?f = "punit.monom_mult c t f"
+    from module_plus.hyps(3) have "f \<in> punit.pmdl F" by (simp add: ideal.generator_in_module)
+    hence *: "?f \<in> punit.pmdl F" by (rule punit.pmdl_closed_monom_mult)
+    from module_plus.hyps(3) have "homogeneous f" by (rule assms(1))
+    hence "homogeneous ?f" by (rule homogeneous_monom_mult)
+    hence "hom_component ?f n = (?f when n = poly_deg ?f)" by (rule hom_component_of_homogeneous)
+    also from * have "\<dots> \<in> ideal F" by (simp add: when_def ideal.module_0)
+    finally have "hom_component ?f n \<in> ideal F" .
+    with module_plus.hyps(2) show ?case unfolding hom_component_plus by (rule ideal.module_closed_plus)
+  qed
+qed
+
+corollary homogeneous_ideal':
+  assumes "\<And>f. f \<in> F \<Longrightarrow> homogeneous f" and "p \<in> ideal F" and "q \<in> hom_components p"
+  shows "q \<in> ideal F"
+proof -
+  from assms(3) obtain s::"'a \<Rightarrow>\<^sub>0 nat" where "q = hom_component p (deg_pm s)"
+    by (rule hom_componentsE)
+  also from assms(1, 2) have "\<dots> \<in> ideal F" by (rule homogeneous_ideal)
+  finally show ?thesis .
+qed
+
+subsubsection \<open>Homogenization and Dehomogenization\<close>
+
+definition homogenize :: "'x \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::semiring_1)"
+  where "homogenize x p = (\<Sum>t\<in>keys p. monomial (lookup p t) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t))"
+
+definition dehomo_subst :: "'x \<Rightarrow> 'x \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::zero_neq_one)"
+  where "dehomo_subst x = (\<lambda>y. if y = x then 1 else monomial 1 (Poly_Mapping.single y 1))"
+
+definition dehomogenize :: "'x \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::comm_semiring_1)"
+  where "dehomogenize x = poly_subst (dehomo_subst x)"
+
+lemma homogenize_zero [simp]: "homogenize x 0 = 0"
+  by (simp add: homogenize_def)
+
+lemma homogenize_uminus [simp]: "homogenize x (- p) = - homogenize x (p::_ \<Rightarrow>\<^sub>0 'a::ring_1)"
+  by (simp add: homogenize_def keys_uminus sum.reindex inj_on_def single_uminus sum_negf)
+
+lemma homogenize_monom_mult [simp]:
+  "homogenize x (punit.monom_mult c t p) = punit.monom_mult c t (homogenize x p)"
+  for c::"'a::{semiring_1,semiring_no_zero_divisors_cancel}"
+proof (cases "p = 0")
+  case True
+  thus ?thesis by simp
+next
+  case False
+  show ?thesis
+  proof (cases "c = 0")
+    case True
+    thus ?thesis by simp
+  next
+    case False
+    show ?thesis
+      by (simp add: homogenize_def punit.keys_monom_mult \<open>p \<noteq> 0\<close> False sum.reindex
+          punit.lookup_monom_mult punit.monom_mult_sum_right poly_deg_monom_mult
+          punit.monom_mult_monomial ac_simps deg_pm_plus)
+  qed
+qed
+
+lemma homogenize_alt:
+  "homogenize x p = (\<Sum>q\<in>hom_components p. punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) q)"
+proof -
+  have "homogenize x p = (\<Sum>t\<in>Keys (hom_components p). monomial (lookup p t) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t))"
+    by (simp only: homogenize_def Keys_hom_components)
+  also have "\<dots> = (\<Sum>t\<in>(\<Union> (keys ` hom_components p)). monomial (lookup p t) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t))"
+    by (simp only: Keys_def)
+  also have "\<dots> = (\<Sum>q\<in>hom_components p. (\<Sum>t\<in>keys q. monomial (lookup p t) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t)))"
+    by (auto intro!: sum.UNION_disjoint finite_hom_components finite_keys dest: hom_components_keys_disjoint)
+  also have "\<dots> = (\<Sum>q\<in>hom_components p. punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) q)"
+    using refl
+  proof (rule sum.cong)
+    fix q
+    assume q: "q \<in> hom_components p"
+    hence "homogeneous q" by (rule hom_components_homogeneous)
+    have "(\<Sum>t\<in>keys q. monomial (lookup p t) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t)) =
+          (\<Sum>t\<in>keys q. punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) (monomial (lookup q t) t))"
+      using refl
+    proof (rule sum.cong)
+      fix t
+      assume "t \<in> keys q"
+      with \<open>homogeneous q\<close> have "deg_pm t = poly_deg q" by (rule homogeneousD_poly_deg)
+      moreover from q \<open>t \<in> keys q\<close> have "lookup q t = lookup p t" by (rule lookup_hom_components)
+      ultimately show "monomial (lookup p t) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t) =
+            punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) (monomial (lookup q t) t)"
+        by (simp add: punit.monom_mult_monomial)
+    qed
+    also have "\<dots> = punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) q"
+      by (simp only: punit.poly_mapping_sum_monomials flip: punit.monom_mult_sum_right)
+    finally show "(\<Sum>t\<in>keys q. monomial (lookup p t) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t)) =
+                  punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) q" .
+  qed
+  finally show ?thesis .
+qed
+
+lemma keys_homogenizeE:
+  assumes "t \<in> keys (homogenize x p)"
+  obtains t' where "t' \<in> keys p" and "t = Poly_Mapping.single x (poly_deg p - deg_pm t') + t'"
+proof -
+  note assms
+  also have "keys (homogenize x p) \<subseteq>
+            (\<Union>t\<in>keys p. keys (monomial (lookup p t) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t)))"
+    unfolding homogenize_def by (rule punit.keys_sum_subset)
+  finally obtain t' where "t' \<in> keys p"
+    and "t \<in> keys (monomial (lookup p t') (Poly_Mapping.single x (poly_deg p - deg_pm t') + t'))" ..
+  from this(2) have "t = Poly_Mapping.single x (poly_deg p - deg_pm t') + t'"
+    by (simp split: if_split_asm)
+  with \<open>t' \<in> keys p\<close> show ?thesis ..
+qed
+
+lemma keys_homogenizeE_alt:
+  assumes "t \<in> keys (homogenize x p)"
+  obtains q t' where "q \<in> hom_components p" and "t' \<in> keys q"
+    and "t = Poly_Mapping.single x (poly_deg p - poly_deg q) + t'"
+proof -
+  note assms
+  also have "keys (homogenize x p) \<subseteq>
+            (\<Union>q\<in>hom_components p. keys (punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) q))"
+    unfolding homogenize_alt by (rule punit.keys_sum_subset)
+  finally obtain q where q: "q \<in> hom_components p"
+    and "t \<in> keys (punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) q)" ..
+  note this(2)
+  also have "\<dots> \<subseteq> (+) (Poly_Mapping.single x (poly_deg p - poly_deg q)) ` keys q"
+    by (rule punit.keys_monom_mult_subset[simplified])
+  finally obtain t' where "t' \<in> keys q" and "t = Poly_Mapping.single x (poly_deg p - poly_deg q) + t'" ..
+  with q show ?thesis ..
+qed
+
+lemma deg_pm_homogenize:
+  assumes "t \<in> keys (homogenize x p)"
+  shows "deg_pm t = poly_deg p"
+proof -
+  from assms obtain q t' where q: "q \<in> hom_components p" and "t' \<in> keys q"
+    and t: "t = Poly_Mapping.single x (poly_deg p - poly_deg q) + t'" by (rule keys_homogenizeE_alt)
+  from q have "homogeneous q" by (rule hom_components_homogeneous)
+  hence "deg_pm t' = poly_deg q" using \<open>t' \<in> keys q\<close> by (rule homogeneousD_poly_deg)
+  moreover from q have "poly_deg q \<le> poly_deg p" by (rule poly_deg_hom_components_le)
+  ultimately show ?thesis by (simp add: t deg_pm_plus deg_pm_single)
+qed
+
+corollary homogeneous_homogenize: "homogeneous (homogenize x p)"
+proof (rule homogeneousI)
+  fix s t
+  assume "s \<in> keys (homogenize x p)"
+  hence *: "deg_pm s = poly_deg p" by (rule deg_pm_homogenize)
+  assume "t \<in> keys (homogenize x p)"
+  hence "deg_pm t = poly_deg p" by (rule deg_pm_homogenize)
+  with * show "deg_pm s = deg_pm t" by simp
+qed
+
+corollary poly_deg_homogenize_le: "poly_deg (homogenize x p) \<le> poly_deg p"
+proof (rule poly_deg_leI)
+  fix t
+  assume "t \<in> keys (homogenize x p)"
+  hence "deg_pm t = poly_deg p" by (rule deg_pm_homogenize)
+  thus "deg_pm t \<le> poly_deg p" by simp
+qed
+
+lemma homogenize_id_iff [simp]: "homogenize x p = p \<longleftrightarrow> homogeneous p"
+proof
+  assume "homogenize x p = p"
+  moreover have "homogeneous (homogenize x p)" by (fact homogeneous_homogenize)
+  ultimately show "homogeneous p" by simp
+next
+  assume "homogeneous p"
+  hence "hom_components p = (if p = 0 then {} else {p})" by (rule hom_components_of_homogeneous)
+  thus "homogenize x p = p" by (simp add: homogenize_alt split: if_split_asm)
+qed
+
+lemma homogenize_homogenize [simp]: "homogenize x (homogenize x p) = homogenize x p"
+  by (simp add: homogeneous_homogenize)
+
+lemma homogenize_monomial: "homogenize x (monomial c t) = monomial c t"
+  by (simp only: homogenize_id_iff homogeneous_monomial)
+
+lemma indets_homogenize_subset: "indets (homogenize x p) \<subseteq> insert x (indets p)"
+proof
+  fix y
+  assume "y \<in> indets (homogenize x p)"
+  then obtain t where "t \<in> keys (homogenize x p)" and "y \<in> keys t" by (rule in_indetsE)
+  from this(1) obtain t' where "t' \<in> keys p"
+    and t: "t = Poly_Mapping.single x (poly_deg p - deg_pm t') + t'" by (rule keys_homogenizeE)
+  note \<open>y \<in> keys t\<close>
+  also have "keys t \<subseteq> keys (Poly_Mapping.single x (poly_deg p - deg_pm t')) \<union> keys t'"
+    unfolding t by (rule keys_add_subset)
+  finally show "y \<in> insert x (indets p)"
+  proof
+    assume "y \<in> keys (Poly_Mapping.single x (poly_deg p - deg_pm t'))"
+    thus ?thesis by (simp split: if_split_asm)
+  next
+    assume "y \<in> keys t'"
+    hence "y \<in> indets p" using \<open>t' \<in> keys p\<close> by (rule in_indetsI)
+    thus ?thesis by simp
+  qed
+qed
+
+lemma lookup_homogenize:
+  assumes "x \<notin> indets p" and "x \<notin> keys t"
+  shows "lookup (homogenize x p) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t) = lookup p t"
+proof -
+  let ?p = "homogenize x p"
+  let ?t = "Poly_Mapping.single x (poly_deg p - deg_pm t) + t"
+  have eq: "(\<Sum>s\<in>keys p - {t}. lookup (monomial (lookup p s) (Poly_Mapping.single x (poly_deg p - deg_pm s) + s)) ?t) = 0"
+  proof (intro sum.neutral ballI)
+    fix s
+    assume "s \<in> keys p - {t}"
+    hence "s \<in> keys p" and "s \<noteq> t" by simp_all
+    from this(1) have "keys s \<subseteq> indets p" by (simp add: in_indetsI subsetI)
+    with assms(1) have "x \<notin> keys s" by blast
+    have "?t \<noteq> Poly_Mapping.single x (poly_deg p - deg_pm s) + s"
+    proof
+      assume a: "?t = Poly_Mapping.single x (poly_deg p - deg_pm s) + s"
+      hence "lookup ?t x = lookup (Poly_Mapping.single x (poly_deg p - deg_pm s) + s) x"
+        by simp
+      moreover from assms(2) have "lookup t x = 0" by simp
+      moreover from \<open>x \<notin> keys s\<close> have "lookup s x = 0" by simp
+      ultimately have "poly_deg p - deg_pm t = poly_deg p - deg_pm s" by (simp add: lookup_add)
+      with a have "s = t" by simp
+      with \<open>s \<noteq> t\<close> show False ..
+    qed
+    thus "lookup (monomial (lookup p s) (Poly_Mapping.single x (poly_deg p - deg_pm s) + s)) ?t = 0"
+      by (simp add: lookup_single)
+  qed
+  show ?thesis
+  proof (cases "t \<in> keys p")
+    case True
+    have "lookup ?p ?t = (\<Sum>s\<in>keys p. lookup (monomial (lookup p s) (Poly_Mapping.single x (poly_deg p - deg_pm s) + s)) ?t)"
+      by (simp add: homogenize_def lookup_sum)
+    also have "\<dots> = lookup (monomial (lookup p t) ?t) ?t +
+                    (\<Sum>s\<in>keys p - {t}. lookup (monomial (lookup p s) (Poly_Mapping.single x (poly_deg p - deg_pm s) + s)) ?t)"
+      using finite_keys True by (rule sum.remove)
+    also have "\<dots> = lookup p t" by (simp add: eq)
+    finally show ?thesis .
+  next
+    case False
+    hence 1: "keys p - {t} = keys p" by simp
+    have "lookup ?p ?t = (\<Sum>s\<in>keys p - {t}. lookup (monomial (lookup p s) (Poly_Mapping.single x (poly_deg p - deg_pm s) + s)) ?t)"
+      by (simp add: homogenize_def lookup_sum 1)
+    also have "\<dots> = 0" by (simp only: eq)
+    also from False have "\<dots> = lookup p t" by simp
+    finally show ?thesis .
+  qed
+qed
+
+lemma keys_homogenizeI:
+  assumes "x \<notin> indets p" and "t \<in> keys p"
+  shows "Poly_Mapping.single x (poly_deg p - deg_pm t) + t \<in> keys (homogenize x p)" (is "?t \<in> keys ?p")
+proof -
+  from assms(2) have "keys t \<subseteq> indets p" by (simp add: in_indetsI subsetI)
+  with assms(1) have "x \<notin> keys t" by blast
+  with assms(1) have "lookup ?p ?t = lookup p t" by (rule lookup_homogenize)
+  also from assms(2) have "\<dots> \<noteq> 0" by simp
+  finally show ?thesis by simp
+qed
+
+lemma poly_deg_homogenize:
+  assumes "x \<notin> indets p"
+  shows "poly_deg (homogenize x p) = poly_deg p"
+proof (cases "p = 0")
+  case True
+  thus ?thesis by simp
+next
+  case False
+  then obtain t where "t \<in> keys p" and 1: "poly_deg p = deg_pm t" by (rule poly_degE)
+  from assms this(1) have "Poly_Mapping.single x (poly_deg p - deg_pm t) + t \<in> keys (homogenize x p)"
+    by (rule keys_homogenizeI)
+  hence "t \<in> keys (homogenize x p)" by (simp add: 1)
+  hence "poly_deg p \<le> poly_deg (homogenize x p)" unfolding 1 by (rule poly_deg_max_keys)
+  with poly_deg_homogenize_le show ?thesis by (rule antisym)
+qed
+
+lemma homogeneous_ideal_homogenize:
+  assumes "\<And>f. f \<in> F \<Longrightarrow> homogeneous f" and "p \<in> ideal F"
+  shows "homogenize x p \<in> ideal F"
+proof -
+  have "homogenize x p = (\<Sum>q\<in>hom_components p. punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) q)"
+    by (fact homogenize_alt)
+  also have "\<dots> \<in> ideal F"
+  proof (rule ideal.module_closed_sum)
+    fix q
+    assume "q \<in> hom_components p"
+    with assms have "q \<in> ideal F" by (rule homogeneous_ideal')
+    thus "punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) q \<in> ideal F"
+      by (rule punit.pmdl_closed_monom_mult[simplified])
+  qed
+  finally show ?thesis .
+qed
+
+lemma subst_pp_dehomo_subst [simp]:
+  "subst_pp (dehomo_subst x) t = monomial (1::'b::comm_semiring_1) (except t {x})"
+proof -
+  have "subst_pp (dehomo_subst x) t = ((\<Prod>y\<in>keys t. dehomo_subst x y ^ lookup t y)::_ \<Rightarrow>\<^sub>0 'b)"
+    by (fact subst_pp_def)
+  also have "\<dots> = (\<Prod>y\<in>keys t - {y0. dehomo_subst x y0 ^ lookup t y0 = (1::_ \<Rightarrow>\<^sub>0 'b)}. dehomo_subst x y ^ lookup t y)"
+    by (rule sym, rule prod.setdiff_irrelevant, fact finite_keys)
+  also have "\<dots> = (\<Prod>y\<in>keys t - {x}. monomial 1 (Poly_Mapping.single y 1) ^ lookup t y)"
+  proof (rule prod.cong)
+    have "dehomo_subst x x ^ lookup t x = 1" by (simp add: dehomo_subst_def)
+    moreover {
+      fix y
+      assume "y \<noteq> x"
+      hence "dehomo_subst x y ^ lookup t y = monomial 1 (Poly_Mapping.single y (lookup t y))"
+        by (simp add: dehomo_subst_def monomial_single_power)
+      moreover assume "dehomo_subst x y ^ lookup t y = 1"
+      ultimately have "Poly_Mapping.single y (lookup t y) = 0"
+        by (smt single_one monomial_inj zero_neq_one)
+      hence "lookup t y = 0" by (rule monomial_0D)
+      moreover assume "y \<in> keys t"
+      ultimately have False by (simp add: in_keys_iff)
+    }
+    ultimately show "keys t - {y0. dehomo_subst x y0 ^ lookup t y0 = 1} = keys t - {x}" by auto
+  qed (simp add: dehomo_subst_def)
+  also have "\<dots> = (\<Prod>y\<in>keys t - {x}. monomial 1 (Poly_Mapping.single y (lookup t y)))"
+    by (simp add: monomial_single_power)
+  also have "\<dots> = monomial 1 (\<Sum>y\<in>keys t - {x}. Poly_Mapping.single y (lookup t y))"
+    by (simp flip: punit.monomial_prod_sum)
+  also have "(\<Sum>y\<in>keys t - {x}. Poly_Mapping.single y (lookup t y)) = except t {x}"
+  proof (rule poly_mapping_eqI, simp add: lookup_sum lookup_except lookup_single, rule)
+    fix y
+    assume "y \<noteq> x"
+    show "(\<Sum>z\<in>keys t - {x}. lookup t z when z = y) = lookup t y"
+    proof (cases "y \<in> keys t")
+      case True
+      have "finite (keys t - {x})" by simp
+      moreover from True \<open>y \<noteq> x\<close> have "y \<in> keys t - {x}" by simp
+      ultimately have "(\<Sum>z\<in>keys t - {x}. lookup t z when z = y) =
+                        (lookup t y when y = y) + (\<Sum>z\<in>keys t - {x} - {y}. lookup t z when z = y)"
+        by (rule sum.remove)
+      also have "(\<Sum>z\<in>keys t - {x} - {y}. lookup t z when z = y) = 0" by auto
+      finally show ?thesis by simp
+    next
+      case False
+      hence "(\<Sum>z\<in>keys t - {x}. lookup t z when z = y) = 0" by (auto simp: when_def)
+      also from False have "\<dots> = lookup t y" by simp
+      finally show ?thesis .
+    qed
+  qed
+  finally show ?thesis .
+qed
+
+lemma dehomogenize_zero [simp]: "dehomogenize x 0 = 0"
+  by (simp add: dehomogenize_def)
+
+lemma dehomogenize_plus: "dehomogenize x (p + q) = dehomogenize x p + dehomogenize x q"
+  by (simp only: dehomogenize_def poly_subst_plus)
+
+lemma dehomogenize_uminus: "dehomogenize x (- p) = - dehomogenize x (p::_ \<Rightarrow>\<^sub>0 'a::comm_ring_1)"
+  by (simp only: dehomogenize_def poly_subst_uminus)
+
+lemma dehomogenize_minus:
+  "dehomogenize x (p - q) = dehomogenize x p - dehomogenize x (q::_ \<Rightarrow>\<^sub>0 'a::comm_ring_1)"
+  by (simp only: dehomogenize_def poly_subst_minus)
+
+lemma dehomogenize_monomial: "dehomogenize x (monomial c t) = monomial c (except t {x})"
+  by (simp add: dehomogenize_def poly_subst_monomial punit.monom_mult_monomial)
+
+corollary dehomogenize_one [simp]: "dehomogenize x 1 = 1"
+  by (simp add: dehomogenize_monomial flip: single_one)
+
+lemma dehomogenize_times: "dehomogenize x (p * q) = dehomogenize x p * dehomogenize x q"
+  by (simp only: dehomogenize_def poly_subst_times)
+
+corollary dehomogenize_monom_mult:
+  "dehomogenize x (punit.monom_mult c t p) = punit.monom_mult c (except t {x}) (dehomogenize x p)"
+  by (simp only: times_monomial_left[symmetric] dehomogenize_times dehomogenize_monomial)
+
+lemma dehomogenize_power: "dehomogenize x (p ^ n) = (dehomogenize x p) ^ n"
+  by (induct n, simp_all add: dehomogenize_times)
+
+lemma dehomogenize_sum: "dehomogenize x (sum p A) = (\<Sum>a\<in>A. dehomogenize x (p a))"
+  by (simp only: dehomogenize_def poly_subst_sum)
+
+lemma poly_deg_dehomogenize_le: "poly_deg (dehomogenize x p) \<le> poly_deg p"
+  unfolding dehomogenize_def dehomo_subst_def
+  by (rule poly_deg_poly_subst_le) (simp add: poly_deg_monomial deg_pm_single)
+
+lemma indets_dehomogenize: "indets (dehomogenize x p) \<subseteq> indets p - {x}"
+  for p::"('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::comm_semiring_1"
+proof
+  fix y::'x
+  assume "y \<in> indets (dehomogenize x p)"
+  then obtain y' where "y' \<in> indets p" and "y \<in> indets ((dehomo_subst x y')::_ \<Rightarrow>\<^sub>0 'a)"
+    unfolding dehomogenize_def by (rule in_indets_poly_substE)
+  from this(2) have "y = y'" and "y' \<noteq> x"
+    by (simp_all add: dehomo_subst_def indets_monomial split: if_split_asm)
+  with \<open>y' \<in> indets p\<close> show "y \<in> indets p - {x}" by simp
+qed
+
+lemma dehomogenize_id_iff [simp]: "dehomogenize x p = p \<longleftrightarrow> x \<notin> indets p"
+proof
+  assume eq: "dehomogenize x p = p"
+  from indets_dehomogenize[of x p] show "x \<notin> indets p" by (auto simp: eq)
+next
+  assume a: "x \<notin> indets p"
+  show "dehomogenize x p = p" unfolding dehomogenize_def
+  proof (rule poly_subst_id)
+    fix y
+    assume "y \<in> indets p"
+    with a have "y \<noteq> x" by blast
+    thus "dehomo_subst x y = monomial 1 (Poly_Mapping.single y 1)" by (simp add: dehomo_subst_def)
+  qed
+qed
+
+lemma dehomogenize_dehomogenize [simp]: "dehomogenize x (dehomogenize x p) = dehomogenize x p"
+proof -
+  from indets_dehomogenize[of x p] have "x \<notin> indets (dehomogenize x p)" by blast
+  thus ?thesis by simp
+qed
+
+lemma dehomogenize_homogenize [simp]: "dehomogenize x (homogenize x p) = dehomogenize x p"
+proof -
+  have "dehomogenize x (homogenize x p) = sum (dehomogenize x) (hom_components p)"
+    by (simp add: homogenize_alt dehomogenize_sum dehomogenize_monom_mult except_monomial)
+  also have "\<dots> = dehomogenize x p" by (simp only: sum_hom_components flip: dehomogenize_sum)
+  finally show ?thesis .
+qed
+
+corollary dehomogenize_homogenize_id: "x \<notin> indets p \<Longrightarrow> dehomogenize x (homogenize x p) = p"
+  by simp
+
+lemma dehomogenize_alt: "dehomogenize x p = (\<Sum>t\<in>keys p. monomial (lookup p t) (except t {x}))"
+proof -
+  have "dehomogenize x p = dehomogenize x (\<Sum>t\<in>keys p. monomial (lookup p t) t)"
+    by (simp only: punit.poly_mapping_sum_monomials)
+  also have "\<dots> = (\<Sum>t\<in>keys p. monomial (lookup p t) (except t {x}))"
+    by (simp only: dehomogenize_sum dehomogenize_monomial)
+  finally show ?thesis .
+qed
+
+lemma keys_dehomogenizeE:
+  assumes "t \<in> keys (dehomogenize x p)"
+  obtains s where "s \<in> keys p" and "t = except s {x}"
+proof -
+  note assms
+  also have "keys (dehomogenize x p) \<subseteq> (\<Union>s\<in>keys p. keys (monomial (lookup p s) (except s {x})))"
+    unfolding dehomogenize_alt by (rule punit.keys_sum_subset)
+  finally obtain s where "s \<in> keys p" and "t \<in> keys (monomial (lookup p s) (except s {x}))" ..
+  from this(2) have "t = except s {x}" by (simp split: if_split_asm)
+  with \<open>s \<in> keys p\<close> show ?thesis ..
+qed
+
+lemma except_inj_on_keys_homogeneous:
+  assumes "homogeneous p"
+  shows "inj_on (\<lambda>t. except t {x}) (keys p)"
+proof
+  fix s t
+  assume "s \<in> keys p" and "t \<in> keys p"
+  from assms this(1) have "deg_pm s = poly_deg p" by (rule homogeneousD_poly_deg)
+  moreover from assms \<open>t \<in> keys p\<close> have "deg_pm t = poly_deg p" by (rule homogeneousD_poly_deg)
+  ultimately have "deg_pm (Poly_Mapping.single x (lookup s x) + except s {x}) =
+                   deg_pm (Poly_Mapping.single x (lookup t x) + except t {x})"
+    by (simp only: flip: plus_except)
+  moreover assume 1: "except s {x} = except t {x}"
+  ultimately have 2: "lookup s x = lookup t x"
+    by (simp only: deg_pm_plus deg_pm_single)
+  show "s = t"
+  proof (rule poly_mapping_eqI)
+    fix y
+    show "lookup s y = lookup t y"
+    proof (cases "y = x")
+      case True
+      with 2 show ?thesis by simp
+    next
+      case False
+      hence "lookup s y = lookup (except s {x}) y" and "lookup t y = lookup (except t {x}) y"
+        by (simp_all add: lookup_except)
+      with 1 show ?thesis by simp
+    qed
+  qed
+qed
+
+lemma lookup_dehomogenize:
+  assumes "homogeneous p" and "t \<in> keys p"
+  shows "lookup (dehomogenize x p) (except t {x}) = lookup p t"
+proof -
+  let ?t = "except t {x}"
+  have eq: "(\<Sum>s\<in>keys p - {t}. lookup (monomial (lookup p s) (except s {x})) ?t) = 0"
+  proof (intro sum.neutral ballI)
+    fix s
+    assume "s \<in> keys p - {t}"
+    hence "s \<in> keys p" and "s \<noteq> t" by simp_all
+    have "?t \<noteq> except s {x}"
+    proof
+      from assms(1) have "inj_on (\<lambda>t. except t {x}) (keys p)" by (rule except_inj_on_keys_homogeneous)
+      moreover assume "?t = except s {x}"
+      ultimately have "t = s" using assms(2) \<open>s \<in> keys p\<close> by (rule inj_onD)
+      with \<open>s \<noteq> t\<close> show False by simp
+    qed
+    thus "lookup (monomial (lookup p s) (except s {x})) ?t = 0" by (simp add: lookup_single)
+  qed
+  have "lookup (dehomogenize x p) ?t = (\<Sum>s\<in>keys p. lookup (monomial (lookup p s) (except s {x})) ?t)"
+    by (simp only: dehomogenize_alt lookup_sum)
+  also have "\<dots> = lookup (monomial (lookup p t) ?t) ?t +
+                  (\<Sum>s\<in>keys p - {t}. lookup (monomial (lookup p s) (except s {x})) ?t)"
+    using finite_keys assms(2) by (rule sum.remove)
+  also have "\<dots> = lookup p t" by (simp add: eq)
+  finally show ?thesis .
+qed
+
+lemma keys_dehomogenizeI:
+  assumes "homogeneous p" and "t \<in> keys p"
+  shows "except t {x} \<in> keys (dehomogenize x p)"
+proof -
+  from assms have "lookup (dehomogenize x p) (except t {x}) = lookup p t" by (rule lookup_dehomogenize)
+  also from assms(2) have "\<dots> \<noteq> 0" by simp
+  finally show ?thesis by simp
+qed
+
+lemma homogeneous_homogenize_dehomogenize:
+  assumes "homogeneous p"
+  obtains d where "d = poly_deg p - poly_deg (homogenize x (dehomogenize x p))"
+    and "punit.monom_mult 1 (Poly_Mapping.single x d) (homogenize x (dehomogenize x p)) = p"
+proof (cases "p = 0")
+  case True
+  hence "0 = poly_deg p - poly_deg (homogenize x (dehomogenize x p))"
+    and "punit.monom_mult 1 (Poly_Mapping.single x 0) (homogenize x (dehomogenize x p)) = p"
+    by simp_all
+  thus ?thesis ..
+next
+  case False
+  let ?q = "dehomogenize x p"
+  let ?p = "homogenize x ?q"
+  define d where "d = poly_deg p - poly_deg ?p"
+  show ?thesis
+  proof
+    have "punit.monom_mult 1 (Poly_Mapping.single x d) ?p =
+          (\<Sum>t\<in>keys ?q. monomial (lookup ?q t) (Poly_Mapping.single x (d + (poly_deg ?q - deg_pm t)) + t))"
+      by (simp add: homogenize_def punit.monom_mult_sum_right punit.monom_mult_monomial flip: add.assoc single_add)
+    also have "\<dots> = (\<Sum>t\<in>keys ?q. monomial (lookup ?q t) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t))"
+      using refl
+    proof (rule sum.cong)
+      fix t
+      assume "t \<in> keys ?q"
+      have "poly_deg ?p = poly_deg ?q"
+      proof (rule poly_deg_homogenize)
+        from indets_dehomogenize show "x \<notin> indets ?q" by fastforce
+      qed
+      hence d: "d = poly_deg p - poly_deg ?q" by (simp only: d_def)
+      thm poly_deg_dehomogenize_le
+      from \<open>t \<in> keys ?q\<close> have "d + (poly_deg ?q - deg_pm t) = (d + poly_deg ?q) - deg_pm t"
+        by (intro add_diff_assoc poly_deg_max_keys)
+      also have "d + poly_deg ?q = poly_deg p" by (simp add: d poly_deg_dehomogenize_le)
+      finally show "monomial (lookup ?q t) (Poly_Mapping.single x (d + (poly_deg ?q - deg_pm t)) + t) =
+                    monomial (lookup ?q t) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t)"
+        by (simp only:)
+    qed
+    also have "\<dots> = (\<Sum>t\<in>(\<lambda>s. except s {x}) ` keys p.
+                    monomial (lookup ?q t) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t))"
+    proof (rule sum.mono_neutral_left)
+      show "keys (dehomogenize x p) \<subseteq> (\<lambda>s. except s {x}) ` keys p"
+      proof
+        fix t
+        assume "t \<in> keys (dehomogenize x p)"
+        then obtain s where "s \<in> keys p" and "t = except s {x}" by (rule keys_dehomogenizeE)
+        thus "t \<in> (\<lambda>s. except s {x}) ` keys p" by (rule rev_image_eqI)
+      qed
+    qed simp_all
+    also from assms have "\<dots> = (\<Sum>t\<in>keys p. monomial (lookup ?q (except t {x}))
+                (Poly_Mapping.single x (poly_deg p - deg_pm (except t {x})) + except t {x}))"
+      by (intro sum.reindex[unfolded comp_def] except_inj_on_keys_homogeneous)
+    also from refl have "\<dots> = (\<Sum>t\<in>keys p. monomial (lookup p t) t)"
+    proof (rule sum.cong)
+      fix t
+      assume "t \<in> keys p"
+      with assms have "lookup ?q (except t {x}) = lookup p t" by (rule lookup_dehomogenize)
+      moreover have "Poly_Mapping.single x (poly_deg p - deg_pm (except t {x})) + except t {x} = t"
+        (is "?l = _")
+      proof (rule poly_mapping_eqI)
+        fix y
+        show "lookup ?l y = lookup t y"
+        proof (cases "y = x")
+          case True
+          from assms \<open>t \<in> keys p\<close> have "deg_pm t = poly_deg p" by (rule homogeneousD_poly_deg)
+          also have "deg_pm t = deg_pm (Poly_Mapping.single x (lookup t x) + except t {x})"
+            by (simp flip: plus_except)
+          also have "\<dots> = lookup t x + deg_pm (except t {x})" by (simp only: deg_pm_plus deg_pm_single)
+          finally have "poly_deg p - deg_pm (except t {x}) = lookup t x" by simp
+          thus ?thesis by (simp add: True lookup_add lookup_except lookup_single)
+        next
+          case False
+          thus ?thesis by (simp add: lookup_add lookup_except lookup_single)
+        qed
+      qed
+      ultimately show "monomial (lookup ?q (except t {x}))
+              (Poly_Mapping.single x (poly_deg p - deg_pm (except t {x})) + except t {x}) =
+            monomial (lookup p t) t" by (simp only:)
+    qed
+    also have "\<dots> = p" by (fact punit.poly_mapping_sum_monomials)
+    finally show "punit.monom_mult 1 (Poly_Mapping.single x d) ?p = p" .
+  qed (simp only: d_def)
+qed
+
+lemma dehomogenize_zeroD:
+  assumes "dehomogenize x p = 0" and "homogeneous p"
+  shows "p = 0"
+proof -
+  from assms(2) obtain d
+    where "punit.monom_mult 1 (Poly_Mapping.single x d) (homogenize x (dehomogenize x p)) = p"
+    by (rule homogeneous_homogenize_dehomogenize)
+  thus ?thesis by (simp add: assms(1))
+qed
+
+lemma dehomogenize_ideal_subset: "dehomogenize x ` ideal F \<subseteq> ideal (dehomogenize x ` F)"
+proof
+  fix q
+  assume "q \<in> dehomogenize x ` ideal F"
+  then obtain p where "p \<in> ideal F" and q: "q = dehomogenize x p" ..
+  from this(1) show "q \<in> ideal (dehomogenize x ` F)" unfolding q
+  proof (induct p rule: ideal.module_induct)
+    case module_0
+    show ?case by (simp add: ideal.module_0)
+  next
+    case (module_plus a q p)
+    have "dehomogenize x (a + q * p) = dehomogenize x a + dehomogenize x q * dehomogenize x p"
+      by (simp only: dehomogenize_plus dehomogenize_times)
+    also from module_plus.hyps(2, 3) have "\<dots> \<in> ideal (dehomogenize x ` F)"
+      by (intro ideal.module_plus imageI)
+    finally show ?case .
+  qed
+qed
+
+lemma ideal_dehomogenize:
+  assumes "ideal G = ideal (homogenize x ` F)" and "F \<subseteq> P[UNIV - {x}]"
+  shows "ideal (dehomogenize x ` G) = ideal F"
+proof -
+  have eq: "dehomogenize x (homogenize x f) = f" if "f \<in> F" for f
+  proof (rule dehomogenize_homogenize_id)
+    from that assms(2) have "f \<in> P[UNIV - {x}]" ..
+    thus "x \<notin> indets f" by (auto simp: Polys_alt)
+  qed
+  show ?thesis
+  proof (intro Set.equalityI ideal.module_subset_moduleI)
+    show "dehomogenize x ` G \<subseteq> ideal F"
+    proof
+      fix q
+      assume "q \<in> dehomogenize x ` G"
+      then obtain g where "g \<in> G" and q: "q = dehomogenize x g" ..
+      from this(1) have "g \<in> ideal G" by (rule ideal.generator_in_module)
+      also have "\<dots> = ideal (homogenize x ` F)" by fact
+      finally have "q \<in> dehomogenize x ` ideal (homogenize x ` F)" using q by (rule rev_image_eqI)
+      also have "\<dots> \<subseteq> ideal (dehomogenize x ` homogenize x ` F)" by (rule dehomogenize_ideal_subset)
+      also have "dehomogenize x ` homogenize x ` F = F"
+        by (auto simp: eq image_image simp del: dehomogenize_homogenize intro!: image_eqI)
+      finally show "q \<in> ideal F" .
+    qed
+  next
+    show "F \<subseteq> ideal (dehomogenize x ` G)"
+    proof
+      fix f
+      assume "f \<in> F"
+      hence "homogenize x f \<in> homogenize x ` F" by (rule imageI)
+      also have "\<dots> \<subseteq> ideal (homogenize x ` F)" by (rule ideal.generator_subset_module)
+      also from assms(1) have "\<dots> = ideal G" by (rule sym)
+      finally have "dehomogenize x (homogenize x f) \<in> dehomogenize x ` ideal G" by (rule imageI)
+      with \<open>f \<in> F\<close> have "f \<in> dehomogenize x ` ideal G" by (simp only: eq)
+      also have "\<dots> \<subseteq> ideal (dehomogenize x ` G)" by (rule dehomogenize_ideal_subset)
+      finally show "f \<in> ideal (dehomogenize x ` G)" .
+    qed
+  qed
+qed
+
 subsection \<open>Locale @{term pm_powerprod}\<close>
 
 locale pm_powerprod =
