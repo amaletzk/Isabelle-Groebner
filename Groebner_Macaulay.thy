@@ -205,7 +205,8 @@ definition is_cofactor_bound :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<
 text \<open>Note that @{const is_cofactor_bound} is only true for @{emph \<open>finite\<close>} sets \<open>F\<close>.\<close>
 
 definition is_GB_bound :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::field) set \<Rightarrow> nat \<Rightarrow> bool"
-  where "is_GB_bound F b \<longleftrightarrow> (\<forall>g\<in>punit.reduced_GB F. poly_deg g \<le> b)"
+  where "is_GB_bound F b \<longleftrightarrow> (\<exists>G. punit.is_Groebner_basis G \<and> ideal G = ideal F \<and>
+                                UNION G indets \<subseteq> UNION F indets \<and> (\<forall>g\<in>G. poly_deg g \<le> b))"
 
 lemma is_cofactor_boundI:
   assumes "\<And>p. p \<in> ideal F \<Longrightarrow> \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg p + b)"
@@ -304,14 +305,45 @@ next
 qed
 
 lemma is_GB_boundI:
-  assumes "\<And>g. g \<in> punit.reduced_GB F \<Longrightarrow> poly_deg g \<le> b"
-  shows "is_GB_bound F b"
-  unfolding is_GB_bound_def using assms by blast
+  "punit.is_Groebner_basis G \<Longrightarrow> ideal G = ideal F \<Longrightarrow> UNION G indets \<subseteq> UNION F indets \<Longrightarrow>
+    (\<And>g. g \<in> G \<Longrightarrow> poly_deg g \<le> b) \<Longrightarrow> is_GB_bound F b"
+  unfolding is_GB_bound_def by blast
 
 lemma is_GB_boundE:
-  assumes "is_GB_bound F b" and "g \<in> punit.reduced_GB F"
-  shows "poly_deg g \<le> b"
+  assumes "is_GB_bound F b"
+  obtains G where "punit.is_Groebner_basis G" and "ideal G = ideal F"
+    and "UNION G indets \<subseteq> UNION F indets" and "\<And>g. g \<in> G \<Longrightarrow> poly_deg g \<le> b"
   using assms unfolding is_GB_bound_def by blast
+
+lemma is_GB_boundE_Polys:
+  assumes "is_GB_bound F b" and "F \<subseteq> P[X]"
+  obtains G where "punit.is_Groebner_basis G" and "ideal G = ideal F"
+    and "G \<subseteq> P[X]" and "\<And>g. g \<in> G \<Longrightarrow> poly_deg g \<le> b"
+proof -
+  from assms(1) obtain G where "punit.is_Groebner_basis G" and "ideal G = ideal F"
+    and "UNION G indets \<subseteq> UNION F indets" and "\<And>g. g \<in> G \<Longrightarrow> poly_deg g \<le> b"
+    by (rule is_GB_boundE) blast
+  from this(1, 2) _ this(4) show ?thesis
+  proof
+    show "G \<subseteq> P[X]"
+    proof
+      fix g
+      assume "g \<in> G"
+      hence "indets g \<subseteq> UNION G indets" by fastforce
+      also have "\<dots> \<subseteq> UNION F indets" by fact
+      also have "\<dots> \<subseteq> X"
+      proof
+        fix x
+        assume "x \<in> UNION F indets"
+        then obtain f where "f \<in> F" and "x \<in> indets f" ..
+        from this(1) assms(2) have "f \<in> P[X]" ..
+        hence "indets f \<subseteq> X" by (rule PolysD)
+        with \<open>x \<in> indets f\<close> show "x \<in> X" ..
+      qed
+      finally show "g \<in> P[X]" by (rule PolysI_alt)
+    qed
+  qed
+qed
 
 context
   fixes X :: "'x set"
@@ -358,81 +390,160 @@ next
     by (rule ideal.module_mono)
 qed
 
-theorem thm_2_3_6:
-  assumes "finite X" and "set fs \<subseteq> P[X]" and "is_cofactor_bound (set fs) b1" and "is_GB_bound (set fs) b2"
-  shows "set (punit.reduced_Macaulay_list (deg_shifts (b1 + b2) fs)) = punit.reduced_GB (set fs)"
-proof (rule punit.reduced_Macaulay_list_is_reduced_GB)
-  let ?H = "punit.phull (set (deg_shifts (b1 + b2) fs))"
+lemma phull_deg_shifts_superset:
+  assumes "set fs \<subseteq> P[X]" and "G \<subseteq> P[X]" and "ideal G = ideal (set fs)"
+    and "is_cofactor_bound (set fs) b1" and "\<And>g::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field. g \<in> G \<Longrightarrow> poly_deg g \<le> b2"
+  shows "G \<subseteq> punit.phull (set (deg_shifts (b1 + b2) fs))" (is "_ \<subseteq> ?H")
+proof
+  fix g
+  assume "g \<in> G"
+  hence "g \<in> ideal G" by (rule ideal.generator_in_module)
+  hence "g \<in> ideal (set fs)" by (simp only: assms(3))
+  with assms(4) obtain q where g: "g = (\<Sum>f\<in>(set fs). q f * f)"
+    and 1: "\<And>f. f \<in> set fs \<Longrightarrow> q f \<noteq> 0 \<Longrightarrow>
+              indets (q f) \<subseteq> UNION (insert g (set fs)) indets \<and> poly_deg (q f) \<le> poly_deg g + b1"
+    by (rule is_cofactor_boundE) blast
   have "1 \<noteq> (0::'a)" by simp
-  from assms(1, 2) have "punit.reduced_GB (set fs) \<subseteq> P[X]" by (rule reduced_GB_Polys)
-  show "punit.reduced_GB (set fs) \<subseteq> ?H"
-  proof
-    fix g
-    assume "g \<in> punit.reduced_GB (set fs)"
-    hence "g \<in> ideal (punit.reduced_GB (set fs))" by (rule ideal.generator_in_module)
-    hence "g \<in> ideal (set fs)" using punit.reduced_GB_pmdl_finite by auto
-    with assms(3) obtain q where g: "g = (\<Sum>f\<in>(set fs). q f * f)"
-      and 1: "\<And>f. f \<in> set fs \<Longrightarrow> q f \<noteq> 0 \<Longrightarrow>
-                indets (q f) \<subseteq> UNION (insert g (set fs)) indets \<and> poly_deg (q f) \<le> poly_deg g + b1"
-      by (rule is_cofactor_boundE, blast)
-    show "g \<in> ?H" unfolding g
-    proof (rule punit.phull.module_closed_sum)
-      fix f
-      assume "f \<in> set fs"
-      show "q f * f \<in> ?H"
-      proof (cases "f = 0 \<or> q f = 0")
-        case True
-        thus ?thesis by (auto simp add: punit.phull.module_0)
-      next
-        case False
-        hence "f \<noteq> 0" and "q f \<noteq> 0" by simp_all
-        from \<open>f \<in> set fs\<close> this(2)
-        have "indets (q f) \<subseteq> UNION (insert g (set fs)) indets \<and> poly_deg (q f) \<le> poly_deg g + b1"
-          by (rule 1)
-        hence "indets (q f) \<subseteq> UNION (insert g (set fs)) indets" and "poly_deg (q f) \<le> poly_deg g + b1"
-          by simp_all
+  show "g \<in> ?H" unfolding g
+  proof (rule punit.phull.module_closed_sum)
+    fix f
+    assume "f \<in> set fs"
+    show "q f * f \<in> ?H"
+    proof (cases "f = 0 \<or> q f = 0")
+      case True
+      thus ?thesis by (auto simp add: punit.phull.module_0)
+    next
+      case False
+      hence "f \<noteq> 0" and "q f \<noteq> 0" by simp_all
+      from \<open>f \<in> set fs\<close> this(2)
+      have "indets (q f) \<subseteq> UNION (insert g (set fs)) indets \<and> poly_deg (q f) \<le> poly_deg g + b1"
+        by (rule 1)
+      hence "indets (q f) \<subseteq> UNION (insert g (set fs)) indets" and "poly_deg (q f) \<le> poly_deg g + b1"
+        by simp_all
+      note this(1)
+      also have "UNION (insert g (set fs)) indets \<subseteq> X"
+      proof
+        fix x
+        assume "x \<in> UNION (insert g (set fs)) indets"
+        then obtain p where "p \<in> insert g (set fs)" and "x \<in> indets p" ..
         note this(1)
-        also have "UNION (insert g (set fs)) indets \<subseteq> X"
-        proof
-          fix x
-          assume "x \<in> UNION (insert g (set fs)) indets"
-          then obtain p where "p \<in> insert g (set fs)" and "x \<in> indets p" ..
-          note this(1)
-          also have "insert g (set fs) \<subseteq> P[X]" by (rule insert_subsetI, rule set_rev_mp, fact+)
-          finally have "indets p \<subseteq> X" by (rule PolysD)
-          with \<open>x \<in> indets p\<close> show "x \<in> X" ..
-        qed
-        finally have "q f \<in> P[X]" by (rule PolysI_alt)
-        from assms(4) \<open>g \<in> punit.reduced_GB (set fs)\<close> have "poly_deg g \<le> b2" by (rule is_GB_boundE)
-        with \<open>poly_deg (q f) \<le> poly_deg g + b1\<close> have "poly_deg (q f) \<le> b1 + b2" by simp
-        with \<open>q f \<in> P[X]\<close> have "keys (q f) \<subseteq> deg_le_sect X (b1 + b2)" by (rule keys_subset_deg_le_sectI)
-        with finite_deg_le_sect[OF fin_X]
-        have "q f * f = (\<Sum>t\<in>deg_le_sect X (b1 + b2). punit.monom_mult (lookup (q f) t) t f)"
-          unfolding punit.mult_scalar_sum_monomials[simplified]
-        proof (rule sum.mono_neutral_left)
-          show "\<forall>t\<in>deg_le_sect X (b1 + b2) - keys (q f). punit.monom_mult (lookup (q f) t) t f = 0"
-            by (rule, simp)
-        qed
-        also have "... = (\<Sum>t\<in>deg_le_sect X (b1 + b2). punit.monom_mult (lookup (q f) t) 0 (punit.monom_mult 1 t f))"
-          by (simp add: punit.monom_mult_assoc)
-        also have "... = (\<Sum>t\<in>deg_le_sect X (b1 + b2).
-                    ((\<lambda>f0. punit.monom_mult (lookup (q f) (punit.lp f0 - punit.lp f)) 0 f0) \<circ> (\<lambda>t. punit.monom_mult 1 t f)) t)"
-          by (rule sum.cong, fact refl, simp add: punit.lt_monom_mult[OF \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close>])
-        also have "... = (\<Sum>f0\<in>set (deg_shifts (b1 + b2) [f]).
-                                        punit.monom_mult (lookup (q f) (punit.lp f0 - punit.lp f)) 0 f0)"
-        proof (simp only: set_deg_shifts_singleton, rule sum.reindex[symmetric], rule inj_onI)
-          fix s t
-          assume "punit.monom_mult 1 s f = punit.monom_mult 1 t f"
-          thus "s = t" using \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close> by (rule punit.monom_mult_inj_2)
-        qed
-        finally have "q f * f \<in> punit.phull (set (deg_shifts (b1 + b2) [f]))"
-          by (simp add: punit.phull.sum_in_moduleI)
-        also have "... \<subseteq> ?H" by (rule punit.phull.module_mono, rule deg_shifts_mono, simp add: \<open>f \<in> set fs\<close>)
-        finally show ?thesis .
+        also have "insert g (set fs) \<subseteq> P[X]" by (rule insert_subsetI, rule set_rev_mp, fact+)
+        finally have "indets p \<subseteq> X" by (rule PolysD)
+        with \<open>x \<in> indets p\<close> show "x \<in> X" ..
       qed
+      finally have "q f \<in> P[X]" by (rule PolysI_alt)
+      from \<open>g \<in> G\<close> have "poly_deg g \<le> b2" by (rule assms(5))
+      with \<open>poly_deg (q f) \<le> poly_deg g + b1\<close> have "poly_deg (q f) \<le> b1 + b2" by simp
+      with \<open>q f \<in> P[X]\<close> have "keys (q f) \<subseteq> deg_le_sect X (b1 + b2)" by (rule keys_subset_deg_le_sectI)
+      with finite_deg_le_sect[OF fin_X]
+      have "q f * f = (\<Sum>t\<in>deg_le_sect X (b1 + b2). punit.monom_mult (lookup (q f) t) t f)"
+        unfolding punit.mult_scalar_sum_monomials[simplified]
+      proof (rule sum.mono_neutral_left)
+        show "\<forall>t\<in>deg_le_sect X (b1 + b2) - keys (q f). punit.monom_mult (lookup (q f) t) t f = 0"
+          by (rule, simp)
+      qed
+      also have "... = (\<Sum>t\<in>deg_le_sect X (b1 + b2). punit.monom_mult (lookup (q f) t) 0 (punit.monom_mult 1 t f))"
+        by (simp add: punit.monom_mult_assoc)
+      also have "... = (\<Sum>t\<in>deg_le_sect X (b1 + b2).
+                  ((\<lambda>f0. punit.monom_mult (lookup (q f) (punit.lp f0 - punit.lp f)) 0 f0) \<circ> (\<lambda>t. punit.monom_mult 1 t f)) t)"
+        by (rule sum.cong, fact refl, simp add: punit.lt_monom_mult[OF \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close>])
+      also have "... = (\<Sum>f0\<in>set (deg_shifts (b1 + b2) [f]).
+                                      punit.monom_mult (lookup (q f) (punit.lp f0 - punit.lp f)) 0 f0)"
+      proof (simp only: set_deg_shifts_singleton, rule sum.reindex[symmetric], rule inj_onI)
+        fix s t
+        assume "punit.monom_mult 1 s f = punit.monom_mult 1 t f"
+        thus "s = t" using \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close> by (rule punit.monom_mult_inj_2)
+      qed
+      finally have "q f * f \<in> punit.phull (set (deg_shifts (b1 + b2) [f]))"
+        by (simp add: punit.phull.sum_in_moduleI)
+      also have "... \<subseteq> ?H" by (rule punit.phull.module_mono, rule deg_shifts_mono, simp add: \<open>f \<in> set fs\<close>)
+      finally show ?thesis .
     qed
   qed
+qed
+
+theorem thm_2_3_6:
+  assumes "finite X" and "set fs \<subseteq> P[X]" and "is_cofactor_bound (set fs) b1" and "is_GB_bound (set fs) b2"
+  shows "punit.is_Groebner_basis (set (punit.reduced_Macaulay_list (deg_shifts (b1 + b2) fs)))"
+proof -
+  from assms(4, 2) obtain G where "punit.is_Groebner_basis G" and ideal_G: "ideal G = ideal (set fs)"
+    and indets_sub: "G \<subseteq> P[X]" and deg_le: "\<And>g. g \<in> G \<Longrightarrow> poly_deg g \<le> b2"
+    by (rule is_GB_boundE_Polys) blast
+  from this(1) show ?thesis
+  proof (rule punit.reduced_Macaulay_list_is_GB)
+    from assms(2) \<open>G \<subseteq> P[X]\<close> ideal_G assms(3) deg_le show "G \<subseteq> punit.phull (set (deg_shifts (b1 + b2) fs))"
+      by (rule phull_deg_shifts_superset)
+  qed (simp add: ideal_G)
+qed
+
+lemma thm_2_3_6_reduced_GB_aux:
+  assumes "finite X" and "set fs \<subseteq> P[X]" and "is_cofactor_bound (set fs) b1"
+    and "\<And>g. g \<in> punit.reduced_GB (set fs) \<Longrightarrow> poly_deg g \<le> b2"
+  shows "set (punit.reduced_Macaulay_list (deg_shifts (b1 + b2) fs)) = punit.reduced_GB (set fs)"
+proof (rule punit.reduced_Macaulay_list_is_reduced_GB)
+  show "punit.reduced_GB (set fs) \<subseteq> local.punit.phull (set (deg_shifts (b1 + b2) fs))"
+    using assms(2) _ _ assms(3, 4)
+  proof (rule phull_deg_shifts_superset)
+    from assms(1, 2) show "punit.reduced_GB (set fs) \<subseteq> P[X]"
+      and "ideal (punit.reduced_GB (set fs)) = ideal (set fs)"
+      by (rule reduced_GB_Polys, rule reduced_GB_ideal_Polys)
+  qed
 qed simp_all
+
+text \<open>For obtaining reduced Gr\"obner bases, the order relation must be graded:\<close>
+theorem thm_2_3_6_reduced_GB:
+  assumes "finite X" and "set fs \<subseteq> P[X]" and "is_cofactor_bound (set fs) b1" and "is_GB_bound (set fs) b2"
+    and "\<And>s t. s \<in> .[X] \<Longrightarrow> t \<in> .[X] \<Longrightarrow> s \<preceq> t \<Longrightarrow> deg_pm s \<le> deg_pm t"
+  shows "set (punit.reduced_Macaulay_list (deg_shifts (b1 + b2) fs)) = punit.reduced_GB (set fs)"
+  using assms(1, 2, 3)
+proof (rule thm_2_3_6_reduced_GB_aux)
+  fix g
+  assume "g \<in> punit.reduced_GB (set fs)" (is "_ \<in> ?G")
+  from assms(1, 2) have "0 \<notin> ?G" and 1: "punit.is_reduced_GB ?G" and 2: "ideal ?G = ideal (set fs)"
+    and "?G \<subseteq> P[X]"
+    by (rule reduced_GB_nonzero_Polys, rule reduced_GB_is_reduced_GB_Polys,
+        rule reduced_GB_ideal_Polys, rule reduced_GB_Polys)
+  from \<open>g \<in> ?G\<close> this(4) have "g \<in> P[X]" ..
+  hence "keys g \<subseteq> .[X]" by (rule PolysD)
+  from assms(4, 2) obtain G where GB_G: "punit.is_Groebner_basis G" and ideal_G: "ideal G = ideal (set fs)"
+    and indets_sub: "G \<subseteq> P[X]" and deg_le: "\<And>g. g \<in> G \<Longrightarrow> poly_deg g \<le> b2"
+    by (rule is_GB_boundE_Polys) blast
+  from \<open>g \<in> ?G\<close> \<open>0 \<notin> ?G\<close> have "g \<noteq> 0" by blast
+  from \<open>g \<in> ?G\<close> have "g \<in> ideal ?G" by (rule ideal.generator_in_module)
+  hence "g \<in> ideal G" by (simp only: ideal_G 2)
+  with GB_G obtain g' where "g' \<in> G" and "g' \<noteq> 0" and a1: "punit.lt g' adds punit.lt g"
+    using \<open>g \<noteq> 0\<close> by (rule punit.GB_adds_lt[simplified])
+  from 1 have "punit.is_Groebner_basis ?G" by (rule punit.reduced_GB_D1)
+  moreover from \<open>g' \<in> G\<close> have "g' \<in> ideal ?G" by (simp add: 2 ideal.generator_in_module flip: ideal_G)
+  ultimately obtain g'' where "g'' \<in> ?G" and "g'' \<noteq> 0" and a2: "punit.lt g'' adds punit.lt g'"
+    using \<open>g' \<noteq> 0\<close> by (rule punit.GB_adds_lt[simplified])
+  from a2 a1 have a3: "punit.lt g'' adds punit.lt g" by (rule adds_trans)
+  from \<open>g \<noteq> 0\<close> have "punit.lt g \<in> keys g" by (rule punit.lt_in_keys)
+  have "g'' = g"
+  proof (rule ccontr)
+    assume "g'' \<noteq> g"
+    with \<open>g'' \<in> ?G\<close> have "g'' \<in> ?G - {g}" by simp
+    from 1 have "punit.is_auto_reduced ?G" by (rule punit.reduced_GB_D2)
+    hence "\<not> punit.is_red (?G - {g}) g" using \<open>g \<in> ?G\<close> by (rule punit.is_auto_reducedD)
+    moreover from \<open>g'' \<in> ?G - {g}\<close> \<open>g'' \<noteq> 0\<close> \<open>punit.lt g \<in> keys g\<close> a3 have "punit.is_red (?G - {g}) g"
+      by (rule punit.is_red_addsI[simplified])
+    ultimately show False ..
+  qed
+  have "poly_deg g \<le> deg_pm (punit.lt g)"
+  proof (rule poly_deg_leI)
+    fix t
+    assume "t \<in> keys g"
+    hence "t \<in> .[X]" using \<open>keys g \<subseteq> .[X]\<close> ..
+    moreover from \<open>punit.lt g \<in> keys g\<close> \<open>keys g \<subseteq> .[X]\<close> have "punit.lt g \<in> .[X]" ..
+    moreover from \<open>t \<in> keys g\<close> have "t \<preceq> punit.lt g" by (rule punit.lt_max_keys)
+    ultimately show "deg_pm t \<le> deg_pm (punit.lt g)" by (rule assms(5))
+  qed
+  also from a2 a1 have "punit.lt g = punit.lt g'" unfolding \<open>g'' = g\<close> by (rule adds_antisym)
+  finally have "poly_deg g \<le> deg_pm (punit.lt g')" .
+  also from \<open>g' \<noteq> 0\<close> have "\<dots> \<le> poly_deg g'" by (intro poly_deg_max_keys punit.lt_in_keys)
+  also from \<open>g' \<in> G\<close> have "\<dots> \<le> b2" by (rule deg_le)
+  finally show "poly_deg g \<le> b2" .
+qed
 
 theorem thm_2_3_7:
   assumes "finite X" and "set fs \<subseteq> P[X]" and "is_cofactor_bound (set fs) b"
@@ -440,12 +551,11 @@ theorem thm_2_3_7:
 proof
   assume ?L
   hence "ideal (set fs) = UNIV" by (simp only: ideal_eq_UNIV_iff_contains_one)
-  with assms(1, 2) have eq: "punit.reduced_GB (set fs) = {1}"
+  with assms(1, 2) have eq: "punit.reduced_GB (set fs) = {1}" (is "?G = _")
     by (simp only: ideal_eq_UNIV_iff_reduced_GB_eq_one_Polys)
-  have "is_GB_bound (set fs) 0" by (rule is_GB_boundI, simp add: eq poly_deg_def)
-  with assms have "set (punit.reduced_Macaulay_list (deg_shifts (b + 0) fs)) = punit.reduced_GB (set fs)"
-    by (rule thm_2_3_6)
-  hence "{1} = set (punit.reduced_Macaulay_list (deg_shifts b fs))" by (simp add: eq)
+  moreover have "set (punit.reduced_Macaulay_list (deg_shifts (b + 0) fs)) = punit.reduced_GB (set fs)"
+    using assms by (rule thm_2_3_6_reduced_GB_aux) (simp add: eq)
+  ultimately have "{1} = set (punit.reduced_Macaulay_list (deg_shifts b fs))" by simp
   also have "... \<subseteq> set (punit.Macaulay_list (deg_shifts b fs))"
     by (fact punit.reduced_Macaulay_list_subset_Macaulay_list)
   finally show ?R by simp
@@ -460,12 +570,12 @@ qed
 
 theorem Hermann_bound:
   assumes "finite F" and "F \<subseteq> P[X]"
-  shows "is_cofactor_bound F (\<Sum>j=0..<n. (card F * maxdeg F) ^ (2 ^ j))"
+  shows "is_cofactor_bound F (\<Sum>j=0..<card X. (card F * maxdeg F) ^ (2 ^ j))"
   sorry
 
 theorem Dube_bound:
   assumes "finite F" and "F \<subseteq> P[X]"
-  shows "is_GB_bound F (2 * ((maxdeg F)\<^sup>2 div 2 + maxdeg F) ^ (2 ^ (n - 1)))"
+  shows "is_GB_bound F (2 * ((maxdeg F)\<^sup>2 div 2 + maxdeg F) ^ (2 ^ (card X - 1)))"
   sorry
 
 end
