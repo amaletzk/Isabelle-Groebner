@@ -18,6 +18,16 @@ qed
 lemma except_monomial: "except (monomial c u) U = (monomial c u when u \<notin> U)"
   by (rule poly_mapping_eqI) (simp add: lookup_except lookup_single when_def)
 
+lemma except_plus: "except (a + b) U = except a U + except b U"
+  by (rule poly_mapping_eqI) (simp add: lookup_except lookup_add)
+
+lemma except_except: "except (except a U) V = except a (U \<union> V)"
+  by (rule poly_mapping_eqI) (simp add: lookup_except)
+
+lemma except_id_iff: "except a U = a \<longleftrightarrow> keys a \<inter> U = {}"
+  by (metis Diff_Diff_Int Diff_eq_empty_iff Diff_triv inf_le2 keys_except lookup_except_eq_idI
+      lookup_except_eq_zeroI not_in_keys_iff_lookup_eq_zero poly_mapping_keys_eqI)
+
 (*
 subsection \<open>Integral Domains\<close>
 
@@ -2454,6 +2464,65 @@ locale pm_powerprod =
 begin
 
 sublocale gd_powerprod ..
+
+definition is_hom_ord :: "'x \<Rightarrow> bool"
+  where "is_hom_ord x \<longleftrightarrow> (\<forall>s t. deg_pm s = deg_pm t \<longrightarrow> (s \<preceq> t \<longleftrightarrow> except s {x} \<preceq> except t {x}))"
+
+definition hom_ord_of :: "'x \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool"
+  where "hom_ord_of x s t \<longleftrightarrow> (except s {x} \<prec> except t {x} \<or> (except s {x} = except t {x} \<and> lookup s x \<le> lookup t x))"
+
+definition hom_ord_strict_of :: "'x \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool"
+  where "hom_ord_strict_of x s t \<longleftrightarrow> (except s {x} \<prec> except t {x} \<or> (except s {x} = except t {x} \<and> lookup s x < lookup t x))"
+
+lemma is_hom_ordD: "is_hom_ord x \<Longrightarrow> deg_pm s = deg_pm t \<Longrightarrow> s \<preceq> t \<longleftrightarrow> except s {x} \<preceq> except t {x}"
+  by (simp add: is_hom_ord_def)
+
+end
+
+text \<open>We must create a copy of @{locale pm_powerprod} to avoid infinite chains of interpretations.\<close>
+
+locale hom_ord_pm_powerprod = pm_powerprod
+begin
+
+sublocale hom_ord: pm_powerprod "hom_ord_of x" "hom_ord_strict_of x" for x
+proof -
+  have 1: "s = t" if "lookup s x = lookup t x" and "except s {x} = except t {x}" for s t :: "'a \<Rightarrow>\<^sub>0 nat"
+  proof (rule poly_mapping_eqI)
+    fix y
+    show "lookup s y = lookup t y"
+    proof (cases "y = x")
+      case True
+      with that(1) show ?thesis by simp
+    next
+      case False
+      have "lookup s y = lookup (except s {x}) y" by (simp add: lookup_except False)
+      also have "\<dots> = lookup (except t {x}) y" by (simp only: that(2))
+      also have "\<dots> = lookup t y" by (simp add: lookup_except False)
+      finally show ?thesis .
+    qed
+  qed
+  have 2: "0 \<prec> t" if "t \<noteq> 0" for t::"'a \<Rightarrow>\<^sub>0 nat"
+    using that zero_min by (rule ordered_powerprod_lin.dual_order.not_eq_order_implies_strict)
+  show "pm_powerprod (hom_ord_of x) (hom_ord_strict_of x)"
+    by standard (auto simp: hom_ord_of_def hom_ord_strict_of_def except_plus lookup_add 1
+                  dest: plus_monotone_strict 2)
+qed
+
+lemma hom_ord_is_hom_ord: "hom_ord.is_hom_ord x x"
+  unfolding hom_ord.is_hom_ord_def
+proof (intro allI impI)
+  fix s t :: "'a \<Rightarrow>\<^sub>0 nat"
+  assume *: "deg_pm s = deg_pm t"
+  have 1: "lookup s x \<le> lookup t x" if "except s {x} = except t {x}"
+  proof -
+    have "deg_pm (Poly_Mapping.single x (lookup s x) + except s {x}) =
+          deg_pm (Poly_Mapping.single x (lookup t x) + except t {x})"
+      by (simp only: * flip: plus_except)
+    thus ?thesis by (simp add: deg_pm_plus that deg_pm_single)
+  qed
+  show "hom_ord_of x s t \<longleftrightarrow> hom_ord_of x (except s {x}) (except t {x})"
+    by (auto simp add: hom_ord_of_def except_except lookup_except dest: 1)
+qed
 
 end
 
