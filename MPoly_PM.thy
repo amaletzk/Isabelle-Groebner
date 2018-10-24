@@ -15,6 +15,9 @@ proof -
   show ?thesis by (simp add: punit.monomial_power eq)
 qed
 
+lemma except_monomial: "except (monomial c u) U = (monomial c u when u \<notin> U)"
+  by (rule poly_mapping_eqI) (simp add: lookup_except lookup_single when_def)
+
 (*
 subsection \<open>Integral Domains\<close>
 
@@ -96,6 +99,103 @@ lemma adds_pm: "s adds t \<longleftrightarrow> s \<unlhd> t"
 
 subsection \<open>Degree\<close>
 
+lemma plus_minus_assoc_pm_nat_1: "s + t - u = (s - (u - t)) + (t - (u::_ \<Rightarrow>\<^sub>0 nat))"
+  by (rule poly_mapping_eqI, simp add: lookup_add lookup_minus)
+
+lemma plus_minus_assoc_pm_nat_2:
+  "s + (t - u) = (s + (truncate_poly_mapping (keys s) (u - t))) + t - (u::_ \<Rightarrow>\<^sub>0 nat)"
+proof (rule poly_mapping_eqI)
+  fix x
+  show "lookup (s + (t - u)) x = lookup (s + truncate_poly_mapping (keys s) (u - t) + t - u) x"
+  proof (cases "x \<in> keys s")
+    case True
+    thus ?thesis
+      by (simp add: plus_minus_assoc_pm_nat_1 lookup_truncate_fun truncate_fun_def lookup_add lookup_minus)
+  next
+    case False
+    hence "lookup s x = 0" by simp
+    with False show ?thesis
+      by (simp add: lookup_add lookup_minus lookup_truncate_fun truncate_fun_def del: not_in_keys_iff_lookup_eq_zero)
+  qed
+qed
+
+lemma deg_pm_mono: "s adds t \<Longrightarrow> deg_pm s \<le> deg_pm (t::_ \<Rightarrow>\<^sub>0 _::add_linorder_min)"
+  unfolding adds_poly_mapping by (transfer) (auto intro!: deg_fun_leq simp: supp_fun_def)
+
+lemma deg_pm_minus:
+  assumes "s adds (t::_ \<Rightarrow>\<^sub>0 _::comm_monoid_add)"
+  shows "deg_pm (t - s) = deg_pm t - deg_pm s"
+proof -
+  from assms have "(t - s) + s = t" by (rule adds_minus)
+  hence "deg_pm t = deg_pm ((t - s) + s)" by simp
+  also have "\<dots> = deg_pm (t - s) + deg_pm s" by (simp only: deg_pm_plus)
+  finally show ?thesis by simp
+qed
+
+lemma deg_pm_minus_le: "deg_pm (t - s) \<le> deg_pm (t::_ \<Rightarrow>\<^sub>0 nat)"
+proof -
+  have "keys (t - s) \<subseteq> keys t" by (rule, simp add: lookup_minus in_keys_iff)
+  hence "deg_pm (t - s) = (\<Sum>x\<in>keys t. lookup (t - s) x)" using finite_keys by (rule deg_pm_superset)
+  also have "\<dots> \<le> (\<Sum>x\<in>keys t. lookup t x)" by (rule sum_mono) (simp add: lookup_minus)
+  also have "\<dots> = deg_pm t" by (rule sym, rule deg_pm_superset, fact subset_refl, fact finite_keys)
+  finally show ?thesis .
+qed
+
+lemma minus_id_iff: "t - s = t \<longleftrightarrow> keys t \<inter> keys (s::_ \<Rightarrow>\<^sub>0 nat) = {}"
+proof
+  assume "t - s = t"
+  {
+    fix x
+    assume "x \<in> keys t" and "x \<in> keys s"
+    hence "0 < lookup t x" and "0 < lookup s x" by (simp_all add: in_keys_iff)
+    hence "lookup (t - s) x \<noteq> lookup t x" by (simp add: lookup_minus)
+    with \<open>t - s = t\<close> have False by simp
+  }
+  thus "keys t \<inter> keys s = {}" by blast
+next
+  assume *: "keys t \<inter> keys s = {}"
+  show "t - s = t"
+  proof (rule poly_mapping_eqI)
+    fix x
+    have "lookup t x - lookup s x = lookup t x"
+    proof (cases "x \<in> keys t")
+      case True
+      with * have "x \<notin> keys s" by blast
+      thus ?thesis by simp
+    next
+      case False
+      thus ?thesis by simp
+    qed
+    thus "lookup (t - s) x = lookup t x" by (simp only: lookup_minus)
+  qed
+qed
+
+lemma deg_pm_minus_id_iff: "deg_pm (t - s) = deg_pm t \<longleftrightarrow> keys t \<inter> keys (s::_ \<Rightarrow>\<^sub>0 nat) = {}"
+proof
+  assume eq: "deg_pm (t - s) = deg_pm t"
+  {
+    fix x
+    assume "x \<in> keys t" and "x \<in> keys s"
+    hence "0 < lookup t x" and "0 < lookup s x" by (simp_all add: in_keys_iff)
+    hence *: "lookup (t - s) x < lookup t x" by (simp add: lookup_minus)
+    have "keys (t - s) \<subseteq> keys t" by (rule, simp add: lookup_minus in_keys_iff)
+    hence "deg_pm (t - s) = (\<Sum>x\<in>keys t. lookup (t - s) x)" using finite_keys by (rule deg_pm_superset)
+    also from finite_keys have "\<dots> < (\<Sum>x\<in>keys t. lookup t x)"
+    proof (rule sum_strict_mono_ex1)
+      show "\<forall>x\<in>keys t. lookup (t - s) x \<le> lookup t x" by (simp add: lookup_minus)
+    next
+      from \<open>x \<in> keys t\<close> * show "\<exists>x\<in>keys t. lookup (t - s) x < lookup t x" ..
+    qed
+    also have "\<dots> = deg_pm t" by (rule sym, rule deg_pm_superset, fact subset_refl, fact finite_keys)
+    finally have False by (simp add: eq)
+  }
+  thus "keys t \<inter> keys s = {}" by blast
+next
+  assume "keys t \<inter> keys s = {}"
+  hence "t - s = t" by (simp only: minus_id_iff)
+  thus "deg_pm (t - s) = deg_pm t" by (simp only:)
+qed
+
 definition poly_deg :: "(('x \<Rightarrow>\<^sub>0 'a::add_linorder) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> 'a" where
   "poly_deg p = (if keys p = {} then 0 else Max (deg_pm ` keys p))"
 
@@ -116,6 +216,19 @@ lemma poly_deg_zero [simp]: "poly_deg 0 = 0"
 
 lemma poly_deg_one [simp]: "poly_deg 1 = 0"
   by (simp only: single_one[symmetric] poly_deg_monomial_zero)
+
+lemma poly_degE:
+  assumes "p \<noteq> 0"
+  obtains t where "t \<in> keys p" and "poly_deg p = deg_pm t"
+proof -
+  from assms have "poly_deg p = Max (deg_pm ` keys p)" by (simp add: poly_deg_def)
+  also have "\<dots> \<in> deg_pm ` keys p"
+  proof (rule Max_in)
+    from assms show "deg_pm ` keys p \<noteq> {}" by simp
+  qed simp
+  finally obtain t where "t \<in> keys p" and "poly_deg p = deg_pm t" ..
+  thus ?thesis ..
+qed
 
 lemma poly_deg_max_keys:
   assumes "t \<in> keys p"
@@ -208,9 +321,7 @@ lemma poly_deg_monom_mult:
   assumes "c \<noteq> 0" and "p \<noteq> (0::(_ \<Rightarrow>\<^sub>0 'a::add_linorder_min) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)"
   shows "poly_deg (punit.monom_mult c t p) = deg_pm t + poly_deg p"
 proof (rule order.antisym, fact poly_deg_monom_mult_le)
-  from assms(2) have "keys p \<noteq> {}" by simp
-  then obtain s where "s \<in> keys p" and "poly_deg p = deg_pm s" unfolding poly_deg_def
-    by (metis (mono_tags, lifting) finite_keys Max_in finite_imageI image_iff image_is_empty)
+  from assms(2) obtain s where "s \<in> keys p" and "poly_deg p = deg_pm s" by (rule poly_degE)
   have "deg_pm t + poly_deg p = deg_pm (t + s)" by (simp add: \<open>poly_deg p = deg_pm s\<close> deg_pm_plus)
   also have "... \<le> poly_deg (punit.monom_mult c t p)"
   proof (rule poly_deg_max_keys)
