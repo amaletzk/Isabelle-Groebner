@@ -1,7 +1,7 @@
 section \<open>Multivariate Polynomials with Power-Products Represented by Polynomial Mappings\<close>
 
 theory MPoly_PM
-  imports Polynomials.MPoly_Type_Class
+  imports Signature_Groebner.Quasi_PM_Power_Products
 begin
 
 text \<open>Many notions introduced in this theory for type @{typ "('x \<Rightarrow>\<^sub>0 'a) \<Rightarrow>\<^sub>0 'b"} closely resemble
@@ -2455,6 +2455,146 @@ proof -
   qed
 qed
 
+subsection \<open>\<open>varnum_wrt\<close>\<close>
+
+(* TODO: Move. *)
+lemma subset_imageE_inj:
+  assumes "B \<subseteq> f ` A"
+  obtains C where "C \<subseteq> A" and "B = f ` C" and "inj_on f C"
+proof -
+  define g where "g = (\<lambda>x. SOME a. a \<in> A \<and> f a = x)"
+  have "g b \<in> A \<and> f (g b) = b" if "b \<in> B" for b
+  proof -
+    from that assms have "b \<in> f ` A" ..
+    then obtain a where "a \<in> A" and "b = f a" ..
+    hence "a \<in> A \<and> f a = b" by simp
+    thus ?thesis unfolding g_def by (rule someI)
+  qed
+  hence 1: "\<And>b. b \<in> B \<Longrightarrow> g b \<in> A" and 2: "\<And>b. b \<in> B \<Longrightarrow> f (g b) = b" by simp_all
+  let ?C = "g ` B"
+  show ?thesis
+  proof
+    show "?C \<subseteq> A" by (auto intro: 1)
+  next
+    show "B = f ` ?C"
+    proof (rule set_eqI)
+      fix b
+      show "b \<in> B \<longleftrightarrow> b \<in> f ` ?C"
+      proof
+        assume "b \<in> B"
+        moreover from this have "f (g b) = b" by (rule 2)
+        ultimately show "b \<in> f ` ?C" by force
+      next
+        assume "b \<in> f ` ?C"
+        then obtain b' where "b' \<in> B" and "b = f (g b')" unfolding image_image ..
+        moreover from this(1) have "f (g b') = b'" by (rule 2)
+        ultimately show "b \<in> B" by simp
+      qed
+    qed
+  next
+    show "inj_on f ?C"
+    proof
+      fix x y
+      assume "x \<in> ?C"
+      then obtain bx where "bx \<in> B" and x: "x = g bx" ..
+      moreover from this(1) have "f (g bx) = bx" by (rule 2)
+      ultimately have *: "f x = bx" by simp
+      assume "y \<in> ?C"
+      then obtain "by" where "by \<in> B" and y: "y = g by" ..
+      moreover from this(1) have "f (g by) = by" by (rule 2)
+      ultimately have "f y = by" by simp
+      moreover assume "f x = f y"
+      ultimately have "bx = by" using * by simp
+      thus "x = y" by (simp only: x y)
+    qed
+  qed
+qed
+
+definition varnum_wrt :: "'x set \<Rightarrow> ('x::countable \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> nat"
+  where "varnum_wrt X t = (if keys t - X = {} then 0 else Suc (Max (elem_index ` (keys t - X))))"
+
+lemma elem_index_less_varnum_wrt:
+  assumes "x \<in> keys t"
+  obtains "x \<in> X" | "elem_index x < varnum_wrt X t"
+proof (cases "x \<in> X")
+  case True
+  thus ?thesis ..
+next
+  case False
+  with assms have 1: "x \<in> keys t - X" by simp
+  hence "keys t - X \<noteq> {}" by blast
+  hence eq: "varnum_wrt X t = Suc (Max (elem_index ` (keys t - X)))" by (simp add: varnum_wrt_def)
+  hence "elem_index x < varnum_wrt X t" using 1 by (simp add: less_Suc_eq_le)
+  thus ?thesis ..
+qed
+
+lemma varnum_wrt_eq_zero_iff: "varnum_wrt X t = 0 \<longleftrightarrow> t \<in> .[X]"
+  by (auto simp: varnum_wrt_def PPs_def)
+
+lemma varnum_wrt_plus:
+  "varnum_wrt X (s + t) = max (varnum_wrt X s) (varnum_wrt X (t::'x::countable \<Rightarrow>\<^sub>0 'b::ninv_comm_monoid_add))"
+proof (simp add: varnum_wrt_def keys_plus_ninv_comm_monoid_add image_Un Un_Diff del: Diff_eq_empty_iff, intro impI)
+  assume 1: "keys s - X \<noteq> {}" and 2: "keys t - X \<noteq> {}"
+  have "finite (elem_index ` (keys s - X))" by simp
+  moreover from 1 have "elem_index ` (keys s - X) \<noteq> {}" by simp
+  moreover have "finite (elem_index ` (keys t - X))" by simp
+  moreover from 2 have "elem_index ` (keys t - X) \<noteq> {}" by simp
+  ultimately show "Max (elem_index ` (keys s - X) \<union> elem_index ` (keys t - X)) =
+                    max (Max (elem_index ` (keys s - X))) (Max (elem_index ` (keys t - X)))"
+    by (rule Max_Un)
+qed
+
+lemma dickson_grading_varnum_wrt:
+  assumes "finite X"
+  shows "dickson_grading ((varnum_wrt X)::('x::countable \<Rightarrow>\<^sub>0 'b::add_wellorder) \<Rightarrow> nat)"
+  using varnum_wrt_plus
+proof (rule dickson_gradingI)
+  fix m::nat
+  let ?V = "X \<union> {x. elem_index x < m}"
+  have "{t::'x \<Rightarrow>\<^sub>0 'b. varnum_wrt X t \<le> m} \<subseteq> {t. sub_keys ?V t}"
+  proof (rule, simp add: sub_keys_def, intro subsetI, simp)
+    fix t::"'x \<Rightarrow>\<^sub>0 'b" and x::'x
+    assume "varnum_wrt X t \<le> m"
+    assume "x \<in> keys t"
+    thus "x \<in> X \<or> elem_index x < m"
+    proof (rule elem_index_less_varnum_wrt)
+      assume "x \<in> X"
+      thus ?thesis ..
+    next
+      assume "elem_index x < varnum_wrt X t"
+      hence "elem_index x < m" using \<open>varnum_wrt X t \<le> m\<close> by (rule less_le_trans)
+      thus ?thesis ..
+    qed
+  qed
+  thus "almost_full_on (adds) {t::'x \<Rightarrow>\<^sub>0 'b. varnum_wrt X t \<le> m}"
+  proof (rule almost_full_on_subset)
+    from assms finite_nat_seg have "finite ?V" by (rule finite_UnI)
+    thus "almost_full_on (adds) {t::'x \<Rightarrow>\<^sub>0 'b. sub_keys ?V t}" by (rule Dickson_poly_mapping)
+  qed
+qed
+
+lemma varnum_wrt_le_iff: "varnum_wrt X t \<le> n \<longleftrightarrow> keys t \<subseteq> X \<union> {x. elem_index x < n}"
+  by (auto simp: varnum_wrt_def Suc_le_eq)
+
+lemma hom_grading_varnum_wrt:
+  "hom_grading ((varnum_wrt X)::('x::countable \<Rightarrow>\<^sub>0 'b::add_wellorder) \<Rightarrow> nat)"
+proof -
+  define f where "f = (\<lambda>n. (truncate_poly_mapping (X \<union> {x. elem_index x < n}))::_ \<Rightarrow> 'x \<Rightarrow>\<^sub>0 'b)"
+  show ?thesis unfolding hom_grading_def hom_grading_fun_def
+  proof (intro exI allI conjI impI)
+    fix n s t
+    show "f n (s + t) = f n s + f n t" by (simp only: f_def truncate_poly_mapping_plus)
+  next
+    fix n t
+    from sub_keys_truncate[of "X \<union> {x. elem_index x < n}" t] show "varnum_wrt X (f n t) \<le> n"
+      by (simp add: varnum_wrt_le_iff sub_keys_def f_def)
+  next
+    fix n t
+    show "varnum_wrt X  t \<le> n \<Longrightarrow> f n t = t"
+      by (simp add: f_def truncate_poly_mapping_id_iff varnum_wrt_le_iff)
+  qed
+qed
+
 subsection \<open>Locale @{term pm_powerprod}\<close>
 
 locale pm_powerprod =
@@ -2476,6 +2616,15 @@ definition hom_ord_strict_of :: "'x \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat)
 
 lemma is_hom_ordD: "is_hom_ord x \<Longrightarrow> deg_pm s = deg_pm t \<Longrightarrow> s \<preceq> t \<longleftrightarrow> except s {x} \<preceq> except t {x}"
   by (simp add: is_hom_ord_def)
+
+lemma dgrad_set_varnum_wrt: "dgrad_set (varnum_wrt X) 0 = .[X]"
+  by (simp add: dgrad_set_def PPs_def varnum_wrt_eq_zero_iff)
+
+lemma dgrad_p_set_varnum_wrt: "punit.dgrad_p_set (varnum_wrt X) 0 = P[X]"
+  by (simp add: punit.dgrad_p_set_def dgrad_set_varnum_wrt Polys_def)
+
+lemmas in_idealE_Polys =
+  punit.in_moduleE_dgrad_p_set[simplified, OF hom_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
 
 end
 
