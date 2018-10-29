@@ -1,6 +1,6 @@
 (* Author: Alexander Maletzky *)
 
-theory Groebner_Indeterminates
+theory Groebner_PM
   imports MPoly_PM Groebner_Bases.Reduced_GB
 begin
 
