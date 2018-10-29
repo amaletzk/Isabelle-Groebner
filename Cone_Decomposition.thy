@@ -4651,6 +4651,12 @@ qed
 
 end
 
+(* To the very best of my knowledge, the proof of below theorem in @{cite Dube1990} is wrong --
+  even without the additional summand "2" I had to add in lemma "cc_le" to fix another mistake.
+  The reason is that in the last-but-one proof step, the sum can be greater than 1/2, rendering the
+  expression inside the big brackets negative.
+  Experiments in Mathematica suggest that the overall bound is still correct (even with the "+ 2"). *)
+
 theorem Dube_general:
   "rat_of_nat (\<b> Q 0) \<le> 2 * ((rat_of_nat d)\<^sup>2 / 2 + (rat_of_nat d)) ^ (2 ^ (n - 2))"
   sorry
