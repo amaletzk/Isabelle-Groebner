@@ -200,7 +200,7 @@ begin
 
 definition is_cofactor_bound :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::ring_1) set \<Rightarrow> nat \<Rightarrow> bool"
   where "is_cofactor_bound F b \<longleftrightarrow>
-    (\<forall>p\<in>ideal F. \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg p + b))"
+    (\<forall>p\<in>ideal F. \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. poly_deg (q f) \<le> poly_deg p + b))"
 
 text \<open>Note that @{const is_cofactor_bound} is only true for @{emph \<open>finite\<close>} sets \<open>F\<close>.\<close>
 
@@ -209,15 +209,14 @@ definition is_GB_bound :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0
                                 UNION G indets \<subseteq> UNION F indets \<and> (\<forall>g\<in>G. poly_deg g \<le> b))"
 
 lemma is_cofactor_boundI:
-  assumes "\<And>p. p \<in> ideal F \<Longrightarrow> \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. q f \<noteq> 0 \<longrightarrow> poly_deg (q f) \<le> poly_deg p + b)"
+  assumes "\<And>p. p \<in> ideal F \<Longrightarrow> \<exists>q. p = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f\<in>F. poly_deg (q f) \<le> poly_deg p + b)"
   shows "is_cofactor_bound F b"
   unfolding is_cofactor_bound_def using assms by blast
 
 lemma is_cofactor_boundE:
   assumes "is_cofactor_bound F b" and "(p::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::comm_ring_1) \<in> ideal F"
   obtains q where "p = (\<Sum>f\<in>F. q f * f)"
-    and "\<And>f. f \<in> F \<Longrightarrow> q f \<noteq> 0 \<Longrightarrow>
-             indets (q f) \<subseteq> UNION (insert p F) indets \<and> poly_deg (q f) \<le> poly_deg p + b"
+    and "\<And>f. indets (q f) \<subseteq> UNION (insert p F) indets" and "\<And>f. poly_deg (q f) \<le> poly_deg p + b"
 proof (cases "p = 0")
   case True
   define q where "q = (\<lambda>f::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b. 0::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b)"
@@ -226,45 +225,41 @@ proof (cases "p = 0")
     show "p = (\<Sum>f\<in>F. q f * f)" by (simp add: True q_def)
   next
     fix f
-    assume "q f \<noteq> 0"
-    thus "indets (q f) \<subseteq> UNION (insert p F) indets \<and> poly_deg (q f) \<le> poly_deg p + b"
-      by (simp only: q_def)
+    show "indets (q f) \<subseteq> UNION (insert p F) indets" and "poly_deg (q f) \<le> poly_deg p + b"
+      by (simp_all add: q_def)
   qed
 next
   case False
+  let ?X = "UNION (insert p F) indets"
   from assms obtain q0
-    where p: "p = (\<Sum>f\<in>F. q0 f * f)"
-    and q0: "\<And>f. f \<in> F \<Longrightarrow> q0 f \<noteq> 0 \<Longrightarrow> poly_deg (q0 f) \<le> poly_deg p + b"
+    where p: "p = (\<Sum>f\<in>F. q0 f * f)" and q0: "\<And>f. f \<in> F \<Longrightarrow> poly_deg (q0 f) \<le> poly_deg p + b"
     using assms unfolding is_cofactor_bound_def by blast
   define sub where "sub = (\<lambda>x::'x. if x \<in> (\<Union>t\<in>Keys (insert p F). keys t) then
                                      monomial (1::'b) (Poly_Mapping.single x (1::nat))
                                    else 1)"
-  have 1: "x \<in> indets p \<Longrightarrow> sub x = monomial 1 (monomial 1 x)" for x
+  have 1: "sub x = monomial 1 (monomial 1 x)" if "x \<in> indets p" for x
   proof (simp add: sub_def, rule)
-    assume "x \<in> indets p"
-    then obtain t where "t \<in> keys p" and "x \<in> keys t" by (rule in_indetsE)
+    from that obtain t where "t \<in> keys p" and "x \<in> keys t" by (rule in_indetsE)
     from this(1) have "t \<in> Keys (insert p F)" by (simp add: Keys_insert)
     moreover assume "\<forall>t\<in>Keys (insert p F). lookup t x = 0"
     ultimately have "lookup t x = 0" by blast
     with \<open>x \<in> keys t\<close> show "monomial 1 (monomial (Suc 0) x) = 1" unfolding in_keys_iff ..
   qed
-  have 2: "f \<in> F \<Longrightarrow> x \<in> indets f \<Longrightarrow> sub x = monomial 1 (monomial 1 x)" for f x
+  have 2: "sub x = monomial 1 (monomial 1 x)" if "f \<in> F" and "x \<in> indets f" for f x
   proof (simp add: sub_def, rule)
-    assume "f \<in> F"
-    assume "x \<in> indets f"
-    then obtain t where "t \<in> keys f" and "x \<in> keys t" by (rule in_indetsE)
-    from this(1) \<open>f \<in> F\<close> have "t \<in> Keys F" by (rule in_KeysI)
+    from that(2) obtain t where "t \<in> keys f" and "x \<in> keys t" by (rule in_indetsE)
+    from this(1) that(1) have "t \<in> Keys F" by (rule in_KeysI)
     hence "t \<in> Keys (insert p F)" by (simp add: Keys_insert)
     moreover assume "\<forall>t\<in>Keys (insert p F). lookup t x = 0"
     ultimately have "lookup t x = 0" by blast
     with \<open>x \<in> keys t\<close> show "monomial 1 (monomial (Suc 0) x) = 1" unfolding in_keys_iff ..
   qed
-  define q where "q = (\<lambda>f. poly_subst sub (q0 f))"
+  define q where "q = (\<lambda>f. if f \<in> F then poly_subst sub (q0 f) else 0)"
   show ?thesis
   proof
     from 1 have "p = poly_subst sub p" by (rule poly_subst_id[symmetric])
     also have "... = (\<Sum>f\<in>F. q f * (poly_subst sub f))"
-      by (simp only: p poly_subst_sum poly_subst_times q_def)
+      by (simp add: p poly_subst_sum poly_subst_times q_def cong: sum.cong)
     also from refl have "... = (\<Sum>f\<in>F. q f * f)"
     proof (rule sum.cong)
       fix f
@@ -275,32 +270,37 @@ next
     finally show "p = (\<Sum>f\<in>F. q f * f)" .
   next
     fix f
-    assume "f \<in> F" and "q f \<noteq> 0"
-    show "indets (q f) \<subseteq> UNION (insert p F) indets \<and> poly_deg (q f) \<le> poly_deg p + b"
-    proof
-      show "indets (q f) \<subseteq> UNION (insert p F) indets"
+    have "indets (q f) \<subseteq> ?X \<and> poly_deg (q f) \<le> poly_deg p + b"
+    proof (cases "f \<in> F")
+      case True
+      hence qf: "q f = poly_subst sub (q0 f)" by (simp add: q_def)
+      show ?thesis
       proof
-        fix x
-        assume "x \<in> indets (q f)"
-        then obtain y where "x \<in> indets (sub y)" unfolding q_def by (rule in_indets_poly_substE)
-        hence y: "y \<in> UNION (Keys (insert p F)) keys"
-          and "x \<in> indets (monomial (1::'b) (monomial (1::nat) y))"
-          by (simp_all add: sub_def split: if_splits)
-        from this(2) have "x = y" by (simp add: indets_monomial)
-        with y show "x \<in> UNION (insert p F) indets" by (simp add: indets_def Keys_def)
+        show "indets (q f) \<subseteq> ?X"
+        proof
+          fix x
+          assume "x \<in> indets (q f)"
+          then obtain y where "x \<in> indets (sub y)" unfolding qf by (rule in_indets_poly_substE)
+          hence y: "y \<in> UNION (Keys (insert p F)) keys"
+            and "x \<in> indets (monomial (1::'b) (monomial (1::nat) y))"
+            by (simp_all add: sub_def split: if_splits)
+          from this(2) have "x = y" by (simp add: indets_monomial)
+          with y show "x \<in> UNION (insert p F) indets" by (simp add: indets_def Keys_def)
+        qed
+      next
+        have "poly_deg (q f) \<le> poly_deg (q0 f)" unfolding qf
+        proof (rule poly_deg_poly_subst_le)
+          fix x
+          show "poly_deg (sub x) \<le> 1" by (simp add: sub_def poly_deg_monomial deg_pm_single)
+        qed
+        also from \<open>f \<in> F\<close> have "... \<le> poly_deg p + b" by (rule q0)
+        finally show "poly_deg (q f) \<le> poly_deg p + b" .
       qed
     next
-      have "poly_deg (q f) \<le> poly_deg (q0 f)" unfolding q_def
-      proof (rule poly_deg_poly_subst_le)
-        fix x
-        show "poly_deg (sub x) \<le> 1" by (simp add: sub_def poly_deg_monomial deg_pm_single)
-      qed
-      also from \<open>f \<in> F\<close> have "... \<le> poly_deg p + b"
-      proof (rule q0)
-        from \<open>q f \<noteq> 0\<close> show "q0 f \<noteq> 0" by (auto simp add: q_def)
-      qed
-      finally show "poly_deg (q f) \<le> poly_deg p + b" .
+      case False
+      thus ?thesis by (simp add: q_def)
     qed
+    thus "indets (q f) \<subseteq> ?X" and "poly_deg (q f) \<le> poly_deg p + b" by simp_all
   qed
 qed
 
@@ -400,8 +400,7 @@ proof
   hence "g \<in> ideal G" by (rule ideal.generator_in_module)
   hence "g \<in> ideal (set fs)" by (simp only: assms(3))
   with assms(4) obtain q where g: "g = (\<Sum>f\<in>(set fs). q f * f)"
-    and 1: "\<And>f. f \<in> set fs \<Longrightarrow> q f \<noteq> 0 \<Longrightarrow>
-              indets (q f) \<subseteq> UNION (insert g (set fs)) indets \<and> poly_deg (q f) \<le> poly_deg g + b1"
+    and 1: "\<And>f. indets (q f) \<subseteq> UNION (insert g (set fs)) indets" and 2: "\<And>f. poly_deg (q f) \<le> poly_deg g + b1"
     by (rule is_cofactor_boundE) blast
   have "1 \<noteq> (0::'a)" by simp
   show "g \<in> ?H" unfolding g
@@ -415,12 +414,7 @@ proof
     next
       case False
       hence "f \<noteq> 0" and "q f \<noteq> 0" by simp_all
-      from \<open>f \<in> set fs\<close> this(2)
-      have "indets (q f) \<subseteq> UNION (insert g (set fs)) indets \<and> poly_deg (q f) \<le> poly_deg g + b1"
-        by (rule 1)
-      hence "indets (q f) \<subseteq> UNION (insert g (set fs)) indets" and "poly_deg (q f) \<le> poly_deg g + b1"
-        by simp_all
-      note this(1)
+      note 1
       also have "UNION (insert g (set fs)) indets \<subseteq> X"
       proof
         fix x
