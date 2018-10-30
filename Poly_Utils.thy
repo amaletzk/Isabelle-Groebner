@@ -9,26 +9,21 @@ text \<open>Some further general properties of (ordered) multivariate polynomial
   
 section \<open>Further Properties of Multivariate Polynomials\<close>
 
-context term_powerprod
-begin
-
 subsection \<open>Sub-Polynomials\<close>
 
-definition subpoly :: "('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool" (infixl "\<sqsubseteq>" 50)
+definition subpoly :: "('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool" (infixl "\<sqsubseteq>" 50)
   where "subpoly p q \<longleftrightarrow> (\<forall>v\<in>(keys p). lookup p v = lookup q v)"
 
-lemma subpolyI:
-  assumes "\<And>v. v \<in> keys p \<Longrightarrow> lookup p v = lookup q v"
-  shows "p \<sqsubseteq> (q::'t \<Rightarrow>\<^sub>0 _)"
-  unfolding subpoly_def using assms by auto
+lemma subpolyI: "(\<And>v. v \<in> keys p \<Longrightarrow> lookup p v = lookup q v) \<Longrightarrow> p \<sqsubseteq> q"
+  by (simp add: subpoly_def)
 
 lemma subpolyE:
-  assumes "p \<sqsubseteq> (q::'t \<Rightarrow>\<^sub>0 _)" and "v \<in> keys p"
+  assumes "p \<sqsubseteq> q" and "v \<in> keys p"
   shows "lookup p v = lookup q v"
-  using assms unfolding subpoly_def by auto
+  using assms by (auto simp: subpoly_def)
 
 lemma subpoly_keys:
-  assumes "p \<sqsubseteq> (q::'t \<Rightarrow>\<^sub>0 _)"
+  assumes "p \<sqsubseteq> q"
   shows "keys p \<subseteq> keys q"
 proof
   fix v
@@ -39,7 +34,7 @@ proof
 qed
 
 lemma subpoly_diff_keys_disjoint:
-  assumes "p \<sqsubseteq> (q::'t \<Rightarrow>\<^sub>0 _)"
+  assumes "p \<sqsubseteq> q"
   shows "keys p \<inter> keys (q - p) = {}"
   unfolding disjoint_iff_not_equal
 proof (intro ballI)
@@ -55,10 +50,10 @@ proof (intro ballI)
   qed
 qed
 
-lemma zero_subpoly: "0 \<sqsubseteq> (q::'t \<Rightarrow>\<^sub>0 _)"
+lemma zero_subpoly: "0 \<sqsubseteq> q"
   by (rule subpolyI, simp)
 
-lemma monomial_subpoly: "(monomial (lookup p t) t) \<sqsubseteq> (p::'t \<Rightarrow>\<^sub>0 _)" (is "?q \<sqsubseteq> (_::'t \<Rightarrow>\<^sub>0 _)")
+lemma monomial_subpoly: "(monomial (lookup p t) t) \<sqsubseteq> p" (is "?q \<sqsubseteq> _")
 proof (rule subpolyI)
   fix s
   assume "s \<in> keys ?q"
@@ -73,11 +68,11 @@ proof (rule subpolyI)
   show "lookup ?q s = lookup p s" by (simp add: \<open>s = t\<close> lookup_single)
 qed
 
-lemma subpoly_refl: "p \<sqsubseteq> (p::'t \<Rightarrow>\<^sub>0 _)"
+lemma subpoly_refl: "p \<sqsubseteq> p"
   by (rule subpolyI, rule)
 
 lemma subpoly_antisym:
-  assumes "p \<sqsubseteq> (q::'t \<Rightarrow>\<^sub>0 _)" and "q \<sqsubseteq> (p::'t \<Rightarrow>\<^sub>0 _)"
+  assumes "p \<sqsubseteq> q" and "q \<sqsubseteq> p"
   shows "p = q"
 proof (rule poly_mapping_keys_eqI, rule, rule subpoly_keys, fact, rule subpoly_keys, fact)
   fix t
@@ -86,8 +81,8 @@ proof (rule poly_mapping_keys_eqI, rule, rule subpoly_keys, fact, rule subpoly_k
 qed
 
 lemma subpoly_trans:
-  assumes "p \<sqsubseteq> (q::'t \<Rightarrow>\<^sub>0 _)" and "q \<sqsubseteq> (r::'t \<Rightarrow>\<^sub>0 _)"
-  shows "p \<sqsubseteq> (r::'t \<Rightarrow>\<^sub>0 _)"
+  assumes "p \<sqsubseteq> q" and "q \<sqsubseteq> r"
+  shows "p \<sqsubseteq> r"
 proof (rule subpolyI)
   fix t
   assume "t \<in> keys p"
@@ -98,12 +93,12 @@ proof (rule subpolyI)
 qed
 
 lemma plus_subpolyI:
-  assumes "p \<sqsubseteq> (r::'t \<Rightarrow>\<^sub>0 _)" and "q \<sqsubseteq> (r::'t \<Rightarrow>\<^sub>0 _)" and "keys p \<inter> keys q = {}"
-  shows "p + q \<sqsubseteq> (r::'t \<Rightarrow>\<^sub>0 _)"
+  assumes "p \<sqsubseteq> r" and "q \<sqsubseteq> r" and "keys p \<inter> keys q = {}"
+  shows "p + q \<sqsubseteq> r"
 proof (rule subpolyI)
   fix t
   assume "t \<in> keys (p + q)"
-  also from assms(3) have "... = keys p \<union> keys q" by (rule keys_plus_eqI)
+  also from assms(3) have "\<dots> = keys p \<union> keys q" by (rule keys_plus_eqI)
   finally show "lookup (p + q) t = lookup r t"
   proof
     assume "t \<in> keys p"
@@ -120,7 +115,7 @@ proof (rule subpolyI)
   qed
 qed
 
-lemma except_subpoly: "except p S \<sqsubseteq> (p::'t \<Rightarrow>\<^sub>0 _)"
+lemma except_subpoly: "except p S \<sqsubseteq> p"
 proof (rule subpolyI)
   fix s
   assume "s \<in> keys (except p S)"
@@ -130,10 +125,10 @@ qed
 
 subsection \<open>Bounded Support\<close>
   
-definition has_bounded_keys :: "nat \<Rightarrow> ('t, 'b::zero) poly_mapping \<Rightarrow> bool" where
+definition has_bounded_keys :: "nat \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool" where
   "has_bounded_keys n p \<longleftrightarrow> card (keys p) \<le> n"
 
-definition has_bounded_keys_set :: "nat \<Rightarrow> ('t, 'b::zero) poly_mapping set \<Rightarrow> bool" where
+definition has_bounded_keys_set :: "nat \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> bool" where
   "has_bounded_keys_set n A \<longleftrightarrow> (\<forall>a\<in>A. has_bounded_keys n a)"
 
 lemma not_has_bounded_keys: "\<not> has_bounded_keys n p \<longleftrightarrow> n < card (keys p)"
@@ -164,22 +159,22 @@ lemma has_bounded_keys_setD:
     
 subsection \<open>Binomials\<close>
   
-definition is_binomial :: "('t \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool"
+definition is_binomial :: "('a \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool"
   where "is_binomial p \<longleftrightarrow> (card (keys p) = 1 \<or> card (keys p) = 2)"
 
-definition is_proper_binomial :: "('t \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool"
+definition is_proper_binomial :: "('a \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool"
   where "is_proper_binomial p \<longleftrightarrow> card (keys p) = 2"
     
-definition binomial :: "'b::comm_monoid_add \<Rightarrow> 't \<Rightarrow> 'b \<Rightarrow> 't \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b)"
+definition binomial :: "'b::comm_monoid_add \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b)"
   where "binomial c s d t = monomial c s + monomial d t"
     
-definition is_monomial_set :: "('t \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> bool"
+definition is_monomial_set :: "('a \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> bool"
   where "is_monomial_set A \<longleftrightarrow> (\<forall>p\<in>A. is_monomial p)"
 
-definition is_binomial_set :: "('t \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> bool"
+definition is_binomial_set :: "('a \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> bool"
   where "is_binomial_set A \<longleftrightarrow> (\<forall>p\<in>A. is_binomial p)"
 
-definition is_pbd :: "'b::zero \<Rightarrow> 't \<Rightarrow> 'b \<Rightarrow> 't \<Rightarrow> bool"
+definition is_pbd :: "'b::zero \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> bool"
   where "is_pbd c s d t \<longleftrightarrow> (c \<noteq> 0 \<and> d \<noteq> 0 \<and> s \<noteq> t)"
 
 text \<open>@{const is_pbd} stands for "is proper binomial data".\<close>
@@ -296,67 +291,42 @@ proof
   qed
 qed
     
-lemma is_proper_binomial_uminus: "is_proper_binomial (-p) \<longleftrightarrow> is_proper_binomial p"
+lemma is_proper_binomial_uminus: "is_proper_binomial (- p) \<longleftrightarrow> is_proper_binomial p"
   unfolding is_proper_binomial_def keys_uminus ..
     
-lemma is_binomial_uminus: "is_binomial (-p) \<longleftrightarrow> is_binomial p"
+lemma is_binomial_uminus: "is_binomial (- p) \<longleftrightarrow> is_binomial p"
   unfolding is_binomial_def keys_uminus ..
 
-lemma monomial_imp_binomial:
-  assumes "is_monomial p"
-  shows "is_binomial p"
-  using assms unfolding is_monomial_def is_binomial_def by simp
+lemma monomial_imp_binomial: "is_monomial p \<Longrightarrow> is_binomial p"
+  by (simp add: is_monomial_def is_binomial_def)
 
-lemma proper_binomial_imp_binomial:
-  assumes "is_proper_binomial p"
-  shows "is_binomial p"
-  using assms unfolding is_proper_binomial_def is_binomial_def by simp
+lemma proper_binomial_imp_binomial: "is_proper_binomial p \<Longrightarrow> is_binomial p"
+  by (simp add: is_proper_binomial_def is_binomial_def)
 
-lemma proper_binomial_no_monomial:
-  assumes "is_proper_binomial p"
-  shows "\<not> is_monomial p"
-  using assms unfolding is_proper_binomial_def is_monomial_def by simp
+lemma proper_binomial_no_monomial: "is_proper_binomial p \<Longrightarrow> \<not> is_monomial p"
+  by (simp add: is_proper_binomial_def is_monomial_def)
   
-lemma is_binomial_alt:
-  shows "is_binomial p \<longleftrightarrow> (is_monomial p \<or> is_proper_binomial p)"
+lemma is_binomial_alt: "is_binomial p \<longleftrightarrow> (is_monomial p \<or> is_proper_binomial p)"
   unfolding is_monomial_def is_binomial_def is_proper_binomial_def ..
 
-lemma proper_binomial_not_0:
-  assumes "is_proper_binomial p"
-  shows "p \<noteq> 0"
-  using assms unfolding is_proper_binomial_def by auto
+lemma proper_binomial_not_0: "is_proper_binomial p \<Longrightarrow> p \<noteq> 0"
+  by (auto simp: is_proper_binomial_def)
 
-corollary binomial_not_0:
-  assumes "is_binomial p"
-  shows "p \<noteq> 0"
-  using assms unfolding is_binomial_alt using monomial_not_0 proper_binomial_not_0 by auto
+corollary binomial_not_0: "is_binomial p \<Longrightarrow> p \<noteq> 0"
+  unfolding is_binomial_alt using monomial_not_0 proper_binomial_not_0 by auto
     
-lemma is_pbdE1:
+lemma is_pbdD:
   assumes "is_pbd c s d t"
-  shows "c \<noteq> 0"
-  using assms unfolding is_pbd_def by simp
+  shows "c \<noteq> 0" and "d \<noteq> 0" and "s \<noteq> t"
+  using assms by (simp_all add: is_pbd_def)
+    
+lemma is_pbdI: "c \<noteq> 0 \<Longrightarrow> d \<noteq> 0 \<Longrightarrow> s \<noteq> t \<Longrightarrow> is_pbd c s d t"
+  by (simp add: is_pbd_def)
 
-lemma is_pbdE2:
-  assumes "is_pbd c s d t"
-  shows "d \<noteq> 0"
-  using assms unfolding is_pbd_def by simp
-    
-lemma is_pbdE3:
-  assumes "is_pbd c s d t"
-  shows "s \<noteq> t"
-  using assms unfolding is_pbd_def by simp
-    
-lemma is_pbdI:
-  assumes "c \<noteq> 0" and "d \<noteq> 0" and "s \<noteq> t"
-  shows "is_pbd c s d t"
-  using assms unfolding is_pbd_def by simp
-
-lemma binomial_comm:
-  shows "binomial c s d t = binomial d t c s"
+lemma binomial_comm: "binomial c s d t = binomial d t c s"
   unfolding binomial_def by (simp add: ac_simps)
 
-lemma keys_binomial:
-  shows "keys (binomial c s d t) \<subseteq> {s, t}"
+lemma keys_binomial_subset: "keys (binomial c s d t) \<subseteq> {s, t}"
 proof
   fix u
   assume "u \<in> keys (binomial c s d t)"
@@ -366,23 +336,19 @@ proof
   thus "u \<in> {s, t}" by simp
 qed
     
-lemma card_keys_binomial:
-  shows "card (keys (binomial c s d t)) \<le> 2"
+lemma card_keys_binomial: "card (keys (binomial c s d t)) \<le> 2"
 proof -
   have "finite {s, t}" by simp
-  from this keys_binomial have "card (keys (binomial c s d t)) \<le> card {s, t}" by (rule card_mono)
+  from this keys_binomial_subset have "card (keys (binomial c s d t)) \<le> card {s, t}" by (rule card_mono)
   also have "... \<le> 2" by (simp add: card_insert_le_m1)
   finally show ?thesis .
 qed
 
 lemma keys_binomial_pbd:
-  fixes c d s t
   assumes "is_pbd c s d t"
   shows "keys (binomial c s d t) = {s, t}"
 proof -
-  from assms have "c \<noteq> 0" by (rule is_pbdE1)
-  from assms have "d \<noteq> 0" by (rule is_pbdE2)
-  from assms have "s \<noteq> t" by (rule is_pbdE3)
+  from assms have "c \<noteq> 0" and "d \<noteq> 0" and "s \<noteq> t" by (rule is_pbdD)+
   have "keys (monomial c s + monomial d t) = (keys (monomial c s)) \<union> (keys (monomial d t))"
   proof (rule, rule keys_add_subset, rule)
     fix x
@@ -401,23 +367,19 @@ proof -
 qed
   
 lemma lookup_binomial:
-  fixes c d s t
   assumes "is_pbd c s d t"
   shows "lookup (binomial c s d t) u = (if u = s then c else (if u = t then d else 0))"
-  unfolding binomial_def lookup_add lookup_single using is_pbdE3[OF assms] by simp
+  unfolding binomial_def lookup_add lookup_single using is_pbdD(3)[OF assms] by simp
     
-lemma binomial_uminus:
-  shows "- binomial c s d t = binomial (-c) s (-d) t"
-  unfolding binomial_def by (simp add: monomial_uminus)
+lemma binomial_uminus: "- binomial c s d t = binomial (-c) s (-d) t"
+  by (simp add: binomial_def monomial_uminus)
 
 lemma binomial_is_proper_binomial:
-  fixes c d s t
   assumes "is_pbd c s d t"
   shows "is_proper_binomial (binomial c s d t)"
-  unfolding is_proper_binomial_def keys_binomial_pbd[OF assms] using is_pbdE3[OF assms] by simp
+  unfolding is_proper_binomial_def keys_binomial_pbd[OF assms] using is_pbdD(3)[OF assms] by simp
 
 lemma is_proper_binomial_binomial:
-  fixes p
   assumes "is_proper_binomial p"
   obtains c d s t where "is_pbd c s d t" and "p = binomial c s d t"
 proof -
@@ -444,9 +406,12 @@ proof -
     qed
   qed fact+
 qed
-    
+
+context term_powerprod
+begin
+
 lemma is_pbd_mult:
-  assumes "is_pbd (c::'b::field) u d v" and "a \<noteq> 0"
+  assumes "is_pbd (c::'b::semiring_no_zero_divisors) u d v" and "a \<noteq> 0"
   shows "is_pbd (a * c) (t \<oplus> u) (a * d) (t \<oplus> v)"
   using assms unfolding is_pbd_def by (auto simp add: term_simps)
     
@@ -759,7 +724,7 @@ lemma pbd_imp_obd:
   assumes "is_pbd c s d t"
   shows "is_obd c s d t \<or> is_obd d t c s"
 proof -
-  have "s \<noteq> t" by (rule is_pbdE3, fact)
+  from assms have "s \<noteq> t" by (rule is_pbdD)
   hence "s \<prec>\<^sub>t t \<or> t \<prec>\<^sub>t s" by auto
   thus ?thesis
   proof
@@ -807,7 +772,7 @@ lemma lt_binomial:
   shows "lt (binomial c s d t) = s"
 proof -
   have pbd: "is_pbd c s d t" by (rule obd_imp_pbd, fact)
-  hence "c \<noteq> 0" by (rule is_pbdE1)
+  hence "c \<noteq> 0" by (rule is_pbdD)
   show ?thesis
   proof (intro lt_eqI)
     from \<open>c \<noteq> 0\<close> show "lookup (binomial c s d t) s \<noteq> 0" unfolding lookup_binomial[OF pbd] by simp
@@ -839,7 +804,7 @@ lemma tt_binomial:
   shows "tt (binomial c s d t) = t"
 proof -
   from assms have pbd: "is_pbd c s d t" by (rule obd_imp_pbd)
-  hence "c \<noteq> 0" by (rule is_pbdE1)
+  hence "c \<noteq> 0" by (rule is_pbdD)
   show ?thesis
   proof (intro tt_eqI)
     from \<open>c \<noteq> 0\<close> show "t \<in> keys (binomial c s d t)" unfolding keys_binomial_pbd[OF pbd] by simp

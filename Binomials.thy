@@ -98,8 +98,8 @@ lemma red_binomial_keys:
   assumes "is_obd c s d t" and red: "red {binomial c s d t} p q"
   shows "card (keys q) \<le> card (keys p)"
 proof -
-  have pbd: "is_pbd c s d t" by (rule obd_imp_pbd, fact)
-  have "c \<noteq> 0" by (rule is_pbdE1, fact)
+  from assms(1) have pbd: "is_pbd c s d t" by (rule obd_imp_pbd)
+  hence "c \<noteq> 0" by (rule is_pbdD)
       
   define r where "r = binomial c s d t"
   have sr: "keys r = {s, t}" unfolding r_def by (rule keys_binomial_pbd, rule obd_imp_pbd, fact)
