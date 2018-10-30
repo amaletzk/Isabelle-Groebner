@@ -13,15 +13,14 @@ context ordered_term
 begin
 
 definition reduced_Macaulay_list :: "('t \<Rightarrow>\<^sub>0 'b) list \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::field) list"
-  where "reduced_Macaulay_list ps = comp_min_basis_aux (Macaulay_list ps) []"
+  where "reduced_Macaulay_list ps = comp_min_basis (Macaulay_list ps)"
 
-text \<open>It is important to note that in @{const reduced_Macaulay_list} there is no need to remove
-  duplicate leading power-products (because there are none), nor to make the polynomials monic
-  (because they already are).\<close>
+text \<open>It is important to note that in @{const reduced_Macaulay_list} there is no need to make the
+  polynomials monic (because they already are).\<close>
 
 lemma reduced_Macaulay_list_subset_Macaulay_list:
   "set (reduced_Macaulay_list ps) \<subseteq> set (Macaulay_list ps)"
-  by (simp only: reduced_Macaulay_list_def, rule comp_min_basis_aux_Nil_subset)
+  by (simp only: reduced_Macaulay_list_def, rule comp_min_basis_subset)
 
 lemma reduced_Macaulay_list_not_zero: "0 \<notin> set (reduced_Macaulay_list ps)"
   using Macaulay_list_not_zero reduced_Macaulay_list_subset_Macaulay_list by auto
@@ -35,11 +34,6 @@ proof (rule is_monic_setI)
   ultimately show "lc b = 1" by (rule is_monic_setD[OF Macaulay_list_is_monic_set])
 qed
 
-end (* ordered_term *)
-
-context gd_term
-begin
-
 lemma reduced_Macaulay_list_is_minimal_basis: "is_minimal_basis (set (reduced_Macaulay_list ps))"
 proof (rule is_minimal_basisI)
   fix p
@@ -47,31 +41,23 @@ proof (rule is_minimal_basisI)
   with reduced_Macaulay_list_not_zero show "p \<noteq> 0" by auto
 next
   fix p q
-  assume "p \<in> set (reduced_Macaulay_list ps)" and q_in: "q \<in> set (reduced_Macaulay_list ps)"
-    and "p \<noteq> q"
-  from reduced_Macaulay_list_subset_Macaulay_list this(1) have p_in: "p \<in> set (Macaulay_list ps)" ..
-  from q_in have "q \<in> set (comp_min_basis_aux (Macaulay_list ps) [])"
-    by (simp only: reduced_Macaulay_list_def)
-  moreover note p_in
-  moreover from \<open>p \<noteq> q\<close> have "q \<noteq> p" ..
-  ultimately show "\<not> lt p adds\<^sub>t lt q"
-  proof (rule comp_min_basis_aux_Nil_nadds)
-    show "0 \<notin> set (Macaulay_list ps)" by (fact Macaulay_list_not_zero)
-  next
-    fix x y :: "'t \<Rightarrow>\<^sub>0 'b"
-    assume "x \<in> set (Macaulay_list ps)" and "y \<in> set (Macaulay_list ps)"
-    moreover assume "x \<noteq> y"
-    ultimately show "lt x \<noteq> lt y" by (rule Macaulay_list_distinct_lt)
-  qed
+  assume "q \<in> set (reduced_Macaulay_list ps)" and "p \<in> set (reduced_Macaulay_list ps)"
+    and [symmetric]: "p \<noteq> q"
+  thus "\<not> lt p adds\<^sub>t lt q" unfolding reduced_Macaulay_list_def
+    by (rule comp_min_basis_nadds)
 qed
+
+end (* ordered_term *)
+
+context gd_term
+begin
 
 lemma pmdl_reduced_Macaulay_list:
   assumes "is_Groebner_basis (set (Macaulay_list ps))"
   shows "pmdl (set (reduced_Macaulay_list ps)) = pmdl (set ps)"
 proof -
   have "pmdl (set (reduced_Macaulay_list ps)) = pmdl (set (Macaulay_list ps))"
-    unfolding reduced_Macaulay_list_def by (rule comp_min_basis_aux_Nil_pmdl, fact assms,
-        fact Macaulay_list_not_zero, fact Macaulay_list_distinct_lt)
+    unfolding reduced_Macaulay_list_def using assms by (rule comp_min_basis_pmdl)
   also have "... = pmdl (set ps)" by (simp only: pmdl_Macaulay_list)
   finally show ?thesis .
 qed
@@ -95,23 +81,14 @@ proof (simp only: GB_alt_3_finite[OF finite_set] pmdl_Macaulay_list, intro ballI
   qed fact+
 qed
 
-lemma reduced_Macaulay_list_lp:
+lemma reduced_Macaulay_list_lt:
   assumes "p \<in> phull (set ps)" and "p \<noteq> 0"
   obtains g where "g \<in> set (reduced_Macaulay_list ps)" and "g \<noteq> 0" and "lt g adds\<^sub>t lt p"
 proof -
   from assms obtain g' where "g' \<in> set (Macaulay_list ps)" and "g' \<noteq> 0" and "lt p = lt g'"
     by (rule Macaulay_list_lt)
-  obtain g where "g \<in> set (reduced_Macaulay_list ps)" and "lt g adds\<^sub>t lt g'"
-  proof (simp only: reduced_Macaulay_list_def, rule comp_min_basis_aux_Nil_adds)
-    show "g' \<in> set (Macaulay_list ps)" by fact
-  next
-    show "0 \<notin> set (Macaulay_list ps)" by (fact Macaulay_list_not_zero)
-  next
-    fix x y
-    assume "x \<in> set (Macaulay_list ps)" and "y \<in> set (Macaulay_list ps)" and "x \<noteq> y"
-    thus "lt x \<noteq> lt y" by (rule Macaulay_list_distinct_lt)
-  qed
-
+  from this(1, 2) obtain g where "g \<in> set (reduced_Macaulay_list ps)" and "lt g adds\<^sub>t lt g'"
+    unfolding reduced_Macaulay_list_def by (rule comp_min_basis_adds)
   from this(1) show ?thesis
   proof
     from \<open>g \<in> set (reduced_Macaulay_list ps)\<close> reduced_Macaulay_list_not_zero show "g \<noteq> 0" by auto
@@ -123,12 +100,10 @@ qed
 lemma reduced_Macaulay_list_is_GB:
   assumes "is_Groebner_basis G" and "pmdl (set ps) = pmdl G" and "G \<subseteq> phull (set ps)"
   shows "is_Groebner_basis (set (reduced_Macaulay_list ps))"
-  unfolding reduced_Macaulay_list_def
-  apply (rule comp_min_basis_aux_Nil_GB)
-  subgoal by (rule Macaulay_list_is_GB, fact, fact, fact)
-  subgoal by (fact Macaulay_list_not_zero)
-  subgoal by (fact Macaulay_list_distinct_lt)
-  done
+proof -
+  from assms have "is_Groebner_basis (set (Macaulay_list ps))" by (rule Macaulay_list_is_GB)
+  thus ?thesis unfolding reduced_Macaulay_list_def by (rule comp_min_basis_GB)
+qed
 
 lemma reduced_Macaulay_list_is_reduced_GB:
   assumes "finite F" and "pmdl (set ps) = pmdl F" and "reduced_GB F \<subseteq> phull (set ps)"

@@ -268,16 +268,14 @@ proof (rule Set.set_eqI)
     assume "u \<in> cone (t - v) U"
     then obtain s' where "s' \<in> .[U]" and u: "u = s' + (t - v)" by (rule coneE)
     from this(2) have "u = (s' + (v - t)) + t - v" by (simp add: plus_minus_assoc_pm_nat_1)
-    have "u = (s' + (truncate_poly_mapping (keys s') (v - t))) + t - v"
+    have "u = (s' + (except (v - t) (- keys s'))) + t - v"
       unfolding u by (fact plus_minus_assoc_pm_nat_2)
-    moreover from refl have "(s' + (truncate_poly_mapping (keys s') (v - t))) + t \<in> cone t U"
+    moreover from refl have "(s' + (except (v - t) (- keys s'))) + t \<in> cone t U"
     proof (rule coneI)
-      from sub_keys_truncate[of "keys s'" "v - t"]
-      have "keys (truncate_poly_mapping (keys s') (v - t)) \<subseteq> keys s'" by (simp only: sub_keys_def)
+      have "keys (except (v - t) (- keys s')) \<subseteq> keys s'" by (simp add: keys_except)
       also from \<open>s' \<in> .[U]\<close> have "\<dots> \<subseteq> U" by (rule PPsD)
-      finally have "truncate_poly_mapping (keys s') (v - t) \<in> .[U]" by (rule PPsI)
-      with \<open>s' \<in> .[U]\<close> show "s' + truncate_poly_mapping (keys s') (v - t) \<in> .[U]"
-        by (rule PPs_closed_plus)
+      finally have "except (v - t) (- keys s') \<in> .[U]" by (rule PPsI)
+      with \<open>s' \<in> .[U]\<close> show "s' + except (v - t) (- keys s') \<in> .[U]" by (rule PPs_closed_plus)
     qed
     ultimately show "u \<in> (\<lambda>s. s - v) ` cone t U" by (rule image_eqI)
   qed

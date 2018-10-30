@@ -15,19 +15,6 @@ proof -
   show ?thesis by (simp add: punit.monomial_power eq)
 qed
 
-lemma except_monomial: "except (monomial c u) U = (monomial c u when u \<notin> U)"
-  by (rule poly_mapping_eqI) (simp add: lookup_except lookup_single when_def)
-
-lemma except_plus: "except (a + b) U = except a U + except b U"
-  by (rule poly_mapping_eqI) (simp add: lookup_except lookup_add)
-
-lemma except_except: "except (except a U) V = except a (U \<union> V)"
-  by (rule poly_mapping_eqI) (simp add: lookup_except)
-
-lemma except_id_iff: "except a U = a \<longleftrightarrow> keys a \<inter> U = {}"
-  by (metis Diff_Diff_Int Diff_eq_empty_iff Diff_triv inf_le2 keys_except lookup_except_eq_idI
-      lookup_except_eq_zeroI not_in_keys_iff_lookup_eq_zero poly_mapping_keys_eqI)
-
 (*
 subsection \<open>Integral Domains\<close>
 
@@ -113,19 +100,19 @@ lemma plus_minus_assoc_pm_nat_1: "s + t - u = (s - (u - t)) + (t - (u::_ \<Right
   by (rule poly_mapping_eqI, simp add: lookup_add lookup_minus)
 
 lemma plus_minus_assoc_pm_nat_2:
-  "s + (t - u) = (s + (truncate_poly_mapping (keys s) (u - t))) + t - (u::_ \<Rightarrow>\<^sub>0 nat)"
+  "s + (t - u) = (s + (except (u - t) (- keys s))) + t - (u::_ \<Rightarrow>\<^sub>0 nat)"
 proof (rule poly_mapping_eqI)
   fix x
-  show "lookup (s + (t - u)) x = lookup (s + truncate_poly_mapping (keys s) (u - t) + t - u) x"
+  show "lookup (s + (t - u)) x = lookup (s + except (u - t) (- keys s) + t - u) x"
   proof (cases "x \<in> keys s")
     case True
     thus ?thesis
-      by (simp add: plus_minus_assoc_pm_nat_1 lookup_truncate_fun truncate_fun_def lookup_add lookup_minus)
+      by (simp add: plus_minus_assoc_pm_nat_1 lookup_add lookup_minus lookup_except)
   next
     case False
     hence "lookup s x = 0" by simp
     with False show ?thesis
-      by (simp add: lookup_add lookup_minus lookup_truncate_fun truncate_fun_def del: not_in_keys_iff_lookup_eq_zero)
+      by (simp add: lookup_add lookup_minus lookup_except del: not_in_keys_iff_lookup_eq_zero)
   qed
 qed
 
@@ -716,11 +703,10 @@ lemma PPs_UnE:
   obtains tx ty where "tx \<in> .[X]" and "ty \<in> .[Y]" and "t = tx + ty"
 proof -
   from assms have "keys t \<subseteq> X \<union> Y" by (rule PPsD)
-  define tx where "tx = truncate_poly_mapping X t"
-  from sub_keys_truncate have "keys tx \<subseteq> X" unfolding tx_def sub_keys_def .
+  define tx where "tx = except t (- X)"
+  have "keys tx \<subseteq> X" by (simp add: tx_def keys_except)
   hence "tx \<in> .[X]" by (simp add: PPs_def)
-  have "tx adds t"
-    by (simp add: tx_def adds_poly_mappingI le_fun_def lookup_truncate_fun truncate_fun_def)
+  have "tx adds t" by (simp add: tx_def adds_poly_mappingI le_fun_def lookup_except)
   from adds_minus[OF this] have "t = tx + (t - tx)" by (simp only: ac_simps)
   have "t - tx \<in> .[Y]"
   proof (rule PPsI, rule)
@@ -731,8 +717,7 @@ proof -
     finally show "x \<in> Y"
     proof
       assume "x \<in> X"
-      hence "x \<notin> keys (t - tx)"
-        by (simp add: tx_def lookup_truncate_fun truncate_fun_def lookup_minus)
+      hence "x \<notin> keys (t - tx)" by (simp add: tx_def lookup_except lookup_minus)
       thus ?thesis using \<open>x \<in> keys (t - tx)\<close> ..
     qed
   qed
@@ -2206,7 +2191,7 @@ qed
 lemma dehomogenize_homogenize [simp]: "dehomogenize x (homogenize x p) = dehomogenize x p"
 proof -
   have "dehomogenize x (homogenize x p) = sum (dehomogenize x) (hom_components p)"
-    by (simp add: homogenize_alt dehomogenize_sum dehomogenize_monom_mult except_monomial)
+    by (simp add: homogenize_alt dehomogenize_sum dehomogenize_monom_mult except_single)
   also have "\<dots> = dehomogenize x p" by (simp only: sum_hom_components flip: dehomogenize_sum)
   finally show ?thesis .
 qed
@@ -2551,8 +2536,8 @@ lemma dickson_grading_varnum_wrt:
 proof (rule dickson_gradingI)
   fix m::nat
   let ?V = "X \<union> {x. elem_index x < m}"
-  have "{t::'x \<Rightarrow>\<^sub>0 'b. varnum_wrt X t \<le> m} \<subseteq> {t. sub_keys ?V t}"
-  proof (rule, simp add: sub_keys_def, intro subsetI, simp)
+  have "{t::'x \<Rightarrow>\<^sub>0 'b. varnum_wrt X t \<le> m} \<subseteq> {t. keys t \<subseteq> ?V}"
+  proof (rule, simp, intro subsetI, simp)
     fix t::"'x \<Rightarrow>\<^sub>0 'b" and x::'x
     assume "varnum_wrt X t \<le> m"
     assume "x \<in> keys t"
@@ -2569,7 +2554,7 @@ proof (rule dickson_gradingI)
   thus "almost_full_on (adds) {t::'x \<Rightarrow>\<^sub>0 'b. varnum_wrt X t \<le> m}"
   proof (rule almost_full_on_subset)
     from assms finite_nat_seg have "finite ?V" by (rule finite_UnI)
-    thus "almost_full_on (adds) {t::'x \<Rightarrow>\<^sub>0 'b. sub_keys ?V t}" by (rule Dickson_poly_mapping)
+    thus "almost_full_on (adds) {t::'x \<Rightarrow>\<^sub>0 'b. keys t \<subseteq> ?V}" by (rule Dickson_poly_mapping)
   qed
 qed
 
@@ -2579,19 +2564,17 @@ lemma varnum_wrt_le_iff: "varnum_wrt X t \<le> n \<longleftrightarrow> keys t \<
 lemma hom_grading_varnum_wrt:
   "hom_grading ((varnum_wrt X)::('x::countable \<Rightarrow>\<^sub>0 'b::add_wellorder) \<Rightarrow> nat)"
 proof -
-  define f where "f = (\<lambda>n. (truncate_poly_mapping (X \<union> {x. elem_index x < n}))::_ \<Rightarrow> 'x \<Rightarrow>\<^sub>0 'b)"
+  define f where "f = (\<lambda>n t. (except t (- (X \<union> {x. elem_index x < n})))::'x \<Rightarrow>\<^sub>0 'b)"
   show ?thesis unfolding hom_grading_def hom_grading_fun_def
   proof (intro exI allI conjI impI)
     fix n s t
-    show "f n (s + t) = f n s + f n t" by (simp only: f_def truncate_poly_mapping_plus)
+    show "f n (s + t) = f n s + f n t" by (simp only: f_def except_plus)
   next
     fix n t
-    from sub_keys_truncate[of "X \<union> {x. elem_index x < n}" t] show "varnum_wrt X (f n t) \<le> n"
-      by (simp add: varnum_wrt_le_iff sub_keys_def f_def)
+    show "varnum_wrt X (f n t) \<le> n" by (auto simp: varnum_wrt_le_iff keys_except f_def)
   next
     fix n t
-    show "varnum_wrt X  t \<le> n \<Longrightarrow> f n t = t"
-      by (simp add: f_def truncate_poly_mapping_id_iff varnum_wrt_le_iff)
+    show "varnum_wrt X  t \<le> n \<Longrightarrow> f n t = t" by (auto simp: f_def except_id_iff varnum_wrt_le_iff)
   qed
 qed
 
