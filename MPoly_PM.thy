@@ -75,24 +75,20 @@ subsection \<open>Order relation on polynomial mappings\<close>
 definition le_pm :: "('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::{ord,zero}) \<Rightarrow> bool" (infixl "\<unlhd>" 50)
   where "le_pm s t \<longleftrightarrow> (lookup s \<le> lookup t)"
 
-lemma le_pmI:
-  assumes "\<And>x. lookup s x \<le> lookup t x"
-  shows "s \<unlhd> t"
-  unfolding le_pm_def le_fun_def using assms ..
+lemma le_pmI: "(\<And>x. lookup s x \<le> lookup t x) \<Longrightarrow> s \<unlhd> t"
+  unfolding le_pm_def le_fun_def ..
 
-lemma le_pmD:
-  assumes "s \<unlhd> t"
-  shows "lookup s x \<le> lookup t x"
-  using assms unfolding le_pm_def le_fun_def ..
+lemma le_pmD: "s \<unlhd> t \<Longrightarrow> lookup s x \<le> lookup t x"
+  by (simp add: le_pm_def le_fun_def)
 
-lemma adds_pmI:
-  assumes "s \<unlhd> t"
-  shows "s adds (t::'a \<Rightarrow>\<^sub>0 'b::add_linorder)"
-  using assms by (simp add: le_pm_def, intro adds_poly_mappingI)
+lemma adds_pmI: "s \<unlhd> t \<Longrightarrow> s adds (t::'a \<Rightarrow>\<^sub>0 'b::add_linorder)"
+  by (simp add: le_pm_def, intro adds_poly_mappingI)
 
-lemma adds_pm: "s adds t \<longleftrightarrow> s \<unlhd> t"
-  for s t::"'a \<Rightarrow>\<^sub>0 'b::add_linorder_min"
+lemma adds_pm: "s adds t \<longleftrightarrow> s \<unlhd> (t::'a \<Rightarrow>\<^sub>0 'b::add_linorder_min)"
   by (simp add: adds_poly_mapping le_pm_def)
+
+lemma deg_pm_mono_le: "s \<unlhd> t \<Longrightarrow> deg_pm s \<le> deg_pm (t::'a \<Rightarrow>\<^sub>0 'b::add_linorder)"
+  unfolding le_pm_def by (transfer) (auto intro!: deg_fun_leq simp: supp_fun_def)
 
 subsection \<open>Degree\<close>
 
@@ -117,7 +113,7 @@ proof (rule poly_mapping_eqI)
 qed
 
 lemma deg_pm_mono: "s adds t \<Longrightarrow> deg_pm s \<le> deg_pm (t::_ \<Rightarrow>\<^sub>0 _::add_linorder_min)"
-  unfolding adds_poly_mapping by (transfer) (auto intro!: deg_fun_leq simp: supp_fun_def)
+  by (simp add: adds_pm deg_pm_mono_le)
 
 lemma deg_pm_minus:
   assumes "s adds (t::_ \<Rightarrow>\<^sub>0 _::comm_monoid_add)"
