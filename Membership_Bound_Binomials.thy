@@ -220,7 +220,7 @@ proof -
     qed fact
     with \<open>\<not> punit.is_red F g\<close> show False ..
   qed
-  from \<open>is_binomial_set F\<close> \<open>f \<in> F\<close> have "is_binomial f" by (rule punit.is_binomial_setD)
+  from assms(1) \<open>f \<in> F\<close> have "is_binomial f" by (rule punit.is_binomial_setD)
   hence "is_monomial f \<or> is_proper_binomial f" unfolding is_binomial_alt .
   hence "is_proper_binomial f"
   proof
@@ -285,7 +285,9 @@ next
   thus "is_int_pm (snd pp)" by (rule nat_pm_is_int_pm)
 qed
 
-type_synonym 'x point = "('x \<Rightarrow>\<^sub>0 real)"
+abbreviation "rat \<equiv> rat_of_nat"
+
+type_synonym 'x point = "('x \<Rightarrow>\<^sub>0 rat)"
 
 definition overlap_p :: "(('x point) * ('x point)) \<Rightarrow> (('x point) * ('x point)) \<Rightarrow> 'x point"
   where "overlap_p p1 p2 = lcs (gcs (fst p1) (snd p1)) (gcs (fst p2) (snd p2))"
@@ -410,13 +412,13 @@ proof (rule poly_mapping_eqI, simp add: lookup_minus lookup_of_nat_pm vect_def l
   fix x
   let ?lp = "lookup (lp q)"
   let ?tp = "lookup (tp q)"
-  have eq: "real (?lp x) - real (?tp x) = real_of_int (int (?lp x) - int (?tp x))" by simp
-  show "\<lfloor>real (?lp x) - real (?tp x)\<rfloor> = int (?lp x) - int (?tp x)" unfolding eq floor_of_int ..
+  have eq: "rat (?lp x) - rat (?tp x) = rat_of_int (int (?lp x) - int (?tp x))" by simp
+  show "\<lfloor>rat (?lp x) - rat (?tp x)\<rfloor> = int (?lp x) - int (?tp x)" unfolding eq floor_of_int ..
 qed
   
 subsubsection \<open>@{term associated_p}\<close>
 
-definition associated_p :: "('x point * 'x point) \<Rightarrow> 'x point \<Rightarrow> 'x point \<Rightarrow> real \<Rightarrow> bool" where
+definition associated_p :: "('x point * 'x point) \<Rightarrow> 'x point \<Rightarrow> 'x point \<Rightarrow> rat \<Rightarrow> bool" where
   "associated_p p s t k \<longleftrightarrow> (t + k \<cdot> fst p = s + k \<cdot> snd p)"
 
 lemma associated_pI:
@@ -445,32 +447,25 @@ qed
 
 lemma associated_p_nat:
   "associated_p (of_nat_pm a, of_nat_pm b) (of_nat_pm s) (of_nat_pm t) (of_nat k) \<longleftrightarrow> (t + k \<cdot> a = s + k \<cdot> b)"
-  unfolding associated_p_def
-proof (simp add: poly_mapping_eq_iff plus_poly_mapping.rep_eq fun_eq_iff lookup_of_nat_pm)
-  show "(\<forall>x. real (lookup t x) + real k * real (lookup a x) = real (lookup s x) + real k * real (lookup b x)) =
+proof (simp add: associated_p_def poly_mapping_eq_iff plus_poly_mapping.rep_eq fun_eq_iff lookup_of_nat_pm)
+  show "(\<forall>x. rat (lookup t x) + rat k * rat (lookup a x) =
+              rat (lookup s x) + rat k * rat (lookup b x)) =
         (\<forall>x. lookup t x + k * lookup a x = lookup s x + k * lookup b x)"
     by (metis (no_types, hide_lams) of_nat_add of_nat_eq_iff of_nat_mult)
 qed
 
 lemma associated_p_int:
   "associated_p (of_int_pm a, of_int_pm b) (of_int_pm s) (of_int_pm t) (of_int k) \<longleftrightarrow> (t + k \<cdot> a = s + k \<cdot> b)"
-  unfolding associated_p_def
-proof (simp add: poly_mapping_eq_iff plus_poly_mapping.rep_eq fun_eq_iff lookup_of_int_pm)
-  show "(\<forall>x. real_of_int (lookup t x) + real_of_int k * real_of_int (lookup a x) =
-          real_of_int (lookup s x) + real_of_int k * real_of_int (lookup b x)) =
+proof (simp add: associated_p_def poly_mapping_eq_iff plus_poly_mapping.rep_eq fun_eq_iff lookup_of_int_pm)
+  show "(\<forall>x. rat_of_int (lookup t x) + rat_of_int k * rat_of_int (lookup a x) =
+          rat_of_int (lookup s x) + rat_of_int k * rat_of_int (lookup b x)) =
         (\<forall>x. lookup t x + k * lookup a x = lookup s x + k * lookup b x)"
     by (metis (no_types, hide_lams) of_int_add of_int_eq_iff of_int_mult)
 qed
 
 lemma associated_p_rat:
   "associated_p (of_rat_pm a, of_rat_pm b) (of_rat_pm s) (of_rat_pm t) (of_rat k) \<longleftrightarrow> (t + k \<cdot> a = s + k \<cdot> b)"
-  unfolding associated_p_def
-proof (simp add: poly_mapping_eq_iff plus_poly_mapping.rep_eq fun_eq_iff lookup_of_rat_pm)
-  show "(\<forall>x. real_of_rat (lookup t x) + real_of_rat k * real_of_rat (lookup a x) =
-          real_of_rat (lookup s x) + real_of_rat k * real_of_rat (lookup b x)) =
-        (\<forall>x. lookup t x + k * lookup a x = lookup s x + k * lookup b x)"
-    by (metis (no_types, hide_lams) of_rat_add of_rat_eq_iff of_rat_mult)
-qed
+  by (simp add: associated_p_def poly_mapping_eq_iff plus_poly_mapping.rep_eq fun_eq_iff lookup_of_rat_pm)
   
 lemma associated_p_alt: "associated_p p s t k \<longleftrightarrow> (s = t + k \<cdot> (vect_p p))"
   by (simp add: associated_p_def vect_p_def scalar_minus_distrib_left,
@@ -529,8 +524,8 @@ next
   qed
 qed
 
-lemma associated_alt_real:
-  "associated q s t k \<longleftrightarrow> (of_nat_pm s = ((of_nat_pm t)::'x \<Rightarrow>\<^sub>0 real) + of_int_pm (int k \<cdot> (vect q)))" (is "?L \<longleftrightarrow> ?R")
+lemma associated_alt_rat:
+  "associated q s t k \<longleftrightarrow> (of_nat_pm s = ((of_nat_pm t)::'x \<Rightarrow>\<^sub>0 rat) + of_int_pm (int k \<cdot> (vect q)))" (is "?L \<longleftrightarrow> ?R")
 proof
   assume ?L
   show ?R unfolding vect_alt
@@ -538,8 +533,8 @@ proof
     fix x
     from \<open>?L\<close> have "lookup t x + k * lookup (lp q) x = lookup s x + k * lookup (tp q) x"
       by (rule associatedD_lookup)
-    hence "real (lookup t x + k * lookup (lp q) x) = real (lookup s x + k * lookup (tp q) x)" by simp
-    thus "real (lookup s x) = real (lookup t x) + real k * (real (lookup (lp q) x) - real (lookup (tp q) x))"
+    hence "rat (lookup t x + k * lookup (lp q) x) = rat (lookup s x + k * lookup (tp q) x)" by simp
+    thus "rat (lookup s x) = rat (lookup t x) + rat k * (rat (lookup (lp q) x) - rat (lookup (tp q) x))"
       by (simp add: right_diff_distrib)
   qed
 next
@@ -547,11 +542,11 @@ next
   show ?L
   proof (rule associatedI_lookup)
     fix x
-    from \<open>?R\<close> have "lookup (of_nat_pm t + of_int_pm (int k \<cdot> vect q)) x = lookup ((of_nat_pm s)::'x \<Rightarrow>\<^sub>0 real) x"
+    from \<open>?R\<close> have "lookup (of_nat_pm t + of_int_pm (int k \<cdot> vect q)) x = lookup ((of_nat_pm s)::'x \<Rightarrow>\<^sub>0 rat) x"
       by simp
-    hence "real (lookup t x) + real k * (real (lookup (lp q) x) - real (lookup (tp q) x)) = real (lookup s x)"
+    hence "rat (lookup t x) + rat k * (rat (lookup (lp q) x) - rat (lookup (tp q) x)) = rat (lookup s x)"
       by (simp add: vect_alt lookup_of_nat_pm lookup_of_int_pm lookup_add lookup_minus)
-    hence "real (lookup t x + k * lookup (lp q) x) = real (lookup s x + k * lookup (tp q) x)"
+    hence "rat (lookup t x + k * lookup (lp q) x) = rat (lookup s x + k * lookup (tp q) x)"
       by (simp add: right_diff_distrib)
     thus "lookup t x + k * lookup (lp q) x = lookup s x + k * lookup (tp q) x" using of_nat_eq_iff by blast 
   qed
@@ -607,12 +602,13 @@ qed
 
 subsection \<open>Two Binomials\<close>
 
+(* TODO: Make new locale where f1 and f2 are fixed and 'b is field. *)
 context fixes f1 f2 :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::field"
 begin
 
 definition step_p' :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> 'x point \<Rightarrow> nat" where
-  "step_p' f p = Max ({nat \<lceil>(real (lookup (overlap f1 f2) x) - lookup p x) / real_of_int (lookup (vect f) x)\<rceil> |
-                      x::'x. 0 < lookup (vect f) x \<and> lookup p x < real (lookup (overlap f1 f2) x)} \<union> {0})"
+  "step_p' f p = Max ({nat \<lceil>(rat (lookup (overlap f1 f2) x) - lookup p x) / rat_of_int (lookup (vect f) x)\<rceil> |
+                      x::'x. 0 < lookup (vect f) x \<and> lookup p x < rat (lookup (overlap f1 f2) x)} \<union> {0})"
 
 text \<open>Note that the original definition of @{term step_p'} requires @{term \<open>lookup (vect f) x \<noteq> 0\<close>} instead
       of @{term \<open>0 < lookup (vect f) x\<close>}. One can easily prove, however, that both formulations are equivalent.\<close>
@@ -647,14 +643,6 @@ definition overlapshift' :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub
 
 definition overlapshift :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat)" where
   "overlapshift = to_nat_pm o overlapshift_p o of_nat_pm"
-
-context
-  assumes f1_binomial: "is_binomial f1"
-  assumes f2_binomial: "is_binomial f2"
-begin
-
-lemma is_binomial_set: "is_binomial_set {f1, f2}"
-  unfolding is_binomial_set_def using f1_binomial f2_binomial by simp
 
 lemma overlap_alt: "overlap q1 q2 = lcs (gcs (lp q1) (tp q1)) (gcs (lp q2) (tp q2))"
   by (simp add: overlap_def overlap_p_def fst_poly_point snd_poly_point
@@ -694,9 +682,9 @@ lemma vect_p_poly_point: "vect_p (poly_point q) = of_int_pm (vect q)"
       rule nat_pm_pair_is_int_pm_pair, rule poly_point_is_nat_pm_pair)
 
 lemma finite_step_p'_carrier:
-  "finite {x::'x. 0 < lookup (vect f) x \<and> lookup p x < real (lookup (overlap f1 f2) x)}"
+  "finite {x::'x. 0 < lookup (vect f) x \<and> lookup p x < rat (lookup (overlap f1 f2) x)}"
 proof (rule finite_subset)
-  show "{x. 0 < lookup (vect f) x \<and> lookup p x < real (lookup (overlap f1 f2) x)} \<subseteq> keys (vect f)"
+  show "{x. 0 < lookup (vect f) x \<and> lookup p x < rat (lookup (overlap f1 f2) x)} \<subseteq> keys (vect f)"
   proof (rule, simp, elim conjE)
     fix x
     assume "0 < lookup (vect f) x"
@@ -706,21 +694,21 @@ proof (rule finite_subset)
 qed (fact finite_keys)
 
 lemma step_p'_alt:
-  "step_p' f p = nat \<lceil>Max ({(real (lookup (overlap f1 f2) x) - lookup p x) / real_of_int (lookup (vect f) x) |
-                          x::'x. 0 < lookup (vect f) x \<and> lookup p x < real (lookup (overlap f1 f2) x)} \<union> {0::real})\<rceil>"
+  "step_p' f p = nat \<lceil>Max ({(rat (lookup (overlap f1 f2) x) - lookup p x) / rat_of_int (lookup (vect f) x) |
+                          x::'x. 0 < lookup (vect f) x \<and> lookup p x < rat (lookup (overlap f1 f2) x)} \<union> {0::rat})\<rceil>"
 proof -
   let ?ol = "lookup (overlap f1 f2)"
   let ?vc = "lookup (vect f)"
-  have "\<lceil>Max ({(real (?ol x) - lookup p x) / real_of_int (?vc x) |
-                          x::'x. 0 < ?vc x \<and> lookup p x < real (?ol x)} \<union> {0::real})\<rceil> =
-        Max (ceiling ` ({(real (?ol x) - lookup p x) / real_of_int (?vc x) |
-                          x::'x. 0 < ?vc x \<and> lookup p x < real (?ol x)} \<union> {0::real}))"
+  have "\<lceil>Max ({(rat (?ol x) - lookup p x) / rat_of_int (?vc x) |
+                          x::'x. 0 < ?vc x \<and> lookup p x < rat (?ol x)} \<union> {0::rat})\<rceil> =
+        Max (ceiling ` ({(rat (?ol x) - lookup p x) / rat_of_int (?vc x) |
+                          x::'x. 0 < ?vc x \<and> lookup p x < rat (?ol x)} \<union> {0::rat}))"
     by (rule mono_Max_commute, rule, fact ceiling_mono, simp_all add: finite_step_p'_carrier)
-  also have "... = Max ({\<lceil>(real (?ol x) - lookup p x) / real_of_int (?vc x)\<rceil> |
-                      x::'x. 0 < ?vc x \<and> lookup p x < real (?ol x)} \<union> {0::int})"
+  also have "... = Max ({\<lceil>(rat (?ol x) - lookup p x) / rat_of_int (?vc x)\<rceil> |
+                      x::'x. 0 < ?vc x \<and> lookup p x < rat (?ol x)} \<union> {0::int})"
     by (simp add: image_image_Collect)
-  also have "nat (...) = Max (nat ` ({\<lceil>(real (?ol x) - lookup p x) / real_of_int (?vc x)\<rceil> |
-                      x::'x. 0 < ?vc x \<and> lookup p x < real (?ol x)} \<union> {0::int}))"
+  also have "nat (...) = Max (nat ` ({\<lceil>(rat (?ol x) - lookup p x) / rat_of_int (?vc x)\<rceil> |
+                      x::'x. 0 < ?vc x \<and> lookup p x < rat (?ol x)} \<union> {0::int}))"
     by (rule mono_Max_commute, rule, simp_all add: finite_step_p'_carrier)
   moreover have "... = step_p' f p" by (simp add: step_p'_def image_image_Collect)
     text \<open>Another "also" here is, for some strange reason, much slower ...\<close>
@@ -728,8 +716,8 @@ proof -
 qed
 
 lemma int_step_p':
-  "int (step_p' f p) = \<lceil>Max ({(real (lookup (overlap f1 f2) x) - lookup p x) / real_of_int (lookup (vect f) x) |
-                          x::'x. 0 < lookup (vect f) x \<and> lookup p x < real (lookup (overlap f1 f2) x)} \<union> {0})\<rceil>"
+  "int (step_p' f p) = \<lceil>Max ({(rat (lookup (overlap f1 f2) x) - lookup p x) / rat_of_int (lookup (vect f) x) |
+                          x::'x. 0 < lookup (vect f) x \<and> lookup p x < rat (lookup (overlap f1 f2) x)} \<union> {0})\<rceil>"
   (is "?l = \<lceil>?r\<rceil>")
 proof -
   define c where "c = ?r"
@@ -743,15 +731,15 @@ lemma step_p'_above_overlap:
   assumes "of_nat_pm (overlap f1 f2) \<unlhd> p"
   shows "step_p' f p = 0"
 proof -
-  let ?A = "{nat \<lceil>(real (lookup (overlap f1 f2) x) - lookup p x) / real_of_int (lookup (vect f) x)\<rceil> |
-                      x::'x. 0 < lookup (vect f) x \<and> lookup p x < real (lookup (overlap f1 f2) x)}"
+  let ?A = "{nat \<lceil>(rat (lookup (overlap f1 f2) x) - lookup p x) / rat_of_int (lookup (vect f) x)\<rceil> |
+                      x::'x. 0 < lookup (vect f) x \<and> lookup p x < rat (lookup (overlap f1 f2) x)}"
   have eq: "?A = {}"
   proof (simp, intro allI impI)
     fix x
     assume "0 < lookup (vect f) x"
-    from assms have "real (lookup (overlap f1 f2) x) \<le> lookup p x"
+    from assms have "rat (lookup (overlap f1 f2) x) \<le> lookup p x"
       by (simp add: le_pm_def le_fun_def of_nat_pm.rep_eq of_nat_fun_def)
-    thus "\<not> lookup p x < lookup (overlap f1 f2) x" by simp
+    thus "\<not> lookup p x < rat (lookup (overlap f1 f2) x)" by simp
   qed
   show ?thesis unfolding step_p'_def eq by simp
 qed
@@ -873,9 +861,8 @@ lemma overlapshift_p_alt1:
   by (simp only: overlapshift_p'_def overlapshift_p_alt0[OF assms] step_p_alt1[OF assms])
 
 lemma overlapshift_p_alt2:
-  assumes "\<not> (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p)"
-  shows "overlapshift_p p = p"
-  using assms unfolding overlapshift_p_def by auto
+  "\<not> (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p) \<Longrightarrow> overlapshift_p p = p"
+  by (auto simp: overlapshift_p_def)
   
 lemma overlapshift_p_is_int_pm:
   assumes "is_int_pm p"
@@ -886,18 +873,18 @@ lemma overlapshift_p_is_int_pm:
 lemma step_p'_min:
   assumes "of_nat_pm (overlap f1 f2) \<unlhd> p + of_int_pm (int k \<cdot> vect f)"
   shows "step_p' f p \<le> k"
-proof (simp add: step_p'_alt finite_step_p'_carrier, intro allI impI, elim exE)
+proof (simp add: step_p'_alt finite_step_p'_carrier ceiling_le_iff nat_le_iff, intro allI impI, elim exE)
   fix a x
-  assume "a = (real (lookup (overlap f1 f2) x) - lookup p x) / real_of_int (lookup (vect f) x) \<and>
-          0 < lookup (vect f) x \<and> lookup p x < real (lookup (overlap f1 f2) x)"
-  hence a_eq: "a = (real (lookup (overlap f1 f2) x) - lookup p x) / real_of_int (lookup (vect f) x)"
-    and "0 < lookup (vect f) x" and "lookup p x < real (lookup (overlap f1 f2) x)" by simp_all
-  from this(2) have "0 < real_of_int (lookup (vect f) x)" by simp
-  show "a \<le> real k"
-  proof (simp only: a_eq pos_divide_le_eq[OF \<open>0 < real_of_int (lookup (vect f) x)\<close>])
-    from assms have "real (lookup (overlap f1 f2) x) \<le> lookup p x + real k * real_of_int (lookup (vect f) x)"
+  assume "a = (rat (lookup (overlap f1 f2) x) - lookup p x) / rat_of_int (lookup (vect f) x) \<and>
+          0 < lookup (vect f) x \<and> lookup p x < rat (lookup (overlap f1 f2) x)"
+  hence a_eq: "a = (rat (lookup (overlap f1 f2) x) - lookup p x) / rat_of_int (lookup (vect f) x)"
+    and "0 < lookup (vect f) x" and "lookup p x < rat (lookup (overlap f1 f2) x)" by simp_all
+  from this(2) have "0 < rat_of_int (lookup (vect f) x)" by simp
+  show "a \<le> rat k"
+  proof (simp only: a_eq pos_divide_le_eq[OF \<open>0 < rat_of_int (lookup (vect f) x)\<close>])
+    from assms have "rat (lookup (overlap f1 f2) x) \<le> lookup p x + rat k * rat_of_int (lookup (vect f) x)"
       by (simp add: le_pm_def of_nat_pm.rep_eq plus_poly_mapping.rep_eq lookup_of_int_pm le_fun_def of_nat_fun_def)
-    thus "real (lookup (overlap f1 f2) x) - lookup p x \<le> real k * real_of_int (lookup (vect f) x)" by simp
+    thus "rat (lookup (overlap f1 f2) x) - lookup p x \<le> rat k * rat_of_int (lookup (vect f) x)" by simp
   qed
 qed
 
@@ -912,25 +899,25 @@ proof -
   show ?thesis
   proof (simp only: le_pm_def le_fun_def lookup_of_nat_pm of_nat_fun_def o_def, rule)
     fix x
-    show "real (?ol x) \<le> ?os x"
-    proof (cases "0 < ?vc x \<and> ?p x < real (?ol x)")
+    show "rat (?ol x) \<le> ?os x"
+    proof (cases "0 < ?vc x \<and> ?p x < rat (?ol x)")
       case True
-      hence "0 < ?vc x" and "?p x < real (?ol x)" by simp_all
-      from this(1) have "0 < real_of_int (?vc x)" by simp
-      have "(real (?ol x) - ?p x) / real_of_int (?vc x)
-              \<le> Max ({(real (?ol x) - ?p x) / real_of_int (?vc x) | x. 0 < ?vc x \<and>
-                       ?p x < real (?ol x)} \<union> {0})"
+      hence "0 < ?vc x" and "?p x < rat (?ol x)" by simp_all
+      from this(1) have "0 < rat_of_int (?vc x)" by simp
+      have "(rat (?ol x) - ?p x) / rat_of_int (?vc x)
+              \<le> Max ({(rat (?ol x) - ?p x) / rat_of_int (?vc x) | x. 0 < ?vc x \<and>
+                       ?p x < rat (?ol x)} \<union> {0})"
         by (rule Max_ge, simp add: finite_step_p'_carrier, rule, rule, rule, rule conjI, rule refl, rule True)
-      hence "\<lceil>(real (?ol x) - ?p x) / real_of_int (?vc x)\<rceil> \<le> int (step_p' f p)"
+      hence "\<lceil>(rat (?ol x) - ?p x) / rat_of_int (?vc x)\<rceil> \<le> int (step_p' f p)"
         unfolding int_step_p' by (rule ceiling_mono)
-      hence "(real (?ol x) - ?p x) / real_of_int (?vc x) \<le> real_of_int (int (step_p' f p))"
+      hence "(rat (?ol x) - ?p x) / rat_of_int (?vc x) \<le> rat_of_int (int (step_p' f p))"
         by linarith
-      hence "real (?ol x) - ?p x \<le> real_of_int (int (step_p' f p)) * real_of_int (?vc x)"
-        by (simp only: pos_divide_le_eq[OF \<open>0 < real_of_int (?vc x)\<close>])
+      hence "rat (?ol x) - ?p x \<le> rat_of_int (int (step_p' f p)) * rat_of_int (?vc x)"
+        by (simp only: pos_divide_le_eq[OF \<open>0 < rat_of_int (?vc x)\<close>])
       thus ?thesis by (simp add: overlapshift_p'_def lookup_add lookup_of_int_pm)
     next
       case False
-      hence disj: "?vc x \<le> 0 \<or> real (?ol x) \<le> ?p x" by auto
+      hence disj: "?vc x \<le> 0 \<or> rat (?ol x) \<le> ?p x" by auto
       show ?thesis
       proof (cases "?vc x \<le> 0")
         case True
@@ -938,18 +925,18 @@ proof -
         hence "int (step_p' f p) \<le> int k" by simp
         from this True have "(int k) * ?vc x \<le> int (step_p' f p) * ?vc x"
           by (rule mult_right_mono_neg)
-        hence "?p x + real_of_int ((int k) * ?vc x) \<le> ?p x + real_of_int (int (step_p' f p) * ?vc x)"
+        hence "?p x + rat_of_int ((int k) * ?vc x) \<le> ?p x + rat_of_int (int (step_p' f p) * ?vc x)"
           by linarith
         hence "lookup (p + of_int_pm (int k \<cdot> vect f)) x \<le> lookup (p + of_int_pm (int (step_p' f p) \<cdot> vect f)) x"
           by (simp add: lookup_add lookup_of_int_pm)
-        moreover from assms have "real (?ol x) \<le> lookup (p + of_int_pm (int k \<cdot> vect f)) x"
+        moreover from assms have "rat (?ol x) \<le> lookup (p + of_int_pm (int k \<cdot> vect f)) x"
           by (simp only: le_pm_def le_fun_def lookup_of_nat_pm)
         ultimately show ?thesis by (simp add: overlapshift_p'_def)
       next
         case False
-        with disj have "0 < ?vc x" and *: "real (?ol x) \<le> ?p x" by simp_all
+        with disj have "0 < ?vc x" and *: "rat (?ol x) \<le> ?p x" by simp_all
         from this(1) have "0 \<le> int (step_p' f p) * ?vc x" by simp
-        hence "?p x \<le> ?p x + real_of_int (int (step_p' f p) * ?vc x)"
+        hence "?p x \<le> ?p x + rat_of_int (int (step_p' f p) * ?vc x)"
           by linarith
         hence "?p x \<le> lookup (p + of_int_pm (int (step_p' f p) \<cdot> vect f)) x"
           by (simp add: lookup_add lookup_of_int_pm)
@@ -960,37 +947,32 @@ proof -
 qed
 
 lemma step'_alt:
-  "step' f p = Max ({nat \<lceil>(rat_of_nat (lookup (overlap f1 f2) x - lookup p x)) / rat_of_int (lookup (vect f) x)\<rceil> |
+  "step' f p = Max ({nat \<lceil>(rat (lookup (overlap f1 f2) x - lookup p x)) / rat_of_int (lookup (vect f) x)\<rceil> |
                       x::'x. 0 < lookup (vect f) x \<and> lookup p x < lookup (overlap f1 f2) x} \<union> {0})"
 proof -
   let ?ol = "lookup (overlap f1 f2)"
   let ?vc = "lookup (vect f)"
   let ?p = "lookup p"
   let ?pn = "lookup (of_nat_pm p)"
-  have "{nat \<lceil>(real (?ol x) - ?pn x) / real_of_int (?vc x)\<rceil> |
-                  x. 0 < ?vc x \<and> ?pn x < real (?ol x)} =
-                {nat \<lceil>rat_of_nat (?ol x - ?p x) / rat_of_int (?vc x)\<rceil> |
+  have "{nat \<lceil>(rat (?ol x) - ?pn x) / rat_of_int (?vc x)\<rceil> |
+                  x. 0 < ?vc x \<and> ?pn x < rat (?ol x)} =
+                {nat \<lceil>rat (?ol x - ?p x) / rat_of_int (?vc x)\<rceil> |
                   x. 0 < ?vc x \<and> ?p x < ?ol x}"
   proof (rule image_Collect_eqI)
     fix x
-    show "(0 < ?vc x \<and> ?pn x < real (?ol x)) \<longleftrightarrow>
+    show "(0 < ?vc x \<and> ?pn x < rat (?ol x)) \<longleftrightarrow>
           (0 < ?vc x \<and> ?p x < ?ol x)" by (simp add: lookup_of_nat_pm of_nat_fun_def)
   next
     fix x
     assume "0 < ?vc x \<and> ?p x < ?ol x"
     hence "?p x < ?ol x" ..
-    hence "?pn x < real (?ol x)" by (simp add: lookup_of_nat_pm of_nat_fun_def)
-    hence "(real (?ol x) - ?pn x) / real_of_int (?vc x) =
-          real (?ol x - ?p x) / real_of_int (?vc x)" by (auto simp add: lookup_of_nat_pm of_nat_fun_def)
-    also have "... = real_of_rat (rat_of_nat (?ol x - ?p x)) / real_of_rat (rat_of_int (?vc x))"
-      by simp
-    also have "... = real_of_rat (rat_of_nat (?ol x - ?p x) / rat_of_int (?vc x))"
-      by (simp add: of_rat_divide)
-    finally have "\<lceil>(real (?ol x) - ?pn x) / real_of_int (?vc x)\<rceil> =
-          \<lceil>rat_of_nat (?ol x - ?p x) / rat_of_int (?vc x)\<rceil>"
-      by (simp add: ceil_real_of_rat)
-    thus "nat \<lceil>(real (?ol x) - ?pn x) / real_of_int (?vc x)\<rceil> =
-          nat \<lceil>rat_of_nat (?ol x - ?p x) / rat_of_int (?vc x)\<rceil>" by (simp only:)
+    hence "?pn x < rat (?ol x)" by (simp add: lookup_of_nat_pm of_nat_fun_def)
+    hence "(rat (?ol x) - ?pn x) / rat_of_int (?vc x) =
+          rat (?ol x - ?p x) / rat_of_int (?vc x)" by (auto simp add: lookup_of_nat_pm of_nat_fun_def)
+    hence "\<lceil>(rat (?ol x) - ?pn x) / rat_of_int (?vc x)\<rceil> =
+                  \<lceil>rat (?ol x - ?p x) / rat_of_int (?vc x)\<rceil>" by (simp only:)
+    thus "nat \<lceil>(rat (?ol x) - ?pn x) / rat_of_int (?vc x)\<rceil> =
+          nat \<lceil>rat (?ol x - ?p x) / rat_of_int (?vc x)\<rceil>" by (simp only:)
   qed
   thus ?thesis by (simp add: step'_def step_p'_def)
 qed
@@ -1073,11 +1055,11 @@ lemma step'_min:
   shows "step' f q \<le> k"
   unfolding step'_def
 proof (rule step_p'_min)
-  from assms(1) have eq: "(of_nat_pm p = ((of_nat_pm q)::'x \<Rightarrow>\<^sub>0 real) + of_int_pm (int k \<cdot> vect f))"
-    by (simp only: associated_alt_real)
-  from assms(2) have "of_nat_pm (overlap f1 f2) \<unlhd> ((of_nat_pm p)::'x \<Rightarrow>\<^sub>0 real)"
+  from assms(1) have eq: "(of_nat_pm p = ((of_nat_pm q)::'x \<Rightarrow>\<^sub>0 rat) + of_int_pm (int k \<cdot> vect f))"
+    by (simp only: associated_alt_rat)
+  from assms(2) have "of_nat_pm (overlap f1 f2) \<unlhd> ((of_nat_pm p)::'x \<Rightarrow>\<^sub>0 rat)"
     by (simp only: adds_pm le_of_nat_pm)
-  thus "of_nat_pm (overlap f1 f2) \<unlhd> ((of_nat_pm q)::'x \<Rightarrow>\<^sub>0 real) + of_int_pm (int k \<cdot> vect f)"
+  thus "of_nat_pm (overlap f1 f2) \<unlhd> ((of_nat_pm q)::'x \<Rightarrow>\<^sub>0 rat) + of_int_pm (int k \<cdot> vect f)"
     by (simp only: eq)
 qed
 
@@ -1087,14 +1069,14 @@ lemma overlapshift'_is_above_overlap:
 proof -
   have "of_nat_pm (overlap f1 f2) \<unlhd> overlapshift_p' f (of_nat_pm q)"
   proof (rule overlapshift_p'_is_above_overlap)
-    from assms(1) have eq: "(of_nat_pm p = ((of_nat_pm q)::'x \<Rightarrow>\<^sub>0 real) + of_int_pm (int k \<cdot> vect f))"
-      by (simp only: associated_alt_real)
-    from assms(2) have "of_nat_pm (overlap f1 f2) \<unlhd> ((of_nat_pm p)::'x \<Rightarrow>\<^sub>0 real)"
+    from assms(1) have eq: "(of_nat_pm p = ((of_nat_pm q)::'x \<Rightarrow>\<^sub>0 rat) + of_int_pm (int k \<cdot> vect f))"
+      by (simp only: associated_alt_rat)
+    from assms(2) have "of_nat_pm (overlap f1 f2) \<unlhd> ((of_nat_pm p)::'x \<Rightarrow>\<^sub>0 rat)"
       by (simp only: adds_pm le_of_nat_pm)
-    thus "of_nat_pm (overlap f1 f2) \<unlhd> ((of_nat_pm q)::'x \<Rightarrow>\<^sub>0 real) + of_int_pm (int k \<cdot> vect f)"
+    thus "of_nat_pm (overlap f1 f2) \<unlhd> ((of_nat_pm q)::'x \<Rightarrow>\<^sub>0 rat) + of_int_pm (int k \<cdot> vect f)"
       by (simp only: eq)
   qed
-  hence "to_nat_pm ((of_nat_pm (overlap f1 f2))::'x \<Rightarrow>\<^sub>0 real) \<unlhd> to_nat_pm (overlapshift_p' f (of_nat_pm q))"
+  hence "to_nat_pm ((of_nat_pm (overlap f1 f2))::'x \<Rightarrow>\<^sub>0 rat) \<unlhd> to_nat_pm (overlapshift_p' f (of_nat_pm q))"
     by (rule le_to_nat_pm)
   thus ?thesis by (simp only: adds_pm overlapshift'_def to_nat_pm_comp_of_nat_pm)
 qed
@@ -1128,10 +1110,10 @@ proof -
   proof (rule int_pm_is_nat_pm, rule overlapshift_p_is_int_pm, rule nat_pm_is_int_pm,
         rule of_nat_pm_is_nat_pm)
     fix x
-    from assms(5) have "of_nat_pm (overlap f1 f2) \<unlhd> ((of_nat_pm p)::'x \<Rightarrow>\<^sub>0 real)"
+    from assms(5) have "of_nat_pm (overlap f1 f2) \<unlhd> ((of_nat_pm p)::'x \<Rightarrow>\<^sub>0 rat)"
       by (simp only: adds_pm le_of_nat_pm)
     also have "... = of_nat_pm q + of_int_pm (int k \<cdot> vect f)" using assms(4)
-      by (simp add: associated_alt_real)
+      by (simp add: associated_alt_rat)
     finally have "of_nat_pm (overlap f1 f2) \<unlhd> overlapshift_p' f (of_nat_pm q)"
       by (rule overlapshift_p'_is_above_overlap)
     hence "lookup (of_nat_pm (overlap f1 f2)) x \<le> lookup (overlapshift_p' f (of_nat_pm q)) x"
@@ -1142,7 +1124,7 @@ proof -
     have "is_nat_pm (of_nat_pm (overlap f1 f2))" by (rule of_nat_pm_is_nat_pm)
     hence "is_nat (lookup (of_nat_pm (overlap f1 f2)) x)"
       by (simp add: of_nat_pm.rep_eq of_nat_fun_def of_nat_is_nat)
-    hence "(0::real) \<le> lookup (of_nat_pm (overlap f1 f2)) x" by (rule is_nat_geq_zero)
+    hence "(0::rat) \<le> lookup (of_nat_pm (overlap f1 f2)) x" by (rule is_nat_geq_zero)
     also have "... \<le> lookup (overlapshift_p' f (of_nat_pm q)) x" by fact
     finally show "0 \<le> lookup (overlapshift_p (of_nat_pm q)) x" by (simp only: eq)
   qed
@@ -1169,11 +1151,12 @@ begin
 lemma thm_3_2_1_aux_1:
   assumes "t \<in> keys g"
   shows "tp f1 adds t"
-proof-
-  from mpa have "g \<in> ideal {f1, f2}" and "\<not> punit.is_red {f1, f2} g"
+proof -
+  have "is_binomial_set {f1, f2}" sorry
+  moreover from mpa have "g \<in> ideal {f1, f2}" and "\<not> punit.is_red {f1, f2} g"
     by (rule membership_problem_assmsD)+
-  from is_binomial_set this assms obtain f where "f \<in> {f1, f2}" and "is_proper_binomial f"
-    and "tp f adds t" by (rule rem_3_1_7)
+  ultimately obtain f where "f \<in> {f1, f2}" and "is_proper_binomial f" and "tp f adds t"
+    using assms by (rule rem_3_1_7)
   from \<open>f \<in> {f1, f2}\<close> have "f = f1 \<or> f = f2" by simp
   thus ?thesis
   proof
@@ -1422,7 +1405,7 @@ proof
   ultimately show False by simp
 qed
 
-theorem thm_3_2_1':
+theorem thm_3_2_1:
   "membership_problem_concl f1 f2 g (ord_class.max (deg_pm (lp g)) (deg_pm (overlapshift (lp g))))"
 proof -
   obtain k u where "k \<noteq> 0" and "lp f1 adds u" and "lp f2 adds u" and *: "associated f1 u (lp g) k"
@@ -1464,41 +1447,10 @@ context
   assumes mpa: "membership_problem_assms f1 f2 g"
 begin
 
-theorem thm_3_2_2':
+theorem thm_3_2_2:
   "membership_problem_concl f1 f2 g
           (nat (ord_class.max (deg_pm (lp g)) (deg_pm (of_nat_pm (lp g) + (of_nat (step (lp g)) + 1) \<cdot> vect f1 + vect f2))))"
   sorry
-
-end
-
-end
-
-subsubsection \<open>Final Results\<close>
-
-context
-  fixes g
-  assumes mpa: "membership_problem_assms f1 f2 g"
-begin
-
-theorem thm_3_2_1:
-  assumes "is_proper_binomial f1" and "is_monomial f2"
-  shows "membership_problem_concl f1 f2 g (max (deg_pm (lp g)) (deg_pm (overlapshift (lp g))))"
-proof -
-  from assms(1) have "is_binomial f1" by (rule proper_binomial_imp_binomial)
-  moreover from assms(2) have "is_binomial f2" by (rule monomial_imp_binomial)
-  ultimately show ?thesis using assms mpa by (rule thm_3_2_1')
-qed
-
-theorem thm_3_2_2:
-  assumes "parallel_binomials f1 f2" and "is_monomial g" and "tp f1 adds lp g"
-  shows "membership_problem_concl f1 f2 g
-          (nat (ord_class.max (deg_pm (lp g)) (deg_pm (of_nat_pm (lp g) + (of_nat (step (lp g)) + 1) \<cdot> vect f1 + vect f2))))"
-proof -
-  from assms(1) have "is_proper_binomial f1" and "is_proper_binomial f2" by (rule parallel_binomialsD)+
-  from this(1) have "is_binomial f1" by (rule proper_binomial_imp_binomial)
-  moreover from \<open>is_proper_binomial f2\<close> have "is_binomial f2" by (rule proper_binomial_imp_binomial)
-  ultimately show ?thesis using assms mpa by (rule thm_3_2_2')
-qed
 
 end
 
