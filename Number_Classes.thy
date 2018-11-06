@@ -432,7 +432,11 @@ definition is_nat :: "'b::floor_ceiling \<Rightarrow> bool" where
 definition is_nat_fun :: "('a \<Rightarrow> 'b::floor_ceiling) \<Rightarrow> bool" where
   "is_nat_fun f = (\<forall>x. is_nat (f x))"
   
-lemma to_nat_comp_of_nat: "to_nat o of_nat = id" unfolding to_nat_def by auto
+lemma to_nat_comp_of_nat: "to_nat o of_nat = id"
+  by (auto simp: to_nat_def)
+
+lemma to_nat_of_nat: "to_nat (of_nat x) = x"
+  by (auto simp: to_nat_def)
 
 lemma to_int_fun_comp_of_int_fun: "to_int_fun (of_int_fun x) = x"
   unfolding to_int_fun_def of_int_fun_def by force
@@ -450,7 +454,10 @@ lemma to_nat_fun_comp_of_nat_fun': "to_nat_fun o of_nat_fun = id"
   unfolding o_def to_nat_fun_comp_of_nat_fun id_def ..
 
 lemma nat_comp_of_nat_fun: "nat o (of_nat_fun f) = f"
-  unfolding o_def of_nat_fun_def by simp
+  by (simp add: o_def of_nat_fun_def)
+
+lemma to_nat_comp_of_nat_fun: "to_nat \<circ> (of_nat_fun f) = f"
+  by (simp add: o_def of_nat_fun_def to_nat_of_nat)
 
 lemma of_int_fun_comp_to_int_fun:
   assumes "is_int_fun f"
@@ -587,10 +594,8 @@ proof -
   qed
 qed
 
-lemma leq_to_int_fun:
-  assumes "f \<le> g"
-  shows "to_int_fun f \<le> to_int_fun g"
-  using assms unfolding to_int_fun_def o_def le_fun_def using floor_mono by auto
+lemma leq_to_int_fun: "f \<le> g \<Longrightarrow> to_int_fun f \<le> to_int_fun g"
+  using floor_mono by (auto simp: to_int_fun_def o_def le_fun_def)
 
 subsection \<open>Closure Properties of @{const is_nat} and @{const is_int}\<close>
   

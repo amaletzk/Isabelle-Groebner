@@ -127,15 +127,14 @@ type_synonym 'x point = "('x \<Rightarrow>\<^sub>0 rat)"
 definition deg_pair :: "('x point \<times> 'x point) \<Rightarrow> rat"
   where "deg_pair pp = max (deg_pm (fst pp)) (deg_pm (snd pp))"
 
-locale two_polys =
-  pm_powerprod ord ord_strict
-  for ord::"('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x::countable \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)
-  and ord_strict (infixl "\<prec>" 50) +
-  fixes f1 f2 :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::field"
+context pm_powerprod
 begin
 
-definition poly_point :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('x point \<times> 'x point)" where
+definition poly_point :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> ('x point \<times> 'x point)" where
   "poly_point p = (of_nat_pm (lp p), of_nat_pm (tp p))"
+
+definition vect :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> ('x point)"
+  where "vect p = fst (poly_point p) - snd (poly_point p)"
 
 lemma fst_poly_point: "fst (poly_point p) = of_nat_pm (lp p)"
   by (simp add: poly_point_def)
@@ -170,29 +169,38 @@ proof
   ultimately show False ..
 qed
 
+lemma vect_alt: "vect p = of_nat_pm (lp p) - of_nat_pm (tp p)"
+  by (simp only: vect_def fst_poly_point snd_poly_point)
+
+lemma vect_is_int_pm: "is_int_pm (vect p)"
+  by (simp add: vect_def is_int_pm_pairD[OF poly_point_is_int_pm_pair] is_int_pm_pairD diff_is_int_pm)
+
+end
+
+locale two_polys =
+  pm_powerprod ord ord_strict
+  for ord::"('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x::countable \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)
+  and ord_strict (infixl "\<prec>" 50) +
+  fixes f1 f2 :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::field"
+begin
+
 definition overlap :: "'x point"
   where "overlap = lcs (gcs (fst (poly_point f1)) (snd (poly_point f1)))
                        (gcs (fst (poly_point f2)) (snd (poly_point f2)))"
-    
-definition vect :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('x point)"
-  where "vect p = fst (poly_point p) - snd (poly_point p)"
 
 lemma overlap_alt:
   "overlap = lcs (gcs (of_nat_pm (lp f1)) (of_nat_pm (tp f1)))
                  (gcs (of_nat_pm (lp f2)) (of_nat_pm (tp f2)))"
   by (simp only: overlap_def fst_poly_point snd_poly_point)
 
-lemma vect_alt: "vect p = of_nat_pm (lp p) - of_nat_pm (tp p)"
-  by (simp only: vect_def fst_poly_point snd_poly_point)
+lemma overlap_alt': "overlap = of_nat_pm (lcs (gcs (lp f1) (tp f1)) (gcs (lp f2) (tp f2)))"
+  by (simp add: overlap_alt gcs_of_nat_pm lcs_of_nat_pm)
 
 lemma overlap_is_nat_pm: "is_nat_pm overlap"
   by (simp add: overlap_def is_nat_pm_pairD[OF poly_point_is_nat_pm_pair] gcs_is_nat_pm lcs_is_nat_pm)
 
 lemma overlap_is_int_pm: "is_int_pm overlap"
   using overlap_is_nat_pm by (rule nat_pm_is_int_pm)
-
-lemma vect_is_int_pm: "is_int_pm (vect p)"
-  by (simp add: vect_def is_int_pm_pairD[OF poly_point_is_int_pm_pair] is_int_pm_pairD diff_is_int_pm)
 
 lemma lem_3_1_13:
   assumes "of_nat_pm (tp f1) \<unlhd> p" and "of_nat_pm (tp f2) \<unlhd> p"
@@ -211,6 +219,8 @@ next
   also from assms(2) have "... \<le> lookup p" by (simp only: le_pm_def)
   finally show "lookup (gcs ?t ?s) \<le> lookup p" .
 qed
+
+subsection \<open>VPCs\<close>
 
 definition shifts :: "('x point \<times> 'x point) set"
   where "shifts = (let A = {poly_point f1, poly_point f2} in A \<union> prod.swap ` A)"

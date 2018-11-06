@@ -298,10 +298,10 @@ lemma le_of_nat_pm: "of_nat_pm s \<unlhd> ((of_nat_pm t)::'a \<Rightarrow>\<^sub
 lemma le_of_int_pm: "of_int_pm s \<unlhd> ((of_int_pm t)::'a \<Rightarrow>\<^sub>0 ('b::linordered_idom)) \<longleftrightarrow> s \<unlhd> t"
   by (simp add: le_pm_def of_int_pm.rep_eq leq_of_int_fun)
 
-lemma le_to_nat_pm: "s \<unlhd> t \<Longrightarrow> to_nat_pm s \<unlhd> to_nat_pm t"
+lemma leI_to_nat_pm: "s \<unlhd> t \<Longrightarrow> to_nat_pm s \<unlhd> to_nat_pm t"
   by (simp add: le_pm_def to_nat_pm.rep_eq leq_to_nat_fun)
 
-lemma le_to_int_pm: "s \<unlhd> t \<Longrightarrow> to_int_pm s \<unlhd> to_int_pm t"
+lemma leI_to_int_pm: "s \<unlhd> t \<Longrightarrow> to_int_pm s \<unlhd> to_int_pm t"
   by (simp add: le_pm_def to_int_pm.rep_eq leq_to_int_fun)
 
 lemma leD_to_int_pm:
@@ -400,7 +400,7 @@ lemmas deg_pm_minus_group = deg_pm_minus[OF adds_group]
 lemma scalar_is_nat_pm: "is_nat c \<Longrightarrow> is_nat_pm t \<Longrightarrow> is_nat_pm (c \<cdot> t)"
   unfolding is_nat_pm_def is_nat_fun_def using times_is_nat by auto
 
-lemma scalar_is_int_fun: "is_int c \<Longrightarrow> is_int_pm t \<Longrightarrow> is_int_pm (c \<cdot> t)"
+lemma scalar_is_int_pm: "is_int c \<Longrightarrow> is_int_pm t \<Longrightarrow> is_int_pm (c \<cdot> t)"
   unfolding is_int_pm_def is_int_fun_def using times_is_int by auto
 
 lemma scalar_eq_monom_mult: "c \<cdot> p = punit.monom_mult c 0 p"
