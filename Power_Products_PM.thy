@@ -304,6 +304,16 @@ lemma le_to_nat_pm: "s \<unlhd> t \<Longrightarrow> to_nat_pm s \<unlhd> to_nat_
 lemma le_to_int_pm: "s \<unlhd> t \<Longrightarrow> to_int_pm s \<unlhd> to_int_pm t"
   by (simp add: le_pm_def to_int_pm.rep_eq leq_to_int_fun)
 
+lemma leD_to_int_pm:
+  assumes "to_int_pm s \<unlhd> to_int_pm t" and "is_int_pm s" and "is_int_pm t"
+  shows "s \<unlhd> t"
+proof -
+  from assms(2) have "s = of_int_pm (to_int_pm s)" by (simp only: of_int_pm_comp_to_int_pm)
+  also from assms(1) have "\<dots> \<unlhd> of_int_pm (to_int_pm t)" by (simp only: le_of_int_pm)
+  also from assms(3) have "\<dots> = t" by (simp only: of_int_pm_comp_to_int_pm)
+  finally show ?thesis .
+qed
+
 subsection \<open>Module-structure of Polynomial Mappings\<close>
 
 lift_definition scalar_mult_pm :: "'b \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::mult_zero)" (infixl "\<cdot>" 70)

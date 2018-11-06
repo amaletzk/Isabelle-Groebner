@@ -73,13 +73,22 @@ instance poly_mapping :: (orderable_powerprod, idom) idom
 subsection \<open>Order relation on polynomial mappings\<close>
 
 definition le_pm :: "('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::{ord,zero}) \<Rightarrow> bool" (infixl "\<unlhd>" 50)
-  where "le_pm s t \<longleftrightarrow> (lookup s \<le> lookup t)"
+  where "le_pm s t \<longleftrightarrow> lookup s \<le> lookup t"
 
 lemma le_pmI: "(\<And>x. lookup s x \<le> lookup t x) \<Longrightarrow> s \<unlhd> t"
   unfolding le_pm_def le_fun_def ..
 
 lemma le_pmD: "s \<unlhd> t \<Longrightarrow> lookup s x \<le> lookup t x"
   by (simp add: le_pm_def le_fun_def)
+
+lemma le_pm_refl [simp]: "s \<unlhd> (s::_ \<Rightarrow>\<^sub>0 _::{preorder,zero})"
+  by (simp add: le_pm_def)
+
+lemma le_pm_antisym: "s \<unlhd> t \<Longrightarrow> t \<unlhd> s \<Longrightarrow> s = (t::_ \<Rightarrow>\<^sub>0 _::{order,zero})"
+  by (simp add: le_pm_def poly_mapping_eq_iff)
+
+lemma le_pm_trans [trans]: "s \<unlhd> t \<Longrightarrow> t \<unlhd> u \<Longrightarrow> s \<unlhd> (u::_ \<Rightarrow>\<^sub>0 _::{preorder,zero})"
+  by (auto simp: le_pm_def dest: order_trans)
 
 lemma adds_pmI: "s \<unlhd> t \<Longrightarrow> s adds (t::'a \<Rightarrow>\<^sub>0 'b::add_linorder)"
   by (simp add: le_pm_def, intro adds_poly_mappingI)
