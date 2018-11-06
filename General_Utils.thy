@@ -69,33 +69,40 @@ proof -
   finally show ?thesis by simp
 qed
 
-lemma card_2_E:
-  assumes "card A = 2"
-  obtains x y where "x \<noteq> y" and "A = {x, y}"
+lemma card_2_E_1:
+  assumes "card A = 2" and "x \<in> A"
+  obtains y where "x \<noteq> y" and "A = {x, y}"
 proof -
-  from assms have "card A > 0" by simp
-  hence "A \<noteq> {}" by auto
-  then obtain x where "x \<in> A" by auto
   have "A - {x} \<noteq> {}"
   proof
     assume "A - {x} = {}"
-    with \<open>A \<noteq> {}\<close> have "A = {x}" by auto
+    with assms(2) have "A = {x}" by auto
     hence "card A = 1" by simp
     with assms show False by simp
   qed
   then obtain y where "y \<in> A - {x}" by auto
-  hence "y \<in> A" and "y \<noteq> x" by auto
+  hence "y \<in> A" and "x \<noteq> y" by auto
   show ?thesis
   proof
     show "A = {x, y}"
-    proof (rule card_seteq[symmetric])
-      from \<open>card A > 0\<close> show "finite A" by (simp add: card_gt_0_iff)
+    proof (rule sym, rule card_seteq)
+      from assms(1) show "finite A" using card_infinite by fastforce
     next
       from \<open>x \<in> A\<close> \<open>y \<in> A\<close> show "{x, y} \<subseteq> A" by simp
     next
-      show "card A \<le> card {x, y}" unfolding assms using \<open>y \<noteq> x\<close> by simp
+      from \<open>x \<noteq> y\<close> show "card A \<le> card {x, y}" by (simp add: assms(1))
     qed
-  qed (fact \<open>y \<noteq> x\<close>[symmetric])
+  qed fact
+qed
+
+lemma card_2_E:
+  assumes "card A = 2"
+  obtains x y where "x \<noteq> y" and "A = {x, y}"
+proof -
+  from assms have "A \<noteq> {}" by auto
+  then obtain x where "x \<in> A" by blast
+  with assms obtain y where "x \<noteq> y" and "A = {x, y}" by (rule card_2_E_1)
+  thus ?thesis ..
 qed
 
 lemma image_Collect_eqI:

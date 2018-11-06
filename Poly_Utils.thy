@@ -365,11 +365,15 @@ proof -
   qed
   thus ?thesis unfolding binomial_def keys_of_monomial[OF \<open>c \<noteq> 0\<close>] keys_of_monomial[OF \<open>d \<noteq> 0\<close>] by auto
 qed
-  
+
+lemma lookup_binomial':
+  "s \<noteq> t \<Longrightarrow> lookup (binomial c s d t) u = (if u = s then c else if u = t then d else 0)"
+  by (simp add: binomial_def lookup_add lookup_single)
+
 lemma lookup_binomial:
   assumes "is_pbd c s d t"
   shows "lookup (binomial c s d t) u = (if u = s then c else (if u = t then d else 0))"
-  unfolding binomial_def lookup_add lookup_single using is_pbdD(3)[OF assms] by simp
+  using is_pbdD(3)[OF assms] by (simp add: lookup_binomial')
     
 lemma binomial_uminus: "- binomial c s d t = binomial (-c) s (-d) t"
   by (simp add: binomial_def monomial_uminus)
@@ -407,6 +411,47 @@ proof -
   qed fact+
 qed
 
+lemma is_binomial_eq_binomial:
+  assumes "is_binomial p" and "s \<in> keys p" and "t \<in> keys p" and "s \<noteq> t"
+  shows "p = binomial (lookup p s) s (lookup p t) t" (is "_ = ?r")
+proof (rule poly_mapping_eqI)
+  fix u
+  show "lookup p u = lookup ?r u"
+  proof (simp add: lookup_binomial'[OF assms(4)], intro impI)
+    assume "u \<noteq> t" and "u \<noteq> s"
+    with assms(4) have eq: "card {s, t, u} = 3" by auto
+    with assms(1) have "\<not> card {s, t, u} \<le> card (keys p)" by (auto simp: is_binomial_def)
+    with finite_keys card_mono have "\<not> {s, t, u} \<subseteq> keys p" by blast
+    with assms(2, 3) show "lookup p u = 0" by simp
+  qed
+qed
+
+corollary is_proper_binomial_eq_binomial:
+  assumes "is_proper_binomial p" and "s \<in> keys p" and "t \<in> keys p" and "s \<noteq> t"
+  shows "p = binomial (lookup p s) s (lookup p t) t"
+proof -
+  from assms(1) have "is_binomial p" by (rule proper_binomial_imp_binomial)
+  thus ?thesis using assms(2-4) by (rule is_binomial_eq_binomial)
+qed
+
+lemma is_proper_binomial_keysE_1:
+  assumes "is_proper_binomial p" and "s \<in> keys p"
+  obtains t where "s \<noteq> t" and "keys p = {s, t}"
+proof -
+  from assms(1) have "card (keys p) = 2" by (simp only: is_proper_binomial_def)
+  then obtain t where "s \<noteq> t" and "keys p = {s, t}" using assms(2) by (rule card_2_E_1)
+  thus ?thesis ..
+qed
+
+lemma is_proper_binomial_keysE:
+  assumes "is_proper_binomial p"
+  obtains s t where "s \<noteq> t" and "keys p = {s, t}"
+proof -
+  from assms(1) have "card (keys p) = 2" by (simp only: is_proper_binomial_def)
+  then obtain s t where "s \<noteq> t" and "keys p = {s, t}" by (rule card_2_E)
+  thus ?thesis ..
+qed
+
 context term_powerprod
 begin
 
@@ -418,6 +463,17 @@ lemma is_pbd_mult:
 lemma monom_mult_binomial:
   "monom_mult a t (binomial c u d v) = binomial (a * c) (t \<oplus> u) (a * d) (t \<oplus> v)"
   unfolding binomial_def monom_mult_dist_right monom_mult_monomial ..
+
+lemma is_proper_binomial_monom_mult:
+  assumes "is_proper_binomial p" and "c \<noteq> (0::'b::semiring_no_zero_divisors)"
+  shows "is_proper_binomial (monom_mult c u p)"
+proof -
+  from assms(2) have "card (keys (monom_mult c u p)) = card ((\<oplus>) u ` keys p)"
+    by (simp add: keys_monom_mult)
+  also have "\<dots> = card (keys p)" by (rule card_image) (meson inj_onI splus_left_canc)
+  also from assms(1) have "\<dots> = 2" by (simp only: is_proper_binomial_def)
+  finally show ?thesis by (simp only: is_proper_binomial_def)
+qed
 
 end (* term_powerprod *)
   
@@ -671,10 +727,10 @@ lemma keys_proper_binomial:
   assumes "is_proper_binomial p"
   shows "keys p = {lt p, tt p}"
 proof -
-  from assms have "card (keys p) = 2" and "p \<noteq> 0" and "tt p \<prec>\<^sub>t lt p"
+  from assms have "p \<noteq> 0" and "tt p \<prec>\<^sub>t lt p"
     by (simp only: is_proper_binomial_def, rule proper_binomial_not_0, rule lt_gr_tt_binomial)
-  from \<open>tt p \<prec>\<^sub>t lt p\<close> have "lt p \<noteq> tt p" by simp
-  from \<open>card (keys p) = 2\<close> obtain s t where keys_p: "keys p = {s, t}" and "s \<noteq> t" by (rule card_2_E)
+  from this(2) have "lt p \<noteq> tt p" by simp
+  from assms obtain s t where keys_p: "keys p = {s, t}" and "s \<noteq> t" by (rule is_proper_binomial_keysE)
   with lt_in_keys[OF \<open>p \<noteq> 0\<close>] tt_in_keys[OF \<open>p \<noteq> 0\<close>] \<open>lt p \<noteq> tt p\<close> show ?thesis by auto
 qed
 
