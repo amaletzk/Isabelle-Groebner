@@ -90,6 +90,12 @@ lemma le_pm_antisym: "s \<unlhd> t \<Longrightarrow> t \<unlhd> s \<Longrightarr
 lemma le_pm_trans [trans]: "s \<unlhd> t \<Longrightarrow> t \<unlhd> u \<Longrightarrow> s \<unlhd> (u::_ \<Rightarrow>\<^sub>0 _::{preorder,zero})"
   by (auto simp: le_pm_def dest: order_trans)
 
+lemma le_pm_mono_plus: "s \<unlhd> t \<Longrightarrow> s + u \<unlhd> t + (u::_ \<Rightarrow>\<^sub>0 _::ordered_ab_group_add)"
+  by (simp add: le_pm_def lookup_plus_fun)
+
+lemma le_pm_mono_minus: "s \<unlhd> t \<Longrightarrow> s - u \<unlhd> t - (u::_ \<Rightarrow>\<^sub>0 _::ordered_ab_group_add)"
+  by (simp add: le_pm_def lookup_minus_fun)
+
 lemma adds_pmI: "s \<unlhd> t \<Longrightarrow> s adds (t::'a \<Rightarrow>\<^sub>0 'b::add_linorder)"
   by (simp add: le_pm_def, intro adds_poly_mappingI)
 
@@ -232,15 +238,15 @@ proof -
   thus ?thesis ..
 qed
 
-lemma poly_deg_max_keys:
-  assumes "t \<in> keys p"
-  shows "deg_pm t \<le> poly_deg p"
-  unfolding poly_deg_def using finite_keys assms by auto
+lemma poly_deg_max_keys: "t \<in> keys p \<Longrightarrow> deg_pm t \<le> poly_deg p"
+  using finite_keys by (auto simp: poly_deg_def)
 
-lemma poly_deg_leI:
-  assumes "\<And>t. t \<in> keys p \<Longrightarrow> deg_pm t \<le> (d::'a::add_linorder_min)"
-  shows "poly_deg p \<le> d"
-  unfolding poly_deg_def using finite_keys assms by auto
+lemma poly_deg_leI: "(\<And>t. t \<in> keys p \<Longrightarrow> deg_pm t \<le> (d::'a::add_linorder_min)) \<Longrightarrow> poly_deg p \<le> d"
+  using finite_keys by (auto simp: poly_deg_def)
+
+lemma poly_deg_lessI:
+  "p \<noteq> 0 \<Longrightarrow> (\<And>t. t \<in> keys p \<Longrightarrow> deg_pm t < (d::'a::add_linorder_min)) \<Longrightarrow> poly_deg p < d"
+  using finite_keys by (auto simp: poly_deg_def)
 
 lemma poly_deg_zero_imp_monomial:
   assumes "poly_deg p = (0::'a::add_linorder_min)"

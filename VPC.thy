@@ -130,6 +130,66 @@ definition deg_pair :: "('x point \<times> 'x point) \<Rightarrow> rat"
 context pm_powerprod
 begin
 
+lemma scalar_mono:
+  assumes "m \<le> n"
+  shows "m \<cdot> t \<preceq> n \<cdot> t"
+proof -
+  have "m \<cdot> t \<preceq> m \<cdot> t + (n - m) \<cdot> t" using zero_min plus_monotone_left by fastforce
+  also have "\<dots> = (m + (n - m)) \<cdot> t" by (simp only: scalar_distrib_right)
+  also from assms have "\<dots> = n \<cdot> t" by simp
+  finally show ?thesis .
+qed
+
+lemma scalar_mono_left:
+  assumes "s \<preceq> t"
+  shows "m \<cdot> s \<preceq> m \<cdot> t"
+proof (induct m)
+  case 0
+  show ?case by simp
+next
+  case (Suc m)
+  have "Suc m \<cdot> s = (m + 1) \<cdot> s" by simp
+  also have "\<dots> = m \<cdot> s + s" by (simp only: scalar_distrib_right scalar_one_left)
+  also from Suc have "\<dots> \<preceq> m \<cdot> t + s" by (rule plus_monotone)
+  also from assms have "\<dots> \<preceq> m \<cdot> t + t" by (rule plus_monotone_left)
+  also have "\<dots> = (m + 1) \<cdot> t" by (simp only: scalar_distrib_right scalar_one_left)
+  also have "\<dots> = Suc m \<cdot> t" by simp
+  finally show ?case .
+qed
+
+lemma scalar_mono_strict:
+  assumes "m < n" and "t \<noteq> 0"
+  shows "m \<cdot> t \<prec> n \<cdot> t"
+proof -
+  from assms(1) have "m \<le> n" by simp
+  hence "m \<cdot> t \<preceq> n \<cdot> t" by (rule scalar_mono)
+  moreover have "m \<cdot> t \<noteq> n \<cdot> t"
+  proof
+    from assms(2) obtain x where "0 < lookup t x" using aux by auto
+    assume "m \<cdot> t = n \<cdot> t"
+    hence "lookup (m \<cdot> t) x = lookup (n \<cdot> t) x" by simp
+    with \<open>0 < lookup t x\<close> assms(1) show False by simp
+  qed
+  ultimately show ?thesis by simp
+qed
+
+lemma scalar_mono_strict_left:
+  assumes "s \<prec> t" and "0 < m"
+  shows "m \<cdot> s \<prec> m \<cdot> t"
+proof -
+  from assms(1) have "s \<preceq> t" by simp
+  hence "m \<cdot> s \<preceq> m \<cdot> t" by (rule scalar_mono_left)
+  moreover have "m \<cdot> s \<noteq> m \<cdot> t"
+  proof
+    from assms(1) have "s \<noteq> t" by simp
+    then obtain x where "lookup s x \<noteq> lookup t x" by (meson poly_mapping_eqI)
+    with assms(2) have "lookup (m \<cdot> s) x \<noteq> lookup (m \<cdot> t) x" by simp
+    moreover assume "m \<cdot> s = m \<cdot> t"
+    ultimately show False by simp
+  qed
+  ultimately show ?thesis by simp
+qed
+
 definition poly_point :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> ('x point \<times> 'x point)" where
   "poly_point p = (of_nat_pm (lp p), of_nat_pm (tp p))"
 
@@ -173,7 +233,7 @@ lemma vect_alt: "vect p = of_nat_pm (lp p) - of_nat_pm (tp p)"
   by (simp only: vect_def fst_poly_point snd_poly_point)
 
 lemma vect_is_int_pm: "is_int_pm (vect p)"
-  by (simp add: vect_def is_int_pm_pairD[OF poly_point_is_int_pm_pair] is_int_pm_pairD diff_is_int_pm)
+  by (simp add: vect_def is_int_pm_pairD[OF poly_point_is_int_pm_pair] is_int_pm_pairD minus_is_int_pm)
 
 end
 
@@ -198,6 +258,15 @@ lemma overlap_alt': "overlap = of_nat_pm (lcs (gcs (lp f1) (tp f1)) (gcs (lp f2)
 
 lemma overlap_is_nat_pm: "is_nat_pm overlap"
   by (simp add: overlap_def is_nat_pm_pairD[OF poly_point_is_nat_pm_pair] gcs_is_nat_pm lcs_is_nat_pm)
+
+lemma gcs_le_overlap:
+  shows "gcs (of_nat_pm (lp f1)) (of_nat_pm (tp f1)) \<unlhd> overlap"
+    and "gcs (of_nat_pm (lp f2)) (of_nat_pm (tp f2)) \<unlhd> overlap"
+  by (simp_all add: overlap_alt le_pm_def lookup_lcs_fun leq_lcs_fun_1 leq_lcs_fun_2)
+
+lemma gcs_le_overlap':
+  shows "of_nat_pm (gcs (lp f1) (tp f1)) \<unlhd> overlap" and "of_nat_pm (gcs (lp f2) (tp f2)) \<unlhd> overlap"
+  using gcs_le_overlap by (simp_all add: gcs_of_nat_pm)
 
 lemma overlap_is_int_pm: "is_int_pm overlap"
   using overlap_is_nat_pm by (rule nat_pm_is_int_pm)

@@ -501,20 +501,14 @@ proof
   thus "int (nat \<lfloor>f x\<rfloor>) = \<lfloor>f x\<rfloor>" by simp
 qed
   
-lemma nat_is_int:
-  assumes "is_nat x"
-  shows "is_int x"
-  using assms unfolding is_nat_def is_int_def by (metis floor_of_nat of_int_of_nat_eq)
+lemma nat_is_int: "is_nat x \<Longrightarrow> is_int x"
+  unfolding is_nat_def is_int_def by (metis floor_of_nat of_int_of_nat_eq)
 
-lemma nat_fun_is_int_fun:
-  assumes "is_nat_fun f"
-  shows "is_int_fun f"
-  using assms unfolding is_nat_fun_def is_int_fun_def using nat_is_int by auto
+lemma nat_fun_is_int_fun: "is_nat_fun f \<Longrightarrow> is_int_fun f"
+  unfolding is_nat_fun_def is_int_fun_def using nat_is_int by auto
 
-lemma is_nat_geq_zero:
-  assumes "is_nat x"
-  shows "0 \<le> x"
-  using assms unfolding is_nat_def by (metis of_nat_0_le_iff)
+lemma is_nat_geq_zero: "is_nat x \<Longrightarrow> 0 \<le> x"
+  unfolding is_nat_def by (metis of_nat_0_le_iff)
 
 lemma int_is_nat:
   assumes "is_int x" and "0 \<le> x"
@@ -549,14 +543,14 @@ lemma of_int_fun_is_int_fun: "is_int_fun (of_int_fun f)"
   unfolding is_int_fun_def of_int_fun_def o_def by (simp add: of_int_is_int)
 
 lemma max_of_nat:
-  assumes "\<And>m n::nat. of_nat m \<le> ((of_nat n)::'b::{semiring_1,ord}) \<longleftrightarrow> m \<le> n"
-  shows "max (of_nat a) (of_nat b) = ((of_nat (max a b::nat))::'b::{semiring_1,ord})"
-  unfolding max_def assms by simp
+  "(\<And>m n::nat. of_nat m \<le> ((of_nat n)::'b::{semiring_1,ord}) \<longleftrightarrow> m \<le> n) \<Longrightarrow>
+      max (of_nat a) (of_nat b) = ((of_nat (max a b::nat))::'b::{semiring_1,ord})"
+  by (simp add: max_def)
 
 lemma min_of_nat:
-  assumes "\<And>m n::nat. of_nat m \<le> ((of_nat n)::'b::{semiring_1,ord}) \<longleftrightarrow> m \<le> n"
-  shows "min (of_nat a) (of_nat b) = ((of_nat (min a b::nat))::'b::{semiring_1,ord})"
-  unfolding min_def assms by simp
+  "(\<And>m n::nat. of_nat m \<le> ((of_nat n)::'b::{semiring_1,ord}) \<longleftrightarrow> m \<le> n) \<Longrightarrow>
+      min (of_nat a) (of_nat b) = ((of_nat (min a b::nat))::'b::{semiring_1,ord})"
+  by (simp add: min_def)
 
 lemmas max_of_nat_linordered_semidom = max_of_nat[OF Nat.linordered_nonzero_semiring_class.of_nat_le_iff]
 lemmas min_of_nat_linordered_semidom = min_of_nat[OF Nat.linordered_nonzero_semiring_class.of_nat_le_iff]
@@ -579,33 +573,33 @@ lemma leq_of_int_fun: "of_int_fun f \<le> ((of_int_fun g)::'a \<Rightarrow> ('b:
 lemma less_of_int_fun: "of_int_fun f < ((of_int_fun g)::'a \<Rightarrow> ('b::linordered_idom)) \<longleftrightarrow> f < g"
   by (simp add: leq_of_int_fun Orderings.less_fun_def)
 
-lemma leq_to_nat_fun:
-  assumes "f \<le> g"
-  shows "to_nat_fun f \<le> to_nat_fun g"
-  using assms unfolding to_nat_fun_def o_def le_fun_def to_nat_def
-proof -
-  assume *: "\<forall>x. f x \<le> g x"
-  show "\<forall>x. nat \<lfloor>f x\<rfloor> \<le> nat \<lfloor>g x \<rfloor>"
-  proof
-    fix x
-    from * have "f x \<le> g x" ..
-    hence "\<lfloor>f x\<rfloor> \<le> \<lfloor>g x\<rfloor>" by (rule floor_mono)
-    thus "nat \<lfloor>f x\<rfloor> \<le> nat \<lfloor>g x\<rfloor>" by simp
-  qed
-qed
+lemma to_nat_mono: "x \<le> y \<Longrightarrow> to_nat x \<le> to_nat y"
+  by (auto simp: to_nat_def dest: floor_mono)
 
-lemma leq_to_int_fun: "f \<le> g \<Longrightarrow> to_int_fun f \<le> to_int_fun g"
-  using floor_mono by (auto simp: to_int_fun_def o_def le_fun_def)
+lemma to_nat_fun_mono: "f \<le> g \<Longrightarrow> to_nat_fun f \<le> to_nat_fun g"
+  by (auto simp: to_nat_fun_def le_fun_def dest: to_nat_mono)
+
+lemma to_int_fun_mono: "f \<le> g \<Longrightarrow> to_int_fun f \<le> to_int_fun g"
+  by (auto simp: to_int_fun_def o_def le_fun_def dest: floor_mono)
+
+lemma is_int_less_iff: "is_int a \<Longrightarrow> is_int b \<Longrightarrow> a < b \<longleftrightarrow> a + 1 \<le> b"
+  by (metis floor_unique is_int_def le_less less_add_one less_trans not_less)
 
 subsection \<open>Closure Properties of @{const is_nat} and @{const is_int}\<close>
   
 subsubsection \<open>0 and 1\<close>
 
 lemma zero_is_nat: "is_nat 0"
-  by (metis of_nat_0 of_nat_is_nat) 
+  by (metis of_nat_0 of_nat_is_nat)
 
 lemma one_is_nat: "is_nat 1"
-  by (metis of_nat_1 of_nat_is_nat) 
+  by (metis of_nat_1 of_nat_is_nat)
+
+lemma zero_is_int: "is_int 0"
+  using zero_is_nat by (rule nat_is_int)
+
+lemma one_is_int: "is_int 1"
+  using one_is_nat by (rule nat_is_int)
 
 subsubsection \<open>@{const plus} and @{const minus}\<close>
 
@@ -621,64 +615,54 @@ proof -
   thus "of_nat (to_nat (x + y)) = x + y" using f3 by simp
 qed
 
-lemma diff_is_nat:
-  assumes "is_int x" and "is_int y"
-  shows "is_nat (x - y) \<longleftrightarrow> y \<le> x"
-  using assms unfolding is_nat_def is_int_def
+lemma minus_is_nat: "is_int x \<Longrightarrow> is_int y \<Longrightarrow> is_nat (x - y) \<longleftrightarrow> y \<le> x"
+  unfolding is_nat_def is_int_def
   by (metis diff_ge_0_iff_ge int_is_nat is_nat_def of_int_diff of_int_is_int of_nat_0_le_iff)
 
-lemma plus_is_int:
-  assumes "is_int x" and "is_int y"
-  shows "is_int (x + y)"
-  by (metis assms is_int_def of_int_floor_cancel of_int_add)
+lemma plus_is_int: "is_int x \<Longrightarrow> is_int y \<Longrightarrow> is_int (x + y)"
+  by (metis is_int_def of_int_floor_cancel of_int_add)
 
-lemma diff_is_int:
-  assumes "is_int x" and "is_int y"
-  shows "is_int (x - y)"
-  by (metis assms is_int_def of_int_floor_cancel of_int_diff)
+lemma minus_is_int:"is_int x \<Longrightarrow> is_int y \<Longrightarrow> is_int (x - y)"
+  by (metis is_int_def of_int_floor_cancel of_int_diff)
 
-lemma minus_is_int:
-  assumes "is_int x"
-  shows "is_int (- x)"
-  by (metis assms is_int_def of_int_floor_cancel of_int_minus)
+lemma uminus_is_int: "is_int x \<Longrightarrow> is_int (- x)"
+  by (metis is_int_def of_int_floor_cancel of_int_minus)
+
+lemma sum_is_nat: "(\<And>a. a \<in> A \<Longrightarrow> is_nat (f a)) \<Longrightarrow> is_nat (sum f A)"
+  by (induct A rule: infinite_finite_induct) (auto intro: zero_is_nat plus_is_nat)
+
+lemma sum_is_int: "(\<And>a. a \<in> A \<Longrightarrow> is_int (f a)) \<Longrightarrow> is_int (sum f A)"
+  by (induct A rule: infinite_finite_induct) (auto intro: zero_is_int plus_is_int)
 
 subsubsection \<open>@{const times}\<close>
   
-lemma times_is_nat:
-  assumes "is_nat x" and "is_nat y"
-  shows "is_nat (x * y)"
-  by (metis is_nat_def assms of_nat_is_nat of_nat_mult)
+lemma times_is_nat: "is_nat x \<Longrightarrow> is_nat y \<Longrightarrow> is_nat (x * y)"
+  by (metis is_nat_def of_nat_is_nat of_nat_mult)
 
-lemma times_is_int:
-  assumes "is_int x" and "is_int y"
-  shows "is_int (x * y)"
-  by (metis assms is_int_def of_int_floor_cancel of_int_mult)
+lemma times_is_int: "is_int x \<Longrightarrow> is_int y \<Longrightarrow> is_int (x * y)"
+  by (metis is_int_def of_int_floor_cancel of_int_mult)
+
+lemma prod_is_nat: "(\<And>a. a \<in> A \<Longrightarrow> is_nat (f a)) \<Longrightarrow> is_nat (prod f A)"
+  by (induct A rule: infinite_finite_induct) (auto intro: one_is_nat times_is_nat)
+
+lemma prod_is_int: "(\<And>a. a \<in> A \<Longrightarrow> is_int (f a)) \<Longrightarrow> is_int (prod f A)"
+  by (induct A rule: infinite_finite_induct) (auto intro: one_is_int times_is_int)
 
 subsubsection \<open>@{const min} and @{const max}\<close>
 
-lemma min_is_nat:
-  assumes "is_nat x" and "is_nat y"
-  shows "is_nat (min x y)"
-  unfolding min_def using assms by simp
+lemma min_is_nat:"is_nat x \<Longrightarrow> is_nat y \<Longrightarrow> is_nat (min x y)"
+  by (simp add: min_def)
 
-lemma max_is_nat:
-  assumes "is_nat x" and "is_nat y"
-  shows "is_nat (max x y)"
-  unfolding max_def using assms by simp
+lemma max_is_nat: "is_nat x \<Longrightarrow> is_nat y \<Longrightarrow> is_nat (max x y)"
+  by (simp add: max_def)
 
-lemma max_is_nat':
-  assumes "is_nat x" and "is_int y"
-  shows "is_nat (max x y)"
-  by (metis assms int_is_nat is_nat_geq_zero le_max_iff_disj max_def)
+lemma max_is_nat': "is_nat x \<Longrightarrow> is_int y \<Longrightarrow> is_nat (max x y)"
+  by (metis int_is_nat is_nat_geq_zero le_max_iff_disj max_def)
 
-lemma min_is_int:
-  assumes "is_int x" and "is_int y"
-  shows "is_int (min x y)"
-  unfolding min_def using assms by simp
+lemma min_is_int: "is_int x \<Longrightarrow> is_int y \<Longrightarrow> is_int (min x y)"
+  by (simp add: min_def)
 
-lemma max_is_int:
-  assumes "is_int x" and "is_int y"
-  shows "is_int (max x y)"
-  unfolding max_def using assms by simp
+lemma max_is_int: "is_int x \<Longrightarrow> is_int y \<Longrightarrow> is_int (max x y)"
+  by (simp add: max_def)
   
 end (* theory *)

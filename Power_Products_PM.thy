@@ -1,8 +1,8 @@
+section \<open>Power-Products Represented by Polynomial Mappings\<close>
+
 theory Power_Products_PM
   imports MPoly_PM Number_Classes
 begin
-
-section \<open>Power-Products Represented by Polynomial Mappings\<close>
 
 subsection \<open>Natural and Integer-Valued Polynomial Mappings\<close>
 
@@ -53,6 +53,12 @@ qed
 lemma lookup_of_nat_pm: "lookup (of_nat_pm t) x = of_nat (lookup t x)"
   by (simp add: of_nat_fun_def of_nat_pm.rep_eq)
 
+lemma keys_of_nat_pm_subset: "keys (of_nat_pm t) \<subseteq> keys t"
+  by (auto simp add: lookup_of_nat_pm simp flip: lookup_not_eq_zero_eq_in_keys intro!: gr0I)
+
+lemma keys_of_nat_pm [simp]: "keys ((of_nat_pm t)::_ \<Rightarrow>\<^sub>0 _::semiring_char_0) = keys t"
+  by (auto simp add: lookup_of_nat_pm simp flip: lookup_not_eq_zero_eq_in_keys)
+
 lemma lookup_of_int_pm: "lookup (of_int_pm t) x = of_int (lookup t x)"
   by (simp add: of_int_fun_def of_int_pm.rep_eq)
 
@@ -70,6 +76,9 @@ lemma of_int_pm_injective [simp]: "of_int_pm s = ((of_int_pm t)::_ \<Rightarrow>
 
 lemma inj_of_int_pm: "inj (of_int_pm::_ \<Rightarrow> (_ \<Rightarrow>\<^sub>0 _::ring_char_0))"
   by (simp add: inj_def)
+
+lemma deg_of_nat_pm: "deg_pm (of_nat_pm t) = (of_nat (deg_pm t) :: _::semiring_char_0)"
+  by (simp add: deg_pm_superset[OF subset_refl finite_keys] of_nat_pm.rep_eq of_nat_fun_def)
 
 lift_definition to_nat_pm :: "('a \<Rightarrow>\<^sub>0 'b::floor_ceiling) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 nat)" is to_nat_fun
 proof -
@@ -219,7 +228,7 @@ lemma of_int_pm_zero [simp]: "of_int_pm 0 = 0"
 lemma plus_is_nat_pm: "is_nat_pm f \<Longrightarrow> is_nat_pm g \<Longrightarrow> is_nat_pm (f + g)"
   by (simp add: is_nat_pm_def plus_poly_mapping.rep_eq plus_fun_def is_nat_fun_def plus_is_nat)
 
-lemma diff_is_nat_pm:
+lemma minus_is_nat_pm:
   assumes "is_int_pm f" and "is_int_pm g"
   shows "is_nat_pm (f - g) \<longleftrightarrow> lookup g \<le> lookup f"
 proof -
@@ -234,7 +243,7 @@ proof -
     proof
       fix x
       from a1 have "is_nat ((lookup f x) - (lookup g x))" by (simp only: lookup_minus)
-      thus "lookup g x \<le> lookup f x" unfolding diff_is_nat[OF a2 a3] .
+      thus "lookup g x \<le> lookup f x" unfolding minus_is_nat[OF a2 a3] .
     qed
   next
     assume "lookup g \<le> lookup f"
@@ -242,7 +251,7 @@ proof -
     proof
       fix x
       from \<open>lookup g \<le> lookup f\<close> have "lookup g x \<le> lookup f x" unfolding le_fun_def ..
-      hence "is_nat ((lookup f x) - (lookup g x))" unfolding diff_is_nat[OF a2 a3] .
+      hence "is_nat ((lookup f x) - (lookup g x))" unfolding minus_is_nat[OF a2 a3] .
       thus "is_nat (lookup (f - g) x)" by (simp only: lookup_minus)
     qed
   qed
@@ -251,17 +260,26 @@ qed
 lemma plus_is_int_pm: "is_int_pm f \<Longrightarrow> is_int_pm g \<Longrightarrow> is_int_pm (f + g)"
   by (simp add: is_int_pm_def plus_poly_mapping.rep_eq plus_fun_def is_int_fun_def plus_is_int)
 
-lemma diff_is_int_pm: "is_int_pm f \<Longrightarrow> is_int_pm g \<Longrightarrow> is_int_pm (f - g)"
-  by (simp add: is_int_pm_def lookup_minus is_int_fun_def diff_is_int)
+lemma minus_is_int_pm: "is_int_pm f \<Longrightarrow> is_int_pm g \<Longrightarrow> is_int_pm (f - g)"
+  by (simp add: is_int_pm_def lookup_minus is_int_fun_def minus_is_int)
 
-lemma minus_is_int_pm: "is_int_pm f \<Longrightarrow> is_int_pm (- f)"
-  by (simp add: is_int_pm_def is_int_fun_def minus_is_int)
+lemma uminus_is_int_pm: "is_int_pm f \<Longrightarrow> is_int_pm (- f)"
+  by (simp add: is_int_pm_def is_int_fun_def uminus_is_int)
 
 lemma of_nat_pm_plus: "of_nat_pm (f + g) = of_nat_pm f + of_nat_pm g"
   by (rule poly_mapping_eqI, simp add: lookup_of_nat_pm lookup_add)
 
+lemma of_nat_pm_minus: "g adds f \<Longrightarrow> of_nat_pm (f - g) = of_nat_pm f - of_nat_pm g"
+  by (metis add_minus_2 addsE of_nat_pm_plus)
+
 lemma of_int_pm_plus: "of_int_pm (f + g) = of_int_pm f + of_int_pm g"
   by (rule poly_mapping_eqI, simp add: lookup_of_int_pm lookup_add)
+
+lemma deg_is_nat: "is_nat_pm t \<Longrightarrow> is_nat (deg_pm t)"
+  by (auto simp: deg_pm_superset[OF subset_refl finite_keys] intro: sum_is_nat dest: is_nat_pmD)
+
+lemma deg_is_int: "is_int_pm t \<Longrightarrow> is_int (deg_pm t)"
+  by (auto simp: deg_pm_superset[OF subset_refl finite_keys] intro: sum_is_int dest: is_int_pmD)
 
 subsubsection \<open>Composition\<close>
 
@@ -298,11 +316,11 @@ lemma le_of_nat_pm: "of_nat_pm s \<unlhd> ((of_nat_pm t)::'a \<Rightarrow>\<^sub
 lemma le_of_int_pm: "of_int_pm s \<unlhd> ((of_int_pm t)::'a \<Rightarrow>\<^sub>0 ('b::linordered_idom)) \<longleftrightarrow> s \<unlhd> t"
   by (simp add: le_pm_def of_int_pm.rep_eq leq_of_int_fun)
 
-lemma leI_to_nat_pm: "s \<unlhd> t \<Longrightarrow> to_nat_pm s \<unlhd> to_nat_pm t"
-  by (simp add: le_pm_def to_nat_pm.rep_eq leq_to_nat_fun)
+lemma to_nat_pm_mono: "s \<unlhd> t \<Longrightarrow> to_nat_pm s \<unlhd> to_nat_pm t"
+  by (simp add: le_pm_def to_nat_pm.rep_eq to_nat_fun_mono)
 
-lemma leI_to_int_pm: "s \<unlhd> t \<Longrightarrow> to_int_pm s \<unlhd> to_int_pm t"
-  by (simp add: le_pm_def to_int_pm.rep_eq leq_to_int_fun)
+lemma to_int_pm_mono: "s \<unlhd> t \<Longrightarrow> to_int_pm s \<unlhd> to_int_pm t"
+  by (simp add: le_pm_def to_int_pm.rep_eq to_int_fun_mono)
 
 lemma leD_to_int_pm:
   assumes "to_int_pm s \<unlhd> to_int_pm t" and "is_int_pm s" and "is_int_pm t"
@@ -316,7 +334,7 @@ qed
 
 subsection \<open>Module-structure of Polynomial Mappings\<close>
 
-lift_definition scalar_mult_pm :: "'b \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::mult_zero)" (infixl "\<cdot>" 70)
+lift_definition scalar_mult_pm :: "'b \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::mult_zero)" (infixr "\<cdot>" 71)
   is "\<lambda>k f x. k * (f x)"
   by (rule finite_mult_not_eq_zero_leftI)
 
@@ -355,6 +373,9 @@ lemma scalar_single [simp]: "k \<cdot> Poly_Mapping.single x l = Poly_Mapping.si
 
 lemma scalar_one_left [simp]: "(1::'b::{mult_zero,monoid_mult}) \<cdot> t = t"
   by (rule poly_mapping_eqI) simp
+
+lemma scalar_assoc [ac_simps]: "c \<cdot> d \<cdot> t = (c * d) \<cdot> (t::_ \<Rightarrow>\<^sub>0 _::{semigroup_mult,zero})"
+  by (rule poly_mapping_eqI) (simp add: ac_simps)
 
 lemma scalar_distrib_left [algebra_simps]: "(k::'b::semiring_0) \<cdot> (s + t) = k \<cdot> s + k \<cdot> t"
   by (rule poly_mapping_eqI) (simp add: lookup_add distrib_left)
@@ -403,10 +424,50 @@ lemma scalar_is_nat_pm: "is_nat c \<Longrightarrow> is_nat_pm t \<Longrightarrow
 lemma scalar_is_int_pm: "is_int c \<Longrightarrow> is_int_pm t \<Longrightarrow> is_int_pm (c \<cdot> t)"
   unfolding is_int_pm_def is_int_fun_def using times_is_int by auto
 
+lemma of_nat_pm_scalar: "of_nat_pm (c \<cdot> t) = of_nat c \<cdot> of_nat_pm t"
+  by (rule poly_mapping_eqI) (simp add: lookup_of_nat_pm)
+
 lemma scalar_eq_monom_mult: "c \<cdot> p = punit.monom_mult c 0 p"
   by (rule poly_mapping_eqI) (simp only: lookup_scalar punit.lookup_monom_mult_zero)
 
 lemma scalar_eq_times: "c \<cdot> p = monomial c 0 * (p::_::comm_powerprod \<Rightarrow>\<^sub>0 _)"
   by (simp only: scalar_eq_monom_mult times_monomial_left)
+
+subsection \<open>@{const scalar_mult_pm} and @{const le_pm}\<close>
+
+lemma times_le_interval:
+  assumes "x \<le> y + a * z" and "x \<le> y + b * z" and "a \<le> c" and "c \<le> (b::'b::{linorder,ordered_ring})"
+  shows "x \<le> y + c * z"
+proof (cases "0 \<le> z")
+  case True
+  from assms(3) True have "y + a * z \<le> y + c * z" by (simp add: add_left_mono mult_right_mono)
+  with assms(1) show ?thesis by (rule order_trans)
+next
+  case False
+  hence "z \<le> 0" by simp
+  with assms(4) have "y + b * z \<le> y + c * z" by (simp add: add_left_mono mult_right_mono_neg)
+  with assms(2) show ?thesis by (rule order_trans)
+qed
+
+corollary times_le_interval':
+  "x \<le> a * z \<Longrightarrow> x \<le> b * z \<Longrightarrow> a \<le> c \<Longrightarrow> c \<le> (b::'b::{linorder,ordered_ring}) \<Longrightarrow> x \<le> c * z"
+  using times_le_interval[of x 0 a z b c] by simp
+
+lemma scalar_le_interval:
+  assumes "x \<unlhd> y + a \<cdot> z" and "x \<unlhd> y + b \<cdot> z" and "a \<le> c" and "c \<le> (b::'b::{linorder,ordered_ring})"
+  shows "x \<unlhd> y + c \<cdot> z"
+proof (rule le_pmI)
+  fix k
+  from assms(1) have "lookup x k \<le> lookup (y + a \<cdot> z) k" by (rule le_pmD)
+  hence *: "lookup x k \<le> lookup y k + a * lookup z k" by (simp add: lookup_add)
+  from assms(2) have "lookup x k \<le> lookup (y + b \<cdot> z) k" by (rule le_pmD)
+  hence "lookup x k \<le> lookup y k + b * lookup z k" by (simp add: lookup_add)
+  with * have "lookup x k \<le> lookup y k + c * lookup z k" using assms(3, 4) by (rule times_le_interval)
+  thus "lookup x k \<le> lookup (y + c \<cdot> z) k" by (simp add: lookup_add)
+qed
+
+corollary scalar_le_interval':
+  "x \<unlhd> a \<cdot> z \<Longrightarrow> x \<unlhd> b \<cdot> z \<Longrightarrow> a \<le> c \<Longrightarrow> c \<le> (b::'b::{linorder,ordered_ring}) \<Longrightarrow> x \<unlhd> c \<cdot> z"
+  using scalar_le_interval[of x 0 a z b c] by simp
 
 end (* theory *)
