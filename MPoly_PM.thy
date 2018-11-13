@@ -2045,6 +2045,26 @@ proof -
   finally show ?thesis by simp
 qed
 
+lemma keys_homogenize:
+  "x \<notin> indets p \<Longrightarrow> keys (homogenize x p) = (\<lambda>t. Poly_Mapping.single x (poly_deg p - deg_pm t) + t) ` keys p"
+  by (auto intro: keys_homogenizeI elim: keys_homogenizeE)
+
+lemma card_keys_homogenize:
+  assumes "x \<notin> indets p"
+  shows "card (keys (homogenize x p)) = card (keys p)"
+  unfolding keys_homogenize[OF assms]
+proof (intro card_image inj_onI)
+  fix s t
+  assume "s \<in> keys p" and "t \<in> keys p"
+  with assms have "x \<notin> keys s" and "x \<notin> keys t" by (auto dest: in_indetsI simp only:)
+  let ?s = "Poly_Mapping.single x (poly_deg p - deg_pm s)"
+  let ?t = "Poly_Mapping.single x (poly_deg p - deg_pm t)"
+  assume "?s + s = ?t + t"
+  hence "lookup (?s + s) x = lookup (?t + t) x" by simp
+  with \<open>x \<notin> keys s\<close> \<open>x \<notin> keys t\<close> have "?s = ?t" by (simp add: lookup_add)
+  with \<open>?s + s = ?t + t\<close> show "s = t" by simp
+qed
+
 lemma poly_deg_homogenize:
   assumes "x \<notin> indets p"
   shows "poly_deg (homogenize x p) = poly_deg p"

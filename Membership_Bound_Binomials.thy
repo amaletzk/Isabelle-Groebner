@@ -322,6 +322,45 @@ proof -
   also have "\<dots> = lc (q1 * f1) + lc (q2 * f2)" by (simp only: punit.lc_def)
   finally show "lc (q1 * f1) = - lc (q2 * f2)" by (simp add: eq_neg_iff_add_eq_0)
 qed
+
+(* TODO: Maybe it's better to extend (\<preceq>) canonically to an ordering (\<preceq>\<^sub>Q) for rational exponents?
+  (\<preceq>\<^sub>Q) is no admissible ordering, because 0 is not the smallest element, but nevertheless it
+  shares *a lot* of properties with (\<preceq>). *)
+lemma ord_rat:
+  assumes "s \<prec> t" and "of_nat_pm s = p + l \<cdot> vect f" and "of_nat_pm t = p + l' \<cdot> vect f"
+  shows "l < l'"
+proof -
+  have eq: "of_nat_pm t - of_nat_pm s = (l' - l) \<cdot> vect f"
+    by (simp add: assms(2, 3) scalar_minus_distrib_right)
+  obtain a b :: int where 1: "l' - l = Fract a b" and "0 < b" by (rule Rat_cases)
+  moreover have "0 < a"
+  proof (rule ccontr)
+    assume "\<not> 0 < a"
+    hence "0 \<le> - a" by simp
+    moreover define m where "m = nat (- a)"
+    ultimately have m: "rat m = - rat_of_int a" by simp
+    define n where "n = nat b"
+    with \<open>0 < b\<close> have "0 < n" and n: "rat n = rat_of_int b" by simp_all
+    have 2: "l' - l = (- rat m) / rat n" by (simp only: 1 m n Fract_of_int_quotient)
+    hence "rat n \<cdot> (of_nat_pm t - of_nat_pm s) = rat n \<cdot> ((- rat m) / rat n) \<cdot> vect f"
+      by (simp only: eq)
+    with \<open>0 < n\<close> have "rat n \<cdot> of_nat_pm t + rat m \<cdot> of_nat_pm (lp f) =
+                        rat n \<cdot> of_nat_pm s + rat m \<cdot> of_nat_pm (tp f)"
+      by (simp add: vect_alt algebra_simps scalar_assoc scalar_uminus_left)
+    hence "of_nat_pm (n \<cdot> t + m \<cdot> lp f) = (of_nat_pm (n \<cdot> s + m \<cdot> tp f) ::_ \<Rightarrow>\<^sub>0 rat)"
+      by (simp only: of_nat_pm_plus of_nat_pm_scalar)
+    hence eq2: "n \<cdot> t + m \<cdot> lp f = n \<cdot> s + m \<cdot> tp f" by simp
+    from assms(1) \<open>0 < n\<close> have "n \<cdot> s \<prec> n \<cdot> t" by (rule scalar_mono_strict_left)
+    hence "n \<cdot> s + m \<cdot> tp f \<prec> n \<cdot> t + m \<cdot> tp f" by (rule plus_monotone_strict)
+    from punit.lt_ge_tt have "m \<cdot> tp f \<preceq> m \<cdot> lp f" by (rule scalar_mono_left)
+    hence "n \<cdot> t + m \<cdot> tp f \<preceq> n \<cdot> t + m \<cdot> lp f" by (rule plus_monotone_left)
+    with \<open>n \<cdot> s + m \<cdot> tp f \<prec> n \<cdot> t + m \<cdot> tp f\<close> have "n \<cdot> s + m \<cdot> tp f \<prec> n \<cdot> t + m \<cdot> lp f"
+      by (rule ordered_powerprod_lin.less_le_trans)
+    thus False by (simp add: eq2)
+  qed
+  ultimately have "0 < l' - l" by (simp add: zero_less_Fract_iff)
+  thus "l < l'" by simp
+qed
   
 subsubsection \<open>@{term associated_p}\<close>
 
@@ -460,6 +499,126 @@ proof -
   qed fact+
 qed
 
+lemma parallel_binomialsI_vect:
+  assumes "is_proper_binomial f1" and "is_proper_binomial f2" and "vect f1 = m \<cdot> vect f2"
+  shows "parallel_binomials f1 f2"
+  unfolding parallel_binomials_def
+proof (intro conjI)
+  from assms(1) have "tp f1 \<prec> lp f1" by (rule punit.lt_gr_tt_binomial)
+  moreover have "of_nat_pm (tp f1) = of_nat_pm (tp f1) + 0 \<cdot> vect f2" by simp
+  moreover have "of_nat_pm (lp f1) = of_nat_pm (tp f1) + m \<cdot> vect f2"
+    by (simp flip: assms(3)) (simp add: vect_alt)
+  ultimately have "0 < m" by (rule ord_rat)
+  obtain m2 m1 where "0 < m1" and m: "m = Fract m2 m1" by (rule Rat_cases)
+  with \<open>0 < m\<close> have "0 < m2" by (simp only: zero_less_Fract_iff)
+  from \<open>0 < m1\<close> have m1: "rat (nat m1) = rat_of_int m1" by auto
+  from \<open>0 < m2\<close> have m2: "rat (nat m2) = rat_of_int m2" by auto
+  show "\<exists>m1 m2. m1 \<noteq> 0 \<and> m2 \<noteq> 0 \<and> m1 \<cdot> lp f1 + m2 \<cdot> tp f2 = m1 \<cdot> tp f1 + m2 \<cdot> lp f2"
+  proof (intro exI conjI)
+    from \<open>0 < m1\<close> show "nat m1 \<noteq> 0" by simp
+  next
+    from \<open>0 < m2\<close> show "nat m2 \<noteq> 0" by simp
+  next
+    have "rat_of_int m1 \<cdot> vect f1 = rat_of_int m1 \<cdot> m \<cdot> vect f2" by (simp only: assms(3))
+    also from \<open>0 < m1\<close> have "\<dots> = rat_of_int m2 \<cdot> vect f2"
+      by (simp add: m scalar_assoc Fract_of_int_quotient)
+    finally have "of_nat_pm (nat m1 \<cdot> lp f1 + nat m2 \<cdot> tp f2) =
+                  (of_nat_pm (nat m1 \<cdot> tp f1 + nat m2 \<cdot> lp f2) :: _ \<Rightarrow>\<^sub>0 rat)"
+      by (simp only: vect_alt algebra_simps of_nat_pm_scalar of_nat_pm_plus m1 m2)
+    thus "nat m1 \<cdot> lp f1 + nat m2 \<cdot> tp f2 = nat m1 \<cdot> tp f1 + nat m2 \<cdot> lp f2" by simp
+  qed
+qed fact+
+
+lemma parallel_binomialsI_vect':
+  assumes "keys f1 = {s1, t1}" and "keys f2 = {s2, t2}" and "s1 \<noteq> t1" and "s2 \<noteq> t2"
+    and "of_nat_pm s1 - of_nat_pm t1 = (m::rat) \<cdot> (of_nat_pm s2 - of_nat_pm t2)"
+  shows "parallel_binomials f1 (f2::_ \<Rightarrow>\<^sub>0 'b::comm_monoid_add)"
+proof -
+  let ?c1 = "lookup f1 s1"
+  let ?d1 = "lookup f1 t1"
+  let ?c2 = "lookup f2 s2"
+  let ?d2 = "lookup f2 t2"
+  from assms(3) have "is_proper_binomial f1" by (simp add: is_proper_binomial_def assms(1))
+  moreover have "s1 \<in> keys f1" and "t1 \<in> keys f1" by (simp_all add: assms(1))
+  ultimately have f1: "binomial ?c1 s1 ?d1 t1 = f1"
+    using assms(3) by (rule is_proper_binomial_eq_binomial[symmetric])
+  from \<open>s1 \<in> keys f1\<close> \<open>t1 \<in> keys f1\<close> have "?c1 \<noteq> 0" and "?d1 \<noteq> 0" by simp_all
+  from assms(4) have "is_proper_binomial f2" by (simp add: is_proper_binomial_def assms(2))
+  moreover have "s2 \<in> keys f2" and "t2 \<in> keys f2" by (simp_all add: assms(2))
+  ultimately have f2: "binomial ?c2 s2 ?d2 t2 = f2"
+    using assms(4) by (rule is_proper_binomial_eq_binomial[symmetric])
+  from \<open>s2 \<in> keys f2\<close> \<open>t2 \<in> keys f2\<close> have "?c2 \<noteq> 0" and "?d2 \<noteq> 0" by simp_all
+  show ?thesis
+  proof (rule ordered_powerprod_lin.linorder_cases)
+    assume "s1 \<prec> t1"
+    with \<open>?c1 \<noteq> 0\<close> \<open>?d1 \<noteq> 0\<close> have "punit.is_obd ?d1 t1 ?c1 s1" by (simp add: punit.is_obd_def)
+    hence "lp (binomial ?c1 s1 ?d1 t1) = t1" and "tp (binomial ?c1 s1 ?d1 t1) = s1"
+      by (simp_all add: punit.lt_binomial punit.tt_binomial binomial_comm[of ?c1])
+    hence v1: "vect f1 = - (of_nat_pm s1 - of_nat_pm t1)" by (simp add: f1 vect_alt)
+    show ?thesis
+    proof (rule ordered_powerprod_lin.linorder_cases)
+      assume "s2 \<prec> t2"
+      with \<open>?c2 \<noteq> 0\<close> \<open>?d2 \<noteq> 0\<close> have "punit.is_obd ?d2 t2 ?c2 s2" by (simp add: punit.is_obd_def)
+      hence "lp (binomial ?c2 s2 ?d2 t2) = t2" and "tp (binomial ?c2 s2 ?d2 t2) = s2"
+        by (simp_all add: punit.lt_binomial punit.tt_binomial binomial_comm[of ?c2])
+      hence v2: "vect f2 = - (of_nat_pm s2 - of_nat_pm t2)" by (simp add: f2 vect_alt)
+      show ?thesis
+      proof (rule parallel_binomialsI_vect)
+        show "vect f1 = m \<cdot> vect f2" by (simp only: v1 v2 assms(5) scalar_uminus_right)
+      qed fact+
+    next
+      assume "t2 \<prec> s2"
+      with \<open>?c2 \<noteq> 0\<close> \<open>?d2 \<noteq> 0\<close> have "punit.is_obd ?c2 s2 ?d2 t2" by (simp add: punit.is_obd_def)
+      hence "tp (binomial ?c2 s2 ?d2 t2) = t2" and "lp (binomial ?c2 s2 ?d2 t2) = s2"
+        by (simp_all add: punit.lt_binomial punit.tt_binomial)
+      hence v2: "vect f2 = of_nat_pm s2 - of_nat_pm t2" by (simp add: f2 vect_alt)
+      show ?thesis
+      proof (rule parallel_binomialsI_vect)
+        show "vect f1 = (- m) \<cdot> vect f2"
+          by (simp only: v1 v2 assms(5) scalar_uminus_right scalar_uminus_left)
+      qed fact+
+    next
+      assume "s2 = t2"
+      with assms(4) show ?thesis ..
+    qed
+  next
+    assume "t1 \<prec> s1"
+    with \<open>?c1 \<noteq> 0\<close> \<open>?d1 \<noteq> 0\<close> have "punit.is_obd ?c1 s1 ?d1 t1" by (simp add: punit.is_obd_def)
+    hence "tp (binomial ?c1 s1 ?d1 t1) = t1" and "lp (binomial ?c1 s1 ?d1 t1) = s1"
+      by (simp_all add: punit.lt_binomial punit.tt_binomial)
+    hence v1: "vect f1 = of_nat_pm s1 - of_nat_pm t1" by (simp add: f1 vect_alt)
+    show ?thesis
+    proof (rule ordered_powerprod_lin.linorder_cases)
+      assume "s2 \<prec> t2"
+      with \<open>?c2 \<noteq> 0\<close> \<open>?d2 \<noteq> 0\<close> have "punit.is_obd ?d2 t2 ?c2 s2" by (simp add: punit.is_obd_def)
+      hence "lp (binomial ?c2 s2 ?d2 t2) = t2" and "tp (binomial ?c2 s2 ?d2 t2) = s2"
+        by (simp_all add: punit.lt_binomial punit.tt_binomial binomial_comm[of ?c2])
+      hence v2: "vect f2 = - (of_nat_pm s2 - of_nat_pm t2)" by (simp add: f2 vect_alt)
+      show ?thesis
+      proof (rule parallel_binomialsI_vect)
+        show "vect f1 = (- m) \<cdot> vect f2"
+          by (simp only: v1 v2 assms(5) scalar_uminus_right scalar_uminus_left) simp
+      qed fact+
+    next
+      assume "t2 \<prec> s2"
+      with \<open>?c2 \<noteq> 0\<close> \<open>?d2 \<noteq> 0\<close> have "punit.is_obd ?c2 s2 ?d2 t2" by (simp add: punit.is_obd_def)
+      hence "tp (binomial ?c2 s2 ?d2 t2) = t2" and "lp (binomial ?c2 s2 ?d2 t2) = s2"
+        by (simp_all add: punit.lt_binomial punit.tt_binomial)
+      hence v2: "vect f2 = of_nat_pm s2 - of_nat_pm t2" by (simp add: f2 vect_alt)
+      show ?thesis
+      proof (rule parallel_binomialsI_vect)
+        show "vect f1 = m \<cdot> vect f2" by (simp only: v1 v2 assms(5))
+      qed fact+
+    next
+      assume "s2 = t2"
+      with assms(4) show ?thesis ..
+    qed
+  next
+    assume "s1 = t1"
+    with assms(3) show ?thesis ..
+  qed
+qed
+
 lemma parallel_binomialsE_vect:
   assumes "parallel_binomials f1 f2"
   obtains m::rat where "0 < m" and "vect f1 = m \<cdot> vect f2"
@@ -511,6 +670,64 @@ proof -
     by (rule parallel_binomialsE_lookup)
   from this(3) have "m1 * lookup (lp f1) x + m2 * lookup (tp f2) x = m1 * lookup (tp f1) x + m2 * lookup (lp f2) x" ..
   with \<open>m1 \<noteq> 0\<close> \<open>m2 \<noteq> 0\<close> show ?thesis ..
+qed
+
+lemma parallel_binomials_homogenizeI:
+  assumes "parallel_binomials f1 f2" and "h \<notin> indets f1" and "h \<notin> indets f2"
+  shows "parallel_binomials (homogenize h f1) (homogenize h f2)"
+proof -
+  let ?f = "(\<lambda>p t. Poly_Mapping.single h (poly_deg p - deg_pm t) + t)"
+  let ?f1 = "homogenize h f1"
+  let ?f2 = "homogenize h f2"
+  from assms(1) have "is_proper_binomial f1" by (rule parallel_binomialsD)
+  hence k1: "keys f1 = {lp f1, tp f1}" and 1: "card (keys f1) = 2"
+    by (rule punit.keys_proper_binomial, simp only: is_proper_binomial_def)
+  from assms(2) this(1) have "keys ?f1 = {?f f1 (lp f1), ?f f1 (tp f1)}"
+    by (simp add: keys_homogenize)
+  moreover from assms(2) have "card (keys ?f1) = 2" by (simp add: card_keys_homogenize 1)
+  ultimately have "?f f1 (lp f1) \<noteq> ?f f1 (tp f1)" by auto
+  from assms(1) have "is_proper_binomial f2" by (rule parallel_binomialsD)
+  hence k2: "keys f2 = {lp f2, tp f2}" and 2: "card (keys f2) = 2"
+    by (rule punit.keys_proper_binomial, simp only: is_proper_binomial_def)
+  from assms(3) this(1) have "keys ?f2 = {?f f2 (lp f2), ?f f2 (tp f2)}"
+    by (simp add: keys_homogenize)
+  moreover from assms(3) have "card (keys ?f2) = 2" by (simp add: card_keys_homogenize 2)
+  ultimately have "?f f2 (lp f2) \<noteq> ?f f2 (tp f2)" by auto
+  from assms(1) obtain m where m: "vect f1 = m \<cdot> vect f2" by (rule parallel_binomialsE_vect)
+  hence "deg_pm (vect f1) = m * deg_pm (vect f2)" by (simp only: deg_pm_scalar)
+  hence eq0: "rat (deg_pm (tp f1)) - rat (deg_pm (lp f1)) = m * (rat (deg_pm (tp f2)) - rat (deg_pm (lp f2)))"
+    by (simp add: vect_alt deg_pm_minus_group deg_of_nat_pm algebra_simps)
+  show ?thesis
+  proof (rule parallel_binomialsI_vect')
+    have "lp f1 \<in> keys f1" and "tp f1 \<in> keys f1" by (simp_all add: k1)
+    hence "deg_pm (lp f1) \<le> poly_deg f1" and "deg_pm (tp f1) \<le> poly_deg f1"
+      by (auto intro: poly_deg_max_keys)
+    hence eq1: "rat (poly_deg f1 - deg_pm (lp f1)) = rat (poly_deg f1) - rat (deg_pm (lp f1))"
+      and eq2: "rat (poly_deg f1 - deg_pm (tp f1)) = rat (poly_deg f1) - rat (deg_pm (tp f1))"
+      by simp_all
+    have "lp f2 \<in> keys f2" and "tp f2 \<in> keys f2" by (simp_all add: k2)
+    hence "deg_pm (lp f2) \<le> poly_deg f2" and "deg_pm (tp f2) \<le> poly_deg f2"
+      by (auto intro: poly_deg_max_keys)
+    hence eq3: "rat (poly_deg f2 - deg_pm (lp f2)) = rat (poly_deg f2) - rat (deg_pm (lp f2))"
+      and eq4: "rat (poly_deg f2 - deg_pm (tp f2)) = rat (poly_deg f2) - rat (deg_pm (tp f2))"
+      by simp_all
+    have "of_nat_pm (?f f1 (lp f1)) - of_nat_pm (?f f1 (tp f1)) =
+            Poly_Mapping.single h (rat (poly_deg f1 - deg_pm (lp f1)) -
+            rat (poly_deg f1 - deg_pm (tp f1))) + vect f1"
+      by (simp add: of_nat_pm_plus vect_alt of_nat_pm_single flip: single_diff)
+    also have "\<dots> = Poly_Mapping.single h (rat (deg_pm (tp f1)) - rat (deg_pm (lp f1))) + m \<cdot> vect f2"
+      by (simp add: eq1 eq2 m)
+    also have "\<dots> = m \<cdot> (Poly_Mapping.single h (rat (deg_pm (tp f2)) - rat (deg_pm (lp f2))) + vect f2)"
+      by (simp only: scalar_distrib_left scalar_single eq0)
+    also have "Poly_Mapping.single h (rat (deg_pm (tp f2)) - rat (deg_pm (lp f2))) + vect f2 =
+                Poly_Mapping.single h (rat (poly_deg f2 - deg_pm (lp f2)) -
+                rat (poly_deg f2 - deg_pm (tp f2))) + vect f2"
+      by (simp add: eq3 eq4)
+    also have "\<dots> = of_nat_pm (?f f2 (lp f2)) - of_nat_pm (?f f2 (tp f2))"
+      by (simp add: of_nat_pm_plus vect_alt of_nat_pm_single flip: single_diff)
+    finally show "of_nat_pm (?f f1 (lp f1)) - of_nat_pm (?f f1 (tp f1)) =
+                    m \<cdot> (of_nat_pm (?f f2 (lp f2)) - of_nat_pm (?f f2 (tp f2)))" .
+  qed fact+
 qed
 
 end (* pm_powerprod *)
@@ -1419,29 +1636,6 @@ next
   qed
 qed
 
-lemma wrong:
-  assumes "g = q1 * f1 + q2 * f2" and "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)"
-  obtains l::rat where "0 \<le> l" and "of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1"
-  oops
-(* Counterexample:
-f1 = x + y
-f2 = x³ + y³
-g  = y³
-q1 = xy - x² - y² + x³ + 2y³
-q2 = 1 - x - y
-y < x
-Obviously, f1 and f2 are two parallel proper binomials, g is an irreducible monomial, "tp f1 adds lp g",
-and "g = q1 * f1 + q2 * f2". But for "x^4 \<in> keys (q1 * f1)" there is no l with the desired property:
-(4, 0) = (0, 3) + l \<cdot> (1, -1)
-has no solution (not even a negative one). *)
-
-lemma wrong:
-  assumes "g = q1 * f1 + q2 * f2" and "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)"
-    and "of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1"
-  shows "0 \<le> l"
-  oops
-(* Similar counterexample as above. *)
-
 lemma thm_3_2_2_aux_3':
   obtains q1 q2 where "g = q1 * f1 + q2 * f2"
     and "\<And>s t. (s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2) \<Longrightarrow>
@@ -1597,55 +1791,32 @@ proof -
     and "\<And>s t. (s \<in> keys q1' \<and> t \<in> keys f1) \<or> (s \<in> keys q2' \<and> t \<in> keys f2) \<Longrightarrow>
             \<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
     by (rule thm_3_2_2_aux_3') blast
-  (* Proof strategy:
-      - First prove that q1' and q2' exist such that all pps lie on the main diagonal.
+  (* Proof strategy?
+      - First prove that q1' and q2' exist such that all pps lie on the main diagonal (see above).
       - Among all such q1', q2', pick some q1, q2 where the number of pps below "lp g" is minimal.
-      - If there are no pps below "lp g", we are done; otherwise, let t be such a pp.
+      - If there are no pps below "lp g", we are done; otherwise, let t be the pp with smallest l.
       - Because of the observation above, there exist "s1 \<in> keys q1" and "s2 \<in> keys q2" with
-        "t = s1 + tp f1 = s2 + tp f2" and "lookup q1 s1 * tc f1 = - lookup q2 s2 * tc f2".
-      - Show that "except q1 {s1} + ..." and "except q2 {s2} + ..." generate g but have one
+        "t = s1 + tp f1 = s2 + tp f2" and "lookup q1 s1 * tc f1 = - lookup q2 s2 * tc f2";
+        actually, "s1 = tp q1" and "s2 = tp q2".
+      ? Show that "except q1 {s1} + ..." and "except q2 {s2} + ..." generate g but have one
         pp less below "lp g", contradicting the minimality of q1 and q2. *)
   show ?thesis sorry
 qed
 
-(* TODO: Maybe it's better to extend (\<preceq>) canonically to an ordering (\<preceq>\<^sub>Q) for rational exponents?
-  (\<preceq>\<^sub>Q) is no admissible ordering, because 0 is not the smallest element, but nevertheless it
-  shares *a lot* of properties with (\<preceq>). *)
-lemma thm_3_2_2_aux_4:
-  assumes "s \<prec> t" and "of_nat_pm s = p + l \<cdot> vect f" and "of_nat_pm t = p + l' \<cdot> vect f"
-  shows "l < l'"
-proof -
-  have eq: "of_nat_pm t - of_nat_pm s = (l' - l) \<cdot> vect f"
-    by (simp add: assms(2, 3) scalar_minus_distrib_right)
-  obtain a b :: int where 1: "l' - l = Fract a b" and "0 < b" by (rule Rat_cases)
-  moreover have "0 < a"
-  proof (rule ccontr)
-    assume "\<not> 0 < a"
-    hence "0 \<le> - a" by simp
-    moreover define m where "m = nat (- a)"
-    ultimately have m: "rat m = - rat_of_int a" by simp
-    define n where "n = nat b"
-    with \<open>0 < b\<close> have "0 < n" and n: "rat n = rat_of_int b" by simp_all
-    have 2: "l' - l = (- rat m) / rat n" by (simp only: 1 m n Fract_of_int_quotient)
-    hence "rat n \<cdot> (of_nat_pm t - of_nat_pm s) = rat n \<cdot> ((- rat m) / rat n) \<cdot> vect f"
-      by (simp only: eq)
-    with \<open>0 < n\<close> have "rat n \<cdot> of_nat_pm t + rat m \<cdot> of_nat_pm (lp f) =
-                        rat n \<cdot> of_nat_pm s + rat m \<cdot> of_nat_pm (tp f)"
-      by (simp add: vect_alt algebra_simps scalar_assoc scalar_uminus_left)
-    hence "of_nat_pm (n \<cdot> t + m \<cdot> lp f) = (of_nat_pm (n \<cdot> s + m \<cdot> tp f) ::_ \<Rightarrow>\<^sub>0 rat)"
-      by (simp only: of_nat_pm_plus of_nat_pm_scalar)
-    hence eq2: "n \<cdot> t + m \<cdot> lp f = n \<cdot> s + m \<cdot> tp f" by simp
-    from assms(1) \<open>0 < n\<close> have "n \<cdot> s \<prec> n \<cdot> t" by (rule scalar_mono_strict_left)
-    hence "n \<cdot> s + m \<cdot> tp f \<prec> n \<cdot> t + m \<cdot> tp f" by (rule plus_monotone_strict)
-    from punit.lt_ge_tt have "m \<cdot> tp f \<preceq> m \<cdot> lp f" by (rule scalar_mono_left)
-    hence "n \<cdot> t + m \<cdot> tp f \<preceq> n \<cdot> t + m \<cdot> lp f" by (rule plus_monotone_left)
-    with \<open>n \<cdot> s + m \<cdot> tp f \<prec> n \<cdot> t + m \<cdot> tp f\<close> have "n \<cdot> s + m \<cdot> tp f \<prec> n \<cdot> t + m \<cdot> lp f"
-      by (rule ordered_powerprod_lin.less_le_trans)
-    thus False by (simp add: eq2)
-  qed
-  ultimately have "0 < l' - l" by (simp add: zero_less_Fract_iff)
-  thus "l < l'" by simp
-qed
+text \<open>I do not know whether the above lemma really holds. Intuitively, it seems reasonable, but I have
+  no idea how to prove it rigorously, and MWW's thesis does not say anything about it either (it
+  even wrongly claims that such non-negative \<open>l\<close> exist for \<^emph>\<open>all\<close> cofactors \<open>q1\<close> and \<open>q2\<close>, although
+  one can easily construct counterexamples using syzygies).
+
+  In any case, an alternative overall strategy would be to homogenize the input, and then infer
+  cofactor bounds for the elements in the homogeneous Gr\"obner basis \<open>G\<^sup>*\<close> by virtue of MWW's thesis.
+  Homogenizing parallel binomials yields again parallel binomials, see lemma
+  "parallel_binomials_homogenizeI". Only be aware that
+  \<^item> \<open>(G\<^sup>*)\<^sub>*\<close> is not necessarily a \<^emph>\<open>reduced\<close> Gr\"obner basis, and
+  \<^item> \<open>(G\<^sup>*)\<^sub>*\<close> might contain monomials that stem from proper binomials in \<open>G\<^sup>*\<close>.
+  So, this proposal must be understood as an overall strategy for obtaining \<^emph>\<open>cofactor\<close> bounds for
+  \<^emph>\<open>some\<close> Gr\"obner basis of \<open>f1\<close> and \<open>f2\<close> (if \<open>f1\<close> and \<open>f2\<close> are parallel binomials, but also in
+  general); it cannot be used, however, to only circumvent the single theorem below.\<close>
 
 theorem thm_3_2_2:
   "membership_problem_concl f1 f2 g
@@ -1794,7 +1965,7 @@ proof -
       qed
       moreover from that(1) obtain l where eq1: "of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
         by (rule 1)
-      ultimately have "l < l'" using eq2 by (rule thm_3_2_2_aux_4)
+      ultimately have "l < l'" using eq2 by (rule ord_rat)
       have "rat (deg_pm (s + t)) = deg_pm (of_nat_pm (s + t))" by (simp only: deg_of_nat_pm)
       also have "\<dots> = deg_pm (of_nat_pm (lp g)) + l * deg_pm (vect f1)"
         by (simp add: eq1 deg_pm_plus deg_pm_scalar)

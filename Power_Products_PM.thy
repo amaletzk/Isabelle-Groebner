@@ -224,6 +224,9 @@ lemma of_nat_pm_zero [simp]: "of_nat_pm 0 = 0"
 
 lemma of_int_pm_zero [simp]: "of_int_pm 0 = 0"
   by (rule poly_mapping_eqI, simp add: lookup_of_int_pm)
+
+lemma of_nat_pm_single: "of_nat_pm (Poly_Mapping.single x e) = Poly_Mapping.single x (of_nat e)"
+  by (rule poly_mapping_eqI) (simp add: lookup_of_nat_pm lookup_single when_distrib)
   
 lemma plus_is_nat_pm: "is_nat_pm f \<Longrightarrow> is_nat_pm g \<Longrightarrow> is_nat_pm (f + g)"
   by (simp add: is_nat_pm_def plus_poly_mapping.rep_eq plus_fun_def is_nat_fun_def plus_is_nat)
