@@ -1812,6 +1812,293 @@ proof -
   finally show ?thesis .
 qed
 
+lemma homogeneous_idealE_homogeneous:
+  assumes "\<And>f. f \<in> F \<Longrightarrow> homogeneous f" and "p \<in> ideal F" and "homogeneous p"
+  obtains F' q where "finite F'" and "F' \<subseteq> F" and "p = (\<Sum>f\<in>F'. q f * f)" and "\<And>f. homogeneous (q f)"
+    and "\<And>f. f \<in> F' \<Longrightarrow> poly_deg (q f * f) = poly_deg p" and "\<And>f. f \<notin> F' \<Longrightarrow> q f = 0"
+proof -
+  from assms(2) obtain F'' q' where "finite F''" and "F'' \<subseteq> F" and p: "p = (\<Sum>f\<in>F''. q' f * f)"
+    by (rule ideal.in_moduleE)
+  let ?A = "\<lambda>f. {h \<in> hom_components (q' f). poly_deg h + poly_deg f = poly_deg p}"
+  let ?B = "\<lambda>f. {h \<in> hom_components (q' f). poly_deg h + poly_deg f \<noteq> poly_deg p}"
+  define F' where "F' = {f \<in> F''. (\<Sum>(?A f)) * f \<noteq> 0}"
+  define q where "q = (\<lambda>f. (\<Sum>(?A f)) when f \<in> F')"
+  have "F' \<subseteq> F''" by (simp add: F'_def)
+  hence "F' \<subseteq> F" using \<open>F'' \<subseteq> F\<close> by (rule subset_trans)
+  have 1: "deg_pm t + poly_deg f = poly_deg p" if "f \<in> F'" and "t \<in> keys (q f)" for f t
+  proof -
+    from that have "t \<in> keys (\<Sum>(?A f))" by (simp add: q_def)
+    also have "\<dots> \<subseteq> (\<Union>h\<in>?A f. keys h)" by (fact punit.keys_sum_subset)
+    finally obtain h where "h \<in> ?A f" and "t \<in> keys h" ..
+    from this(1) have "h \<in> hom_components (q' f)" and eq: "poly_deg h + poly_deg f = poly_deg p"
+      by simp_all
+    from this(1) have "homogeneous h" by (rule hom_components_homogeneous)
+    hence "deg_pm t = poly_deg h" using \<open>t \<in> keys h\<close> by (rule homogeneousD_poly_deg)
+    thus ?thesis by (simp only: eq)
+  qed
+  have 2: "deg_pm t = poly_deg p" if "f \<in> F'" and "t \<in> keys (q f * f)" for f t
+  proof -
+    from that(1) \<open>F' \<subseteq> F\<close> have "f \<in> F" ..
+    hence "homogeneous f" by (rule assms(1))
+    from that(2) obtain s1 s2 where "s1 \<in> keys (q f)" and "s2 \<in> keys f" and t: "t = s1 + s2"
+      by (rule in_keys_timesE)
+    from that(1) this(1) have "deg_pm s1 + poly_deg f = poly_deg p" by (rule 1)
+    moreover from \<open>homogeneous f\<close> \<open>s2 \<in> keys f\<close> have "deg_pm s2 = poly_deg f"
+      by (rule homogeneousD_poly_deg)
+    ultimately show ?thesis by (simp add: t deg_pm_plus)
+  qed
+  from \<open>F' \<subseteq> F''\<close> \<open>finite F''\<close> have "finite F'" by (rule finite_subset)
+  thus ?thesis using \<open>F' \<subseteq> F\<close>
+  proof
+    note p
+    also from refl have "(\<Sum>f\<in>F''. q' f * f) = (\<Sum>f\<in>F''. (\<Sum>(?A f) * f) + (\<Sum>(?B f) * f))"
+    proof (rule sum.cong)
+      fix f
+      assume "f \<in> F''"
+      from sum_hom_components have "q' f = (\<Sum>(hom_components (q' f)))" by (rule sym)
+      also have "\<dots> = (\<Sum>(?A f \<union> ?B f))" by (rule arg_cong[where f="sum (\<lambda>x. x)"]) blast
+      also have "\<dots> = \<Sum>(?A f) + \<Sum>(?B f)"
+      proof (rule sum.union_disjoint)
+        have "?A f \<subseteq> hom_components (q' f)" by blast
+        thus "finite (?A f)" using finite_hom_components by (rule finite_subset)
+      next
+        have "?B f \<subseteq> hom_components (q' f)" by blast
+        thus "finite (?B f)" using finite_hom_components by (rule finite_subset)
+      qed blast
+      finally show "q' f * f = (\<Sum>(?A f) * f) + (\<Sum>(?B f) * f)"
+        by (metis (no_types, lifting) distrib_right)
+    qed
+    also have "\<dots> = (\<Sum>f\<in>F''. \<Sum>(?A f) * f) + (\<Sum>f\<in>F''. \<Sum>(?B f) * f)" by (rule sum.distrib)
+    also from \<open>finite F''\<close> \<open>F' \<subseteq> F''\<close> have "(\<Sum>f\<in>F''. \<Sum>(?A f) * f) = (\<Sum>f\<in>F'. q f * f)"
+    proof (intro sum.mono_neutral_cong_right ballI)
+      fix f
+      assume "f \<in> F'' - F'"
+      thus "\<Sum>(?A f) * f = 0" by (simp add: F'_def)
+    next
+      fix f
+      assume "f \<in> F'"
+      thus "\<Sum>(?A f) * f = q f * f" by (simp add: q_def)
+    qed
+    finally have p[symmetric]: "p = (\<Sum>f\<in>F'. q f * f) + (\<Sum>f\<in>F''. \<Sum>(?B f) * f)" .
+    moreover have "keys (\<Sum>f\<in>F''. \<Sum>(?B f) * f) = {}"
+    proof (rule, rule)
+      fix t
+      assume t_in: "t \<in> keys (\<Sum>f\<in>F''. \<Sum>(?B f) * f)"
+      also have "\<dots> \<subseteq> (\<Union>f\<in>F''. keys (\<Sum>(?B f) * f))" by (fact punit.keys_sum_subset)
+      finally obtain f where "f \<in> F''" and "t \<in> keys (\<Sum>(?B f) * f)" ..
+      from this(2) obtain s1 s2 where "s1 \<in> keys (\<Sum>(?B f))" and "s2 \<in> keys f" and t: "t = s1 + s2"
+        by (rule in_keys_timesE)
+      from \<open>f \<in> F''\<close> \<open>F'' \<subseteq> F\<close> have "f \<in> F" ..
+      hence "homogeneous f" by (rule assms(1))
+      note \<open>s1 \<in> keys (\<Sum>(?B f))\<close>
+      also have "keys (\<Sum>(?B f)) \<subseteq> (\<Union>h\<in>?B f. keys h)" by (fact punit.keys_sum_subset)
+      finally obtain h where "h \<in> ?B f" and "s1 \<in> keys h" ..
+      from this(1) have "h \<in> hom_components (q' f)" and neq: "poly_deg h + poly_deg f \<noteq> poly_deg p"
+        by simp_all
+      from this(1) have "homogeneous h" by (rule hom_components_homogeneous)
+      hence "deg_pm s1 = poly_deg h" using \<open>s1 \<in> keys h\<close> by (rule homogeneousD_poly_deg)
+      moreover from \<open>homogeneous f\<close> \<open>s2 \<in> keys f\<close> have "deg_pm s2 = poly_deg f"
+        by (rule homogeneousD_poly_deg)
+      ultimately have "deg_pm t \<noteq> poly_deg p" using neq by (simp add: t deg_pm_plus)
+      have "t \<notin> keys (\<Sum>f\<in>F'. q f * f)"
+      proof
+        assume "t \<in> keys (\<Sum>f\<in>F'. q f * f)"
+        also have "\<dots> \<subseteq> (\<Union>f\<in>F'. keys (q f * f))" by (fact punit.keys_sum_subset)
+        finally obtain f where "f \<in> F'" and "t \<in> keys (q f * f)" ..
+        hence "deg_pm t = poly_deg p" by (rule 2)
+        with \<open>deg_pm t \<noteq> poly_deg p\<close> show False ..
+      qed
+      with t_in have "t \<in> keys ((\<Sum>f\<in>F'. q f * f) + (\<Sum>f\<in>F''. \<Sum>(?B f) * f))"
+        by (rule in_keys_plusI2)
+      hence "t \<in> keys p" by (simp only: p)
+      with assms(3) have "deg_pm t = poly_deg p" by (rule homogeneousD_poly_deg)
+      with \<open>deg_pm t \<noteq> poly_deg p\<close> show "t \<in> {}" ..
+    qed (fact empty_subsetI)
+    ultimately show "p = (\<Sum>f\<in>F'. q f * f)" by simp
+  next
+    fix f
+    show "homogeneous (q f)"
+    proof (cases "f \<in> F'")
+      case True
+      show ?thesis
+      proof (rule homogeneousI)
+        fix s t
+        assume "s \<in> keys (q f)"
+        with True have *: "deg_pm s + poly_deg f = poly_deg p" by (rule 1)
+        assume "t \<in> keys (q f)"
+        with True have "deg_pm t + poly_deg f = poly_deg p" by (rule 1)
+        with * show "deg_pm s = deg_pm t" by simp
+      qed
+    next
+      case False
+      thus ?thesis by (simp add: q_def)
+    qed
+
+    assume "f \<in> F'"
+    show "poly_deg (q f * f) = poly_deg p"
+    proof (intro antisym)
+      show "poly_deg (q f * f) \<le> poly_deg p"
+      proof (rule poly_deg_leI)
+        fix t
+        assume "t \<in> keys (q f * f)"
+        with \<open>f \<in> F'\<close> have "deg_pm t = poly_deg p" by (rule 2)
+        thus "deg_pm t \<le> poly_deg p" by simp
+      qed
+    next
+      from \<open>f \<in> F'\<close> have "q f * f \<noteq> 0" by (simp add: q_def F'_def)
+      hence "keys (q f * f) \<noteq> {}" by simp
+      then obtain t where "t \<in> keys (q f * f)" by blast
+      with \<open>f \<in> F'\<close> have "deg_pm t = poly_deg p" by (rule 2)
+      moreover from \<open>t \<in> keys (q f * f)\<close> have "deg_pm t \<le> poly_deg (q f * f)" by (rule poly_deg_max_keys)
+      ultimately show "poly_deg p \<le> poly_deg (q f * f)" by simp
+    qed
+  qed (simp add: q_def)
+qed
+
+corollary homogeneous_idealE:
+  assumes "\<And>f. f \<in> F \<Longrightarrow> homogeneous f" and "p \<in> ideal F"
+  obtains F' q where "finite F'" and "F' \<subseteq> F" and "p = (\<Sum>f\<in>F'. q f * f)"
+    and "\<And>f. poly_deg (q f * f) \<le> poly_deg p" and "\<And>f. f \<notin> F' \<Longrightarrow> q f = 0"
+proof (cases "p = 0")
+  case True
+  show ?thesis
+  proof
+    show "p = (\<Sum>f\<in>{}. (\<lambda>_. 0) f * f)" by (simp add: True)
+  qed simp_all
+next
+  case False
+  define P where "P = (\<lambda>h qf. finite (fst qf) \<and> fst qf \<subseteq> F \<and> h = (\<Sum>f\<in>fst qf. snd qf f * f) \<and>
+                  (\<forall>f\<in>fst qf. poly_deg (snd qf f * f) = poly_deg h) \<and> (\<forall>f. f \<notin> fst qf \<longrightarrow> snd qf f = 0))"
+  define q0 where "q0 = (\<lambda>h. SOME qf. P h qf)"
+  have 1: "P h (q0 h)" if "h \<in> hom_components p" for h
+  proof -
+    note assms(1)
+    moreover from assms that have "h \<in> ideal F" by (rule homogeneous_ideal')
+    moreover from that have "homogeneous h" by (rule hom_components_homogeneous)
+    ultimately obtain F' q where "finite F'" and "F' \<subseteq> F" and "h = (\<Sum>f\<in>F'. q f * f)"
+      and "\<And>f. f \<in> F' \<Longrightarrow> poly_deg (q f * f) = poly_deg h" and "\<And>f. f \<notin> F' \<Longrightarrow> q f = 0"
+      by (rule homogeneous_idealE_homogeneous) blast+
+    hence "P h (F', q)" by (simp add: P_def)
+    thus ?thesis unfolding q0_def by (rule someI)
+  qed
+  define F' where "F' = (\<Union>h\<in>hom_components p. fst (q0 h))"
+  define q where "q = (\<lambda>f. \<Sum>h\<in>hom_components p. snd (q0 h) f)"
+  show ?thesis
+  proof
+    have "finite F' \<and> F' \<subseteq> F" unfolding F'_def UN_subset_iff finite_UN[OF finite_hom_components]
+    proof (intro conjI ballI)
+      fix h
+      assume "h \<in> hom_components p"
+      hence "P h (q0 h)" by (rule 1)
+      thus "finite (fst (q0 h))" and "fst (q0 h) \<subseteq> F" by (simp_all only: P_def)
+    qed
+    thus "finite F'" and "F' \<subseteq> F" by simp_all
+
+    from sum_hom_components have "p = (\<Sum>(hom_components p))" by (rule sym)
+    also from refl have "\<dots> = (\<Sum>h\<in>hom_components p. \<Sum>f\<in>F'. snd (q0 h) f * f)"
+    proof (rule sum.cong)
+      fix h
+      assume "h \<in> hom_components p"
+      hence "P h (q0 h)" by (rule 1)
+      hence "h = (\<Sum>f\<in>fst (q0 h). snd (q0 h) f * f)" and 2: "\<And>f. f \<notin> fst (q0 h) \<Longrightarrow> snd (q0 h) f = 0"
+        by (simp_all add: P_def)
+      note this(1)
+      also from \<open>finite F'\<close> have "(\<Sum>f\<in>fst (q0 h). (snd (q0 h)) f * f) = (\<Sum>f\<in>F'. snd (q0 h) f * f)"
+      proof (intro sum.mono_neutral_left ballI)
+        show "fst (q0 h) \<subseteq> F'" unfolding F'_def using \<open>h \<in> hom_components p\<close> by blast
+      next
+        fix f
+        assume "f \<in> F' - fst (q0 h)"
+        hence "f \<notin> fst (q0 h)" by simp
+        hence "snd (q0 h) f = 0" by (rule 2)
+        thus "snd (q0 h) f * f = 0" by simp
+      qed
+      finally show "h = (\<Sum>f\<in>F'. snd (q0 h) f * f)" .
+    qed
+    also have "\<dots> = (\<Sum>f\<in>F'. \<Sum>h\<in>hom_components p. snd (q0 h) f * f)" by (rule sum.swap)
+    also have "\<dots> = (\<Sum>f\<in>F'. q f * f)" by (simp only: q_def sum_distrib_right)
+    finally show "p = (\<Sum>f\<in>F'. q f * f)" .
+
+    fix f
+    have "poly_deg (q f * f) = poly_deg (\<Sum>h\<in>hom_components p. snd (q0 h) f * f)"
+      by (simp only: q_def sum_distrib_right)
+    also have "\<dots> \<le> Max (poly_deg ` (\<lambda>h. snd (q0 h) f * f) ` hom_components p)"
+      by (rule poly_deg_sum_le)
+    also have "\<dots> = Max ((\<lambda>h. poly_deg (snd (q0 h) f * f)) ` hom_components p)"
+      (is "_ = Max (?f ` _)") by (simp only: image_image)
+    also have "\<dots> \<le> poly_deg p"
+    proof (rule Max.boundedI)
+      from finite_hom_components show "finite (?f ` hom_components p)" by (rule finite_imageI)
+    next
+      from False show "?f ` hom_components p \<noteq> {}" by simp
+    next
+      fix d
+      assume "d \<in> ?f ` hom_components p"
+      then obtain h where "h \<in> hom_components p" and d: "d = ?f h" ..
+      from this(1) have "P h (q0 h)" by (rule 1)
+      hence 2: "\<And>f. f \<in> fst (q0 h) \<Longrightarrow> poly_deg (snd (q0 h) f * f) = poly_deg h"
+        and 3: "\<And>f. f \<notin> fst (q0 h) \<Longrightarrow> snd (q0 h) f = 0" by (simp_all add: P_def)
+      show "d \<le> poly_deg p"
+      proof (cases "f \<in> fst (q0 h)")
+        case True
+        hence "poly_deg (snd (q0 h) f * f) = poly_deg h" by (rule 2)
+        hence "d = poly_deg h" by (simp only: d)
+        also from \<open>h \<in> hom_components p\<close> have "\<dots> \<le> poly_deg p" by (rule poly_deg_hom_components_le)
+        finally show ?thesis .
+      next
+        case False
+        hence "snd (q0 h) f = 0" by (rule 3)
+        thus ?thesis by (simp add: d)
+      qed
+    qed
+    finally show "poly_deg (q f * f) \<le> poly_deg p" .
+
+    assume "f \<notin> F'"
+    show "q f = 0" unfolding q_def
+    proof (intro sum.neutral ballI)
+      fix h
+      assume "h \<in> hom_components p"
+      hence "P h (q0 h)" by (rule 1)
+      hence 2: "\<And>f. f \<notin> fst (q0 h) \<Longrightarrow> snd (q0 h) f = 0" by (simp add: P_def)
+      show "snd (q0 h) f = 0"
+      proof (intro 2 notI)
+        assume "f \<in> fst (q0 h)"
+        hence "f \<in> F'" unfolding F'_def using \<open>h \<in> hom_components p\<close> by blast
+        with \<open>f \<notin> F'\<close> show False ..
+      qed
+    qed
+  qed
+qed
+
+corollary homogeneous_idealE_finite:
+  assumes "finite F" and "\<And>f. f \<in> F \<Longrightarrow> homogeneous f" and "p \<in> ideal F"
+  obtains q where "p = (\<Sum>f\<in>F. q f * f)" and "\<And>f. poly_deg (q f * f) \<le> poly_deg p"
+    and "\<And>f. f \<notin> F \<Longrightarrow> q f = 0"
+proof -
+  from assms(2, 3) obtain F' q where "F' \<subseteq> F" and p: "p = (\<Sum>f\<in>F'. q f * f)"
+    and "\<And>f. poly_deg (q f * f) \<le> poly_deg p" and 1: "\<And>f. f \<notin> F' \<Longrightarrow> q f = 0"
+    by (rule homogeneous_idealE) blast+
+  show ?thesis
+  proof
+    from assms(1) \<open>F' \<subseteq> F\<close> have "(\<Sum>f\<in>F'. q f * f) = (\<Sum>f\<in>F. q f * f)"
+    proof (intro sum.mono_neutral_left ballI)
+      fix f
+      assume "f \<in> F - F'"
+      hence "f \<notin> F'" by simp
+      hence "q f = 0" by (rule 1)
+      thus "q f * f = 0" by simp
+    qed
+    thus "p = (\<Sum>f\<in>F. q f * f)" by (simp only: p)
+  next
+    fix f
+    show "poly_deg (q f * f) \<le> poly_deg p" by fact
+
+    assume "f \<notin> F"
+    with \<open>F' \<subseteq> F\<close> have "f \<notin> F'" by blast
+    thus "q f = 0" by (rule 1)
+  qed
+qed
+
 subsubsection \<open>Homogenization and Dehomogenization\<close>
 
 definition homogenize :: "'x \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::semiring_1)"
@@ -1986,6 +2273,9 @@ proof
   qed
 qed
 
+lemma homogenize_in_Polys: "p \<in> P[X] \<Longrightarrow> homogenize x p \<in> P[insert x X]"
+  using indets_homogenize_subset[of x p] by (auto simp: Polys_alt)
+
 lemma lookup_homogenize:
   assumes "x \<notin> indets p" and "x \<notin> keys t"
   shows "lookup (homogenize x p) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t) = lookup p t"
@@ -2079,6 +2369,28 @@ next
   hence "t \<in> keys (homogenize x p)" by (simp add: 1)
   hence "poly_deg p \<le> poly_deg (homogenize x p)" unfolding 1 by (rule poly_deg_max_keys)
   with poly_deg_homogenize_le show ?thesis by (rule antisym)
+qed
+
+lemma maxdeg_homogenize:
+  assumes "x \<notin> UNION F indets"
+  shows "maxdeg (homogenize x ` F) = maxdeg F"
+  unfolding maxdeg_def image_image
+proof (rule arg_cong[where f=Max], rule set_eqI)
+  fix d
+  show "d \<in> (\<lambda>f. poly_deg (homogenize x f)) ` F \<longleftrightarrow> d \<in> poly_deg ` F"
+  proof
+    assume "d \<in> (\<lambda>f. poly_deg (homogenize x f)) ` F"
+    then obtain f where "f \<in> F" and d: "d = poly_deg (homogenize x f)" ..
+    from assms this(1) have "x \<notin> indets f" by blast
+    hence "d = poly_deg f" by (simp add: d poly_deg_homogenize)
+    with \<open>f \<in> F\<close> show "d \<in> poly_deg ` F" by (rule rev_image_eqI)
+  next
+    assume "d \<in> poly_deg ` F"
+    then obtain f where "f \<in> F" and d: "d = poly_deg f" ..
+    from assms this(1) have "x \<notin> indets f" by blast
+    hence "d = poly_deg (homogenize x f)" by (simp add: d poly_deg_homogenize)
+    with \<open>f \<in> F\<close> show "d \<in> (\<lambda>f. poly_deg (homogenize x f)) ` F" by (rule rev_image_eqI)
+  qed
 qed
 
 lemma homogeneous_ideal_homogenize:
