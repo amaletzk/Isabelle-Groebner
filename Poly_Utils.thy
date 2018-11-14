@@ -9,6 +9,44 @@ text \<open>Some further general properties of (ordered) multivariate polynomial
   
 section \<open>Further Properties of Multivariate Polynomials\<close>
 
+subsection \<open>@{const except}\<close>
+
+lemma except_Diff_singleton: "except p (keys p - {t}) = monomial (lookup p t) t"
+  by (smt Diff_empty Diff_insert Diff_insert0 Diff_insert_absorb except_keys in_keys_iff keys_except
+      keys_single lookup_except_eq_idI lookup_single_eq lookup_single_not_eq mk_disjoint_insert poly_mapping_keys_eqI)
+
+lemma except_Un_plus_Int: "except p (U \<union> V) + except p (U \<inter> V) = except p U + except p V"
+  by (rule poly_mapping_eqI) (simp add: lookup_except lookup_add)
+
+corollary except_Int:
+  assumes "keys p \<subseteq> U \<union> V"
+  shows "except p (U \<inter> V) = except p U + except p V"
+proof -
+  from assms have "except p (U \<union> V) = 0" by (rule except_eq_zeroI)
+  hence "except p (U \<inter> V) = except p (U \<union> V) + except p (U \<inter> V)" by simp
+  also have "\<dots> = except p U + except p V" by (fact except_Un_plus_Int)
+  finally show ?thesis .
+qed
+
+lemma except_keys_Int [simp]: "except p (keys p \<inter> U) = except p U"
+  by (rule poly_mapping_eqI) (simp add: lookup_except)
+
+lemma except_Int_keys [simp]: "except p (U \<inter> keys p) = except p U"
+  by (simp only: Int_commute[of U] except_keys_Int)
+
+lemma except_keys_Diff: "except p (keys p - U) = except p (- U)"
+proof -
+  have "except p (keys p - U) = except p (keys p \<inter> (- U))" by (simp only: Diff_eq)
+  also have "\<dots> = except p (- U)" by simp
+  finally show ?thesis .
+qed
+
+lemma except_decomp: "p = except p U + except p (- U)"
+  by (rule poly_mapping_eqI) (simp add: lookup_except lookup_add)
+
+corollary except_Compl: "except p (- U) = p - except p U"
+  by (metis add_minus_2 except_decomp)
+
 subsection \<open>Multiplication\<close>
 
 lemma (in term_powerprod) lookup_mult_scalar_explicit:
