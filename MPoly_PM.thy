@@ -1,7 +1,7 @@
 section \<open>Multivariate Polynomials with Power-Products Represented by Polynomial Mappings\<close>
 
 theory MPoly_PM
-  imports Signature_Groebner.Quasi_PM_Power_Products
+  imports Signature_Groebner.Quasi_PM_Power_Products Poly_Utils
 begin
 
 text \<open>Many notions introduced in this theory for type @{typ "('x \<Rightarrow>\<^sub>0 'a) \<Rightarrow>\<^sub>0 'b"} closely resemble
@@ -315,6 +315,9 @@ proof (rule poly_deg_leI)
   moreover from \<open>v \<in> keys q\<close> have "deg_pm v \<le> poly_deg q" by (rule poly_deg_max_keys)
   ultimately show "deg_pm t \<le> poly_deg p + poly_deg q" by (simp add: \<open>t = u + v\<close> deg_pm_plus add_mono)
 qed
+
+text \<open>Lemma @{prop "poly_deg (p * q) = poly_deg p + poly_deg q"} is proved in locale \<open>pm_powerprod\<close>,
+  because we must ensure there are no zero-divisors.\<close>
 
 corollary poly_deg_monom_mult_le:
   "poly_deg (punit.monom_mult c (t::_ \<Rightarrow>\<^sub>0 'a::add_linorder_min) p) \<le> deg_pm t + poly_deg p"
@@ -889,7 +892,7 @@ lemma deg_le_sect_mono_1: "X \<subseteq> Y \<Longrightarrow> deg_le_sect X d \<s
 lemma deg_le_sect_mono_2: "d1 \<le> d2 \<Longrightarrow> deg_le_sect X d1 \<subseteq> deg_le_sect X d2"
   by (auto simp: deg_le_sect_alt)
 
-lemma zero_in_deg_set: "0 \<in> deg_le_sect n d"
+lemma zero_in_deg_le_sect: "0 \<in> deg_le_sect n d"
   by (simp add: deg_le_sect_alt zero_in_PPs)
 
 lemma deg_sect_disjoint: "d1 \<noteq> d2 \<Longrightarrow> deg_sect X d1 \<inter> deg_sect Y d2 = {}"
@@ -2930,6 +2933,83 @@ locale pm_powerprod =
 begin
 
 sublocale gd_powerprod ..
+
+text \<open>The following lemma could be proved more generally if one can ensure there are no zero-divisors.\<close>
+
+lemma poly_deg_times:
+  assumes "p \<noteq> 0" and "q \<noteq> (0::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::semiring_no_zero_divisors)"
+  shows "poly_deg (p * q) = poly_deg p + poly_deg q"
+  using poly_deg_times_le
+proof (rule antisym)
+  let ?A = "\<lambda>f. {u. deg_pm u < poly_deg f}"
+  define p1 where "p1 = except p (?A p)"
+  define p2 where "p2 = except p (- ?A p)"
+  define q1 where "q1 = except q (?A q)"
+  define q2 where "q2 = except q (- ?A q)"
+  have deg_p1: "deg_pm t = poly_deg p" if "t \<in> keys p1" for t
+  proof -
+    from that have "t \<in> keys p" and "poly_deg p \<le> deg_pm t" by (simp_all add: p1_def keys_except)
+    from this(1) have "deg_pm t \<le> poly_deg p" by (rule poly_deg_max_keys)
+    thus ?thesis using \<open>poly_deg p \<le> deg_pm t\<close> by (rule antisym)
+  qed
+  have deg_p2: "t \<in> keys p2 \<Longrightarrow> deg_pm t < poly_deg p" for t by (simp add: p2_def keys_except)
+  have deg_q1: "deg_pm t = poly_deg q" if "t \<in> keys q1" for t
+  proof -
+    from that have "t \<in> keys q" and "poly_deg q \<le> deg_pm t" by (simp_all add: q1_def keys_except)
+    from this(1) have "deg_pm t \<le> poly_deg q" by (rule poly_deg_max_keys)
+    thus ?thesis using \<open>poly_deg q \<le> deg_pm t\<close> by (rule antisym)
+  qed
+  have deg_q2: "t \<in> keys q2 \<Longrightarrow> deg_pm t < poly_deg q" for t by (simp add: q2_def keys_except)
+  have p: "p = p1 + p2" unfolding p1_def p2_def by (fact except_decomp)
+  have "p1 \<noteq> 0"
+  proof -
+    from assms(1) obtain t where "t \<in> keys p" and "poly_deg p = deg_pm t" by (rule poly_degE)
+    hence "t \<in> keys p1" by (simp add: p1_def keys_except)
+    thus ?thesis by auto
+  qed
+  have q: "q = q1 + q2" unfolding q1_def q2_def by (fact except_decomp)
+  have "q1 \<noteq> 0"
+  proof -
+    from assms(2) obtain t where "t \<in> keys q" and "poly_deg q = deg_pm t" by (rule poly_degE)
+    hence "t \<in> keys q1" by (simp add: q1_def keys_except)
+    thus ?thesis by auto
+  qed
+  with \<open>p1 \<noteq> 0\<close> have "p1 * q1 \<noteq> 0" by (rule times_not_zero)
+  hence "keys (p1 * q1) \<noteq> {}" by simp
+  then obtain u where "u \<in> keys (p1 * q1)" by blast
+  then obtain s t where "s \<in> keys p1" and "t \<in> keys q1" and u: "u = s + t" by (rule in_keys_timesE)
+  from \<open>s \<in> keys p1\<close> have "deg_pm s = poly_deg p" by (rule deg_p1)
+  moreover from \<open>t \<in> keys q1\<close> have "deg_pm t = poly_deg q" by (rule deg_q1)
+  ultimately have eq: "poly_deg p + poly_deg q = deg_pm u" by (simp only: u deg_pm_plus)
+  also have "\<dots> \<le> poly_deg (p * q)"
+  proof (rule poly_deg_max_keys)
+    have "u \<notin> keys (p1 * q2 + p2 * q)"
+    proof
+      assume "u \<in> keys (p1 * q2 + p2 * q)"
+      also have "\<dots> \<subseteq> keys (p1 * q2) \<union> keys (p2 * q)" by (rule keys_add_subset)
+      finally have "deg_pm u < poly_deg p + poly_deg q"
+      proof
+        assume "u \<in> keys (p1 * q2)"
+        then obtain s' t' where "s' \<in> keys p1" and "t' \<in> keys q2" and u: "u = s' + t'"
+          by (rule in_keys_timesE)
+        from \<open>s' \<in> keys p1\<close> have "deg_pm s' = poly_deg p" by (rule deg_p1)
+        moreover from \<open>t' \<in> keys q2\<close> have "deg_pm t' < poly_deg q" by (rule deg_q2)
+        ultimately show ?thesis by (simp only: u deg_pm_plus)
+      next
+        assume "u \<in> keys (p2 * q)"
+        then obtain s' t' where "s' \<in> keys p2" and "t' \<in> keys q" and u: "u = s' + t'"
+          by (rule in_keys_timesE)
+        from \<open>s' \<in> keys p2\<close> have "deg_pm s' < poly_deg p" by (rule deg_p2)
+        moreover from \<open>t' \<in> keys q\<close> have "deg_pm t' \<le> poly_deg q" by (rule poly_deg_max_keys)
+        ultimately show ?thesis by (simp only: u deg_pm_plus)
+      qed
+      thus False by (simp only: eq)
+    qed
+    with \<open>u \<in> keys (p1 * q1)\<close> have "u \<in> keys (p1 * q1 + (p1 * q2 + p2 * q))" by (rule in_keys_plusI1)
+    thus "u \<in> keys (p * q)" by (simp only: p q algebra_simps)
+  qed
+  finally show "poly_deg p + poly_deg q \<le> poly_deg (p * q)" .
+qed
 
 definition is_hom_ord :: "'x \<Rightarrow> bool"
   where "is_hom_ord x \<longleftrightarrow> (\<forall>s t. deg_pm s = deg_pm t \<longrightarrow> (s \<preceq> t \<longleftrightarrow> except s {x} \<preceq> except t {x}))"
