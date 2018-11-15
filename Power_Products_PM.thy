@@ -284,6 +284,15 @@ lemma deg_is_nat: "is_nat_pm t \<Longrightarrow> is_nat (deg_pm t)"
 lemma deg_is_int: "is_int_pm t \<Longrightarrow> is_int (deg_pm t)"
   by (auto simp: deg_pm_superset[OF subset_refl finite_keys] intro: sum_is_int dest: is_int_pmD)
 
+lemma scalar_is_nat_pm: "is_nat c \<Longrightarrow> is_nat_pm t \<Longrightarrow> is_nat_pm (c \<cdot> t)"
+  unfolding is_nat_pm_def is_nat_fun_def using times_is_nat by auto
+
+lemma scalar_is_int_pm: "is_int c \<Longrightarrow> is_int_pm t \<Longrightarrow> is_int_pm (c \<cdot> t)"
+  unfolding is_int_pm_def is_int_fun_def using times_is_int by auto
+
+lemma of_nat_pm_scalar: "of_nat_pm (c \<cdot> t) = of_nat c \<cdot> of_nat_pm t"
+  by (rule poly_mapping_eqI) (simp add: lookup_of_nat_pm)
+
 subsubsection \<open>Composition\<close>
 
 lemma to_int_pm_comp_of_int_pm [simp]: "to_int_pm (of_int_pm t) = t"
@@ -334,143 +343,5 @@ proof -
   also from assms(3) have "\<dots> = t" by (simp only: of_int_pm_comp_to_int_pm)
   finally show ?thesis .
 qed
-
-subsection \<open>Module-structure of Polynomial Mappings\<close>
-
-lift_definition scalar_mult_pm :: "'b \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::mult_zero)" (infixr "\<cdot>" 71)
-  is "\<lambda>k f x. k * (f x)"
-  by (rule finite_mult_not_eq_zero_leftI)
-
-text \<open>If @{term t} is interpreted as a power-product, @{term "k \<cdot> t"} corresponds to exponentiation.\<close>
-
-lemmas lookup_scalar [simp] = scalar_mult_pm.rep_eq
-
-lemma scalar_zero_left [simp]: "0 \<cdot> t = 0"
-  by (rule poly_mapping_eqI) simp
-
-lemma scalar_zero_right [simp]: "k \<cdot> 0 = 0"
-  by (rule poly_mapping_eqI) simp
-
-lemma keys_scalar_subset: "keys (k \<cdot> t) \<subseteq> keys t"
-proof
-  fix x
-  assume "x \<in> keys (k \<cdot> t)"
-  hence "lookup (k \<cdot> t) x \<noteq> 0" by (simp del: lookup_scalar)
-  thus "x \<in> keys t" using mult_not_zero by force
-qed
-
-lemma keys_scalar: "keys ((k::'b::semiring_no_zero_divisors) \<cdot> t) = (if k = 0 then {} else keys t)"
-proof (split if_split, intro conjI impI)
-  assume "k = 0"
-  thus "keys (k \<cdot> t) = {}" by simp
-next
-  assume "k \<noteq> 0"
-  show "keys (k \<cdot> t) = keys t"
-  proof
-    show "keys t \<subseteq> keys (k \<cdot> t)" by rule (simp add: \<open>k \<noteq> 0\<close> flip: lookup_not_eq_zero_eq_in_keys)
-  qed (fact keys_scalar_subset)
-qed
-
-lemma scalar_single [simp]: "k \<cdot> Poly_Mapping.single x l = Poly_Mapping.single x (k * l)"
-  by (rule poly_mapping_eqI) (simp add: lookup_single when_distrib)
-
-lemma scalar_one_left [simp]: "(1::'b::{mult_zero,monoid_mult}) \<cdot> t = t"
-  by (rule poly_mapping_eqI) simp
-
-lemma scalar_assoc [ac_simps]: "c \<cdot> d \<cdot> t = (c * d) \<cdot> (t::_ \<Rightarrow>\<^sub>0 _::{semigroup_mult,zero})"
-  by (rule poly_mapping_eqI) (simp add: ac_simps)
-
-lemma scalar_distrib_left [algebra_simps]: "(k::'b::semiring_0) \<cdot> (s + t) = k \<cdot> s + k \<cdot> t"
-  by (rule poly_mapping_eqI) (simp add: lookup_add distrib_left)
-
-lemma scalar_distrib_right [algebra_simps]: "(k + (l::'b::semiring_0)) \<cdot> t = k \<cdot> t + l \<cdot> t"
-  by (rule poly_mapping_eqI) (simp add: lookup_add distrib_right)
-
-lemma scalar_Suc: "(Suc k) \<cdot> t = k \<cdot> t + t"
-  by (rule poly_mapping_eqI) (simp add: lookup_add distrib_right)
-
-lemma scalar_uminus_left: "(- k::'b::ring) \<cdot> p = - (k \<cdot> p)"
-  by (rule poly_mapping_eqI) auto
-
-lemma scalar_uminus_right: "(k::'b::ring) \<cdot> (- p) = - (k \<cdot> p)"
-  by (rule poly_mapping_eqI) auto
-
-lemma scalar_uminus_uminus [simp]: "(- k::'b::ring) \<cdot> (- p) = k \<cdot> p"
-  by (simp add: scalar_uminus_left scalar_uminus_right)
-
-lemma scalar_minus_distrib_left [algebra_simps]: "(k::'b::comm_semiring_1_cancel) \<cdot> (p - q) = k \<cdot> p - k \<cdot> q"
-  by (rule poly_mapping_eqI) (auto simp add: lookup_minus right_diff_distrib')
-
-lemma scalar_minus_distrib_right [algebra_simps]: "(k - (l::'b::comm_semiring_1_cancel)) \<cdot> f = k \<cdot> f - l \<cdot> f"
-  by (rule poly_mapping_eqI) (auto simp add: lookup_minus left_diff_distrib')
-
-lemma deg_pm_scalar: "deg_pm (k \<cdot> t) = (k::'b::semiring_0) * deg_pm t"
-proof -
-  from keys_scalar_subset finite_keys have "deg_pm (k \<cdot> t) = sum (lookup (k \<cdot> t)) (keys t)"
-    by (rule deg_pm_superset)
-  also have "\<dots> = k * sum (lookup t) (keys t)" by (simp add: sum_distrib_left)
-  also from subset_refl finite_keys have "sum (lookup t) (keys t) = deg_pm t"
-    by (rule deg_pm_superset[symmetric])
-  finally show ?thesis .
-qed
-
-lemma adds_group [simp]: "s adds (t::'a \<Rightarrow>\<^sub>0 'b::ab_group_add)"
-proof (rule addsI)
-  show "t = s + (t - s)" by simp
-qed
-
-lemmas deg_pm_minus_group = deg_pm_minus[OF adds_group]
-
-lemma scalar_is_nat_pm: "is_nat c \<Longrightarrow> is_nat_pm t \<Longrightarrow> is_nat_pm (c \<cdot> t)"
-  unfolding is_nat_pm_def is_nat_fun_def using times_is_nat by auto
-
-lemma scalar_is_int_pm: "is_int c \<Longrightarrow> is_int_pm t \<Longrightarrow> is_int_pm (c \<cdot> t)"
-  unfolding is_int_pm_def is_int_fun_def using times_is_int by auto
-
-lemma of_nat_pm_scalar: "of_nat_pm (c \<cdot> t) = of_nat c \<cdot> of_nat_pm t"
-  by (rule poly_mapping_eqI) (simp add: lookup_of_nat_pm)
-
-lemma scalar_eq_monom_mult: "c \<cdot> p = punit.monom_mult c 0 p"
-  by (rule poly_mapping_eqI) (simp only: lookup_scalar punit.lookup_monom_mult_zero)
-
-lemma scalar_eq_times: "c \<cdot> p = monomial c 0 * (p::_::comm_powerprod \<Rightarrow>\<^sub>0 _)"
-  by (simp only: scalar_eq_monom_mult times_monomial_left)
-
-subsection \<open>@{const scalar_mult_pm} and @{const le_pm}\<close>
-
-lemma times_le_interval:
-  assumes "x \<le> y + a * z" and "x \<le> y + b * z" and "a \<le> c" and "c \<le> (b::'b::{linorder,ordered_ring})"
-  shows "x \<le> y + c * z"
-proof (cases "0 \<le> z")
-  case True
-  from assms(3) True have "y + a * z \<le> y + c * z" by (simp add: add_left_mono mult_right_mono)
-  with assms(1) show ?thesis by (rule order_trans)
-next
-  case False
-  hence "z \<le> 0" by simp
-  with assms(4) have "y + b * z \<le> y + c * z" by (simp add: add_left_mono mult_right_mono_neg)
-  with assms(2) show ?thesis by (rule order_trans)
-qed
-
-corollary times_le_interval':
-  "x \<le> a * z \<Longrightarrow> x \<le> b * z \<Longrightarrow> a \<le> c \<Longrightarrow> c \<le> (b::'b::{linorder,ordered_ring}) \<Longrightarrow> x \<le> c * z"
-  using times_le_interval[of x 0 a z b c] by simp
-
-lemma scalar_le_interval:
-  assumes "x \<unlhd> y + a \<cdot> z" and "x \<unlhd> y + b \<cdot> z" and "a \<le> c" and "c \<le> (b::'b::{linorder,ordered_ring})"
-  shows "x \<unlhd> y + c \<cdot> z"
-proof (rule le_pmI)
-  fix k
-  from assms(1) have "lookup x k \<le> lookup (y + a \<cdot> z) k" by (rule le_pmD)
-  hence *: "lookup x k \<le> lookup y k + a * lookup z k" by (simp add: lookup_add)
-  from assms(2) have "lookup x k \<le> lookup (y + b \<cdot> z) k" by (rule le_pmD)
-  hence "lookup x k \<le> lookup y k + b * lookup z k" by (simp add: lookup_add)
-  with * have "lookup x k \<le> lookup y k + c * lookup z k" using assms(3, 4) by (rule times_le_interval)
-  thus "lookup x k \<le> lookup (y + c \<cdot> z) k" by (simp add: lookup_add)
-qed
-
-corollary scalar_le_interval':
-  "x \<unlhd> a \<cdot> z \<Longrightarrow> x \<unlhd> b \<cdot> z \<Longrightarrow> a \<le> c \<Longrightarrow> c \<le> (b::'b::{linorder,ordered_ring}) \<Longrightarrow> x \<unlhd> c \<cdot> z"
-  using scalar_le_interval[of x 0 a z b c] by simp
 
 end (* theory *)
