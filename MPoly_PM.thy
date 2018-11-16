@@ -127,6 +127,9 @@ proof (rule poly_mapping_eqI)
   qed
 qed
 
+lemma deg_pm_sum: "deg_pm (sum t A) = (\<Sum>a\<in>A. deg_pm (t a))"
+  by (induct A rule: infinite_finite_induct) (auto simp: deg_pm_plus)
+
 lemma deg_pm_mono: "s adds t \<Longrightarrow> deg_pm s \<le> deg_pm (t::_ \<Rightarrow>\<^sub>0 _::add_linorder_min)"
   by (simp add: adds_pm deg_pm_mono_le)
 
@@ -583,6 +586,9 @@ lemma in_indetsE:
   assumes "x \<in> indets p"
   obtains t where "t \<in> keys p" and "x \<in> keys t"
   using assms by (auto simp add: indets_def)
+
+lemma keys_subset_indets: "t \<in> keys p \<Longrightarrow> keys t \<subseteq> indets p"
+  by (auto dest: in_indetsI)
 
 lemma indets_empty_imp_monomial:
   assumes "indets p = {}"
@@ -2647,37 +2653,23 @@ proof -
   finally show ?thesis .
 qed
 
-lemma dehomogenize_zero [simp]: "dehomogenize x 0 = 0"
-  by (simp add: dehomogenize_def)
-
-lemma dehomogenize_plus: "dehomogenize x (p + q) = dehomogenize x p + dehomogenize x q"
-  by (simp only: dehomogenize_def poly_subst_plus)
-
-lemma dehomogenize_uminus: "dehomogenize x (- p) = - dehomogenize x (p::_ \<Rightarrow>\<^sub>0 'a::comm_ring_1)"
-  by (simp only: dehomogenize_def poly_subst_uminus)
-
-lemma dehomogenize_minus:
-  "dehomogenize x (p - q) = dehomogenize x p - dehomogenize x (q::_ \<Rightarrow>\<^sub>0 'a::comm_ring_1)"
-  by (simp only: dehomogenize_def poly_subst_minus)
-
-lemma dehomogenize_monomial: "dehomogenize x (monomial c t) = monomial c (except t {x})"
-  by (simp add: dehomogenize_def poly_subst_monomial punit.monom_mult_monomial)
-
-corollary dehomogenize_one [simp]: "dehomogenize x 1 = 1"
-  by (simp add: dehomogenize_monomial flip: single_one)
-
-lemma dehomogenize_times: "dehomogenize x (p * q) = dehomogenize x p * dehomogenize x q"
-  by (simp only: dehomogenize_def poly_subst_times)
+lemma
+  shows dehomogenize_zero [simp]: "dehomogenize x 0 = 0"
+    and dehomogenize_one [simp]: "dehomogenize x 1 = 1"
+    and dehomogenize_monomial: "dehomogenize x (monomial c t) = monomial c (except t {x})"
+    and dehomogenize_plus: "dehomogenize x (p + q) = dehomogenize x p + dehomogenize x q"
+    and dehomogenize_uminus: "dehomogenize x (- r) = - dehomogenize x (r::_ \<Rightarrow>\<^sub>0 _::comm_ring_1)"
+    and dehomogenize_minus: "dehomogenize x (r - r') = dehomogenize x r - dehomogenize x r'"
+    and dehomogenize_times: "dehomogenize x (p * q) = dehomogenize x p * dehomogenize x q"
+    and dehomogenize_power: "dehomogenize x (p ^ n) = dehomogenize x p ^ n"
+    and dehomogenize_sum: "dehomogenize x (sum f A) = (\<Sum>a\<in>A. dehomogenize x (f a))"
+    and dehomogenize_prod: "dehomogenize x (prod f A) = (\<Prod>a\<in>A. dehomogenize x (f a))"
+  by (simp_all add: dehomogenize_def poly_subst_monomial poly_subst_plus poly_subst_uminus
+      poly_subst_minus poly_subst_times poly_subst_power poly_subst_sum poly_subst_prod punit.monom_mult_monomial)
 
 corollary dehomogenize_monom_mult:
   "dehomogenize x (punit.monom_mult c t p) = punit.monom_mult c (except t {x}) (dehomogenize x p)"
   by (simp only: times_monomial_left[symmetric] dehomogenize_times dehomogenize_monomial)
-
-lemma dehomogenize_power: "dehomogenize x (p ^ n) = (dehomogenize x p) ^ n"
-  by (induct n, simp_all add: dehomogenize_times)
-
-lemma dehomogenize_sum: "dehomogenize x (sum p A) = (\<Sum>a\<in>A. dehomogenize x (p a))"
-  by (simp only: dehomogenize_def poly_subst_sum)
 
 lemma poly_deg_dehomogenize_le: "poly_deg (dehomogenize x p) \<le> poly_deg p"
   unfolding dehomogenize_def dehomo_subst_def
@@ -2965,6 +2957,454 @@ proof -
       also have "\<dots> \<subseteq> ideal (dehomogenize x ` G)" by (rule dehomogenize_ideal_subset)
       finally show "f \<in> ideal (dehomogenize x ` G)" .
     qed
+  qed
+qed
+
+subsection \<open>Embedding Polynomial Rings in Larger Polynomial Rings (With One Additional Indeterminate)\<close>
+
+text \<open>We define a homomorphism for embedding a polynomial ring in a larger polynomial ring, and its
+  inverse. This is mainly needed for homogenizing wrt. a fresh indeterminate.\<close>
+
+definition extend_indets_subst :: "'x \<Rightarrow> ('x option \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::comm_semiring_1"
+  where "extend_indets_subst x = monomial 1 (Poly_Mapping.single (Some x) 1)"
+
+definition extend_indets :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<Rightarrow> ('x option \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::comm_semiring_1"
+  where "extend_indets = poly_subst extend_indets_subst"
+
+definition restrict_indets_subst :: "'x option \<Rightarrow> 'x \<Rightarrow>\<^sub>0 nat"
+  where "restrict_indets_subst x = (case x of Some y \<Rightarrow> Poly_Mapping.single y 1 | _ \<Rightarrow> 0)"
+
+definition restrict_indets :: "(('x option \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::comm_semiring_1"
+  where "restrict_indets = poly_subst (\<lambda>x. monomial 1 (restrict_indets_subst x))"
+
+definition restrict_indets_pp :: "('x option \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat)"
+  where "restrict_indets_pp t = (\<Sum>x\<in>keys t. lookup t x \<cdot> restrict_indets_subst x)"
+
+lemma lookup_extend_indets_subst_aux:
+  "lookup (\<Sum>y\<in>keys t. Poly_Mapping.single (Some y) (lookup t y)) = (\<lambda>x. case x of Some y \<Rightarrow> lookup t y | _ \<Rightarrow> 0)"
+proof -
+  have "(\<Sum>x\<in>keys t. lookup t x when x = y) = lookup t y" for y
+  proof (cases "y \<in> keys t")
+    case True
+    hence "(\<Sum>x\<in>keys t. lookup t x when x = y) = (\<Sum>x\<in>insert y (keys t). lookup t x when x = y)"
+      by (simp only: insert_absorb)
+    also have "\<dots> = lookup t y + (\<Sum>x\<in>keys t - {y}. lookup t x when x = y)"
+      by (simp add: sum.insert_remove)
+    also have "(\<Sum>x\<in>keys t - {y}. lookup t x when x = y) = 0"
+      by (auto simp: when_def intro: sum.neutral)
+    finally show ?thesis by simp
+  next
+    case False
+    hence "(\<Sum>x\<in>keys t. lookup t x when x = y) = 0" by (auto simp: when_def intro: sum.neutral)
+    with False show ?thesis by simp
+  qed
+  thus ?thesis by (auto simp: lookup_sum lookup_single split: option.split)
+qed
+
+lemma keys_extend_indets_subst_aux:
+  "keys (\<Sum>y\<in>keys t. Poly_Mapping.single (Some y) (lookup t y)) = Some ` keys t"
+  by (auto simp: lookup_extend_indets_subst_aux simp flip: lookup_not_eq_zero_eq_in_keys split: option.splits)
+
+lemma subst_pp_extend_indets_subst:
+  "subst_pp extend_indets_subst t = monomial 1 (\<Sum>y\<in>keys t. Poly_Mapping.single (Some y) (lookup t y))"
+proof -
+  have "subst_pp extend_indets_subst t =
+      monomial (\<Prod>y\<in>keys t. 1 ^ lookup t y) (\<Sum>y\<in>keys t. lookup t y \<cdot> Poly_Mapping.single (Some y) 1)"
+    by (rule subst_pp_by_monomials) (simp only: extend_indets_subst_def)
+  also have "\<dots> = monomial 1 (\<Sum>y\<in>keys t. Poly_Mapping.single (Some y) (lookup t y))"
+    by simp
+  finally show ?thesis .
+qed
+
+lemma keys_extend_indets:
+  "keys (extend_indets p) = (\<lambda>t. \<Sum>y\<in>keys t. Poly_Mapping.single (Some y) (lookup t y)) ` keys p"
+proof -
+  have "keys (extend_indets p) = (\<Union>t\<in>keys p. keys (punit.monom_mult (lookup p t) 0 (subst_pp extend_indets_subst t)))"
+    unfolding extend_indets_def poly_subst_def using finite_keys
+  proof (rule punit.keys_sum)
+    fix s t :: "'a \<Rightarrow>\<^sub>0 nat"
+    assume "s \<noteq> t"
+    then obtain x where "lookup s x \<noteq> lookup t x" by (meson poly_mapping_eqI)
+    have "(\<Sum>y\<in>keys t. monomial (lookup t y) (Some y)) \<noteq> (\<Sum>y\<in>keys s. monomial (lookup s y) (Some y))"
+      (is "?l \<noteq> ?r")
+    proof
+      assume "?l = ?r"
+      hence "lookup ?l (Some x) = lookup ?r (Some x)" by (simp only:)
+      hence "lookup s x = lookup t x" by (simp add: lookup_extend_indets_subst_aux)
+      with \<open>lookup s x \<noteq> lookup t x\<close> show False ..
+    qed
+    thus "keys (punit.monom_mult (lookup p s) 0 (subst_pp extend_indets_subst s)) \<inter>
+          keys (punit.monom_mult (lookup p t) 0 (subst_pp extend_indets_subst t)) =
+          {}"
+      by (simp add: subst_pp_extend_indets_subst punit.monom_mult_monomial)
+  qed
+  also have "\<dots> = (\<lambda>t. \<Sum>y\<in>keys t. monomial (lookup t y) (Some y)) ` keys p"
+    by (auto simp: subst_pp_extend_indets_subst punit.monom_mult_monomial split: if_split_asm)
+  finally show ?thesis .
+qed
+
+lemma indets_extend_indets: "indets (extend_indets p) = Some ` indets (p::_ \<Rightarrow>\<^sub>0 'a::comm_semiring_1)"
+proof (rule set_eqI)
+  fix x
+  show "x \<in> indets (extend_indets p) \<longleftrightarrow> x \<in> Some ` indets p"
+  proof
+    assume "x \<in> indets (extend_indets p)"
+    then obtain y where "y \<in> indets p" and "x \<in> indets (monomial (1::'a) (Poly_Mapping.single (Some y) 1))"
+      unfolding extend_indets_def extend_indets_subst_def by (rule in_indets_poly_substE)
+    from this(2) indets_monomial_single_subset have "x \<in> {Some y}" ..
+    hence "x = Some y" by simp
+    with \<open>y \<in> indets p\<close> show "x \<in> Some ` indets p" by (rule rev_image_eqI)
+  next
+    assume "x \<in> Some ` indets p"
+    then obtain y where "y \<in> indets p" and x: "x = Some y" ..
+    from this(1) obtain t where "t \<in> keys p" and "y \<in> keys t" by (rule in_indetsE)
+    from this(2) have "Some y \<in> keys (\<Sum>y\<in>keys t. Poly_Mapping.single (Some y) (lookup t y))"
+      unfolding keys_extend_indets_subst_aux by (rule imageI)
+    moreover have "(\<Sum>y\<in>keys t. Poly_Mapping.single (Some y) (lookup t y)) \<in> keys (extend_indets p)"
+      unfolding keys_extend_indets using \<open>t \<in> keys p\<close> by (rule imageI)
+    ultimately show "x \<in> indets (extend_indets p)" unfolding x by (rule in_indetsI)
+  qed
+qed
+
+lemma poly_deg_extend_indets [simp]: "poly_deg (extend_indets p) = poly_deg p"
+proof -
+  have eq: "deg_pm ((\<Sum>y\<in>keys t. Poly_Mapping.single (Some y) (lookup t y))) = deg_pm t"
+    for t::"'a \<Rightarrow>\<^sub>0 nat"
+  proof -
+    have "deg_pm ((\<Sum>y\<in>keys t. Poly_Mapping.single (Some y) (lookup t y))) = (\<Sum>y\<in>keys t. lookup t y)"
+      by (simp add: deg_pm_sum deg_pm_single)
+    also from subset_refl finite_keys have "\<dots> = deg_pm t" by (rule deg_pm_superset[symmetric])
+    finally show ?thesis .
+  qed
+  show ?thesis
+  proof (rule antisym)
+    show "poly_deg (extend_indets p) \<le> poly_deg p"
+    proof (rule poly_deg_leI)
+      fix t
+      assume "t \<in> keys (extend_indets p)"
+      then obtain s where "s \<in> keys p" and "t = (\<Sum>y\<in>keys s. Poly_Mapping.single (Some y) (lookup s y))"
+        unfolding keys_extend_indets ..
+      from this(2) have "deg_pm t = deg_pm s" by (simp only: eq)
+      also from \<open>s \<in> keys p\<close> have "\<dots> \<le> poly_deg p" by (rule poly_deg_max_keys)
+      finally show "deg_pm t \<le> poly_deg p" .
+    qed
+  next
+    show "poly_deg p \<le> poly_deg (extend_indets p)"
+    proof (rule poly_deg_leI)
+      fix t
+      assume "t \<in> keys p"
+      hence *: "(\<Sum>y\<in>keys t. Poly_Mapping.single (Some y) (lookup t y)) \<in> keys (extend_indets p)"
+        unfolding keys_extend_indets by (rule imageI)
+      have "deg_pm t = deg_pm (\<Sum>y\<in>keys t. Poly_Mapping.single (Some y) (lookup t y))"
+        by (simp only: eq)
+      also from * have "\<dots> \<le> poly_deg (extend_indets p)" by (rule poly_deg_max_keys)
+      finally show "deg_pm t \<le> poly_deg (extend_indets p)" .
+    qed
+  qed
+qed
+
+lemma
+  shows extend_indets_zero [simp]: "extend_indets 0 = 0"
+    and extend_indets_one [simp]: "extend_indets 1 = 1"
+    and extend_indets_monomial: "extend_indets (monomial c t) = punit.monom_mult c 0 (subst_pp extend_indets_subst t)"
+    and extend_indets_plus: "extend_indets (p + q) = extend_indets p + extend_indets q"
+    and extend_indets_uminus: "extend_indets (- r) = - extend_indets (r::_ \<Rightarrow>\<^sub>0 _::comm_ring_1)"
+    and extend_indets_minus: "extend_indets (r - r') = extend_indets r - extend_indets r'"
+    and extend_indets_times: "extend_indets (p * q) = extend_indets p * extend_indets q"
+    and extend_indets_power: "extend_indets (p ^ n) = extend_indets p ^ n"
+    and extend_indets_sum: "extend_indets (sum f A) = (\<Sum>a\<in>A. extend_indets (f a))"
+    and extend_indets_prod: "extend_indets (prod f A) = (\<Prod>a\<in>A. extend_indets (f a))"
+  by (simp_all add: extend_indets_def poly_subst_monomial poly_subst_plus poly_subst_uminus
+      poly_subst_minus poly_subst_times poly_subst_power poly_subst_sum poly_subst_prod)
+
+lemma extend_indets_zero_iff [simp]: "extend_indets p = 0 \<longleftrightarrow> p = 0"
+  by (simp add: keys_extend_indets flip: keys_eq_empty_iff)
+
+lemma lookup_restrict_indets_pp: "lookup (restrict_indets_pp t) = (\<lambda>x. lookup t (Some x))"
+proof -
+  let ?f = "\<lambda>z x. lookup t x * lookup (case x of None \<Rightarrow> 0 | Some y \<Rightarrow> Poly_Mapping.single y 1) z"
+  have "sum (?f z) (keys t) = lookup t (Some z)" for z
+  proof (cases "Some z \<in> keys t")
+    case True
+    hence "sum (?f z) (keys t) = sum (?f z) (insert (Some z) (keys t))"
+      by (simp only: insert_absorb)
+    also have "\<dots> = lookup t (Some z) + sum (?f z) (keys t - {Some z})"
+      by (simp add: sum.insert_remove)
+    also have "sum (?f z) (keys t - {Some z}) = 0"
+      by (auto simp: when_def lookup_single intro: sum.neutral split: option.splits)
+    finally show ?thesis by simp
+  next
+    case False
+    hence "sum (?f z) (keys t) = 0"
+      by (auto simp: when_def lookup_single intro: sum.neutral split: option.splits)
+    with False show ?thesis by simp
+  qed
+  thus ?thesis by (auto simp: restrict_indets_pp_def restrict_indets_subst_def lookup_sum)
+qed
+
+lemma keys_restrict_indets_pp: "keys (restrict_indets_pp t) = the ` (keys t - {None})"
+proof (rule set_eqI)
+  fix x
+  show "x \<in> keys (restrict_indets_pp t) \<longleftrightarrow> x \<in> the ` (keys t - {None})"
+  proof
+    assume "x \<in> keys (restrict_indets_pp t)"
+    hence "Some x \<in> keys t" by (simp add: lookup_restrict_indets_pp flip: lookup_not_eq_zero_eq_in_keys)
+    hence "Some x \<in> keys t - {None}" by blast
+    moreover have "x = the (Some x)" by simp
+    ultimately show "x \<in> the ` (keys t - {None})" by (rule rev_image_eqI)
+  next
+    assume "x \<in> the ` (keys t - {None})"
+    then obtain y where "y \<in> keys t - {None}" and "x = the y" ..
+    hence "Some x \<in> keys t" by auto
+    thus "x \<in> keys (restrict_indets_pp t)"
+      by (simp add: lookup_restrict_indets_pp flip: lookup_not_eq_zero_eq_in_keys)
+  qed
+qed
+
+lemma subst_pp_restrict_indets_subst:
+  "subst_pp (\<lambda>x. monomial 1 (restrict_indets_subst x)) t = monomial 1 (restrict_indets_pp t)"
+  by (simp add: subst_pp_def monomial_power_scalar restrict_indets_pp_def flip: punit.monomial_prod_sum)
+
+lemma restrict_indets_pp_zero [simp]: "restrict_indets_pp 0 = 0"
+  by (simp add: restrict_indets_pp_def)
+
+lemma restrict_indets_pp_plus: "restrict_indets_pp (s + t) = restrict_indets_pp s + restrict_indets_pp t"
+  by (rule poly_mapping_eqI) (simp add: lookup_add lookup_restrict_indets_pp)
+
+lemma restrict_indets_pp_except_None [simp]:
+  "restrict_indets_pp (except t {None}) = restrict_indets_pp t"
+  by (rule poly_mapping_eqI) (simp add: lookup_add lookup_restrict_indets_pp lookup_except)
+
+lemma deg_pm_restrict_indets_pp: "deg_pm (restrict_indets_pp t) + lookup t None = deg_pm t"
+proof -
+  have "deg_pm t = sum (lookup t) (insert None (keys t))" by (rule deg_pm_superset) auto
+  also from finite_keys have "\<dots> = lookup t None + sum (lookup t) (keys t - {None})"
+    by (rule sum.insert_remove)
+  also have "sum (lookup t) (keys t - {None}) = (\<Sum>x\<in>keys t. lookup t x * deg_pm (restrict_indets_subst x))"
+    by (intro sum.mono_neutral_cong_left) (auto simp: restrict_indets_subst_def deg_pm_single)
+  also have "\<dots> = deg_pm (restrict_indets_pp t)"
+    by (simp only: restrict_indets_pp_def deg_pm_sum deg_pm_scalar)
+  finally show ?thesis by simp
+qed
+
+lemma keys_restrict_indets_subset: "keys (restrict_indets p) \<subseteq> restrict_indets_pp ` keys p"
+proof
+  fix t
+  assume "t \<in> keys (restrict_indets p)"
+  also have "\<dots> = keys (\<Sum>t\<in>keys p. monomial (lookup p t) (restrict_indets_pp t))"
+    by (simp add: restrict_indets_def poly_subst_def subst_pp_restrict_indets_subst punit.monom_mult_monomial)
+  also have "\<dots> \<subseteq> (\<Union>t\<in>keys p. keys (monomial (lookup p t) (restrict_indets_pp t)))"
+    by (rule punit.keys_sum_subset)
+  also have "\<dots> = restrict_indets_pp ` keys p" by (auto split: if_split_asm)
+  finally show "t \<in> restrict_indets_pp ` keys p" .
+qed
+
+lemma keys_restrict_indets:
+  assumes "None \<notin> indets p"
+  shows "keys (restrict_indets p) = restrict_indets_pp ` keys p"
+proof -
+  have "keys (restrict_indets p) = keys (\<Sum>t\<in>keys p. monomial (lookup p t) (restrict_indets_pp t))"
+    by (simp add: restrict_indets_def poly_subst_def subst_pp_restrict_indets_subst punit.monom_mult_monomial)
+  also from finite_keys have "\<dots> = (\<Union>t\<in>keys p. keys (monomial (lookup p t) (restrict_indets_pp t)))"
+  proof (rule punit.keys_sum)
+    fix s t
+    assume "s \<in> keys p"
+    hence "keys s \<subseteq> indets p" by (rule keys_subset_indets)
+    with assms have "None \<notin> keys s" by blast
+    assume "t \<in> keys p"
+    hence "keys t \<subseteq> indets p" by (rule keys_subset_indets)
+    with assms have "None \<notin> keys t" by blast
+    assume "s \<noteq> t"
+    then obtain x where neq: "lookup s x \<noteq> lookup t x" by (meson poly_mapping_eqI)
+    have "x \<noteq> None"
+    proof
+      assume "x = None"
+      with \<open>None \<notin> keys s\<close> and \<open>None \<notin> keys t\<close> have "x \<notin> keys s" and "x \<notin> keys t" by blast+
+      with neq show False by simp
+    qed
+    then obtain y where x: "x = Some y" by blast
+    have "restrict_indets_pp t \<noteq> restrict_indets_pp s"
+    proof
+      assume "restrict_indets_pp t = restrict_indets_pp s"
+      hence "lookup (restrict_indets_pp t) y = lookup (restrict_indets_pp s) y" by (simp only:)
+      hence "lookup s x = lookup t x" by (simp add: x lookup_restrict_indets_pp)
+      with neq show False ..
+    qed
+    thus "keys (monomial (lookup p s) (restrict_indets_pp s)) \<inter>
+          keys (monomial (lookup p t) (restrict_indets_pp t)) = {}"
+      by (simp add: subst_pp_extend_indets_subst)
+  qed
+  also have "\<dots> = restrict_indets_pp ` keys p" by (auto split: if_split_asm)
+  finally show ?thesis .
+qed
+
+lemma indets_restrict_indets_subset: "indets (restrict_indets p) \<subseteq> the ` (indets p - {None})"
+proof
+  fix x
+  assume "x \<in> indets (restrict_indets p)"
+  then obtain t where "t \<in> keys (restrict_indets p)" and "x \<in> keys t" by (rule in_indetsE)
+  from this(1) keys_restrict_indets_subset have "t \<in> restrict_indets_pp ` keys p" ..
+  then obtain s where "s \<in> keys p" and "t = restrict_indets_pp s" ..
+  from \<open>x \<in> keys t\<close> this(2) have "x \<in> the ` (keys s - {None})" by (simp only: keys_restrict_indets_pp)
+  also from \<open>s \<in> keys p\<close> have "\<dots> \<subseteq> the ` (indets p - {None})"
+    by (intro image_mono Diff_mono keys_subset_indets subset_refl)
+  finally show "x \<in> the ` (indets p - {None})" .
+qed
+
+lemma poly_deg_restrict_indets_le: "poly_deg (restrict_indets p) \<le> poly_deg p"
+proof (rule poly_deg_leI)
+  fix t
+  assume "t \<in> keys (restrict_indets p)"
+  hence "t \<in> restrict_indets_pp ` keys p" using keys_restrict_indets_subset ..
+  then obtain s where "s \<in> keys p" and "t = restrict_indets_pp s" ..
+  from this(2) have "deg_pm t + lookup s None = deg_pm s"
+    by (simp only: deg_pm_restrict_indets_pp)
+  also from \<open>s \<in> keys p\<close> have "\<dots> \<le> poly_deg p" by (rule poly_deg_max_keys)
+  finally show "deg_pm t \<le> poly_deg p" by simp
+qed
+
+lemma
+  shows restrict_indets_zero [simp]: "restrict_indets 0 = 0"
+    and restrict_indets_one [simp]: "restrict_indets 1 = 1"
+    and restrict_indets_monomial: "restrict_indets (monomial c t) = monomial c (restrict_indets_pp t)"
+    and restrict_indets_plus: "restrict_indets (p + q) = restrict_indets p + restrict_indets q"
+    and restrict_indets_uminus: "restrict_indets (- r) = - restrict_indets (r::_ \<Rightarrow>\<^sub>0 _::comm_ring_1)"
+    and restrict_indets_minus: "restrict_indets (r - r') = restrict_indets r - restrict_indets r'"
+    and restrict_indets_times: "restrict_indets (p * q) = restrict_indets p * restrict_indets q"
+    and restrict_indets_power: "restrict_indets (p ^ n) = restrict_indets p ^ n"
+    and restrict_indets_sum: "restrict_indets (sum f A) = (\<Sum>a\<in>A. restrict_indets (f a))"
+    and restrict_indets_prod: "restrict_indets (prod f A) = (\<Prod>a\<in>A. restrict_indets (f a))"
+  by (simp_all add: restrict_indets_def poly_subst_monomial poly_subst_plus poly_subst_uminus
+      poly_subst_minus poly_subst_times poly_subst_power poly_subst_sum poly_subst_prod
+      subst_pp_restrict_indets_subst punit.monom_mult_monomial)
+
+lemma restrict_extend_indets [simp]: "restrict_indets (extend_indets p) = p"
+  unfolding extend_indets_def restrict_indets_def poly_subst_poly_subst
+  by (rule poly_subst_id)
+    (simp add: extend_indets_subst_def restrict_indets_subst_def poly_subst_monomial subst_pp_single)
+
+lemma extend_restrict_indets:
+  assumes "None \<notin> indets p"
+  shows "extend_indets (restrict_indets p) = p"
+  unfolding extend_indets_def restrict_indets_def poly_subst_poly_subst
+proof (rule poly_subst_id)
+  fix x
+  assume "x \<in> indets p"
+  with assms have "x \<noteq> None" by meson
+  then obtain y where x: "x = Some y" by blast
+  thus "poly_subst extend_indets_subst (monomial 1 (restrict_indets_subst x)) =
+         monomial 1 (Poly_Mapping.single x 1)"
+    by (simp add: extend_indets_subst_def restrict_indets_subst_def poly_subst_monomial subst_pp_single)
+qed
+
+lemma restrict_indets_dehomogenize [simp]: "restrict_indets (dehomogenize None p) = restrict_indets p"
+proof -
+  have eq: "poly_subst (\<lambda>x. (monomial 1 (restrict_indets_subst x))) (dehomo_subst None y) =
+            monomial 1 (restrict_indets_subst y)" for y::"'x option"
+    by (auto simp: restrict_indets_subst_def dehomo_subst_def poly_subst_monomial subst_pp_single)
+  show ?thesis by (simp only: dehomogenize_def restrict_indets_def poly_subst_poly_subst eq) 
+qed
+
+corollary restrict_indets_comp_dehomogenize: "restrict_indets \<circ> dehomogenize None = restrict_indets"
+  by (rule ext) (simp only: o_def restrict_indets_dehomogenize)
+
+corollary extend_restrict_indets_eq_dehomogenize:
+  "extend_indets (restrict_indets p) = dehomogenize None p"
+proof -
+  have "extend_indets (restrict_indets p) = extend_indets (restrict_indets (dehomogenize None p))"
+    by simp
+  also have "\<dots> = dehomogenize None p"
+  proof (intro extend_restrict_indets notI)
+    assume "None \<in> indets (dehomogenize None p)"
+    hence "None \<in> indets p - {None}" using indets_dehomogenize ..
+    thus False by simp
+  qed
+  finally show ?thesis .
+qed
+
+corollary extend_indets_comp_restrict_indets: "extend_indets \<circ> restrict_indets = dehomogenize None"
+  by (rule ext) (simp only: o_def extend_restrict_indets_eq_dehomogenize)
+
+lemma restrict_homogenize_extend_indets [simp]:
+  "restrict_indets (homogenize None (extend_indets p)) = p"
+proof -
+  have "restrict_indets (homogenize None (extend_indets p)) =
+          restrict_indets (dehomogenize None (homogenize None (extend_indets p)))"
+    by (simp only: restrict_indets_dehomogenize)
+  also have "\<dots> = restrict_indets (dehomogenize None (extend_indets p))"
+    by (simp only: dehomogenize_homogenize)
+  also have "\<dots> = p" by simp
+  finally show ?thesis .
+qed
+
+lemma extend_indets_ideal_subset: "extend_indets ` ideal F \<subseteq> ideal (extend_indets ` F)"
+proof
+  fix q
+  assume "q \<in> extend_indets ` ideal F"
+  then obtain p where "p \<in> ideal F" and q: "q = extend_indets p" ..
+  from this(1) show "q \<in> ideal (extend_indets ` F)" unfolding q
+  proof (induct p rule: ideal.module_induct)
+    case module_0
+    show ?case by (simp add: ideal.module_0)
+  next
+    case (module_plus a q p)
+    have "extend_indets (a + q * p) = extend_indets a + extend_indets q * extend_indets p"
+      by (simp only: extend_indets_plus extend_indets_times)
+    also from module_plus.hyps(2, 3) have "\<dots> \<in> ideal (extend_indets ` F)"
+      by (intro ideal.module_plus imageI)
+    finally show ?case .
+  qed
+qed
+
+lemma restrict_indets_ideal_subset: "restrict_indets ` ideal F \<subseteq> ideal (restrict_indets ` F)"
+proof
+  fix q
+  assume "q \<in> restrict_indets ` ideal F"
+  then obtain p where "p \<in> ideal F" and q: "q = restrict_indets p" ..
+  from this(1) show "q \<in> ideal (restrict_indets ` F)" unfolding q
+  proof (induct p rule: ideal.module_induct)
+    case module_0
+    show ?case by (simp add: ideal.module_0)
+  next
+    case (module_plus a q p)
+    have "restrict_indets (a + q * p) = restrict_indets a + restrict_indets q * restrict_indets p"
+      by (simp only: restrict_indets_plus restrict_indets_times)
+    also from module_plus.hyps(2, 3) have "\<dots> \<in> ideal (restrict_indets ` F)"
+      by (intro ideal.module_plus imageI)
+    finally show ?case .
+  qed
+qed
+
+lemma ideal_restrict_indets:
+  assumes "ideal G = ideal (homogenize None ` extend_indets ` F)" (is "_ = ideal ?F")
+  shows "ideal (restrict_indets ` G) = ideal F"
+proof (intro Set.equalityI ideal.module_subset_moduleI)
+  show "restrict_indets ` G \<subseteq> ideal F"
+  proof
+    fix q
+    assume "q \<in> restrict_indets ` G"
+    then obtain g where "g \<in> G" and q: "q = restrict_indets g" ..
+    from this(1) have "g \<in> ideal G" by (rule ideal.generator_in_module)
+    also have "\<dots> = ideal ?F" by fact
+    finally have "q \<in> restrict_indets ` ideal ?F" using q by (rule rev_image_eqI)
+    also have "\<dots> \<subseteq> ideal (restrict_indets ` ?F)" by (rule restrict_indets_ideal_subset)
+    also have "restrict_indets ` ?F = F"
+      by (auto simp: image_image simp del: dehomogenize_homogenize)
+    finally show "q \<in> ideal F" .
+  qed
+next
+  show "F \<subseteq> ideal (restrict_indets ` G)"
+  proof
+    fix f
+    assume "f \<in> F"
+    hence "homogenize None (extend_indets f) \<in> ?F" by (intro imageI)
+    also have "\<dots> \<subseteq> ideal ?F" by (rule ideal.generator_subset_module)
+    also from assms(1) have "\<dots> = ideal G" by (rule sym)
+    finally have "restrict_indets (homogenize None (extend_indets f)) \<in> restrict_indets ` ideal G"
+      by (rule imageI)
+    with \<open>f \<in> F\<close> have "f \<in> restrict_indets ` ideal G" by simp
+    also have "\<dots> \<subseteq> ideal (restrict_indets ` G)" by (rule restrict_indets_ideal_subset)
+    finally show "f \<in> ideal (restrict_indets ` G)" .
   qed
 qed
 
