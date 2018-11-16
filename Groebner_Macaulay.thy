@@ -250,12 +250,12 @@ lemma is_hom_GB_boundD:
   unfolding is_hom_GB_bound_def by blast
 
 lemma (in hom_ord_pm_powerprod) hom_GB_bound_is_GB_cofactor_bound:
-  assumes "finite X" and "F \<subseteq> P[X]" and "x \<notin> X" and "hom_ord.is_hom_GB_bound x (homogenize x ` F) b"
+  assumes "finite X" and "F \<subseteq> P[X]" and "extended_ord.is_hom_GB_bound (homogenize None ` extend_indets ` F) b"
   shows "is_GB_cofactor_bound F b"
 proof -
-  let ?F = "homogenize x ` F"
+  let ?F = "homogenize None ` extend_indets ` F"
   define Y where "Y = \<Union> (indets ` F)"
-  define G where "G = dehomogenize x ` (hom_ord.punit.reduced_GB x ?F)"
+  define G where "G = restrict_indets ` (extended_ord.punit.reduced_GB ?F)"
   have "Y \<subseteq> X"
   proof
     fix x
@@ -267,64 +267,58 @@ proof -
   qed
   hence "finite Y" using assms(1) by (rule finite_subset)
   moreover have "F \<subseteq> P[Y]" by (auto simp: Y_def Polys_alt)
-  moreover from \<open>Y \<subseteq> X\<close> assms(3) have "x \<notin> Y" by blast
   ultimately have "punit.is_Groebner_basis G" and "ideal G = ideal F" and "G \<subseteq> P[Y]"
-    unfolding G_def by (rule dehomogenize_reduced_GB)+
+    unfolding G_def by (rule restrict_indets_reduced_GB)+
   from this(1, 2) show ?thesis
   proof (rule is_GB_cofactor_boundI)
     from \<open>G \<subseteq> P[Y]\<close> show "\<Union> (indets ` G) \<subseteq> \<Union> (indets ` F)" by (auto simp: Y_def Polys_alt)
   next
     fix g
     assume "g \<in> G"
-    then obtain g' where g': "g' \<in> hom_ord.punit.reduced_GB x ?F"
-      and g: "g = dehomogenize x g'" unfolding G_def ..
+    then obtain g' where g': "g' \<in> extended_ord.punit.reduced_GB ?F"
+      and g: "g = restrict_indets g'" unfolding G_def ..
     have "f \<in> ?F \<Longrightarrow> homogeneous f" for f by (auto simp: homogeneous_homogenize)
-    with assms(4) have "poly_deg g' \<le> b" using g' by (rule hom_ord.is_hom_GB_boundD)
-    from g' have "g' \<in> ideal (hom_ord.punit.reduced_GB x ?F)"
+    with assms(3) have "poly_deg g' \<le> b" using g' by (rule extended_ord.is_hom_GB_boundD)
+    from g' have "g' \<in> ideal (extended_ord.punit.reduced_GB ?F)"
       by (rule ideal.generator_in_module)
     also have "\<dots> = ideal ?F"
-    proof (rule hom_ord.reduced_GB_ideal_Polys)
-      from \<open>finite Y\<close> show "finite (insert x Y)" by simp
+    proof (rule extended_ord.reduced_GB_ideal_Polys)
+      from \<open>finite Y\<close> show "finite (insert None (Some ` Y))" by simp
     next
-      show "?F \<subseteq> P[insert x Y]"
+      show "?F \<subseteq> P[insert None (Some ` Y)]"
       proof
         fix f0
         assume "f0 \<in> ?F"
-        then obtain f where "f \<in> F" and f0: "f0 = homogenize x f" ..
+        then obtain f where "f \<in> F" and f0: "f0 = homogenize None (extend_indets f)" by blast
         from this(1) \<open>F \<subseteq> P[Y]\<close> have "f \<in> P[Y]" ..
-        thus "f0 \<in> P[insert x Y]" unfolding f0 by (rule homogenize_in_Polys)
+        hence "extend_indets f \<in> P[Some ` Y]" by (auto simp: indets_extend_indets Polys_alt)
+        thus "f0 \<in> P[insert None (Some ` Y)]" unfolding f0 by (rule homogenize_in_Polys)
       qed
     qed
     finally have "g' \<in> ideal ?F" .
     with \<open>\<And>f. f \<in> ?F \<Longrightarrow> homogeneous f\<close> obtain F0 q where "finite F0" and "F0 \<subseteq> ?F"
       and g': "g' = (\<Sum>f\<in>F0. q f * f)" and deg_le: "\<And>f. poly_deg (q f * f) \<le> poly_deg g'"
       by (rule homogeneous_idealE) blast+
-    from this(2) obtain F' where "F' \<subseteq> F" and F0: "F0 = homogenize x ` F'"
-      and inj_on: "inj_on (homogenize x) F'" by (rule subset_imageE_inj)
-    have dehom: "dehomogenize x f = f" if "f \<in> F'" for f
-    proof -
-      from that \<open>F' \<subseteq> F\<close> have "f \<in> F" ..
-      hence "indets f \<subseteq> Y" unfolding Y_def by blast
-      with \<open>x \<notin> Y\<close> have "x \<notin> indets f" by blast
-      thus ?thesis by simp
-    qed
+    from this(2) obtain F' where "F' \<subseteq> F" and F0: "F0 = homogenize None ` extend_indets ` F'"
+      and inj_on: "inj_on (homogenize None \<circ> extend_indets) F'"
+      unfolding image_comp by (rule subset_imageE_inj)
     show "\<exists>F' q. finite F' \<and> F' \<subseteq> F \<and> g = (\<Sum>f\<in>F'. q f * f) \<and> (\<forall>f\<in>F'. poly_deg (q f * f) \<le> b)"
     proof (intro exI conjI ballI)
-      from inj_on \<open>finite F0\<close> show "finite F'" by (simp only: finite_image_iff F0)
+      from inj_on \<open>finite F0\<close> show "finite F'" by (simp only: finite_image_iff F0 image_comp)
     next
-      show "g = (\<Sum>f\<in>F'. (dehomogenize x \<circ> q \<circ> homogenize x) f * f)"
-        using inj_on by (simp add: g g' F0 dehomogenize_sum dehomogenize_times sum.reindex dehom)
+      from inj_on show "g = (\<Sum>f\<in>F'. (restrict_indets \<circ> q \<circ> homogenize None \<circ> extend_indets) f * f)"
+        by (simp add: g g' F0 restrict_indets_sum restrict_indets_times sum.reindex image_comp)
     next
       fix f
       assume "f \<in> F'"
-      hence "poly_deg ((dehomogenize x \<circ> q \<circ> homogenize x) f * f) =
-              poly_deg (dehomogenize x (q (homogenize x f) * homogenize x f))"
-        by (simp add: dehomogenize_times dehom)
-      also have "\<dots> \<le> poly_deg (q (homogenize x f) * homogenize x f)"
-        by (rule poly_deg_dehomogenize_le)
+      have "poly_deg ((restrict_indets \<circ> q \<circ> homogenize None \<circ> extend_indets) f * f) =
+              poly_deg (restrict_indets (q (homogenize None (extend_indets f)) * homogenize None (extend_indets f)))"
+        by (simp add: restrict_indets_times)
+      also have "\<dots> \<le> poly_deg (q (homogenize None (extend_indets f)) * homogenize None (extend_indets f))"
+        by (rule poly_deg_restrict_indets_le)
       also have "\<dots> \<le> poly_deg g'" by (rule deg_le)
       also have "\<dots> \<le> b" by fact
-      finally show "poly_deg ((dehomogenize x \<circ> q \<circ> homogenize x) f * f) \<le> b" .
+      finally show "poly_deg ((restrict_indets \<circ> q \<circ> homogenize None \<circ> extend_indets) f * f) \<le> b" .
     qed fact
   qed
 qed
@@ -491,39 +485,57 @@ end
 
 end (* pm_powerprod *)
 
-lemma (in hom_ord_pm_powerprod) Dube_cofactor_bound:
+context hom_ord_pm_powerprod
+begin
+
+lemma Dube_cofactor_bound:
   fixes F X
   defines "d \<equiv> rat_of_nat (maxdeg F)"
   defines "n \<equiv> card X"
-  assumes "finite X" and "X \<noteq> UNIV" and "finite F" and "F \<subseteq> P[X]"
+  assumes "finite X" and "finite F" and "F \<subseteq> P[X]"
   shows "is_GB_cofactor_bound F (nat \<lfloor>(2 * (d\<^sup>2 / 2 + d) ^ (2 ^ (n - 1)))\<rfloor>)"
 proof -
-  from assms(4) obtain x where "x \<notin> X" by blast
-  with assms(3, 6) show ?thesis
+  from assms(3, 5) show ?thesis
   proof (rule hom_GB_bound_is_GB_cofactor_bound)
-    let ?F = "homogenize x ` F"
-    let ?X = "insert x X"
+    let ?F = "homogenize None ` extend_indets ` F"
+    let ?X = "insert None (Some ` X)"
     let ?d = "rat_of_nat (maxdeg ?F)"
     from assms(3) have "finite ?X" by simp
-    moreover from assms(5) have "finite ?F" by (rule finite_imageI)
+    moreover from assms(4) have "finite ?F" by (intro finite_imageI)
     moreover have "?F \<subseteq> P[?X]"
     proof
       fix f'
       assume "f' \<in> ?F"
-      then obtain f where "f \<in> F" and f': "f' = homogenize x f" ..
-      from this(1) assms(6) have "f \<in> P[X]" ..
+      then obtain f where "f \<in> F" and f': "f' = homogenize None (extend_indets f)" by blast
+      from this(1) assms(5) have "f \<in> P[X]" ..
+      hence "extend_indets f \<in> P[Some ` X]" by (auto simp: Polys_alt indets_extend_indets)
       thus "f' \<in> P[?X]" unfolding f' by (rule homogenize_in_Polys)
     qed
-    ultimately have "hom_ord.is_hom_GB_bound x ?F (nat \<lfloor>2 * (?d\<^sup>2 / 2 + ?d) ^ 2 ^ (card ?X - 2)\<rfloor>)"
-      by (rule hom_ord.Dube_bound)
+    ultimately have "extended_ord.is_hom_GB_bound ?F (nat \<lfloor>2 * (?d\<^sup>2 / 2 + ?d) ^ 2 ^ (card ?X - 2)\<rfloor>)"
+      by (rule extended_ord.Dube_bound)
     moreover have "?d = d" unfolding d_def
-    proof (intro arg_cong[where f=rat_of_nat] maxdeg_homogenize notI)
-      assume "x \<in> \<Union> (indets ` F)"
-      with assms(6) \<open>x \<notin> X\<close> show False by (auto simp: Polys_alt)
+    proof (intro arg_cong[where f=rat_of_nat])
+      have "maxdeg (homogenize None ` extend_indets ` F) = maxdeg (extend_indets ` F)"
+        by (auto simp: indets_extend_indets intro: maxdeg_homogenize)
+      also have "\<dots> = maxdeg F" by (simp add: maxdeg_def image_image)
+      finally show "maxdeg (homogenize None ` extend_indets ` F) = maxdeg F" .
     qed
-    moreover from assms(3) \<open>x \<notin> X\<close> have "card ?X = n + 1" by (simp add: n_def)
-    ultimately show "hom_ord.is_hom_GB_bound x ?F (nat \<lfloor>2 * (d\<^sup>2 / 2 + d) ^ 2 ^ (n - 1)\<rfloor>)" by simp
+    moreover from assms(3) have "card ?X = n + 1" by (simp add: n_def card_image)
+    ultimately show "extended_ord.is_hom_GB_bound ?F (nat \<lfloor>2 * (d\<^sup>2 / 2 + d) ^ 2 ^ (n - 1)\<rfloor>)" by simp
   qed
 qed
+
+corollary Dube_cofactor_bound_indets:
+  assumes "finite F"
+  shows "is_GB_cofactor_bound F (nat \<lfloor>(2 * ((rat_of_nat (maxdeg F))\<^sup>2 / 2 + rat_of_nat (maxdeg F)) ^
+                                  (2 ^ (card (UNION F indets) - 1)))\<rfloor>)"
+  using _ assms _
+proof (rule Dube_cofactor_bound)
+  from assms show "finite (\<Union> (indets ` F))" by (simp add: finite_indets)
+next
+  show "F \<subseteq> P[\<Union> (indets ` F)]" by (auto simp: Polys_alt)
+qed
+
+end (* hom_ord_pm_powerprod *)
 
 end (* theory *)
