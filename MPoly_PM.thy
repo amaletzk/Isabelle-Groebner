@@ -3645,6 +3645,14 @@ definition hom_ord_strict_of :: "'x \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat)
 lemma is_hom_ordD: "is_hom_ord x \<Longrightarrow> deg_pm s = deg_pm t \<Longrightarrow> s \<preceq> t \<longleftrightarrow> except s {x} \<preceq> except t {x}"
   by (simp add: is_hom_ord_def)
 
+definition extended_ord :: "('x option \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x option \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool"
+  where "extended_ord s t \<longleftrightarrow> (restrict_indets_pp s \<prec> restrict_indets_pp t \<or>
+                          (restrict_indets_pp s = restrict_indets_pp t \<and> lookup s None \<le> lookup t None))"
+
+definition extended_ord_strict :: "('x option \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x option \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool"
+  where "extended_ord_strict s t \<longleftrightarrow> (restrict_indets_pp s \<prec> restrict_indets_pp t \<or>
+                          (restrict_indets_pp s = restrict_indets_pp t \<and> lookup s None < lookup t None))"
+
 lemma dgrad_set_varnum_wrt: "dgrad_set (varnum_wrt X) 0 = .[X]"
   by (simp add: dgrad_set_def PPs_def varnum_wrt_eq_zero_iff)
 
@@ -3685,6 +3693,31 @@ proof -
                   dest: plus_monotone_strict 2)
 qed
 
+sublocale extended_ord: pm_powerprod extended_ord extended_ord_strict
+proof -
+  have 1: "s = t" if "lookup s None = lookup t None" and "restrict_indets_pp s = restrict_indets_pp t"
+    for s t :: "'a option \<Rightarrow>\<^sub>0 nat"
+  proof (rule poly_mapping_eqI)
+    fix y
+    show "lookup s y = lookup t y"
+    proof (cases y)
+      case None
+      with that(1) show ?thesis by simp
+    next
+      case y: (Some z)
+      have "lookup s y = lookup (restrict_indets_pp s) z" by (simp only: lookup_restrict_indets_pp y)
+      also have "\<dots> = lookup (restrict_indets_pp t) z" by (simp only: that(2))
+      also have "\<dots> = lookup t y" by (simp only: lookup_restrict_indets_pp y)
+      finally show ?thesis .
+    qed
+  qed
+  have 2: "0 \<prec> t" if "t \<noteq> 0" for t::"'a \<Rightarrow>\<^sub>0 nat"
+    using that zero_min by (rule ordered_powerprod_lin.dual_order.not_eq_order_implies_strict)
+  show "pm_powerprod extended_ord extended_ord_strict"
+    by standard (auto simp: extended_ord_def extended_ord_strict_def restrict_indets_pp_plus lookup_add 1
+                  dest: plus_monotone_strict 2)
+qed
+
 lemma hom_ord_is_hom_ord: "hom_ord.is_hom_ord x x"
   unfolding hom_ord.is_hom_ord_def
 proof (intro allI impI)
@@ -3700,6 +3733,10 @@ proof (intro allI impI)
   show "hom_ord_of x s t \<longleftrightarrow> hom_ord_of x (except s {x}) (except t {x})"
     by (auto simp add: hom_ord_of_def except_except lookup_except dest: 1)
 qed
+
+lemma extended_ord_is_hom_ord: "extended_ord.is_hom_ord None"
+  by (auto simp add: extended_ord_def lookup_restrict_indets_pp lookup_except extended_ord.is_hom_ord_def
+            simp flip: deg_pm_restrict_indets_pp)
 
 end
 

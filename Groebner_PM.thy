@@ -294,6 +294,140 @@ proof -
   qed
 qed
 
+lemma extended_ord_lp:
+  assumes "None \<notin> indets p"
+  shows "restrict_indets_pp (extended_ord.punit.lt p) = punit.lt (restrict_indets p)"
+proof (cases "p = 0")
+  case True
+  thus ?thesis by simp
+next
+  case False
+  hence "extended_ord.punit.lt p \<in> keys p" by (rule extended_ord.punit.lt_in_keys)
+  hence "restrict_indets_pp (extended_ord.punit.lt p) \<in> restrict_indets_pp ` keys p" by (rule imageI)
+  also from assms have eq: "\<dots> = keys (restrict_indets p)" by (rule keys_restrict_indets[symmetric])
+  finally show ?thesis
+  proof (rule punit.lt_eqI_keys[symmetric])
+    fix t
+    assume "t \<in> keys (restrict_indets p)"
+    then obtain s where "s \<in> keys p" and t: "t = restrict_indets_pp s" unfolding eq[symmetric] ..
+    from this(1) have "extended_ord s (extended_ord.punit.lt p)" by (rule extended_ord.punit.lt_max_keys)
+    thus "t \<preceq> restrict_indets_pp (extended_ord.punit.lt p)" by (auto simp: t extended_ord_def)
+  qed
+qed
+
+lemma restrict_indets_reduced_GB:
+  assumes "finite X" and "F \<subseteq> P[X]"
+  shows "punit.is_Groebner_basis (restrict_indets ` extended_ord.punit.reduced_GB (homogenize None ` extend_indets ` F))"
+          (is ?thesis1)
+    and "ideal (restrict_indets ` extended_ord.punit.reduced_GB (homogenize None ` extend_indets ` F)) = ideal F"
+          (is ?thesis2)
+    and "restrict_indets ` extended_ord.punit.reduced_GB (homogenize None ` extend_indets ` F) \<subseteq> P[X]"
+          (is ?thesis3)
+proof -
+  let ?F = "homogenize None ` extend_indets ` F"
+  let ?G = "extended_ord.punit.reduced_GB ?F"
+  from assms(1) have "finite (insert None (Some ` X))" by simp
+  moreover have "?F \<subseteq> P[insert None (Some ` X)]"
+  proof
+    fix hf
+    assume "hf \<in> ?F"
+    then obtain f where "f \<in> F" and hf: "hf = homogenize None (extend_indets f)" by auto
+    from this(1) assms(2) have "f \<in> P[X]" ..
+    hence "indets f \<subseteq> X" by (rule PolysD)
+    hence "Some ` indets f \<subseteq> Some ` X" by (rule image_mono)
+    with indets_extend_indets[of f] have "indets (extend_indets f) \<subseteq> Some ` X" by blast
+    hence "insert None (indets (extend_indets f)) \<subseteq> insert None (Some ` X)" by blast
+    with indets_homogenize_subset have "indets hf \<subseteq> insert None (Some ` X)"
+      unfolding hf by (rule subset_trans)
+    thus "hf \<in> P[insert None (Some ` X)]" by (rule PolysI_alt)
+  qed
+  ultimately have G_sub: "?G \<subseteq> P[insert None (Some ` X)]"
+    and ideal_G: "ideal ?G = ideal ?F"
+    and GB_G: "extended_ord.punit.is_reduced_GB ?G"
+    by (rule extended_ord.reduced_GB_Polys, rule extended_ord.reduced_GB_ideal_Polys,
+        rule extended_ord.reduced_GB_is_reduced_GB_Polys)
+
+  show ?thesis3
+  proof
+    fix g
+    assume "g \<in> restrict_indets ` ?G"
+    then obtain g' where "g' \<in> ?G" and g: "g = restrict_indets g'" ..
+    from this(1) G_sub have "g' \<in> P[insert None (Some ` X)]" ..
+    hence "indets g' \<subseteq> insert None (Some ` X)" by (rule PolysD)
+    have "indets g \<subseteq> the ` (indets g' - {None})" by (simp only: g indets_restrict_indets_subset)
+    also from \<open>indets g' \<subseteq> insert None (Some ` X)\<close> have "\<dots> \<subseteq> X" by auto
+    finally show "g \<in> P[X]" by (rule PolysI_alt)
+  qed
+
+  from dickson_grading_varnum_wrt show ?thesis1
+  proof (rule punit.isGB_I_adds_lt[simplified])
+    from \<open>?thesis3\<close> show "restrict_indets ` ?G \<subseteq> punit.dgrad_p_set (varnum_wrt X) 0"
+      by (simp only: dgrad_p_set_varnum_wrt)
+  next
+    fix p :: "('a \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b"
+    assume "p \<noteq> 0"
+    assume "p \<in> ideal (restrict_indets ` ?G)"
+    hence "extend_indets p \<in> extend_indets ` ideal (restrict_indets ` ?G)" by (rule imageI)
+    also have "\<dots> \<subseteq> ideal (extend_indets ` restrict_indets ` ?G)" by (fact extend_indets_ideal_subset)
+    also have "\<dots> = ideal (dehomogenize None ` ?G)"
+      by (simp only: image_comp extend_indets_comp_restrict_indets)
+    finally have p_in_ideal: "extend_indets p \<in> ideal (dehomogenize None ` ?G)" .
+    assume "p \<in> punit.dgrad_p_set (varnum_wrt X) 0"
+    hence "p \<in> P[X]" by (simp only: dgrad_p_set_varnum_wrt)
+    have "extended_ord.punit.is_Groebner_basis (dehomogenize None ` ?G)"
+      using extended_ord_is_hom_ord \<open>finite (insert None (Some ` X))\<close> G_sub
+    proof (rule extended_ord.isGB_dehomogenize)
+      from GB_G show "extended_ord.punit.is_Groebner_basis ?G"
+        by (rule extended_ord.punit.reduced_GB_D1)
+    next
+      fix g
+      assume "g \<in> ?G"
+      with _ GB_G ideal_G show "homogeneous g"
+      proof (rule extended_ord.is_reduced_GB_homogeneous)
+        fix hf
+        assume "hf \<in> ?F"
+        then obtain f where "hf = homogenize None f" ..
+        thus "homogeneous hf" by (simp only: homogeneous_homogenize)
+      qed
+    qed
+    moreover note p_in_ideal
+    moreover from \<open>p \<noteq> 0\<close> have "extend_indets p \<noteq> 0" by simp
+    ultimately obtain g where g_in: "g \<in> dehomogenize None ` ?G" and "g \<noteq> 0"
+      and adds: "extended_ord.punit.lt g adds extended_ord.punit.lt (extend_indets p)"
+      by (rule extended_ord.punit.GB_adds_lt[simplified])
+    have "None \<notin> indets g"
+    proof
+      assume "None \<in> indets g"
+      moreover from g_in obtain g0 where "g = dehomogenize None g0" ..
+      ultimately show False using indets_dehomogenize[of None g0] by blast
+    qed
+    show "\<exists>g\<in>restrict_indets ` ?G. g \<noteq> 0 \<and> punit.lt g adds punit.lt p"
+    proof (intro bexI conjI notI)
+      have "punit.lt (restrict_indets g) = restrict_indets_pp (extended_ord.punit.lt g)"
+        by (rule sym, intro extended_ord_lp \<open>None \<notin> indets g\<close>)
+      also from adds have "\<dots> adds restrict_indets_pp (extended_ord.punit.lt (extend_indets p))"
+        by (simp add: adds_pm le_pm_def le_fun_def lookup_restrict_indets_pp)
+      also have "\<dots> = punit.lt (restrict_indets (extend_indets p))"
+      proof (intro extended_ord_lp notI)
+        assume "None \<in> indets (extend_indets p)"
+        thus False by (simp add: indets_extend_indets)
+      qed
+      also have "\<dots> = punit.lt p" by simp
+      finally show "punit.lt (restrict_indets g) adds punit.lt p" .
+    next
+      from g_in have "restrict_indets g \<in> restrict_indets ` dehomogenize None ` ?G" by (rule imageI)
+      also have "\<dots> = restrict_indets ` ?G" by (simp only: image_comp restrict_indets_comp_dehomogenize)
+      finally show "restrict_indets g \<in> restrict_indets ` ?G" .
+    next
+      assume "restrict_indets g = 0"
+      with \<open>None \<notin> indets g\<close> have "g = 0" by (simp add: keys_restrict_indets flip: keys_eq_empty_iff)
+      with \<open>g \<noteq> 0\<close> show False ..
+    qed
+  qed (fact assms(1))
+
+  from ideal_G show ?thesis2 by (rule ideal_restrict_indets)
+qed
+
 end
 
 end (* theory *)
