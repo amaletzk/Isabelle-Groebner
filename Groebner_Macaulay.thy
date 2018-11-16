@@ -249,7 +249,7 @@ lemma is_hom_GB_boundD:
   "is_hom_GB_bound F b \<Longrightarrow> (\<And>f. f \<in> F \<Longrightarrow> homogeneous f) \<Longrightarrow> g \<in> punit.reduced_GB F \<Longrightarrow> poly_deg g \<le> b"
   unfolding is_hom_GB_bound_def by blast
 
-lemma (in hom_ord_pm_powerprod) hom_GB_bound_is_GB_cofactor_bound:
+lemma (in extended_ord_pm_powerprod) hom_GB_bound_is_GB_cofactor_bound:
   assumes "finite X" and "F \<subseteq> P[X]" and "extended_ord.is_hom_GB_bound (homogenize None ` extend_indets ` F) b"
   shows "is_GB_cofactor_bound F b"
 proof -
@@ -485,7 +485,7 @@ end
 
 end (* pm_powerprod *)
 
-context hom_ord_pm_powerprod
+context extended_ord_pm_powerprod
 begin
 
 lemma Dube_cofactor_bound:
@@ -536,6 +536,6 @@ next
   show "F \<subseteq> P[\<Union> (indets ` F)]" by (auto simp: Polys_alt)
 qed
 
-end (* hom_ord_pm_powerprod *)
+end (* extended_ord_pm_powerprod *)
 
 end (* theory *)

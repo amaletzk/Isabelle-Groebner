@@ -3636,22 +3636,8 @@ qed
 definition is_hom_ord :: "'x \<Rightarrow> bool"
   where "is_hom_ord x \<longleftrightarrow> (\<forall>s t. deg_pm s = deg_pm t \<longrightarrow> (s \<preceq> t \<longleftrightarrow> except s {x} \<preceq> except t {x}))"
 
-definition hom_ord_of :: "'x \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool"
-  where "hom_ord_of x s t \<longleftrightarrow> (except s {x} \<prec> except t {x} \<or> (except s {x} = except t {x} \<and> lookup s x \<le> lookup t x))"
-
-definition hom_ord_strict_of :: "'x \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool"
-  where "hom_ord_strict_of x s t \<longleftrightarrow> (except s {x} \<prec> except t {x} \<or> (except s {x} = except t {x} \<and> lookup s x < lookup t x))"
-
 lemma is_hom_ordD: "is_hom_ord x \<Longrightarrow> deg_pm s = deg_pm t \<Longrightarrow> s \<preceq> t \<longleftrightarrow> except s {x} \<preceq> except t {x}"
   by (simp add: is_hom_ord_def)
-
-definition extended_ord :: "('x option \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x option \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool"
-  where "extended_ord s t \<longleftrightarrow> (restrict_indets_pp s \<prec> restrict_indets_pp t \<or>
-                          (restrict_indets_pp s = restrict_indets_pp t \<and> lookup s None \<le> lookup t None))"
-
-definition extended_ord_strict :: "('x option \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x option \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool"
-  where "extended_ord_strict s t \<longleftrightarrow> (restrict_indets_pp s \<prec> restrict_indets_pp t \<or>
-                          (restrict_indets_pp s = restrict_indets_pp t \<and> lookup s None < lookup t None))"
 
 lemma dgrad_set_varnum_wrt: "dgrad_set (varnum_wrt X) 0 = .[X]"
   by (simp add: dgrad_set_def PPs_def varnum_wrt_eq_zero_iff)
@@ -3666,32 +3652,16 @@ end
 
 text \<open>We must create a copy of @{locale pm_powerprod} to avoid infinite chains of interpretations.\<close>
 
-locale hom_ord_pm_powerprod = pm_powerprod
+locale extended_ord_pm_powerprod = pm_powerprod
 begin
 
-sublocale hom_ord: pm_powerprod "hom_ord_of x" "hom_ord_strict_of x" for x
-proof -
-  have 1: "s = t" if "lookup s x = lookup t x" and "except s {x} = except t {x}" for s t :: "'a \<Rightarrow>\<^sub>0 nat"
-  proof (rule poly_mapping_eqI)
-    fix y
-    show "lookup s y = lookup t y"
-    proof (cases "y = x")
-      case True
-      with that(1) show ?thesis by simp
-    next
-      case False
-      have "lookup s y = lookup (except s {x}) y" by (simp add: lookup_except False)
-      also have "\<dots> = lookup (except t {x}) y" by (simp only: that(2))
-      also have "\<dots> = lookup t y" by (simp add: lookup_except False)
-      finally show ?thesis .
-    qed
-  qed
-  have 2: "0 \<prec> t" if "t \<noteq> 0" for t::"'a \<Rightarrow>\<^sub>0 nat"
-    using that zero_min by (rule ordered_powerprod_lin.dual_order.not_eq_order_implies_strict)
-  show "pm_powerprod (hom_ord_of x) (hom_ord_strict_of x)"
-    by standard (auto simp: hom_ord_of_def hom_ord_strict_of_def except_plus lookup_add 1
-                  dest: plus_monotone_strict 2)
-qed
+definition extended_ord :: "('a option \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('a option \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool"
+  where "extended_ord s t \<longleftrightarrow> (restrict_indets_pp s \<prec> restrict_indets_pp t \<or>
+                          (restrict_indets_pp s = restrict_indets_pp t \<and> lookup s None \<le> lookup t None))"
+
+definition extended_ord_strict :: "('a option \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('a option \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool"
+  where "extended_ord_strict s t \<longleftrightarrow> (restrict_indets_pp s \<prec> restrict_indets_pp t \<or>
+                          (restrict_indets_pp s = restrict_indets_pp t \<and> lookup s None < lookup t None))"
 
 sublocale extended_ord: pm_powerprod extended_ord extended_ord_strict
 proof -
@@ -3716,22 +3686,6 @@ proof -
   show "pm_powerprod extended_ord extended_ord_strict"
     by standard (auto simp: extended_ord_def extended_ord_strict_def restrict_indets_pp_plus lookup_add 1
                   dest: plus_monotone_strict 2)
-qed
-
-lemma hom_ord_is_hom_ord: "hom_ord.is_hom_ord x x"
-  unfolding hom_ord.is_hom_ord_def
-proof (intro allI impI)
-  fix s t :: "'a \<Rightarrow>\<^sub>0 nat"
-  assume *: "deg_pm s = deg_pm t"
-  have 1: "lookup s x \<le> lookup t x" if "except s {x} = except t {x}"
-  proof -
-    have "deg_pm (Poly_Mapping.single x (lookup s x) + except s {x}) =
-          deg_pm (Poly_Mapping.single x (lookup t x) + except t {x})"
-      by (simp only: * flip: plus_except)
-    thus ?thesis by (simp add: deg_pm_plus that deg_pm_single)
-  qed
-  show "hom_ord_of x s t \<longleftrightarrow> hom_ord_of x (except s {x}) (except t {x})"
-    by (auto simp add: hom_ord_of_def except_except lookup_except dest: 1)
 qed
 
 lemma extended_ord_is_hom_ord: "extended_ord.is_hom_ord None"
