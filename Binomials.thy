@@ -1,98 +1,13 @@
 (* Author: Alexander Maletzky *)
 
 theory Binomials
-  imports Groebner_Bases.Reduced_GB Groebner_Bases.Buchberger Poly_Utils
+  imports Groebner_Bases.Buchberger Monomial_Module
 begin
 
 context ordered_term
 begin
-
-section \<open>Monomial Ideals\<close>
-
-lemma keys_monomial_pmdl:
-  assumes "is_monomial_set F" and "p \<in> pmdl F" and "t \<in> keys p"
-  obtains f where "f \<in> F" and "f \<noteq> 0" and "lt f adds\<^sub>t t"
-  using assms(2) assms(3)
-proof (induct arbitrary: thesis rule: pmdl_induct)
-  case module_0
-  from this(2) show ?case by simp
-next
-  case step: (module_plus p f0 c s)
-  from assms(1) step(3) have "is_monomial f0" unfolding is_monomial_set_def ..
-  hence "keys f0 = {lt f0}" and "f0 \<noteq> 0" by (rule keys_monomial, rule monomial_not_0)
-  from keys_add_subset step(6) have "t \<in> keys p \<union> keys (monom_mult c s f0)" ..
-  thus ?case
-  proof
-    assume "t \<in> keys p"
-    from step(2)[OF _ this] obtain f where "f \<in> F" and "f \<noteq> 0" and "lt f adds\<^sub>t t" by blast
-    thus ?thesis by (rule step(5))
-  next
-    assume "t \<in> keys (monom_mult c s f0)"
-    with keys_monom_mult_subset have "t \<in> (\<oplus>) s ` keys f0" ..
-    hence "t = s \<oplus> lt f0" by (simp add: \<open>keys f0 = {lt f0}\<close>)
-    hence "lt f0 adds\<^sub>t t" by (simp add: term_simps)
-    with \<open>f0 \<in> F\<close> \<open>f0 \<noteq> 0\<close> show ?thesis by (rule step(5))
-  qed
-qed
   
 section \<open>Reduction Modulo Monomials and Binomials\<close>
-
-lemma red_setE2:
-  assumes "red B p q"
-  obtains b where "b \<in> B" and "red {b} p q"
-proof -
-  from assms obtain b t where "b \<in> B" and "red_single p q b t" by (rule red_setE)
-  have "red {b} p q" by (rule red_setI, simp, fact)
-  show ?thesis by (rule, fact+)
-qed
-
-lemma red_monomial_keys:
-  assumes mon: "is_monomial r" and red: "red {r} p q"
-  shows "card (keys p) = Suc (card (keys q))"
-proof -
-  from red obtain s where rs: "red_single p q r s" unfolding red_singleton ..
-  hence cp0: "lookup p (s \<oplus> lt r) \<noteq> 0" and q_def0: "q = p - monom_mult (lookup p (s \<oplus> lt r) / lc r) s r"
-    unfolding red_single_def by simp_all
-  from mon obtain c t where "c \<noteq> 0" and r_def: "r = monomial c t" by (rule is_monomial_monomial)
-  have ltr: "lt r = t" unfolding r_def by (rule lt_monomial, fact)
-  have lcr: "lc r = c" unfolding r_def by (rule lc_monomial)
-  define u where "u = s \<oplus> t"
-  from q_def0 have "q = p - monom_mult (lookup p u / c) s r" unfolding u_def ltr lcr .
-  also have "... = p - monomial ((lookup p u / c) * c) u" unfolding u_def r_def monom_mult_monomial ..
-  finally have q_def: "q = p - monomial (lookup p u) u" using \<open>c \<noteq> 0\<close> by simp
-  from cp0 have "lookup p u \<noteq> 0" unfolding u_def ltr .
-  hence "u \<in> keys p" by simp
-      
-  have "keys q = keys p - {u}" unfolding q_def
-  proof (rule, rule)
-    fix x
-    assume "x \<in> keys (p - monomial (lookup p u) u)"
-    hence "lookup (p - monomial (lookup p u) u) x \<noteq> 0" by simp
-    hence a: "lookup p x - lookup (monomial (lookup p u) u) x \<noteq> 0" unfolding lookup_minus .
-    hence "x \<noteq> u" unfolding lookup_single by auto
-    with a have "lookup p x \<noteq> 0" unfolding lookup_single by auto
-    show "x \<in> keys p - {u}"
-    proof
-      from \<open>lookup p x \<noteq> 0\<close> show "x \<in> keys p" by simp
-    next
-      from \<open>x \<noteq> u\<close> show "x \<notin> {u}" by simp
-    qed
-  next
-    show "keys p - {u} \<subseteq> keys (p - monomial (lookup p u) u)"
-    proof
-      fix x
-      assume "x \<in> keys p - {u}"
-      hence "x \<in> keys p" and "x \<noteq> u" by auto
-      from \<open>x \<in> keys p\<close> have "lookup p x \<noteq> 0" by simp
-      with \<open>x \<noteq> u\<close> have "lookup (p - monomial (lookup p u) u) x \<noteq> 0" by (simp add: lookup_minus lookup_single)
-      thus "x \<in> keys (p - monomial (lookup p u) u)" by simp
-    qed
-  qed
-      
-  have "Suc (card (keys q)) = card (keys p)" unfolding \<open>keys q = keys p - {u}\<close>
-    by (rule card_Suc_Diff1, rule finite_keys, fact)
-  thus ?thesis by simp
-qed
   
 lemma red_binomial_keys:
   assumes "is_obd c s d t" and red: "red {binomial c s d t} p q"
@@ -262,49 +177,6 @@ lemma has_bounded_keys_trd:
   assumes "has_bounded_keys n p" and "has_bounded_keys_set m (set xs)" and "m \<le> 2"
   shows "has_bounded_keys n (trd xs p)"
   by (rule has_bounded_keys_red_rtrancl, rule trd_red_rtrancl, fact+)
-  
-section \<open>Gr\"obner Bases\<close>
-
-lemma monomial_set_is_GB:
-  assumes "is_monomial_set G"
-  shows "is_Groebner_basis G"
-  unfolding GB_alt_1
-proof
-  fix f
-  assume "f \<in> pmdl G"
-  thus "(red G)\<^sup>*\<^sup>* f 0"
-  proof (induct f rule: poly_mapping_plus_induct)
-    case 1
-    show ?case ..
-  next
-    case (2 f c t)
-    let ?f = "monomial c t + f"
-    from 2(1) have "t \<in> keys (monomial c t)" by simp
-    from this 2(2) have "t \<in> keys ?f" by (rule in_keys_plusI1)
-    with assms \<open>?f \<in> pmdl G\<close> obtain g where "g \<in> G" and "g \<noteq> 0" and "lt g adds\<^sub>t t"
-      by (rule keys_monomial_pmdl)
-    from this(1) have "red G ?f f"
-    proof (rule red_setI)
-      from \<open>lt g adds\<^sub>t t\<close> have "component_of_term (lt g) = component_of_term t" and "lp g adds pp_of_term t"
-        by (simp_all add: adds_term_def)
-      from this have eq: "(pp_of_term t - lp g) \<oplus> lt g = t"
-        by (simp add: adds_minus splus_def term_of_pair_pair)
-      moreover from 2(2) have "lookup ?f t = c" by (simp add: lookup_add)
-      ultimately show "red_single (monomial c t + f) f g (pp_of_term t - lp g)"
-      proof (simp add: red_single_def \<open>g \<noteq> 0\<close> \<open>t \<in> keys ?f\<close> 2(1))
-        from \<open>g \<noteq> 0\<close> have "lc g \<noteq> 0" by (rule lc_not_0)
-        hence "monomial c t = monom_mult (c / lc g) (pp_of_term t - lp g) (monomial (lc g) (lt g))"
-          by (simp add: monom_mult_monomial eq)
-        moreover from assms \<open>g \<in> G\<close> have "is_monomial g" unfolding is_monomial_set_def ..
-        ultimately show "monomial c t = monom_mult (c / lc g) (pp_of_term t - lp g) g"
-          by (simp only: monomial_eq_itself)
-      qed
-    qed
-    have "f \<in> pmdl G" by (rule pmdl_closed_red, fact subset_refl, fact+)
-    hence "(red G)\<^sup>*\<^sup>* f 0" by (rule 2(3))
-    with \<open>red G ?f f\<close> show ?case by simp
-  qed
-qed
   
 section \<open>Functions @{const gb} and \<open>rgb\<close>\<close>
 

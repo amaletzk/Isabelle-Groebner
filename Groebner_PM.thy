@@ -1,7 +1,7 @@
 (* Author: Alexander Maletzky *)
 
 theory Groebner_PM
-  imports MPoly_PM Groebner_Bases.Reduced_GB
+  imports MPoly_PM Monomial_Module
 begin
 
 text \<open>We prove results that hold specifically for Gr\"obner bases in polynomial rings, where the
@@ -30,6 +30,14 @@ lemmas reduced_GB_Polys =
   punit.reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
 lemmas ideal_eq_UNIV_iff_reduced_GB_eq_one_Polys =
   ideal_eq_UNIV_iff_reduced_GB_eq_one_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+lemmas reduced_GB_subset_monic_Polys =
+  punit.reduced_GB_subset_monic_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+lemmas reduced_GB_is_monomial_set_Polys =
+  punit.reduced_GB_is_monomial_set_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+lemmas is_red_reduced_GB_monomial_lt_GB_Polys =
+  punit.is_red_reduced_GB_monomial_lt_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+lemmas reduced_GB_monomial_lt_reduced_GB_Polys =
+  punit.reduced_GB_monomial_lt_reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
 
 subsection \<open>Homogeneity\<close>
 
