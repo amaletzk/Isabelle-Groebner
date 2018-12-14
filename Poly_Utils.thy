@@ -9,6 +9,19 @@ text \<open>Some further general properties of (ordered) multivariate polynomial
   
 section \<open>Further Properties of Multivariate Polynomials\<close>
 
+lemma keys_sum_list_subset: "keys (sum_list ps) \<subseteq> Keys (set ps)"
+proof (induct ps)
+  case Nil
+  show ?case by simp
+next
+  case (Cons p ps)
+  have "keys (sum_list (p # ps)) = keys (p + sum_list ps)" by simp
+  also have "\<dots> \<subseteq> keys p \<union> keys (sum_list ps)" by (fact keys_add_subset)
+  also from Cons have "\<dots> \<subseteq> keys p \<union> Keys (set ps)" by blast
+  also have "\<dots> = Keys (set (p # ps))" by (simp add: Keys_insert)
+  finally show ?case .
+qed
+
 subsection \<open>@{const except}\<close>
 
 lemma except_Diff_singleton: "except p (keys p - {t}) = monomial (lookup p t) t"
@@ -273,6 +286,26 @@ definition is_pbd :: "'b::zero \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> '
   where "is_pbd c s d t \<longleftrightarrow> (c \<noteq> 0 \<and> d \<noteq> 0 \<and> s \<noteq> t)"
 
 text \<open>@{const is_pbd} stands for "is proper binomial data".\<close>
+
+lemma is_monomial_setI:
+  assumes "\<And>p. p \<in> A \<Longrightarrow> is_monomial p"
+  shows "is_monomial_set A"
+  using assms unfolding is_monomial_set_def by simp
+
+lemma is_monomial_setD:
+  assumes "is_monomial_set A" and "p \<in> A"
+  shows "is_monomial p"
+  using assms unfolding is_monomial_set_def by simp
+    
+lemma is_binomial_setI:
+  assumes "\<And>p. p \<in> A \<Longrightarrow> is_binomial p"
+  shows "is_binomial_set A"
+  using assms unfolding is_binomial_set_def by simp
+
+lemma is_binomial_setD:
+  assumes "is_binomial_set A" and "p \<in> A"
+  shows "is_binomial p"
+  using assms unfolding is_binomial_set_def by simp
 
 lemma has_bounded_keys_1_I1:
   assumes "is_monomial p"
@@ -570,6 +603,11 @@ proof -
   finally show ?thesis by (simp only: is_proper_binomial_def)
 qed
 
+subsection \<open>Submodules\<close>
+
+lemma pmdl_closed_sum_list: "(\<And>x. x \<in> set xs \<Longrightarrow> x \<in> pmdl B) \<Longrightarrow> sum_list xs \<in> pmdl B"
+  by (induct xs) (auto intro: pmdl.module_0 pmdl.module_closed_plus)
+
 end (* term_powerprod *)
   
 section \<open>Further Properties of Ordered Polynomials\<close>
@@ -813,6 +851,28 @@ qed
 
 subsection \<open>Monomials and Binomials\<close>
 
+lemma lt_eq_min_term_monomial:
+  assumes "lt p = min_term"
+  shows "monomial (lc p) min_term = p"
+proof (rule poly_mapping_eqI)
+  fix v
+  from min_term_min[of v] have "v = min_term \<or> min_term \<prec>\<^sub>t v" by auto
+  thus "lookup (monomial (lc p) min_term) v = lookup p v"
+  proof
+    assume "v = min_term"
+    thus ?thesis by (simp add: lookup_single lc_def assms)
+  next
+    assume "min_term \<prec>\<^sub>t v"
+    moreover have "v \<notin> keys p"
+    proof
+      assume "v \<in> keys p"
+      hence "v \<preceq>\<^sub>t lt p" by (rule lt_max_keys)
+      with \<open>min_term \<prec>\<^sub>t v\<close> show False by (simp add: assms)
+    qed
+    ultimately show ?thesis by (simp add: lookup_single)
+  qed
+qed
+
 lemma lt_gr_tt_binomial:
   assumes "is_proper_binomial p"
   shows "tt p \<prec>\<^sub>t lt p"
@@ -1026,26 +1086,6 @@ proof -
 qed
 
 subsubsection \<open>Sets of Monomials and Binomials\<close>
-  
-lemma is_monomial_setI:
-  assumes "\<And>p. p \<in> A \<Longrightarrow> is_monomial p"
-  shows "is_monomial_set A"
-  using assms unfolding is_monomial_set_def by simp
-
-lemma is_monomial_setD:
-  assumes "is_monomial_set A" and "p \<in> A"
-  shows "is_monomial p"
-  using assms unfolding is_monomial_set_def by simp
-    
-lemma is_binomial_setI:
-  assumes "\<And>p. p \<in> A \<Longrightarrow> is_binomial p"
-  shows "is_binomial_set A"
-  using assms unfolding is_binomial_set_def by simp
-
-lemma is_binomial_setD:
-  assumes "is_binomial_set A" and "p \<in> A"
-  shows "is_binomial p"
-  using assms unfolding is_binomial_set_def by simp
     
 lemma monomial_set_pmdl:
   fixes f :: "'t \<Rightarrow>\<^sub>0 'b::field"
