@@ -480,8 +480,8 @@ context
     and d_gr_0: "0 < poly_deg f" and ideal_f_neq: "ideal {f} \<noteq> ideal F"
 begin
 
-private abbreviation "n \<equiv> card X"
-private abbreviation "d \<equiv> poly_deg f"
+private abbreviation (input) "n \<equiv> card X"
+private abbreviation (input) "d \<equiv> poly_deg f"
 
 lemma f_in_Polys: "f \<in> P[X]"
   using f_in F_sub ..
@@ -714,7 +714,7 @@ private definition qs where "qs = (SOME qs'. valid_decomp X qs' \<and> standard_
 
 private definition "aa \<equiv> \<b> ps"
 private definition "bb \<equiv> \<b> qs"
-private abbreviation "cc \<equiv> (\<lambda>i. aa i + bb i)"
+private abbreviation (input) "cc \<equiv> (\<lambda>i. aa i + bb i)"
 
 lemma
   shows valid_qs: "valid_decomp X qs" (is ?thesis1)
