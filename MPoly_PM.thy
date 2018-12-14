@@ -105,6 +105,29 @@ lemma adds_pm: "s adds t \<longleftrightarrow> s \<unlhd> (t::'a \<Rightarrow>\<
 lemma deg_pm_mono_le: "s \<unlhd> t \<Longrightarrow> deg_pm s \<le> deg_pm (t::'a \<Rightarrow>\<^sub>0 'b::add_linorder)"
   unfolding le_pm_def by (transfer) (auto intro!: deg_fun_leq simp: supp_fun_def)
 
+lemma le_deg_pm_antisym:
+  assumes "s \<unlhd> t" and "deg_pm t \<le> deg_pm (s::'a \<Rightarrow>\<^sub>0 'b::add_linorder)"
+  shows "s = t"
+proof (rule ccontr)
+  assume "s \<noteq> t"
+  have fin: "finite (keys s \<union> keys t)" by simp
+  with _ have "deg_pm s = (\<Sum>x\<in>keys s \<union> keys t. lookup s x)" by (rule deg_pm_superset) simp
+  also from fin have "\<dots> < (\<Sum>x\<in>keys s \<union> keys t. lookup t x)"
+  proof (rule sum_strict_mono_ex1)
+    from assms(1) show "\<forall>x\<in>keys s \<union> keys t. lookup s x \<le> lookup t x"
+      by (auto dest: le_pmD)
+  next
+    from \<open>s \<noteq> t\<close> obtain x where neq: "lookup s x \<noteq> lookup t x" by (auto simp: poly_mapping_eq_iff)
+    moreover from assms(1) have "lookup s x \<le> lookup t x" by (rule le_pmD)
+    ultimately have "lookup s x < lookup t x" by simp
+    moreover from neq have "x \<in> keys s \<union> keys t" by auto
+    ultimately show "\<exists>x\<in>keys s \<union> keys t. lookup s x < lookup t x" ..
+  qed
+  also from _ fin have "\<dots> = deg_pm t" by (rule deg_pm_superset[symmetric]) simp
+  finally have "deg_pm s < deg_pm t" .
+  with assms(2) show False by simp
+qed
+
 subsection \<open>Degree\<close>
 
 lemma plus_minus_assoc_pm_nat_1: "s + t - u = (s - (u - t)) + (t - (u::_ \<Rightarrow>\<^sub>0 nat))"
@@ -132,6 +155,9 @@ lemma deg_pm_sum: "deg_pm (sum t A) = (\<Sum>a\<in>A. deg_pm (t a))"
 
 lemma deg_pm_mono: "s adds t \<Longrightarrow> deg_pm s \<le> deg_pm (t::_ \<Rightarrow>\<^sub>0 _::add_linorder_min)"
   by (simp add: adds_pm deg_pm_mono_le)
+
+lemma adds_deg_pm_antisym: "s adds t \<Longrightarrow> deg_pm t \<le> deg_pm (s::_ \<Rightarrow>\<^sub>0 _::add_linorder_min) \<Longrightarrow> s = t"
+  by (simp add: adds_pm le_deg_pm_antisym)
 
 lemma deg_pm_minus:
   assumes "s adds (t::_ \<Rightarrow>\<^sub>0 _::comm_monoid_add)"
@@ -983,6 +1009,9 @@ qed
 lemma zero_in_Polys: "0 \<in> P[X]"
   by (simp add: Polys_def)
 
+lemma one_in_Polys: "1 \<in> P[X]"
+  by (simp add: Polys_def zero_in_PPs)
+
 lemma Polys_mono: "X \<subseteq> Y \<Longrightarrow> P[X] \<subseteq> P[Y]"
   by (auto simp: Polys_alt)
 
@@ -1001,8 +1030,20 @@ lemma Polys_closed_minus: "p \<in> P[X] \<Longrightarrow> q \<in> P[X] \<Longrig
 lemma Polys_closed_monom_mult: "t \<in> .[X] \<Longrightarrow> p \<in> P[X] \<Longrightarrow> punit.monom_mult c t p \<in> P[X]"
   using indets_monom_mult_subset[of c t p] by (auto simp: Polys_alt PPs_def)
 
+corollary Polys_closed_scalar: "p \<in> P[X] \<Longrightarrow> (c::_::semiring_0) \<cdot> p \<in> P[X]"
+  unfolding scalar_eq_monom_mult using zero_in_PPs by (rule Polys_closed_monom_mult)
+
 lemma Polys_closed_times: "p \<in> P[X] \<Longrightarrow> q \<in> P[X] \<Longrightarrow> p * q \<in> P[X]"
   using indets_times_subset[of p q] by (auto simp: Polys_alt PPs_def)
+
+lemma Polys_closed_sum: "(\<And>a. a \<in> A \<Longrightarrow> f a \<in> P[X]) \<Longrightarrow> sum f A \<in> P[X]"
+  by (induct A rule: infinite_finite_induct) (auto intro: zero_in_Polys Polys_closed_plus)
+
+lemma Polys_closed_prod: "(\<And>a. a \<in> A \<Longrightarrow> f a \<in> P[X]) \<Longrightarrow> prod f A \<in> P[X]"
+  by (induct A rule: infinite_finite_induct) (auto intro: one_in_Polys Polys_closed_times)
+
+lemma Polys_closed_sum_list: "(\<And>x. x \<in> set xs \<Longrightarrow> x \<in> P[X]) \<Longrightarrow> sum_list xs \<in> P[X]"
+  by (induct xs) (auto intro: zero_in_Polys Polys_closed_plus)
 
 subsection \<open>Degree-Sections of Power-Products\<close>
 
@@ -1675,6 +1716,9 @@ definition hom_component :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub
 definition hom_components :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::zero) set"
   where "hom_components p = hom_component p ` deg_pm ` keys p"
 
+definition homogeneous_set :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::zero) set \<Rightarrow> bool"
+  where "homogeneous_set A \<longleftrightarrow> (\<forall>a\<in>A. \<forall>n. hom_component a n \<in> A)"
+
 lemma homogeneousI: "(\<And>s t. s \<in> keys p \<Longrightarrow> t \<in> keys p \<Longrightarrow> deg_pm s = deg_pm t) \<Longrightarrow> homogeneous p"
   unfolding homogeneous_def by blast
 
@@ -1970,6 +2014,53 @@ proof (rule poly_mapping_eqI)
   qed
 qed
 
+lemma homogeneous_setI: "(\<And>a n. a \<in> A \<Longrightarrow> hom_component a n \<in> A) \<Longrightarrow> homogeneous_set A"
+  by (simp add: homogeneous_set_def)
+
+lemma homogeneous_setD: "homogeneous_set A \<Longrightarrow> a \<in> A \<Longrightarrow> hom_component a n \<in> A"
+  by (simp add: homogeneous_set_def)
+
+lemma homogeneous_set_Polys: "homogeneous_set (P[X]::(_ \<Rightarrow>\<^sub>0 'a::zero) set)"
+proof (intro homogeneous_setI PolysI subsetI)
+  fix p::"_ \<Rightarrow>\<^sub>0 'a" and n t
+  assume "p \<in> P[X]"
+  assume "t \<in> keys (hom_component p n)"
+  hence "t \<in> keys p" by (rule keys_hom_componentD)
+  also from \<open>p \<in> P[X]\<close> have "\<dots> \<subseteq> .[X]" by (rule PolysD)
+  finally show "t \<in> .[X]" .
+qed
+
+lemma homogeneous_set_IntI: "homogeneous_set A \<Longrightarrow> homogeneous_set B \<Longrightarrow> homogeneous_set (A \<inter> B)"
+  by (simp add: homogeneous_set_def)
+
+lemma homogeneous_setD_hom_components:
+  assumes "homogeneous_set A" and "a \<in> A" and "b \<in> hom_components a"
+  shows "b \<in> A"
+proof -
+  from assms(3) obtain t::"'a \<Rightarrow>\<^sub>0 nat" where "b = hom_component a (deg_pm t)"
+    by (rule hom_componentsE)
+  also from assms(1, 2) have "\<dots> \<in> A" by (rule homogeneous_setD)
+  finally show ?thesis .
+qed
+
+lemma zero_in_homogeneous_set:
+  assumes "homogeneous_set A" and "A \<noteq> {}"
+  shows "0 \<in> A"
+proof -
+  from assms(2) obtain a where "a \<in> A" by blast
+  have "lookup a t = 0" if "deg_pm t = Suc (poly_deg a)" for t
+  proof (rule ccontr)
+    assume "lookup a t \<noteq> 0"
+    hence "t \<in> keys a" by simp
+    hence "deg_pm t \<le> poly_deg a" by (rule poly_deg_max_keys)
+    thus False by (simp add: that)
+  qed
+  hence "0 = hom_component a (Suc (poly_deg a))"
+    by (intro poly_mapping_eqI) (simp add: lookup_hom_component when_def)
+  also from assms(1) \<open>a \<in> A\<close> have "\<dots> \<in> A" by (rule homogeneous_setD)
+  finally show ?thesis .
+qed
+
 lemma homogeneous_ideal:
   assumes "\<And>f. f \<in> F \<Longrightarrow> homogeneous f" and "p \<in> ideal F"
   shows "hom_component p n \<in> ideal F"
@@ -1993,14 +2084,16 @@ proof -
   qed
 qed
 
+corollary homogeneous_set_homogeneous_ideal:
+  "(\<And>f. f \<in> F \<Longrightarrow> homogeneous f) \<Longrightarrow> homogeneous_set (ideal F)"
+  by (auto intro: homogeneous_setI homogeneous_ideal)
+
 corollary homogeneous_ideal':
   assumes "\<And>f. f \<in> F \<Longrightarrow> homogeneous f" and "p \<in> ideal F" and "q \<in> hom_components p"
   shows "q \<in> ideal F"
-proof -
-  from assms(3) obtain s::"'a \<Rightarrow>\<^sub>0 nat" where "q = hom_component p (deg_pm s)"
-    by (rule hom_componentsE)
-  also from assms(1, 2) have "\<dots> \<in> ideal F" by (rule homogeneous_ideal)
-  finally show ?thesis .
+  using _ assms(2, 3)
+proof (rule homogeneous_setD_hom_components)
+  from assms(1) show "homogeneous_set (ideal F)" by (rule homogeneous_set_homogeneous_ideal)
 qed
 
 lemma homogeneous_idealE_homogeneous:
@@ -3410,59 +3503,6 @@ qed
 
 subsection \<open>\<open>varnum_wrt\<close>\<close>
 
-(* TODO: Move. *)
-lemma subset_imageE_inj:
-  assumes "B \<subseteq> f ` A"
-  obtains C where "C \<subseteq> A" and "B = f ` C" and "inj_on f C"
-proof -
-  define g where "g = (\<lambda>x. SOME a. a \<in> A \<and> f a = x)"
-  have "g b \<in> A \<and> f (g b) = b" if "b \<in> B" for b
-  proof -
-    from that assms have "b \<in> f ` A" ..
-    then obtain a where "a \<in> A" and "b = f a" ..
-    hence "a \<in> A \<and> f a = b" by simp
-    thus ?thesis unfolding g_def by (rule someI)
-  qed
-  hence 1: "\<And>b. b \<in> B \<Longrightarrow> g b \<in> A" and 2: "\<And>b. b \<in> B \<Longrightarrow> f (g b) = b" by simp_all
-  let ?C = "g ` B"
-  show ?thesis
-  proof
-    show "?C \<subseteq> A" by (auto intro: 1)
-  next
-    show "B = f ` ?C"
-    proof (rule set_eqI)
-      fix b
-      show "b \<in> B \<longleftrightarrow> b \<in> f ` ?C"
-      proof
-        assume "b \<in> B"
-        moreover from this have "f (g b) = b" by (rule 2)
-        ultimately show "b \<in> f ` ?C" by force
-      next
-        assume "b \<in> f ` ?C"
-        then obtain b' where "b' \<in> B" and "b = f (g b')" unfolding image_image ..
-        moreover from this(1) have "f (g b') = b'" by (rule 2)
-        ultimately show "b \<in> B" by simp
-      qed
-    qed
-  next
-    show "inj_on f ?C"
-    proof
-      fix x y
-      assume "x \<in> ?C"
-      then obtain bx where "bx \<in> B" and x: "x = g bx" ..
-      moreover from this(1) have "f (g bx) = bx" by (rule 2)
-      ultimately have *: "f x = bx" by simp
-      assume "y \<in> ?C"
-      then obtain "by" where "by \<in> B" and y: "y = g by" ..
-      moreover from this(1) have "f (g by) = by" by (rule 2)
-      ultimately have "f y = by" by simp
-      moreover assume "f x = f y"
-      ultimately have "bx = by" using * by simp
-      thus "x = y" by (simp only: x y)
-    qed
-  qed
-qed
-
 definition varnum_wrt :: "'x set \<Rightarrow> ('x::countable \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> nat"
   where "varnum_wrt X t = (if keys t - X = {} then 0 else Suc (Max (elem_index ` (keys t - X))))"
 
@@ -3556,7 +3596,23 @@ begin
 
 sublocale gd_powerprod ..
 
-text \<open>The following lemma could be proved more generally if one can ensure there are no zero-divisors.\<close>
+lemma PPs_closed_lp:
+  assumes "p \<in> P[X]"
+  shows "punit.lt p \<in> .[X]"
+proof (cases "p = 0")
+  case True
+  thus ?thesis by (simp add: zero_in_PPs)
+next
+  case False
+  hence "punit.lt p \<in> keys p" by (rule punit.lt_in_keys)
+  also from assms have "\<dots> \<subseteq> .[X]" by (rule PolysD)
+  finally show ?thesis .
+qed
+
+corollary PPs_closed_image_lp: "F \<subseteq> P[X] \<Longrightarrow> punit.lt ` F \<subseteq> .[X]"
+  by (auto intro: PPs_closed_lp)
+
+text \<open>The following lemmas could be proved more generally if one can ensure there are no zero-divisors.\<close>
 
 lemma poly_deg_times:
   assumes "p \<noteq> 0" and "q \<noteq> (0::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::semiring_no_zero_divisors)"
@@ -3631,6 +3687,86 @@ proof (rule antisym)
     thus "u \<in> keys (p * q)" by (simp only: p q algebra_simps)
   qed
   finally show "poly_deg p + poly_deg q \<le> poly_deg (p * q)" .
+qed
+
+lemma times_in_PolysD:
+  assumes "p * q \<in> P[X]" and "p \<in> P[X]" and "p \<noteq> (0::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::semiring_no_zero_divisors)"
+  shows "q \<in> P[X]"
+proof -
+  define qX where "qX = except q (- .[X])"
+  define qY where "qY = except q .[X]"
+  have q: "q = qX + qY" by (simp only: qX_def qY_def add.commute flip: except_decomp)
+  have "qX \<in> P[X]" by (rule PolysI) (simp add: qX_def keys_except)
+  with assms(2) have "p * qX \<in> P[X]" by (rule Polys_closed_times)
+  show ?thesis
+  proof (cases "qY = 0")
+    case True
+    with \<open>qX \<in> P[X]\<close> show ?thesis by (simp add: q)
+  next
+    case False
+    with assms(3) have "p * qY \<noteq> 0" by (rule times_not_zero)
+    hence "keys (p * qY) \<noteq> {}" by simp
+    then obtain t where "t \<in> keys (p * qY)" by blast
+    then obtain t1 t2 where "t2 \<in> keys qY" and t: "t = t1 + t2" by (rule in_keys_timesE)
+    have "t \<notin> .[X]" unfolding t
+    proof
+      assume "t1 + t2 \<in> .[X]"
+      hence "t1 + t2 - t1 \<in> .[X]" by (rule PPs_closed_minus)
+      hence "t2 \<in> .[X]" by simp
+      with \<open>t2 \<in> keys qY\<close> show False by (simp add: qY_def keys_except)
+    qed
+    have "t \<notin> keys (p * qX)"
+    proof
+      assume "t \<in> keys (p * qX)"
+      also from \<open>p * qX \<in> P[X]\<close> have "\<dots> \<subseteq> .[X]" by (rule PolysD)
+      finally have "t \<in> .[X]" .
+      with \<open>t \<notin> .[X]\<close> show False ..
+    qed
+    with \<open>t \<in> keys (p * qY)\<close> have "t \<in> keys (p * qX + p * qY)" by (rule in_keys_plusI2)
+    also have "\<dots> = keys (p * q)" by (simp only: q algebra_simps)
+    finally have "p * q \<notin> P[X]" using \<open>t \<notin> .[X]\<close> by (auto simp: Polys_def)
+    thus ?thesis using assms(1) ..
+  qed
+qed
+
+lemma times_canc_left:
+  assumes "h * p = h * q" and "h \<noteq> (0::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::ring_no_zero_divisors)"
+  shows "p = q"
+proof (rule ccontr)
+  assume "p \<noteq> q"
+  hence "p - q \<noteq> 0" by simp
+  with assms(2) have "h * (p - q) \<noteq> 0" by (rule times_not_zero)
+  hence "h * p \<noteq> h * q" by (simp add: algebra_simps)
+  thus False using assms(1) ..
+qed
+
+lemma times_canc_right:
+  assumes "p * h = q * h" and "h \<noteq> (0::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::ring_no_zero_divisors)"
+  shows "p = q"
+proof (rule ccontr)
+  assume "p \<noteq> q"
+  hence "p - q \<noteq> 0" by simp
+  hence "(p - q) * h \<noteq> 0" using assms(2) by (rule times_not_zero)
+  hence "p * h \<noteq> q * h" by (simp add: algebra_simps)
+  thus False using assms(1) ..
+qed
+
+lemma hom_component_lp:
+  assumes "p \<noteq> 0"
+  shows "hom_component p (deg_pm (punit.lt p)) \<noteq> 0" (is "?p \<noteq> 0")
+    and "punit.lt (hom_component p (deg_pm (punit.lt p))) = punit.lt p"
+proof -
+  from assms have "punit.lt p \<in> keys p" by (rule punit.lt_in_keys)
+  hence *: "punit.lt p \<in> keys ?p" by (simp add: keys_hom_component)
+  thus "?p \<noteq> 0" by auto
+
+  from * show "punit.lt ?p = punit.lt p"
+  proof (rule punit.lt_eqI_keys)
+    fix t
+    assume "t \<in> keys ?p"
+    hence "t \<in> keys p" by (simp add: keys_hom_component)
+    thus "t \<preceq> punit.lt p" by (rule punit.lt_max_keys)
+  qed
 qed
 
 definition is_hom_ord :: "'x \<Rightarrow> bool"
