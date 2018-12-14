@@ -501,9 +501,6 @@ lemma n_gr_0: "0 < n"
 corollary int_n_minus_1 [simp]: "int (n - Suc 0) = int n - 1"
   using n_gr_0 by simp
 
-lemma X_nonempty: "X \<noteq> {}"
-  using n_gr_0 by (simp add: card_gt_0_iff)
-
 lemma int_n_minus_2 [simp]: "int (n - Suc (Suc 0)) = int n - 2"
   using n_gr_1 by simp
 
@@ -827,7 +824,7 @@ proof -
   also have "\<dots> = Hilbert_fun (cone (f, X)) z + Hilbert_fun P z + Hilbert_fun N z"
     by (simp add: ss_def ideal_Int_Polys_eq_cone)
   also have "Hilbert_fun (cone (f, X)) z = (z - d + (n - 1)) choose (n - 1)"
-    using f_not_0 f_in_Polys fin_X hom_f X_nonempty by (simp add: Hilbert_fun_cone_nonempty assms)
+    using f_not_0 f_in_Polys fin_X hom_f X_not_empty by (simp add: Hilbert_fun_cone_nonempty assms)
   finally show ?thesis .
 qed
 
@@ -851,7 +848,7 @@ proof (rule poly_fun_eqI_ge)
     using X_not_empty valid_ps hom_ps cn_ps std_ps ext_ps \<open>aa 0 \<le> nat z\<close>
           valid_qs hom_qs cn_qs std_qs ext_qs \<open>bb 0 \<le> nat z\<close> \<open>0 \<le> z\<close>
     by (simp add: Hilbert_fun_eq_Hilbert_poly int_z aa_def bb_def int_binomial int_zd)
-  finally show "?f z = ?g z" using fin_X X_nonempty \<open>0 \<le> z\<close>
+  finally show "?f z = ?g z" using fin_X X_not_empty \<open>0 \<le> z\<close>
     by (simp add: Hilbert_fun_Polys int_binomial) smt
 qed (simp_all add: poly_fun_Hilbert_poly)
 
@@ -997,7 +994,7 @@ proof (rule ccontr)
     by (simp add: Hilbert_fun_eq_Hilbert_poly_plus_card aa_def bb_def int_binomial eq)
   finally have "((int z - d + n - 1) gchoose (n - 1) + Hilbert_poly aa z + Hilbert_poly bb z) +
                   (int (card (?S (set ps))) + int (card (?S (set qs)))) = int z + n - 1 gchoose (n - 1)"
-    using fin_X X_nonempty by (simp add: Hilbert_fun_Polys int_binomial algebra_simps)
+    using fin_X X_not_empty by (simp add: Hilbert_fun_Polys int_binomial algebra_simps)
   also have "\<dots> = (int z - d + n - 1) gchoose (n - 1) + Hilbert_poly aa z + Hilbert_poly bb z"
     by (fact dube_eq_0[THEN fun_cong])
   finally have "int (card (?S (set ps))) + int (card (?S (set qs))) = 0" by simp
