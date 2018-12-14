@@ -1085,55 +1085,6 @@ proof -
   qed
 qed
 
-subsubsection \<open>Sets of Monomials and Binomials\<close>
-    
-lemma monomial_set_pmdl:
-  fixes f :: "'t \<Rightarrow>\<^sub>0 'b::field"
-  assumes "is_monomial_set G" and "f \<in> pmdl G" and "v \<in> keys f"
-  shows "\<exists>g\<in>G. lt g adds\<^sub>t v"
-  using \<open>f \<in> pmdl G\<close> \<open>v \<in> keys f\<close>
-proof (induct f rule: pmdl_induct)
-  case module_0
-  have "keys 0 = {}" by (simp only: keys_eq_empty_iff)
-  with \<open>v \<in> keys 0\<close> show ?case by auto
-next
-  case (module_plus a b c s)
-  have "v \<in> keys (a + monom_mult c s b)" by fact
-  also have "... \<subseteq> (keys a) \<union> (keys (monom_mult c s b))" by (rule keys_add_subset)
-  finally have "v \<in> (keys a) \<union> (keys (monom_mult c s b))" .
-  hence "v \<in> keys a \<or> v \<in> keys (monom_mult c s b)" by simp
-  thus ?case
-  proof
-    assume "v \<in> keys a"
-    thus ?thesis by (rule \<open>v \<in> keys a \<Longrightarrow> (\<exists>g\<in>G. lt g adds\<^sub>t v)\<close>)
-  next
-    assume "v \<in> keys (monom_mult c s b)"
-    show ?thesis
-    proof
-      from \<open>is_monomial_set G\<close> \<open>b \<in> G\<close> have "is_monomial b" by (rule is_monomial_setD)
-      then obtain d u where "d \<noteq> 0" and b_def: "b = monomial d u" by (rule is_monomial_monomial)
-      from \<open>d \<noteq> 0\<close> have "lt b = u" unfolding b_def by (rule lt_monomial)
-      have "monom_mult c s b = monomial (c * d) (s \<oplus> u)" unfolding b_def monom_mult_monomial ..
-      with \<open>v \<in> keys (monom_mult c s b)\<close> have v: "v \<in> keys (monomial (c * d) (s \<oplus> u))" by simp
-      show "lt b adds\<^sub>t v"
-      proof (cases "c = 0")
-        case True
-        hence "c * d = 0" by simp
-        hence "monomial (c * d) (s \<oplus> u) = 0" by (rule monomial_0I)
-        hence "keys (monomial (c * d) (s \<oplus> u)) = {}" by simp
-        with v have "v \<in> {}" by simp
-        thus ?thesis ..
-      next
-        case False
-        with \<open>d \<noteq> 0\<close> have "c * d \<noteq> 0" by simp
-        hence "keys (monomial (c * d) (s \<oplus> u)) = {s \<oplus> u}" by (rule keys_of_monomial)
-        with v have "v = s \<oplus> u" by simp
-        thus ?thesis unfolding \<open>lt b = u\<close> by (simp add: term_simps)
-      qed
-    qed fact
-  qed
-qed
-
 subsection \<open>Monicity\<close>
 
 lemma monic_has_bounded_keys:
