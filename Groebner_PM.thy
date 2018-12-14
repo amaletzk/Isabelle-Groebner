@@ -39,6 +39,182 @@ lemmas is_red_reduced_GB_monomial_lt_GB_Polys =
 lemmas reduced_GB_monomial_lt_reduced_GB_Polys =
   punit.reduced_GB_monomial_lt_reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
 
+subsection \<open>Univariate Polynomials\<close>
+
+lemma (in -) adds_univariate_linear:
+  assumes "finite X" and "card X \<le> 1" and "s \<in> .[X]" and "t \<in> .[X]"
+  obtains "s adds t" | "t adds s"
+proof (cases "s adds t")
+  case True
+  thus ?thesis ..
+next
+  case False
+  then obtain x where 1: "lookup t x < lookup s x" by (auto simp: adds_pm le_pm_def le_fun_def not_le)
+  hence "x \<in> keys s" by (simp add: in_keys_iff)
+  also from assms(3) have "\<dots> \<subseteq> X" by (rule PPsD)
+  finally have "x \<in> X" .
+  have "t adds s"
+  proof (intro adds_pmI le_pmI)
+    fix y
+    show "lookup t y \<le> lookup s y"
+    proof (cases "y \<in> keys t")
+      case True
+      also from assms(4) have "keys t \<subseteq> X" by (rule PPsD)
+      finally have "y \<in> X" .
+      with assms(1, 2) \<open>x \<in> X\<close> have "x = y" by (rule card_le_1D)
+      with 1 show ?thesis by simp
+    next
+      case False
+      thus ?thesis by simp
+    qed
+  qed
+  thus ?thesis ..
+qed
+
+context
+  fixes X :: "'x set"
+  assumes fin_X: "finite X" and card_X: "card X \<le> 1"
+begin
+
+lemma ord_iff_adds_univariate:
+  assumes "s \<in> .[X]" and "t \<in> .[X]"
+  shows "s \<preceq> t \<longleftrightarrow> s adds t"
+proof
+  assume "s \<preceq> t"
+  from fin_X card_X assms show "s adds t"
+  proof (rule adds_univariate_linear)
+    assume "t adds s"
+    hence "t \<preceq> s" by (rule ord_adds)
+    with \<open>s \<preceq> t\<close> have "s = t" by (rule ordered_powerprod_lin.antisym)
+    thus ?thesis by simp
+  qed
+qed (rule ord_adds)
+
+lemma adds_iff_deg_le_univariate:
+  assumes "s \<in> .[X]" and "t \<in> .[X]"
+  shows "s adds t \<longleftrightarrow> deg_pm s \<le> deg_pm t"
+proof
+  assume *: "deg_pm s \<le> deg_pm t"
+  from fin_X card_X assms show "s adds t"
+  proof (rule adds_univariate_linear)
+    assume "t adds s"
+    hence "t = s" using * by (rule adds_deg_pm_antisym)
+    thus ?thesis by simp
+  qed
+qed (rule deg_pm_mono)
+
+corollary ord_iff_deg_le_univariate: "s \<in> .[X] \<Longrightarrow> t \<in> .[X] \<Longrightarrow> s \<preceq> t \<longleftrightarrow> deg_pm s \<le> deg_pm t"
+  by (simp only: ord_iff_adds_univariate adds_iff_deg_le_univariate)
+
+lemma poly_deg_univariate:
+  assumes "p \<in> P[X]"
+  shows "poly_deg p = deg_pm (punit.lt p)"
+proof (cases "p = 0")
+  case True
+  thus ?thesis by simp
+next
+  case False
+  hence lp_in: "punit.lt p \<in> keys p" by (rule punit.lt_in_keys)
+  also from assms have "\<dots> \<subseteq> .[X]" by (rule PolysD)
+  finally have "punit.lt p \<in> .[X]" .
+  show ?thesis
+  proof (intro antisym poly_deg_leI)
+    fix t
+    assume "t \<in> keys p"
+    hence "t \<preceq> punit.lt p" by (rule punit.lt_max_keys)
+    moreover from \<open>t \<in> keys p\<close> \<open>keys p \<subseteq> .[X]\<close> have "t \<in> .[X]" ..
+    ultimately show "deg_pm t \<le> deg_pm (punit.lt p)" using \<open>punit.lt p \<in> .[X]\<close>
+      by (simp only: ord_iff_deg_le_univariate)
+  next
+    from lp_in show "deg_pm (punit.lt p) \<le> poly_deg p" by (rule poly_deg_max_keys)
+  qed
+qed
+
+lemma reduced_GB_univariate_cases:
+  assumes "F \<subseteq> P[X]"
+  obtains g where "g \<in> P[X]" and "g \<noteq> 0" and "punit.lc g = 1" and "punit.reduced_GB F = {g}" |
+    "punit.reduced_GB F = {}"
+proof (cases "punit.reduced_GB F = {}")
+  case True
+  thus ?thesis ..
+next
+  case False
+  let ?G = "punit.reduced_GB F"
+  from fin_X assms have ar: "punit.is_auto_reduced ?G" and "0 \<notin> ?G" and "?G \<subseteq> P[X]"
+    and m: "punit.is_monic_set ?G"
+    by (rule reduced_GB_is_auto_reduced_Polys, rule reduced_GB_nonzero_Polys, rule reduced_GB_Polys,
+        rule reduced_GB_is_monic_set_Polys)
+  from False obtain g where "g \<in> ?G" by blast
+  with \<open>0 \<notin> ?G\<close> \<open>?G \<subseteq> P[X]\<close> have "g \<noteq> 0" and "g \<in> P[X]" by blast+
+  from this(1) have lp_g: "punit.lt g \<in> keys g" by (rule punit.lt_in_keys)
+  also from \<open>g \<in> P[X]\<close> have "\<dots> \<subseteq> .[X]" by (rule PolysD)
+  finally have "punit.lt g \<in> .[X]" .
+  note \<open>g \<in> P[X]\<close> \<open>g \<noteq> 0\<close>
+  moreover from m \<open>g \<in> ?G\<close> \<open>g \<noteq> 0\<close> have "punit.lc g = 1" by (rule punit.is_monic_setD)
+  moreover have "?G = {g}"
+  proof
+    show "?G \<subseteq> {g}"
+    proof
+      fix g'
+      assume "g' \<in> ?G"
+      with \<open>0 \<notin> ?G\<close> \<open>?G \<subseteq> P[X]\<close> have "g' \<noteq> 0" and "g' \<in> P[X]" by blast+
+      from this(1) have lp_g': "punit.lt g' \<in> keys g'" by (rule punit.lt_in_keys)
+      also from \<open>g' \<in> P[X]\<close> have "\<dots> \<subseteq> .[X]" by (rule PolysD)
+      finally have "punit.lt g' \<in> .[X]" .
+      have "g' = g"
+      proof (rule ccontr)
+        assume "g' \<noteq> g"
+        with \<open>g \<in> ?G\<close> \<open>g' \<in> ?G\<close> have g: "g \<in> ?G - {g'}" and g': "g' \<in> ?G - {g}" by blast+
+        from fin_X card_X \<open>punit.lt g \<in> .[X]\<close> \<open>punit.lt g' \<in> .[X]\<close> show False
+        proof (rule adds_univariate_linear)
+          assume *: "punit.lt g adds punit.lt g'"
+          from ar \<open>g' \<in> ?G\<close> have "\<not> punit.is_red (?G - {g'}) g'" by (rule punit.is_auto_reducedD)
+          moreover from g \<open>g \<noteq> 0\<close> lp_g' * have "punit.is_red (?G - {g'}) g'"
+            by (rule punit.is_red_addsI[simplified])
+          ultimately show ?thesis ..
+        next
+          assume *: "punit.lt g' adds punit.lt g"
+          from ar \<open>g \<in> ?G\<close> have "\<not> punit.is_red (?G - {g}) g" by (rule punit.is_auto_reducedD)
+          moreover from g' \<open>g' \<noteq> 0\<close> lp_g * have "punit.is_red (?G - {g}) g"
+            by (rule punit.is_red_addsI[simplified])
+          ultimately show ?thesis ..
+        qed
+      qed
+      thus "g' \<in> {g}" by simp
+    qed
+  next
+    from \<open>g \<in> ?G\<close> show "{g} \<subseteq> ?G" by simp
+  qed
+  ultimately show ?thesis ..
+qed
+
+corollary deg_reduced_GB_univariate_le:
+  assumes "F \<subseteq> P[X]" and "f \<in> ideal F" and "f \<noteq> 0" and "g \<in> punit.reduced_GB F"
+  shows "poly_deg g \<le> poly_deg f"
+  using assms(1)
+proof (rule reduced_GB_univariate_cases)
+  let ?G = "punit.reduced_GB F"
+  fix g'
+  assume "g' \<in> P[X]" and "g' \<noteq> 0" and G: "?G = {g'}"
+  from fin_X assms(1) have gb: "punit.is_Groebner_basis ?G" and "ideal ?G = ideal F"
+    and "?G \<subseteq> P[X]"
+    by (rule reduced_GB_is_GB_Polys, rule reduced_GB_ideal_Polys, rule reduced_GB_Polys)
+  from assms(2) this(2) have "f \<in> ideal ?G" by simp
+  with gb obtain g'' where "g'' \<in> ?G" and "punit.lt g'' adds punit.lt f"
+    using assms(3) by (rule punit.GB_adds_lt[simplified])
+  with assms(4) have "punit.lt g adds punit.lt f" by (simp add: G)
+  hence "deg_pm (punit.lt g) \<le> deg_pm (punit.lt f)" by (rule deg_pm_mono)
+  moreover from assms(4) \<open>?G \<subseteq> P[X]\<close> have "g \<in> P[X]" ..
+  ultimately have "poly_deg g \<le> deg_pm (punit.lt f)" by (simp only: poly_deg_univariate)
+  also from punit.lt_in_keys have "\<dots> \<le> poly_deg f" by (rule poly_deg_max_keys) fact
+  finally show ?thesis .
+next
+  assume "punit.reduced_GB F = {}"
+  with assms(4) show ?thesis by simp
+qed
+
+end
+
 subsection \<open>Homogeneity\<close>
 
 lemma is_reduced_GB_homogeneous:
