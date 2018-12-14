@@ -171,7 +171,7 @@ proof -
     qed fact
     with \<open>\<not> punit.is_red F g\<close> show False ..
   qed
-  from assms(1) \<open>f \<in> F\<close> have "is_binomial f" by (rule punit.is_binomial_setD)
+  from assms(1) \<open>f \<in> F\<close> have "is_binomial f" by (rule is_binomial_setD)
   hence "is_monomial f \<or> is_proper_binomial f" unfolding is_binomial_alt .
   hence "is_proper_binomial f"
   proof
