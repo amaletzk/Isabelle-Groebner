@@ -1,10 +1,12 @@
-text \<open>Some further general properties of, and functions on, sets and lists.\<close>
+section \<open>Utilities\<close>
 
 theory General_Utils
   imports Polynomials.Utils Groebner_Bases.General
 begin
+
+text \<open>Some further general properties of, and functions on, sets and lists.\<close>
   
-section \<open>Sets\<close>
+subsection \<open>Sets\<close>
 
 lemma Compr_cong:
   assumes "P = Q" and "\<And>x. P x \<Longrightarrow> f x = g x"
@@ -151,7 +153,59 @@ qed
 lemma card_le_1_iff: "finite A \<Longrightarrow> card A \<le> Suc 0 \<longleftrightarrow> (\<forall>a\<in>A. \<forall>b\<in>A. a = b)"
   using card_le_1D card_le_1I by (metis One_nat_def)
 
-section \<open>Sums\<close>
+lemma subset_imageE_inj:
+  assumes "B \<subseteq> f ` A"
+  obtains C where "C \<subseteq> A" and "B = f ` C" and "inj_on f C"
+proof -
+  define g where "g = (\<lambda>x. SOME a. a \<in> A \<and> f a = x)"
+  have "g b \<in> A \<and> f (g b) = b" if "b \<in> B" for b
+  proof -
+    from that assms have "b \<in> f ` A" ..
+    then obtain a where "a \<in> A" and "b = f a" ..
+    hence "a \<in> A \<and> f a = b" by simp
+    thus ?thesis unfolding g_def by (rule someI)
+  qed
+  hence 1: "\<And>b. b \<in> B \<Longrightarrow> g b \<in> A" and 2: "\<And>b. b \<in> B \<Longrightarrow> f (g b) = b" by simp_all
+  let ?C = "g ` B"
+  show ?thesis
+  proof
+    show "?C \<subseteq> A" by (auto intro: 1)
+  next
+    show "B = f ` ?C"
+    proof (rule set_eqI)
+      fix b
+      show "b \<in> B \<longleftrightarrow> b \<in> f ` ?C"
+      proof
+        assume "b \<in> B"
+        moreover from this have "f (g b) = b" by (rule 2)
+        ultimately show "b \<in> f ` ?C" by force
+      next
+        assume "b \<in> f ` ?C"
+        then obtain b' where "b' \<in> B" and "b = f (g b')" unfolding image_image ..
+        moreover from this(1) have "f (g b') = b'" by (rule 2)
+        ultimately show "b \<in> B" by simp
+      qed
+    qed
+  next
+    show "inj_on f ?C"
+    proof
+      fix x y
+      assume "x \<in> ?C"
+      then obtain bx where "bx \<in> B" and x: "x = g bx" ..
+      moreover from this(1) have "f (g bx) = bx" by (rule 2)
+      ultimately have *: "f x = bx" by simp
+      assume "y \<in> ?C"
+      then obtain "by" where "by \<in> B" and y: "y = g by" ..
+      moreover from this(1) have "f (g by) = by" by (rule 2)
+      ultimately have "f y = by" by simp
+      moreover assume "f x = f y"
+      ultimately have "bx = by" using * by simp
+      thus "x = y" by (simp only: x y)
+    qed
+  qed
+qed
+
+subsection \<open>Sums\<close>
 
 lemma sum_head_int: "a \<le> (b::int) \<Longrightarrow> sum f {a..b} = f a + sum f {a + 1..b}"
   by (smt atLeastAtMost_iff finite_atLeastAtMost_int simp_from_to sum.insert)
@@ -186,7 +240,7 @@ lemma sum_int_nat_conv: "0 \<le> a \<Longrightarrow> 0 \<le> b \<Longrightarrow>
 lemma sum_int_nat_conv': "0 < a \<Longrightarrow> sum f {a..b} = (\<Sum>i=nat a..nat b. f (int i))"
   by (smt atLeastAtMost_iff nat_0_iff sum.cong sum.not_neutral_contains_not_neutral sum_int_nat_conv)
     
-section \<open>Lists\<close>
+subsection \<open>Lists\<close>
 
 lemma length_le_1:
   assumes "length xs \<le> 1" and "x \<in> set xs" and "y \<in> set xs"
@@ -200,7 +254,7 @@ next
   with Cons assms(2, 3) show ?thesis by simp
 qed
 
-subsection \<open>@{const map_of}\<close>
+subsubsection \<open>@{const map_of}\<close>
 
 lemma map_of_filter: "map_of (filter (\<lambda>x. fst x = y) xs) y = map_of xs y"
   by (induct xs, auto)
@@ -233,7 +287,7 @@ next
   qed
 qed
 
-subsection \<open>@{const sorted_wrt}\<close>
+subsubsection \<open>@{const sorted_wrt}\<close>
 
 lemma sorted_wrt_cong_strong:
   assumes "sorted_wrt P xs" and "map f xs = map f' ys"
@@ -274,7 +328,7 @@ next
   ultimately show ?case by (simp add: ys)
 qed
 
-subsection \<open>@{const insort_wrt} and @{const merge_wrt}\<close>
+subsubsection \<open>@{const insort_wrt} and @{const merge_wrt}\<close>
 
 lemma insort_wrt_cong:
   assumes "f y = f y'" and "map f xs = map f xs'" and "\<And>x x'. f x = f x' \<Longrightarrow> r y x \<longleftrightarrow> r y' x'"
@@ -327,7 +381,7 @@ next
   show ?case by (simp add: xs' ys' eq5 eq1 eq2 eq3 eq4 eq7 eq8 \<open>x \<noteq> y\<close> \<open>x' \<noteq> y'\<close>)
 qed
 
-subsection \<open>@{const map}\<close>
+subsubsection \<open>@{const map}\<close>
 
 lemma map_cong_strong:
   assumes "map f xs = map f' ys" and "\<And>x y. x \<in> set xs \<Longrightarrow> y \<in> set ys \<Longrightarrow> f x = f' y \<Longrightarrow> g x = g' y"
