@@ -1,5 +1,7 @@
 (* Author: Alexander Maletzky *)
 
+section \<open>Computing Gr\"obner Bases by Triangularizing Macaulay Matrices\<close>
+
 theory Groebner_Macaulay
   imports Groebner_PM Groebner_Bases.Macaulay_Matrix
 begin
@@ -373,7 +375,7 @@ next
     by (rule ideal.module_mono)
 qed
 
-theorem thm_2_3_6:
+lemma thm_2_3_6:
   assumes "set fs \<subseteq> P[X]" and "is_GB_cofactor_bound (set fs) b"
   shows "punit.is_Groebner_basis (set (punit.Macaulay_list (deg_shifts b fs)))"
 proof -
@@ -434,7 +436,7 @@ proof -
   qed (simp add: ideal_G)
 qed
 
-theorem thm_2_3_7:
+lemma thm_2_3_7:
   assumes "set fs \<subseteq> P[X]" and "is_GB_cofactor_bound (set fs) b"
   shows "1 \<in> ideal (set fs) \<longleftrightarrow> 1 \<in> set (punit.Macaulay_list (deg_shifts b fs))" (is "?L \<longleftrightarrow> ?R")
 proof
@@ -472,70 +474,28 @@ next
   finally show ?L by simp
 qed
 
-theorem Dube_bound:
-  fixes F
-  defines "d \<equiv> rat_of_nat (maxdeg F)"
-  defines "n \<equiv> card X"
-  assumes "finite F" and "F \<subseteq> P[X]"
-  shows "is_hom_GB_bound F (nat \<lfloor>(2 * (d\<^sup>2 / 2 + d) ^ (2 ^ (n - 2)))\<rfloor>)"
-          (* TODO: The exponents can be replaced by rational numbers, even if "n < 2". *)
-  sorry
-
 end
 
-end (* pm_powerprod *)
-
-context extended_ord_pm_powerprod
-begin
-
-lemma Dube_cofactor_bound:
-  fixes F X
-  defines "d \<equiv> rat_of_nat (maxdeg F)"
-  defines "n \<equiv> card X"
-  assumes "finite X" and "finite F" and "F \<subseteq> P[X]"
-  shows "is_GB_cofactor_bound F (nat \<lfloor>(2 * (d\<^sup>2 / 2 + d) ^ (2 ^ (n - 1)))\<rfloor>)"
-proof -
-  from assms(3, 5) show ?thesis
-  proof (rule hom_GB_bound_is_GB_cofactor_bound)
-    let ?F = "homogenize None ` extend_indets ` F"
-    let ?X = "insert None (Some ` X)"
-    let ?d = "rat_of_nat (maxdeg ?F)"
-    from assms(3) have "finite ?X" by simp
-    moreover from assms(4) have "finite ?F" by (intro finite_imageI)
-    moreover have "?F \<subseteq> P[?X]"
-    proof
-      fix f'
-      assume "f' \<in> ?F"
-      then obtain f where "f \<in> F" and f': "f' = homogenize None (extend_indets f)" by blast
-      from this(1) assms(5) have "f \<in> P[X]" ..
-      hence "extend_indets f \<in> P[Some ` X]" by (auto simp: Polys_alt indets_extend_indets)
-      thus "f' \<in> P[?X]" unfolding f' by (rule homogenize_in_Polys)
-    qed
-    ultimately have "extended_ord.is_hom_GB_bound ?F (nat \<lfloor>2 * (?d\<^sup>2 / 2 + ?d) ^ 2 ^ (card ?X - 2)\<rfloor>)"
-      by (rule extended_ord.Dube_bound)
-    moreover have "?d = d" unfolding d_def
-    proof (intro arg_cong[where f=rat_of_nat])
-      have "maxdeg (homogenize None ` extend_indets ` F) = maxdeg (extend_indets ` F)"
-        by (auto simp: indets_extend_indets intro: maxdeg_homogenize)
-      also have "\<dots> = maxdeg F" by (simp add: maxdeg_def image_image)
-      finally show "maxdeg (homogenize None ` extend_indets ` F) = maxdeg F" .
-    qed
-    moreover from assms(3) have "card ?X = n + 1" by (simp add: n_def card_image)
-    ultimately show "extended_ord.is_hom_GB_bound ?F (nat \<lfloor>2 * (d\<^sup>2 / 2 + d) ^ 2 ^ (n - 1)\<rfloor>)" by simp
-  qed
-qed
-
-corollary Dube_cofactor_bound_indets:
-  assumes "finite F"
-  shows "is_GB_cofactor_bound F (nat \<lfloor>(2 * ((rat_of_nat (maxdeg F))\<^sup>2 / 2 + rat_of_nat (maxdeg F)) ^
-                                  (2 ^ (card (UNION F indets) - 1)))\<rfloor>)"
-  using _ assms _
-proof (rule Dube_cofactor_bound)
-  from assms show "finite (\<Union> (indets ` F))" by (simp add: finite_indets)
+lemma thm_2_3_6_indets:
+  assumes "is_GB_cofactor_bound (set fs) b"
+  shows "punit.is_Groebner_basis (set (punit.Macaulay_list (deg_shifts (UNION (set fs) indets) b fs)))"
+  using _ _ assms
+proof (rule thm_2_3_6)
+  from finite_set show "finite (UNION (set fs) indets)" by (simp add: finite_indets)
 next
-  show "F \<subseteq> P[\<Union> (indets ` F)]" by (auto simp: Polys_alt)
+  show "set fs \<subseteq> P[UNION (set fs) indets]" by (auto simp: Polys_alt)
 qed
 
-end (* extended_ord_pm_powerprod *)
+lemma thm_2_3_7_indets:
+  assumes "is_GB_cofactor_bound (set fs) b"
+  shows "1 \<in> ideal (set fs) \<longleftrightarrow> 1 \<in> set (punit.Macaulay_list (deg_shifts (UNION (set fs) indets) b fs))"
+  using _ _ assms
+proof (rule thm_2_3_7)
+  from finite_set show "finite (UNION (set fs) indets)" by (simp add: finite_indets)
+next
+  show "set fs \<subseteq> P[UNION (set fs) indets]" by (auto simp: Polys_alt)
+qed
+
+end (* pm_powerprod *)
 
 end (* theory *)
