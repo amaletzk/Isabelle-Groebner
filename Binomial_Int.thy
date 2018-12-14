@@ -1,8 +1,24 @@
 section \<open>Integer Binomial Coefficients\<close>
 
 theory Binomial_Int
-  imports Main HOL.Rat
+  imports Complex_Main
 begin
+
+lemma upper_le_binomial:
+  assumes "0 < k" and "k < n"
+  shows "n \<le> n choose k"
+proof -
+  from assms have "1 \<le> n" by simp
+  define k' where "k' = (if n div 2 \<le> k then k else n - k)"
+  from assms have 1: "k' \<le> n - 1" and 2: "n div 2 \<le> k'" by (auto simp: k'_def)
+  from assms(2) have "k \<le> n" by simp
+  have "n choose k = n choose k'" by (simp add: k'_def binomial_symmetric[OF \<open>k \<le> n\<close>])
+  have "n = n choose 1" by (simp only: choose_one)
+  also from \<open>1 \<le> n\<close> have "\<dots> = n choose (n - 1)" by (rule binomial_symmetric)
+  also from 1 2 have "\<dots> \<le> n choose k'" by (rule binomial_antimono) simp
+  also have "\<dots> = n choose k" by (simp add: k'_def binomial_symmetric[OF \<open>k \<le> n\<close>])
+  finally show ?thesis .
+qed
 
 text \<open>Restore original sort constraints:\<close>
 setup \<open>Sign.add_const_constraint (@{const_name gbinomial}, SOME @{typ "'a::{semidom_divide,semiring_char_0} \<Rightarrow> nat \<Rightarrow> 'a"})\<close>
