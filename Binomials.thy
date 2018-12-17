@@ -641,7 +641,7 @@ lemma comp_red_monic_basis_has_bounded_keys_set:
   assumes "has_bounded_keys_set n (set xs)" and "n \<le> 2"
   shows "has_bounded_keys_set n (set (comp_red_monic_basis xs))"
   unfolding set_comp_red_monic_basis
-  by (rule monic_set_has_bounded_keys, rule comp_red_basis_has_bounded_keys_set, fact+)
+  by (rule image_monic_has_bounded_keys, rule comp_red_basis_has_bounded_keys_set, fact+)
 
 subsection \<open>Monomials\<close>
 

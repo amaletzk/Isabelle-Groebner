@@ -1092,13 +1092,13 @@ lemma monic_has_bounded_keys:
   shows "has_bounded_keys n (monic p)"
   using assms by (simp only: has_bounded_keys_def keys_monic)
     
-lemma monic_set_has_bounded_keys:
+lemma image_monic_has_bounded_keys:
   assumes "has_bounded_keys_set n A"
-  shows "has_bounded_keys_set n (monic_set A)"
+  shows "has_bounded_keys_set n (monic ` A)"
 proof (rule has_bounded_keys_setI)
   fix a
-  assume "a \<in> monic_set A"
-  then obtain a' where a_def: "a = monic a'" and "a' \<in> A" unfolding monic_set_def by (rule imageE)
+  assume "a \<in> monic ` A"
+  then obtain a' where a_def: "a = monic a'" and "a' \<in> A" ..
   from assms \<open>a' \<in> A\<close> have "has_bounded_keys n a'" by (rule has_bounded_keys_setD)
   thus "has_bounded_keys n a" unfolding a_def by (rule monic_has_bounded_keys)
 qed

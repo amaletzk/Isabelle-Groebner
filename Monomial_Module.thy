@@ -373,8 +373,8 @@ proof -
   from \<open>G \<subseteq> F - {0}\<close> have "G \<subseteq> F" by blast
   hence "pmdl G \<subseteq> pmdl F" by (rule pmdl.module_mono)
   note dgrad fin_comps F_sub
-  moreover have "is_reduced_GB (monic_set G)" unfolding is_reduced_GB_def monic_set_GB
-  proof (intro conjI monic_set_is_auto_reduced monic_set_is_monic_set)
+  moreover have "is_reduced_GB (monic ` G)" unfolding is_reduced_GB_def GB_image_monic
+  proof (intro conjI image_monic_is_auto_reduced image_monic_is_monic_set)
     from dgrad show "is_Groebner_basis G"
     proof (rule isGB_I_is_red)
       from \<open>G \<subseteq> F\<close> F_sub show "G \<subseteq> dgrad_p_set d m" by (rule subset_trans)
@@ -401,15 +401,15 @@ proof -
       with \<open>g' \<noteq> g\<close> show False ..
     qed
   next
-    show "0 \<notin> monic_set G"
+    show "0 \<notin> monic ` G"
     proof
-      assume "0 \<in> monic_set G"
-      then obtain g where "0 = monic g" and "g \<in> G" unfolding monic_set_def ..
+      assume "0 \<in> monic ` G"
+      then obtain g where "0 = monic g" and "g \<in> G" ..
       moreover from this(2) \<open>G \<subseteq> F - {0}\<close> have "g \<noteq> 0" by blast
       ultimately show False by (simp add: monic_0_iff)
     qed
   qed
-  moreover have "pmdl (monic_set G) = pmdl F" unfolding monic_set_pmdl
+  moreover have "pmdl (monic ` G) = pmdl F" unfolding pmdl_image_monic
   proof
     show "pmdl F \<subseteq> pmdl G"
     proof (rule pmdl.module_subset_moduleI, rule)
@@ -424,8 +424,8 @@ proof -
       thus "f \<in> pmdl G" by (rule red_rtranclp_0_in_pmdl)
     qed
   qed fact
-  ultimately have "reduced_GB F = monic_set G" by (rule reduced_GB_unique_dgrad_p_set)
-  also from \<open>G \<subseteq> F\<close> have "\<dots> \<subseteq> monic ` F" unfolding monic_set_def by (rule image_mono)
+  ultimately have "reduced_GB F = monic ` G" by (rule reduced_GB_unique_dgrad_p_set)
+  also from \<open>G \<subseteq> F\<close> have "\<dots> \<subseteq> monic ` F" by (rule image_mono)
   finally show ?thesis .
 qed
 
@@ -580,8 +580,8 @@ next
     from False have "lc f \<noteq> 0" by (rule lc_not_0)
     thus "is_reduced_GB {monic f}" by (simp add: is_reduced_GB_singleton monic_def)
   next
-    have "pmdl {monic f} = pmdl (monic_set {f})" by (simp add: monic_set_def)
-    also have "\<dots> = pmdl {f}" by (fact monic_set_pmdl)
+    have "pmdl {monic f} = pmdl (monic ` {f})" by simp
+    also have "\<dots> = pmdl {f}" by (fact pmdl_image_monic)
     finally show "pmdl {monic f} = pmdl {f}" .
   qed simp
   with False show ?thesis by simp
