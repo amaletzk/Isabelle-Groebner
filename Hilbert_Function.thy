@@ -802,13 +802,18 @@ proof -
   with assms(2) \<open>independent ?B\<close> have "finite ?B" using independent_span_bound by blast
   note \<open>dim A = card ?B\<close>
   also from finite_set have "card ?B = (\<Sum>s\<in>set ss. card (local.some_basis s))"
-  proof (rule card_Union_image)
+  proof (intro card_UN_disjoint ballI impI)
     fix s
     assume "s \<in> set ss"
     with \<open>finite ?B\<close> show "finite (local.some_basis s)" by auto
   next
-    show "pairwise (\<lambda>s t. disjnt (local.some_basis s) (local.some_basis t)) (set ss)"
+    fix s1 s2
+    have "pairwise (\<lambda>s t. disjnt (local.some_basis s) (local.some_basis t)) (set ss)"
       using assms(1, 4) by (rule direct_decomp_some_basis_pairwise_disjnt)
+    moreover assume "s1 \<in> set ss" and "s2 \<in> set ss" and "s1 \<noteq> s2"
+    thm pairwiseD
+    ultimately have "disjnt (local.some_basis s1) (local.some_basis s2)" by (rule pairwiseD)
+    thus "local.some_basis s1 \<inter> local.some_basis s2 = {}" by (simp only: disjnt_def)
   qed
   also from refl card_some_basis have "\<dots> = (\<Sum>s\<in>set ss. dim s)" by (rule sum.cong)
   finally show ?thesis .
