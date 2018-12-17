@@ -1,7 +1,7 @@
 section \<open>Multivariate Polynomials with Power-Products Represented by Polynomial Mappings\<close>
 
 theory MPoly_PM
-  imports Signature_Groebner.Quasi_PM_Power_Products Poly_Utils
+  imports Signature_Groebner.Quasi_PM_Power_Products
 begin
 
 text \<open>Many notions introduced in this theory for type @{typ "('x \<Rightarrow>\<^sub>0 'a) \<Rightarrow>\<^sub>0 'b"} closely resemble

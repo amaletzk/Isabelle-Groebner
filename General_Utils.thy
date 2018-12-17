@@ -289,33 +289,6 @@ proof -
   qed
 qed
 
-subsubsection \<open>@{const max_list}\<close>
-
-context linorder
-begin
-
-lemma max_list_ge:
-  assumes "x \<in> set xs"
-  shows "x \<le> max_list xs"
-proof -
-  from assms have "xs \<noteq> []" by auto
-  from finite_set assms have "x \<le> Max (set xs)" by (rule Max_ge)
-  also from \<open>xs \<noteq> []\<close> have "Max (set xs) = max_list xs" by (rule max_list_Max[symmetric])
-  finally show ?thesis .
-qed
-
-lemma max_list_boundedI:
-  assumes "xs \<noteq> []" and "\<And>x. x \<in> set xs \<Longrightarrow> x \<le> a"
-  shows "max_list xs \<le> a"
-proof -
-  from assms(1) have "set xs \<noteq> {}" by simp
-  from assms(1) have "max_list xs = Max (set xs)" by (rule max_list_Max)
-  also from finite_set \<open>set xs \<noteq> {}\<close> assms(2) have "\<dots> \<le> a" by (rule Max.boundedI)
-  finally show ?thesis .
-qed
-
-end
-
 subsubsection \<open>@{const map_of}\<close>
 
 lemma map_of_filter: "map_of (filter (\<lambda>x. fst x = y) xs) y = map_of xs y"
