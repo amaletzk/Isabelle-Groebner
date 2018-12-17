@@ -1012,7 +1012,7 @@ global_interpretation int31: intN 31 int_of_int31 Int31
     and "int31.uminus_intN = uminus"
     and "int31.minus_intN = (-)"
     and "int31.one_intN = 1"
-    and "int31.times_intN = ( * )"
+    and "int31.times_intN = (*)"
     and "int31.divide_intN = (div)"
     and "int31.modulo_intN = (mod)"
     and "int31.gcd_intN = gcd"
@@ -1034,7 +1034,7 @@ proof -
   show "i31.uminus_intN = uminus" by (simp only: i31.uminus_intN_def uminus_int31_def)
   show "i31.minus_intN = (-)" by (simp only: i31.minus_intN_def minus_int31_def)
   show "i31.one_intN = 1" by (simp only: i31.one_intN_def one_int31_def)
-  show "i31.times_intN = ( * )" by (simp only: i31.times_intN_def times_int31_def)
+  show "i31.times_intN = (*)" by (simp only: i31.times_intN_def times_int31_def)
   show "i31.divide_intN = (div)"
     by (simp only: i31.divide_intN_def divide_int31_def i31.zero_intN_def zero_int31_def)
   show "i31.modulo_intN = (mod)"
