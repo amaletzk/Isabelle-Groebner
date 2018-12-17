@@ -1411,7 +1411,7 @@ proof -
       by (simp add: assms monomial_single_power)
   qed
   also have "... = monomial 1 t"
-    by (simp add: punit.monomial_prod_sum[symmetric] punit.poly_mapping_sum_monomials)
+    by (simp add: punit.monomial_prod_sum[symmetric] poly_mapping_sum_monomials)
   finally show ?thesis .
 qed
 
@@ -1623,7 +1623,7 @@ proof -
     show "punit.monom_mult (lookup p t) 0 (subst_pp f t) = monomial (lookup p t) t"
       by (simp add: eq punit.monom_mult_monomial)
   qed
-  also have "... = p" by (simp only: punit.poly_mapping_sum_monomials)
+  also have "... = p" by (simp only: poly_mapping_sum_monomials)
   finally show ?thesis .
 qed
 
@@ -2112,7 +2112,7 @@ proof -
   have 1: "deg_pm t + poly_deg f = poly_deg p" if "f \<in> F'" and "t \<in> keys (q f)" for f t
   proof -
     from that have "t \<in> keys (\<Sum>(?A f))" by (simp add: q_def)
-    also have "\<dots> \<subseteq> (\<Union>h\<in>?A f. keys h)" by (fact punit.keys_sum_subset)
+    also have "\<dots> \<subseteq> (\<Union>h\<in>?A f. keys h)" by (fact keys_sum_subset)
     finally obtain h where "h \<in> ?A f" and "t \<in> keys h" ..
     from this(1) have "h \<in> hom_components (q' f)" and eq: "poly_deg h + poly_deg f = poly_deg p"
       by simp_all
@@ -2168,14 +2168,14 @@ proof -
     proof (rule, rule)
       fix t
       assume t_in: "t \<in> keys (\<Sum>f\<in>F''. \<Sum>(?B f) * f)"
-      also have "\<dots> \<subseteq> (\<Union>f\<in>F''. keys (\<Sum>(?B f) * f))" by (fact punit.keys_sum_subset)
+      also have "\<dots> \<subseteq> (\<Union>f\<in>F''. keys (\<Sum>(?B f) * f))" by (fact keys_sum_subset)
       finally obtain f where "f \<in> F''" and "t \<in> keys (\<Sum>(?B f) * f)" ..
       from this(2) obtain s1 s2 where "s1 \<in> keys (\<Sum>(?B f))" and "s2 \<in> keys f" and t: "t = s1 + s2"
         by (rule in_keys_timesE)
       from \<open>f \<in> F''\<close> \<open>F'' \<subseteq> F\<close> have "f \<in> F" ..
       hence "homogeneous f" by (rule assms(1))
       note \<open>s1 \<in> keys (\<Sum>(?B f))\<close>
-      also have "keys (\<Sum>(?B f)) \<subseteq> (\<Union>h\<in>?B f. keys h)" by (fact punit.keys_sum_subset)
+      also have "keys (\<Sum>(?B f)) \<subseteq> (\<Union>h\<in>?B f. keys h)" by (fact keys_sum_subset)
       finally obtain h where "h \<in> ?B f" and "s1 \<in> keys h" ..
       from this(1) have "h \<in> hom_components (q' f)" and neq: "poly_deg h + poly_deg f \<noteq> poly_deg p"
         by simp_all
@@ -2187,7 +2187,7 @@ proof -
       have "t \<notin> keys (\<Sum>f\<in>F'. q f * f)"
       proof
         assume "t \<in> keys (\<Sum>f\<in>F'. q f * f)"
-        also have "\<dots> \<subseteq> (\<Union>f\<in>F'. keys (q f * f))" by (fact punit.keys_sum_subset)
+        also have "\<dots> \<subseteq> (\<Union>f\<in>F'. keys (q f * f))" by (fact keys_sum_subset)
         finally obtain f where "f \<in> F'" and "t \<in> keys (q f * f)" ..
         hence "deg_pm t = poly_deg p" by (rule 2)
         with \<open>deg_pm t \<noteq> poly_deg p\<close> show False ..
@@ -2449,7 +2449,7 @@ proof -
         by (simp add: punit.monom_mult_monomial)
     qed
     also have "\<dots> = punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) q"
-      by (simp only: punit.poly_mapping_sum_monomials flip: punit.monom_mult_sum_right)
+      by (simp only: poly_mapping_sum_monomials flip: punit.monom_mult_sum_right)
     finally show "(\<Sum>t\<in>keys q. monomial (lookup p t) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t)) =
                   punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) q" .
   qed
@@ -2463,7 +2463,7 @@ proof -
   note assms
   also have "keys (homogenize x p) \<subseteq>
             (\<Union>t\<in>keys p. keys (monomial (lookup p t) (Poly_Mapping.single x (poly_deg p - deg_pm t) + t)))"
-    unfolding homogenize_def by (rule punit.keys_sum_subset)
+    unfolding homogenize_def by (rule keys_sum_subset)
   finally obtain t' where "t' \<in> keys p"
     and "t \<in> keys (monomial (lookup p t') (Poly_Mapping.single x (poly_deg p - deg_pm t') + t'))" ..
   from this(2) have "t = Poly_Mapping.single x (poly_deg p - deg_pm t') + t'"
@@ -2479,7 +2479,7 @@ proof -
   note assms
   also have "keys (homogenize x p) \<subseteq>
             (\<Union>q\<in>hom_components p. keys (punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) q))"
-    unfolding homogenize_alt by (rule punit.keys_sum_subset)
+    unfolding homogenize_alt by (rule keys_sum_subset)
   finally obtain q where q: "q \<in> hom_components p"
     and "t \<in> keys (punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) q)" ..
   note this(2)
@@ -2815,7 +2815,7 @@ corollary dehomogenize_homogenize_id: "x \<notin> indets p \<Longrightarrow> deh
 lemma dehomogenize_alt: "dehomogenize x p = (\<Sum>t\<in>keys p. monomial (lookup p t) (except t {x}))"
 proof -
   have "dehomogenize x p = dehomogenize x (\<Sum>t\<in>keys p. monomial (lookup p t) t)"
-    by (simp only: punit.poly_mapping_sum_monomials)
+    by (simp only: poly_mapping_sum_monomials)
   also have "\<dots> = (\<Sum>t\<in>keys p. monomial (lookup p t) (except t {x}))"
     by (simp only: dehomogenize_sum dehomogenize_monomial)
   finally show ?thesis .
@@ -2827,7 +2827,7 @@ lemma keys_dehomogenizeE:
 proof -
   note assms
   also have "keys (dehomogenize x p) \<subseteq> (\<Union>s\<in>keys p. keys (monomial (lookup p s) (except s {x})))"
-    unfolding dehomogenize_alt by (rule punit.keys_sum_subset)
+    unfolding dehomogenize_alt by (rule keys_sum_subset)
   finally obtain s where "s \<in> keys p" and "t \<in> keys (monomial (lookup p s) (except s {x}))" ..
   from this(2) have "t = except s {x}" by (simp split: if_split_asm)
   with \<open>s \<in> keys p\<close> show ?thesis ..
@@ -2979,7 +2979,7 @@ next
               (Poly_Mapping.single x (poly_deg p - deg_pm (except t {x})) + except t {x}) =
             monomial (lookup p t) t" by (simp only:)
     qed
-    also have "\<dots> = p" by (fact punit.poly_mapping_sum_monomials)
+    also have "\<dots> = p" by (fact poly_mapping_sum_monomials)
     finally show "punit.monom_mult 1 (Poly_Mapping.single x d) ?p = p" .
   qed (simp only: d_def)
 qed
@@ -3114,7 +3114,7 @@ lemma keys_extend_indets:
 proof -
   have "keys (extend_indets p) = (\<Union>t\<in>keys p. keys (punit.monom_mult (lookup p t) 0 (subst_pp extend_indets_subst t)))"
     unfolding extend_indets_def poly_subst_def using finite_keys
-  proof (rule punit.keys_sum)
+  proof (rule keys_sum)
     fix s t :: "'a \<Rightarrow>\<^sub>0 nat"
     assume "s \<noteq> t"
     then obtain x where "lookup s x \<noteq> lookup t x" by (meson poly_mapping_eqI)
@@ -3287,7 +3287,7 @@ proof
   also have "\<dots> = keys (\<Sum>t\<in>keys p. monomial (lookup p t) (restrict_indets_pp t))"
     by (simp add: restrict_indets_def poly_subst_def subst_pp_restrict_indets_subst punit.monom_mult_monomial)
   also have "\<dots> \<subseteq> (\<Union>t\<in>keys p. keys (monomial (lookup p t) (restrict_indets_pp t)))"
-    by (rule punit.keys_sum_subset)
+    by (rule keys_sum_subset)
   also have "\<dots> = restrict_indets_pp ` keys p" by (auto split: if_split_asm)
   finally show "t \<in> restrict_indets_pp ` keys p" .
 qed
@@ -3299,7 +3299,7 @@ proof -
   have "keys (restrict_indets p) = keys (\<Sum>t\<in>keys p. monomial (lookup p t) (restrict_indets_pp t))"
     by (simp add: restrict_indets_def poly_subst_def subst_pp_restrict_indets_subst punit.monom_mult_monomial)
   also from finite_keys have "\<dots> = (\<Union>t\<in>keys p. keys (monomial (lookup p t) (restrict_indets_pp t)))"
-  proof (rule punit.keys_sum)
+  proof (rule keys_sum)
     fix s t
     assume "s \<in> keys p"
     hence "keys s \<subseteq> indets p" by (rule keys_subset_indets)

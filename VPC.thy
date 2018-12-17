@@ -413,7 +413,7 @@ proof -
     also have "\<dots> = monomial (lookup f t) t + monomial (lookup f t') t' + monomial (lookup f t'') t''"
       using \<open>t \<noteq> t''\<close> \<open>t' \<noteq> t''\<close> less.prems(5) by simp
     finally have f: "f = monomial (lookup f t) t + monomial (lookup f t') t' + monomial (lookup f t'') t''"
-      (is "_ = ?f") by (simp only: punit.poly_mapping_sum_monomials)
+      (is "_ = ?f") by (simp only: poly_mapping_sum_monomials)
 
     define A where "A = {Y. fst Y \<subseteq> keys q1 \<and> snd Y \<subseteq> keys q2 \<and>
                             is_proper_binomial (except q1 (fst Y) * f1 + except q2 (snd Y) * f2) \<and>
