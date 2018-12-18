@@ -203,7 +203,7 @@ end
 
 locale two_polys =
   pm_powerprod ord ord_strict
-  for ord::"('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x::countable \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)
+  for ord::"('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x::{countable,linorder} \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)
   and ord_strict (infixl "\<prec>" 50) +
   fixes f1 f2 :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::field"
 begin

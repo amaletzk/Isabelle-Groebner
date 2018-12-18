@@ -60,7 +60,7 @@ definition normal_form :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0
 text \<open>Of course, @{const normal_form} could be defined in a much more general context.\<close>
 
 context
-  fixes X :: "'x::countable set"
+  fixes X :: "'x set"
   assumes fin_X: "finite X"
 begin
 
@@ -696,9 +696,8 @@ proof -
         thus ?thesis by (simp add: qs_def qs0 p1 p2)
       next
         case False
-        thm algebra_simps
         from a0 have "(qU - qU0) * h = (qx0 - qx') * xx * h"
-          by (simp add: a qs0 p1 p2 q qx) (simp only: algebra_simps)
+          by (simp add: a qs0 p1 p2 q qx algebra_simps)
         hence eq: "qU - qU0 = (qx0 - qx') * xx" using False by (rule times_canc_right)
         have "qx0 = qx'"
         proof (rule ccontr)
@@ -1519,7 +1518,7 @@ qed
 subsection \<open>Splitting w.r.t. Ideals\<close>
 
 context
-  fixes X :: "'x::countable set"
+  fixes X :: "'x set"
 begin
 
 definition splits_wrt :: "(((('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<times> 'x set) list \<times> ((('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<times> 'x set) list) \<Rightarrow>
@@ -2458,7 +2457,7 @@ proof -
       hence "s' * ?s * ?t \<in> ideal F \<inter> normal_form F ` P[X]" using 1 by (rule IntI)
       also from assms(1, 4) have "\<dots> \<subseteq> {0}"
         by (auto simp: normal_form_normal_form simp flip: normal_form_zero_iff)
-      finally have "?s * ?t' = 0" by (simp add: t') (simp only: ac_simps)
+      finally have "?s * ?t' = 0" by (simp add: t' ac_simps)
       thus "s \<in> {}" by (simp add: times_monomial_monomial monomial_0_iff)
     qed
   qed (fact empty_subsetI)
@@ -2856,7 +2855,7 @@ next
         have "ideal F = (*) (monomial 1 t) ` ideal (monomial 1 ` S)"
           by (simp only: ideal.span_image_scale_eq_image_scale F_def)
         moreover have "inj ((*) (monomial (1::'a) t))"
-          by (auto intro!: injI simp: times_monomial_left dest!: punit.monom_mult_inj_3)
+          by (auto intro!: injI simp: times_monomial_left monomial_0_iff dest!: punit.monom_mult_inj_3)
         ultimately have eq: "ideal F \<div> monomial 1 t = ideal (monomial 1 ` S)"
           by (simp only: quot_set_image_times)
         with assms(1) step.hyps(1, 2) step.prems(2)

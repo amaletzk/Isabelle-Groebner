@@ -15,60 +15,94 @@ proof -
   show ?thesis by (simp add: punit.monomial_power eq)
 qed
 
-(*
-subsection \<open>Integral Domains\<close>
-
-class orderable_powerprod = comm_powerprod +
-  assumes "\<exists>ord ord_strict::'a \<Rightarrow> 'a \<Rightarrow> bool. class.linorder ord ord_strict \<and>
-                  (\<forall>s. ord 0 s) \<and> (\<forall>s t u. ord s t \<longrightarrow> ord (s + u) (t + u))"
-
-instance "fun" :: (wellorder, add_linorder_min) orderable_powerprod
-proof (standard, intro exI conjI allI impI)
-  show "class.linorder (lex_fun::('a \<Rightarrow> 'b) \<Rightarrow> _) lex_fun_strict"
-    apply standard
-    subgoal by (simp add: lex_fun_strict_def)
-    subgoal by (fact lex_fun_refl)
-    subgoal by (fact lex_fun_trans)
-    subgoal by (fact lex_fun_antisym)
-    subgoal by (fact lex_fun_lin)
-    done
-next
-  fix s::"'a \<Rightarrow> 'b"
-  show "lex_fun 0 s" by (fact lex_fun_zero_min)
-next
-  fix s t u :: "'a \<Rightarrow> 'b"
-  assume "lex_fun s t"
-  thus "lex_fun (s + u) (t + u)" by (rule lex_fun_plus_monotone)
+instance poly_mapping :: ("{ordered_cancel_comm_monoid_add, linorder}", semiring_no_zero_divisors) semiring_no_zero_divisors
+proof
+  fix f g :: "'a \<Rightarrow>\<^sub>0 'b"
+  assume "f \<noteq> 0" and "g \<noteq> 0"
+  then show "f * g \<noteq> 0"
+  proof transfer
+    fix f g :: "'a \<Rightarrow> 'b"
+    define F where "F = {a. f a \<noteq> 0}"
+    moreover define G where "G = {a. g a \<noteq> 0}"
+    ultimately have [simp]:
+      "\<And>a. f a \<noteq> 0 \<longleftrightarrow> a \<in> F"
+      "\<And>b. g b \<noteq> 0 \<longleftrightarrow> b \<in> G"
+      by simp_all
+    assume "finite {a. f a \<noteq> 0}"
+    then have [simp]: "finite F"
+      by simp
+    assume "finite {a. g a \<noteq> 0}"
+    then have [simp]: "finite G"
+      by simp
+    assume "f \<noteq> (\<lambda>a. 0)"
+    then obtain a where "f a \<noteq> 0"
+      by (auto simp add: fun_eq_iff)
+    assume "g \<noteq> (\<lambda>b. 0)"
+    then obtain b where "g b \<noteq> 0"
+      by (auto simp add: fun_eq_iff)
+    from \<open>f a \<noteq> 0\<close> and \<open>g b \<noteq> 0\<close> have "F \<noteq> {}" and "G \<noteq> {}"
+      by auto
+    note Max_F = \<open>finite F\<close> \<open>F \<noteq> {}\<close>
+    note Max_G = \<open>finite G\<close> \<open>G \<noteq> {}\<close>
+    from Max_F and Max_G have [simp]:
+      "Max F \<in> F"
+      "Max G \<in> G"
+      by auto
+    from Max_F Max_G have [dest!]:
+      "\<And>a. a \<in> F \<Longrightarrow> a \<le> Max F"
+      "\<And>b. b \<in> G \<Longrightarrow> b \<le> Max G"
+      by auto
+    define q where "q = Max F + Max G"
+    have "(\<Sum>(a, b). f a * g b when q = a + b) =
+      (\<Sum>(a, b). f a * g b when q = a + b when a \<in> F \<and> b \<in> G)"
+      by (rule Sum_any.cong) (auto simp add: split_def when_def q_def intro: ccontr)
+    also have "\<dots> =
+      (\<Sum>(a, b). f a * g b when (Max F, Max G) = (a, b))"
+    proof (rule Sum_any.cong)
+      fix ab :: "'a \<times> 'a"
+      obtain a b where [simp]: "ab = (a, b)"
+        by (cases ab) simp_all
+      have [dest!]:
+        "a \<le> Max F \<Longrightarrow> Max F \<noteq> a \<Longrightarrow> a < Max F"
+        "b \<le> Max G \<Longrightarrow> Max G \<noteq> b \<Longrightarrow> b < Max G"
+        by auto
+      show "(case ab of (a, b) \<Rightarrow> f a * g b when q = a + b when a \<in> F \<and> b \<in> G) =
+         (case ab of (a, b) \<Rightarrow> f a * g b when (Max F, Max G) = (a, b))"
+        by (auto simp add: split_def when_def q_def dest: add_strict_mono [of a "Max F" b "Max G"])
+    qed
+    also have "\<dots> = (\<Sum>ab. (case ab of (a, b) \<Rightarrow> f a * g b) when
+      (Max F, Max G) = ab)"
+      unfolding split_def when_def by auto
+    also have "\<dots> \<noteq> 0"
+      by simp
+    finally have "prod_fun f g q \<noteq> 0"
+      by (simp add: prod_fun_unfold_prod)
+    then show "prod_fun f g \<noteq> (\<lambda>k. 0)"
+      by (auto simp add: fun_eq_iff)
+  qed
 qed
 
-instance poly_mapping :: (wellorder, add_linorder_min) orderable_powerprod
-proof (standard, intro exI conjI allI impI)
-  show "class.linorder (lex_pm::('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> _) lex_pm_strict"
-    apply standard
-    subgoal by (simp add: lex_pm_strict_def)
-    subgoal by (fact lex_pm_refl)
-    subgoal by (fact lex_pm_trans)
-    subgoal by (fact lex_pm_antisym)
-    subgoal by (fact lex_pm_lin)
-    done
-next
-  fix s::"'a \<Rightarrow>\<^sub>0 'b"
-  show "lex_pm 0 s" by (fact lex_pm_zero_min)
-next
-  fix s t u :: "'a \<Rightarrow>\<^sub>0 'b"
-  assume "lex_pm s t"
-  thus "lex_pm (s + u) (t + u)" by (rule lex_pm_plus_monotone)
+lemma times_canc_left:
+  assumes "h * p = h * q" and "h \<noteq> (0::('x::linorder \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::ring_no_zero_divisors)"
+  shows "p = q"
+proof (rule ccontr)
+  assume "p \<noteq> q"
+  hence "p - q \<noteq> 0" by simp
+  with assms(2) have "h * (p - q) \<noteq> 0" by simp
+  hence "h * p \<noteq> h * q" by (simp add: algebra_simps)
+  thus False using assms(1) ..
 qed
 
-instance poly_mapping :: (orderable_powerprod, ring_no_zero_divisors) ring_no_zero_divisors
-  sorry
-
-instance poly_mapping :: (orderable_powerprod, ring_1_no_zero_divisors) ring_1_no_zero_divisors
-  ..
-
-instance poly_mapping :: (orderable_powerprod, idom) idom
-  ..
-*)
+lemma times_canc_right:
+  assumes "p * h = q * h" and "h \<noteq> (0::('x::linorder \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::ring_no_zero_divisors)"
+  shows "p = q"
+proof (rule ccontr)
+  assume "p \<noteq> q"
+  hence "p - q \<noteq> 0" by simp
+  hence "(p - q) * h \<noteq> 0" using assms(2) by simp
+  hence "p * h \<noteq> q * h" by (simp add: algebra_simps)
+  thus False using assms(1) ..
+qed
 
 subsection \<open>Order relation on polynomial mappings\<close>
 
@@ -352,8 +386,80 @@ proof (rule poly_deg_leI)
   ultimately show "deg_pm t \<le> poly_deg p + poly_deg q" by (simp add: \<open>t = u + v\<close> deg_pm_plus add_mono)
 qed
 
-text \<open>Lemma @{prop "poly_deg (p * q) = poly_deg p + poly_deg q"} is proved in locale \<open>pm_powerprod\<close>,
-  because we must ensure there are no zero-divisors.\<close>
+lemma poly_deg_times:
+  assumes "p \<noteq> 0" and "q \<noteq> (0::('x::linorder \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::semiring_no_zero_divisors)"
+  shows "poly_deg (p * q) = poly_deg p + poly_deg q"
+  using poly_deg_times_le
+proof (rule antisym)
+  let ?A = "\<lambda>f. {u. deg_pm u < poly_deg f}"
+  define p1 where "p1 = except p (?A p)"
+  define p2 where "p2 = except p (- ?A p)"
+  define q1 where "q1 = except q (?A q)"
+  define q2 where "q2 = except q (- ?A q)"
+  have deg_p1: "deg_pm t = poly_deg p" if "t \<in> keys p1" for t
+  proof -
+    from that have "t \<in> keys p" and "poly_deg p \<le> deg_pm t" by (simp_all add: p1_def keys_except)
+    from this(1) have "deg_pm t \<le> poly_deg p" by (rule poly_deg_max_keys)
+    thus ?thesis using \<open>poly_deg p \<le> deg_pm t\<close> by (rule antisym)
+  qed
+  have deg_p2: "t \<in> keys p2 \<Longrightarrow> deg_pm t < poly_deg p" for t by (simp add: p2_def keys_except)
+  have deg_q1: "deg_pm t = poly_deg q" if "t \<in> keys q1" for t
+  proof -
+    from that have "t \<in> keys q" and "poly_deg q \<le> deg_pm t" by (simp_all add: q1_def keys_except)
+    from this(1) have "deg_pm t \<le> poly_deg q" by (rule poly_deg_max_keys)
+    thus ?thesis using \<open>poly_deg q \<le> deg_pm t\<close> by (rule antisym)
+  qed
+  have deg_q2: "t \<in> keys q2 \<Longrightarrow> deg_pm t < poly_deg q" for t by (simp add: q2_def keys_except)
+  have p: "p = p1 + p2" unfolding p1_def p2_def by (fact except_decomp)
+  have "p1 \<noteq> 0"
+  proof -
+    from assms(1) obtain t where "t \<in> keys p" and "poly_deg p = deg_pm t" by (rule poly_degE)
+    hence "t \<in> keys p1" by (simp add: p1_def keys_except)
+    thus ?thesis by auto
+  qed
+  have q: "q = q1 + q2" unfolding q1_def q2_def by (fact except_decomp)
+  have "q1 \<noteq> 0"
+  proof -
+    from assms(2) obtain t where "t \<in> keys q" and "poly_deg q = deg_pm t" by (rule poly_degE)
+    hence "t \<in> keys q1" by (simp add: q1_def keys_except)
+    thus ?thesis by auto
+  qed
+  with \<open>p1 \<noteq> 0\<close> have "p1 * q1 \<noteq> 0" by simp
+  hence "keys (p1 * q1) \<noteq> {}" by simp
+  then obtain u where "u \<in> keys (p1 * q1)" by blast
+  then obtain s t where "s \<in> keys p1" and "t \<in> keys q1" and u: "u = s + t" by (rule in_keys_timesE)
+  from \<open>s \<in> keys p1\<close> have "deg_pm s = poly_deg p" by (rule deg_p1)
+  moreover from \<open>t \<in> keys q1\<close> have "deg_pm t = poly_deg q" by (rule deg_q1)
+  ultimately have eq: "poly_deg p + poly_deg q = deg_pm u" by (simp only: u deg_pm_plus)
+  also have "\<dots> \<le> poly_deg (p * q)"
+  proof (rule poly_deg_max_keys)
+    have "u \<notin> keys (p1 * q2 + p2 * q)"
+    proof
+      assume "u \<in> keys (p1 * q2 + p2 * q)"
+      also have "\<dots> \<subseteq> keys (p1 * q2) \<union> keys (p2 * q)" by (rule keys_add_subset)
+      finally have "deg_pm u < poly_deg p + poly_deg q"
+      proof
+        assume "u \<in> keys (p1 * q2)"
+        then obtain s' t' where "s' \<in> keys p1" and "t' \<in> keys q2" and u: "u = s' + t'"
+          by (rule in_keys_timesE)
+        from \<open>s' \<in> keys p1\<close> have "deg_pm s' = poly_deg p" by (rule deg_p1)
+        moreover from \<open>t' \<in> keys q2\<close> have "deg_pm t' < poly_deg q" by (rule deg_q2)
+        ultimately show ?thesis by (simp only: u deg_pm_plus)
+      next
+        assume "u \<in> keys (p2 * q)"
+        then obtain s' t' where "s' \<in> keys p2" and "t' \<in> keys q" and u: "u = s' + t'"
+          by (rule in_keys_timesE)
+        from \<open>s' \<in> keys p2\<close> have "deg_pm s' < poly_deg p" by (rule deg_p2)
+        moreover from \<open>t' \<in> keys q\<close> have "deg_pm t' \<le> poly_deg q" by (rule poly_deg_max_keys)
+        ultimately show ?thesis by (simp only: u deg_pm_plus)
+      qed
+      thus False by (simp only: eq)
+    qed
+    with \<open>u \<in> keys (p1 * q1)\<close> have "u \<in> keys (p1 * q1 + (p1 * q2 + p2 * q))" by (rule in_keys_plusI1)
+    thus "u \<in> keys (p * q)" by (simp only: p q algebra_simps)
+  qed
+  finally show "poly_deg p + poly_deg q \<le> poly_deg (p * q)" .
+qed
 
 corollary poly_deg_monom_mult_le:
   "poly_deg (punit.monom_mult c (t::_ \<Rightarrow>\<^sub>0 'a::add_linorder_min) p) \<le> deg_pm t + poly_deg p"
@@ -937,6 +1043,46 @@ lemma Polys_closed_prod: "(\<And>a. a \<in> A \<Longrightarrow> f a \<in> P[X]) 
 
 lemma Polys_closed_sum_list: "(\<And>x. x \<in> set xs \<Longrightarrow> x \<in> P[X]) \<Longrightarrow> sum_list xs \<in> P[X]"
   by (induct xs) (auto intro: zero_in_Polys Polys_closed_plus)
+
+lemma times_in_PolysD:
+  assumes "p * q \<in> P[X]" and "p \<in> P[X]" and "p \<noteq> (0::('x::linorder \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::semiring_no_zero_divisors)"
+  shows "q \<in> P[X]"
+proof -
+  define qX where "qX = except q (- .[X])"
+  define qY where "qY = except q .[X]"
+  have q: "q = qX + qY" by (simp only: qX_def qY_def add.commute flip: except_decomp)
+  have "qX \<in> P[X]" by (rule PolysI) (simp add: qX_def keys_except)
+  with assms(2) have "p * qX \<in> P[X]" by (rule Polys_closed_times)
+  show ?thesis
+  proof (cases "qY = 0")
+    case True
+    with \<open>qX \<in> P[X]\<close> show ?thesis by (simp add: q)
+  next
+    case False
+    with assms(3) have "p * qY \<noteq> 0" by simp
+    hence "keys (p * qY) \<noteq> {}" by simp
+    then obtain t where "t \<in> keys (p * qY)" by blast
+    then obtain t1 t2 where "t2 \<in> keys qY" and t: "t = t1 + t2" by (rule in_keys_timesE)
+    have "t \<notin> .[X]" unfolding t
+    proof
+      assume "t1 + t2 \<in> .[X]"
+      hence "t1 + t2 - t1 \<in> .[X]" by (rule PPs_closed_minus)
+      hence "t2 \<in> .[X]" by simp
+      with \<open>t2 \<in> keys qY\<close> show False by (simp add: qY_def keys_except)
+    qed
+    have "t \<notin> keys (p * qX)"
+    proof
+      assume "t \<in> keys (p * qX)"
+      also from \<open>p * qX \<in> P[X]\<close> have "\<dots> \<subseteq> .[X]" by (rule PolysD)
+      finally have "t \<in> .[X]" .
+      with \<open>t \<notin> .[X]\<close> show False ..
+    qed
+    with \<open>t \<in> keys (p * qY)\<close> have "t \<in> keys (p * qX + p * qY)" by (rule in_keys_plusI2)
+    also have "\<dots> = keys (p * q)" by (simp only: q algebra_simps)
+    finally have "p * q \<notin> P[X]" using \<open>t \<notin> .[X]\<close> by (auto simp: Polys_def)
+    thus ?thesis using assms(1) ..
+  qed
+qed
 
 subsection \<open>Degree-Sections of Power-Products\<close>
 
@@ -3483,7 +3629,7 @@ subsection \<open>Locale @{term pm_powerprod}\<close>
 
 locale pm_powerprod =
   ordered_powerprod ord ord_strict
-  for ord::"('x::countable \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)
+  for ord::"('x::{countable,linorder} \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)
   and ord_strict (infixl "\<prec>" 50)
 begin
 
@@ -3504,145 +3650,6 @@ qed
 
 corollary PPs_closed_image_lp: "F \<subseteq> P[X] \<Longrightarrow> punit.lt ` F \<subseteq> .[X]"
   by (auto intro: PPs_closed_lp)
-
-text \<open>The following lemmas could be proved more generally if one can ensure there are no zero-divisors.\<close>
-
-lemma poly_deg_times:
-  assumes "p \<noteq> 0" and "q \<noteq> (0::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::semiring_no_zero_divisors)"
-  shows "poly_deg (p * q) = poly_deg p + poly_deg q"
-  using poly_deg_times_le
-proof (rule antisym)
-  let ?A = "\<lambda>f. {u. deg_pm u < poly_deg f}"
-  define p1 where "p1 = except p (?A p)"
-  define p2 where "p2 = except p (- ?A p)"
-  define q1 where "q1 = except q (?A q)"
-  define q2 where "q2 = except q (- ?A q)"
-  have deg_p1: "deg_pm t = poly_deg p" if "t \<in> keys p1" for t
-  proof -
-    from that have "t \<in> keys p" and "poly_deg p \<le> deg_pm t" by (simp_all add: p1_def keys_except)
-    from this(1) have "deg_pm t \<le> poly_deg p" by (rule poly_deg_max_keys)
-    thus ?thesis using \<open>poly_deg p \<le> deg_pm t\<close> by (rule antisym)
-  qed
-  have deg_p2: "t \<in> keys p2 \<Longrightarrow> deg_pm t < poly_deg p" for t by (simp add: p2_def keys_except)
-  have deg_q1: "deg_pm t = poly_deg q" if "t \<in> keys q1" for t
-  proof -
-    from that have "t \<in> keys q" and "poly_deg q \<le> deg_pm t" by (simp_all add: q1_def keys_except)
-    from this(1) have "deg_pm t \<le> poly_deg q" by (rule poly_deg_max_keys)
-    thus ?thesis using \<open>poly_deg q \<le> deg_pm t\<close> by (rule antisym)
-  qed
-  have deg_q2: "t \<in> keys q2 \<Longrightarrow> deg_pm t < poly_deg q" for t by (simp add: q2_def keys_except)
-  have p: "p = p1 + p2" unfolding p1_def p2_def by (fact except_decomp)
-  have "p1 \<noteq> 0"
-  proof -
-    from assms(1) obtain t where "t \<in> keys p" and "poly_deg p = deg_pm t" by (rule poly_degE)
-    hence "t \<in> keys p1" by (simp add: p1_def keys_except)
-    thus ?thesis by auto
-  qed
-  have q: "q = q1 + q2" unfolding q1_def q2_def by (fact except_decomp)
-  have "q1 \<noteq> 0"
-  proof -
-    from assms(2) obtain t where "t \<in> keys q" and "poly_deg q = deg_pm t" by (rule poly_degE)
-    hence "t \<in> keys q1" by (simp add: q1_def keys_except)
-    thus ?thesis by auto
-  qed
-  with \<open>p1 \<noteq> 0\<close> have "p1 * q1 \<noteq> 0" by (rule times_not_zero)
-  hence "keys (p1 * q1) \<noteq> {}" by simp
-  then obtain u where "u \<in> keys (p1 * q1)" by blast
-  then obtain s t where "s \<in> keys p1" and "t \<in> keys q1" and u: "u = s + t" by (rule in_keys_timesE)
-  from \<open>s \<in> keys p1\<close> have "deg_pm s = poly_deg p" by (rule deg_p1)
-  moreover from \<open>t \<in> keys q1\<close> have "deg_pm t = poly_deg q" by (rule deg_q1)
-  ultimately have eq: "poly_deg p + poly_deg q = deg_pm u" by (simp only: u deg_pm_plus)
-  also have "\<dots> \<le> poly_deg (p * q)"
-  proof (rule poly_deg_max_keys)
-    have "u \<notin> keys (p1 * q2 + p2 * q)"
-    proof
-      assume "u \<in> keys (p1 * q2 + p2 * q)"
-      also have "\<dots> \<subseteq> keys (p1 * q2) \<union> keys (p2 * q)" by (rule keys_add_subset)
-      finally have "deg_pm u < poly_deg p + poly_deg q"
-      proof
-        assume "u \<in> keys (p1 * q2)"
-        then obtain s' t' where "s' \<in> keys p1" and "t' \<in> keys q2" and u: "u = s' + t'"
-          by (rule in_keys_timesE)
-        from \<open>s' \<in> keys p1\<close> have "deg_pm s' = poly_deg p" by (rule deg_p1)
-        moreover from \<open>t' \<in> keys q2\<close> have "deg_pm t' < poly_deg q" by (rule deg_q2)
-        ultimately show ?thesis by (simp only: u deg_pm_plus)
-      next
-        assume "u \<in> keys (p2 * q)"
-        then obtain s' t' where "s' \<in> keys p2" and "t' \<in> keys q" and u: "u = s' + t'"
-          by (rule in_keys_timesE)
-        from \<open>s' \<in> keys p2\<close> have "deg_pm s' < poly_deg p" by (rule deg_p2)
-        moreover from \<open>t' \<in> keys q\<close> have "deg_pm t' \<le> poly_deg q" by (rule poly_deg_max_keys)
-        ultimately show ?thesis by (simp only: u deg_pm_plus)
-      qed
-      thus False by (simp only: eq)
-    qed
-    with \<open>u \<in> keys (p1 * q1)\<close> have "u \<in> keys (p1 * q1 + (p1 * q2 + p2 * q))" by (rule in_keys_plusI1)
-    thus "u \<in> keys (p * q)" by (simp only: p q algebra_simps)
-  qed
-  finally show "poly_deg p + poly_deg q \<le> poly_deg (p * q)" .
-qed
-
-lemma times_in_PolysD:
-  assumes "p * q \<in> P[X]" and "p \<in> P[X]" and "p \<noteq> (0::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::semiring_no_zero_divisors)"
-  shows "q \<in> P[X]"
-proof -
-  define qX where "qX = except q (- .[X])"
-  define qY where "qY = except q .[X]"
-  have q: "q = qX + qY" by (simp only: qX_def qY_def add.commute flip: except_decomp)
-  have "qX \<in> P[X]" by (rule PolysI) (simp add: qX_def keys_except)
-  with assms(2) have "p * qX \<in> P[X]" by (rule Polys_closed_times)
-  show ?thesis
-  proof (cases "qY = 0")
-    case True
-    with \<open>qX \<in> P[X]\<close> show ?thesis by (simp add: q)
-  next
-    case False
-    with assms(3) have "p * qY \<noteq> 0" by (rule times_not_zero)
-    hence "keys (p * qY) \<noteq> {}" by simp
-    then obtain t where "t \<in> keys (p * qY)" by blast
-    then obtain t1 t2 where "t2 \<in> keys qY" and t: "t = t1 + t2" by (rule in_keys_timesE)
-    have "t \<notin> .[X]" unfolding t
-    proof
-      assume "t1 + t2 \<in> .[X]"
-      hence "t1 + t2 - t1 \<in> .[X]" by (rule PPs_closed_minus)
-      hence "t2 \<in> .[X]" by simp
-      with \<open>t2 \<in> keys qY\<close> show False by (simp add: qY_def keys_except)
-    qed
-    have "t \<notin> keys (p * qX)"
-    proof
-      assume "t \<in> keys (p * qX)"
-      also from \<open>p * qX \<in> P[X]\<close> have "\<dots> \<subseteq> .[X]" by (rule PolysD)
-      finally have "t \<in> .[X]" .
-      with \<open>t \<notin> .[X]\<close> show False ..
-    qed
-    with \<open>t \<in> keys (p * qY)\<close> have "t \<in> keys (p * qX + p * qY)" by (rule in_keys_plusI2)
-    also have "\<dots> = keys (p * q)" by (simp only: q algebra_simps)
-    finally have "p * q \<notin> P[X]" using \<open>t \<notin> .[X]\<close> by (auto simp: Polys_def)
-    thus ?thesis using assms(1) ..
-  qed
-qed
-
-lemma times_canc_left:
-  assumes "h * p = h * q" and "h \<noteq> (0::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::ring_no_zero_divisors)"
-  shows "p = q"
-proof (rule ccontr)
-  assume "p \<noteq> q"
-  hence "p - q \<noteq> 0" by simp
-  with assms(2) have "h * (p - q) \<noteq> 0" by (rule times_not_zero)
-  hence "h * p \<noteq> h * q" by (simp add: algebra_simps)
-  thus False using assms(1) ..
-qed
-
-lemma times_canc_right:
-  assumes "p * h = q * h" and "h \<noteq> (0::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::ring_no_zero_divisors)"
-  shows "p = q"
-proof (rule ccontr)
-  assume "p \<noteq> q"
-  hence "p - q \<noteq> 0" by simp
-  hence "(p - q) * h \<noteq> 0" using assms(2) by (rule times_not_zero)
-  hence "p * h \<noteq> q * h" by (simp add: algebra_simps)
-  thus False using assms(1) ..
-qed
 
 lemma hom_component_lp:
   assumes "p \<noteq> 0"
@@ -3680,6 +3687,24 @@ lemmas in_idealE_Polys =
 end
 
 text \<open>We must create a copy of @{locale pm_powerprod} to avoid infinite chains of interpretations.\<close>
+
+instantiation option :: (linorder) linorder
+begin
+
+fun less_eq_option :: "'a option \<Rightarrow> 'a option \<Rightarrow> bool" where
+  "less_eq_option None _ = True" |
+  "less_eq_option (Some x) None = False" |
+  "less_eq_option (Some x) (Some y) = (x \<le> y)"
+
+definition less_option :: "'a option \<Rightarrow> 'a option \<Rightarrow> bool"
+  where "less_option x y \<longleftrightarrow> x \<le> y \<and> \<not> y \<le> x"
+
+instance proof
+  fix x :: "'a option"
+  show "x \<le> x" using less_eq_option.elims(3) by fastforce
+qed (auto simp: less_option_def elim!: less_eq_option.elims)
+
+end
 
 locale extended_ord_pm_powerprod = pm_powerprod
 begin
