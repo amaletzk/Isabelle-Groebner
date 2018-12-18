@@ -4290,7 +4290,7 @@ next
     and inv2: "shift2_inv qs" by (rule shift1_invD)+
   from this(1) have "B \<subseteq> set qs" by auto
   with step(2) have "qs \<noteq> []" by auto
-  moreover have "fst (local.shift1 (?qs, B - {(h, U)})) \<noteq> []"
+  moreover have "fst (shift1 (?qs, B - {(h, U)})) \<noteq> []"
     by (simp add: step.hyps(8) del: One_nat_def) (simp add: shift_list.simps)
   ultimately show ?case by simp
 qed

@@ -568,6 +568,14 @@ qed
 
 subsection \<open>Direct Decompositions and Vector Spaces\<close>
 
+definition (in vector_space) is_basis :: "'b set \<Rightarrow> 'b set \<Rightarrow> bool"
+  where "is_basis V B \<longleftrightarrow> (B \<subseteq> V \<and> independent B \<and> V \<subseteq> span B \<and> card B = dim V)"
+
+definition (in vector_space) some_basis :: "'b set \<Rightarrow> 'b set"
+  where "some_basis V = Eps (local.is_basis V)"
+
+hide_const (open) real_vector.is_basis real_vector.some_basis
+
 context vector_space
 begin
 
@@ -644,46 +652,40 @@ next
   finally show "c *s p \<in> A" by (simp only: p)
 qed
 
-definition is_basis :: "'b set \<Rightarrow> 'b set \<Rightarrow> bool"
-  where "is_basis V B \<longleftrightarrow> (B \<subseteq> V \<and> independent B \<and> V \<subseteq> span B \<and> card B = dim V)"
-
-definition some_basis :: "'b set \<Rightarrow> 'b set"
-  where "some_basis V = Eps (local.is_basis V)"
-
-lemma is_basis_alt: "subspace V \<Longrightarrow> local.is_basis V B \<longleftrightarrow> (independent B \<and> span B = V)"
+lemma is_basis_alt: "subspace V \<Longrightarrow> is_basis V B \<longleftrightarrow> (independent B \<and> span B = V)"
   by (metis (full_types) is_basis_def dim_eq_card span_eq span_eq_iff)
 
-lemma is_basis_finite: "local.is_basis V A \<Longrightarrow> local.is_basis V B \<Longrightarrow> finite A \<longleftrightarrow> finite B"
+lemma is_basis_finite: "is_basis V A \<Longrightarrow> is_basis V B \<Longrightarrow> finite A \<longleftrightarrow> finite B"
   unfolding is_basis_def using independent_span_bound by auto
 
-lemma some_basis_is_basis: "local.is_basis V (local.some_basis V)"
+lemma some_basis_is_basis: "is_basis V (some_basis V)"
 proof -
   obtain B where "B \<subseteq> V" and "independent B" and "V \<subseteq> span B" and "card B = dim V"
     by (rule basis_exists)
-  hence "local.is_basis V B" by (simp add: is_basis_def)
+  hence "is_basis V B" by (simp add: is_basis_def)
   thus ?thesis unfolding some_basis_def by (rule someI)
 qed
 
 corollary
-  shows some_basis_subset: "local.some_basis V \<subseteq> V"
-    and independent_some_basis: "independent (local.some_basis V)"
-    and span_some_basis_supset: "V \<subseteq> span (local.some_basis V)"
-    and card_some_basis: "card (local.some_basis V) = dim V"
+  shows some_basis_subset: "some_basis V \<subseteq> V"
+    and independent_some_basis: "independent (some_basis V)"
+    and span_some_basis_supset: "V \<subseteq> span (some_basis V)"
+    and card_some_basis: "card (some_basis V) = dim V"
   using some_basis_is_basis[of V] by (simp_all add: is_basis_def)
 
-lemma some_basis_not_zero: "0 \<notin> local.some_basis V"
+lemma some_basis_not_zero: "0 \<notin> some_basis V"
   using independent_some_basis dependent_zero by blast
 
-lemma span_some_basis: "subspace V \<Longrightarrow> span (local.some_basis V) = V"
+lemma span_some_basis: "subspace V \<Longrightarrow> span (some_basis V) = V"
   by (simp add: span_subspace some_basis_subset span_some_basis_supset)
 
 lemma direct_decomp_some_basis_pairwise_disjnt:
   assumes "direct_decomp A ss" and "\<And>s. s \<in> set ss \<Longrightarrow> subspace s"
-  shows "pairwise (\<lambda>s1 s2. disjnt (local.some_basis s1) (local.some_basis s2)) (set ss)"
+  shows "pairwise (\<lambda>s1 s2. disjnt (some_basis s1) (some_basis s2)) (set ss)"
 proof (rule pairwiseI)
   fix s1 s2
   assume "s1 \<in> set ss" and "s2 \<in> set ss" and "s1 \<noteq> s2"
-  have "local.some_basis s1 \<inter> local.some_basis s2 \<subseteq> s1 \<inter> s2" using some_basis_subset by blast
+  have "some_basis s1 \<inter> some_basis s2 \<subseteq> s1 \<inter> s2" using some_basis_subset by blast
   also from direct_decomp_pairwise_zero have "\<dots> = {0}"
   proof (rule pairwiseD)
     fix s
@@ -691,14 +693,14 @@ proof (rule pairwiseI)
     hence "subspace s" by (rule assms(2))
     thus "0 \<in> s" by (rule subspace_0)
   qed fact+
-  finally have "local.some_basis s1 \<inter> local.some_basis s2 \<subseteq> {0}" .
-  with some_basis_not_zero show "disjnt (local.some_basis s1) (local.some_basis s2)"
+  finally have "some_basis s1 \<inter> some_basis s2 \<subseteq> {0}" .
+  with some_basis_not_zero show "disjnt (some_basis s1) (some_basis s2)"
     unfolding disjnt_def by blast
 qed
 
 lemma direct_decomp_span_some_basis:
   assumes "direct_decomp A ss" and "\<And>s. s \<in> set ss \<Longrightarrow> subspace s"
-  shows "span (\<Union>(local.some_basis ` set ss)) = A"
+  shows "span (\<Union>(some_basis ` set ss)) = A"
 proof -
   from assms(1) have eq0[symmetric]: "sum_list ` listset ss = A" by (rule direct_decompD)
   show ?thesis unfolding eq0 using assms(2)
@@ -708,10 +710,10 @@ proof -
   next
     case (Cons s ss)
     have "subspace s" by (rule Cons.prems) simp
-    hence eq1: "span (local.some_basis s) = s" by (rule span_some_basis)
+    hence eq1: "span (some_basis s) = s" by (rule span_some_basis)
     have "\<And>s'. s' \<in> set ss \<Longrightarrow> subspace s'" by (rule Cons.prems) simp
-    hence eq2: "span (\<Union> (local.some_basis ` set ss)) = sum_list ` listset ss" by (rule Cons.hyps)
-    have "span (\<Union> (local.some_basis ` set (s # ss))) = {x + y |x y. x \<in> s \<and> y \<in> sum_list ` listset ss}"
+    hence eq2: "span (\<Union> (some_basis ` set ss)) = sum_list ` listset ss" by (rule Cons.hyps)
+    have "span (\<Union> (some_basis ` set (s # ss))) = {x + y |x y. x \<in> s \<and> y \<in> sum_list ` listset ss}"
       by (simp add: span_Un eq1 eq2)
     also have "\<dots> = sum_list ` listset (s # ss)" (is "?A = ?B")
     proof
@@ -745,7 +747,7 @@ qed
 
 lemma direct_decomp_independent_some_basis:
   assumes "direct_decomp A ss" and "\<And>s. s \<in> set ss \<Longrightarrow> subspace s"
-  shows "independent (\<Union>(local.some_basis ` set ss))"
+  shows "independent (\<Union>(some_basis ` set ss))"
   using assms
 proof (induct ss arbitrary: A)
   case Nil
@@ -754,16 +756,16 @@ next
   case (Cons s ss)
   have 1: "\<And>s'. s' \<in> set ss \<Longrightarrow> subspace s'" by (rule Cons.prems) simp
   have "subspace s" by (rule Cons.prems) simp
-  hence "0 \<in> s" and eq1: "span (local.some_basis s) = s" by (rule subspace_0, rule span_some_basis)
+  hence "0 \<in> s" and eq1: "span (some_basis s) = s" by (rule subspace_0, rule span_some_basis)
   from Cons.prems(1) have *: "direct_decomp A ([s] @ ss)" by simp
   moreover from \<open>0 \<in> s\<close> have "{} \<notin> set [s]" by auto
   ultimately have 2: "direct_decomp (sum_list ` listset ss) ss" by (rule direct_decomp_appendD)
-  hence eq2: "span (\<Union> (local.some_basis ` set ss)) = sum_list ` listset ss" using 1
+  hence eq2: "span (\<Union> (some_basis ` set ss)) = sum_list ` listset ss" using 1
     by (rule direct_decomp_span_some_basis)
 
   note independent_some_basis[of s]
-  moreover from 2 1 have "independent (\<Union> (local.some_basis ` set ss))" by (rule Cons.hyps)
-  moreover have "span (local.some_basis s) \<inter> span (\<Union> (local.some_basis ` set ss)) = {0}"
+  moreover from 2 1 have "independent (\<Union> (some_basis ` set ss))" by (rule Cons.hyps)
+  moreover have "span (some_basis s) \<inter> span (\<Union> (some_basis ` set ss)) = {0}"
   proof -
     from * have "direct_decomp A [sum_list ` listset [s], sum_list ` listset ss]"
       by (rule direct_decomp_appendD)
@@ -774,19 +776,19 @@ next
       by (rule direct_decomp_Int_zero) (auto simp: \<open>0 \<in> s\<close> eq2[symmetric] span_zero)
     thus ?thesis by (simp add: eq1 eq2)
   qed
-  ultimately have "independent (local.some_basis s \<union> (\<Union> (local.some_basis ` set ss)))"
+  ultimately have "independent (some_basis s \<union> (\<Union> (some_basis ` set ss)))"
     by (rule independent_UnI)
   thus ?case by simp
 qed
 
 corollary direct_decomp_is_basis:
   assumes "direct_decomp A ss" and "\<And>s. s \<in> set ss \<Longrightarrow> subspace s"
-  shows "local.is_basis A (\<Union>(local.some_basis ` set ss))"
+  shows "is_basis A (\<Union>(some_basis ` set ss))"
 proof -
   from assms have "subspace A" by (rule subspace_direct_decomp)
-  moreover from assms have "span (\<Union>(local.some_basis ` set ss)) = A"
+  moreover from assms have "span (\<Union>(some_basis ` set ss)) = A"
     by (rule direct_decomp_span_some_basis)
-  moreover from assms have "independent (\<Union>(local.some_basis ` set ss))"
+  moreover from assms have "independent (\<Union>(some_basis ` set ss))"
     by (rule direct_decomp_independent_some_basis)
   ultimately show ?thesis by (simp add: is_basis_alt)
 qed
@@ -795,25 +797,25 @@ lemma dim_direct_decomp:
   assumes "direct_decomp A ss" and "finite B" and "A \<subseteq> span B" and "\<And>s. s \<in> set ss \<Longrightarrow> subspace s"
   shows "dim A = (\<Sum>s\<in>set ss. dim s)"
 proof -
-  from assms(1, 4) have "local.is_basis A (\<Union>(local.some_basis ` set ss))"
-    (is "local.is_basis A ?B") by (rule direct_decomp_is_basis)
+  from assms(1, 4) have "is_basis A (\<Union>(some_basis ` set ss))"
+    (is "is_basis A ?B") by (rule direct_decomp_is_basis)
   hence "dim A = card ?B" and "independent ?B" and "?B \<subseteq> A" by (simp_all add: is_basis_def)
   from this(3) assms(3) have "?B \<subseteq> span B" by (rule subset_trans)
   with assms(2) \<open>independent ?B\<close> have "finite ?B" using independent_span_bound by blast
   note \<open>dim A = card ?B\<close>
-  also from finite_set have "card ?B = (\<Sum>s\<in>set ss. card (local.some_basis s))"
+  also from finite_set have "card ?B = (\<Sum>s\<in>set ss. card (some_basis s))"
   proof (intro card_UN_disjoint ballI impI)
     fix s
     assume "s \<in> set ss"
-    with \<open>finite ?B\<close> show "finite (local.some_basis s)" by auto
+    with \<open>finite ?B\<close> show "finite (some_basis s)" by auto
   next
     fix s1 s2
-    have "pairwise (\<lambda>s t. disjnt (local.some_basis s) (local.some_basis t)) (set ss)"
+    have "pairwise (\<lambda>s t. disjnt (some_basis s) (some_basis t)) (set ss)"
       using assms(1, 4) by (rule direct_decomp_some_basis_pairwise_disjnt)
     moreover assume "s1 \<in> set ss" and "s2 \<in> set ss" and "s1 \<noteq> s2"
     thm pairwiseD
-    ultimately have "disjnt (local.some_basis s1) (local.some_basis s2)" by (rule pairwiseD)
-    thus "local.some_basis s1 \<inter> local.some_basis s2 = {}" by (simp only: disjnt_def)
+    ultimately have "disjnt (some_basis s1) (some_basis s2)" by (rule pairwiseD)
+    thus "some_basis s1 \<inter> some_basis s2 = {}" by (simp only: disjnt_def)
   qed
   also from refl card_some_basis have "\<dots> = (\<Sum>s\<in>set ss. dim s)" by (rule sum.cong)
   finally show ?thesis .
