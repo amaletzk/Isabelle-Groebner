@@ -915,7 +915,7 @@ proof -
   from assms(2) obtain a where "a \<in> A" and p: "p = hom_component a z" unfolding hom_deg_set_def ..
   from this(1) have "c \<cdot> a \<in> A" by (rule assms(1))
   moreover have "c \<cdot> p = hom_component (c \<cdot> a) z"
-    by (simp add: p scalar_eq_monom_mult hom_component_monom_mult)
+    by (simp add: p punit.map_scale_eq_monom_mult hom_component_monom_mult)
   ultimately show ?thesis unfolding hom_deg_set_def by (rule rev_image_eqI)
 qed
 
@@ -1049,38 +1049,38 @@ qed
 
 subsection \<open>Interpreting Polynomial Rings as Vector Spaces over the Coefficient Field\<close>
 
-interpretation vs_poly: vector_space "(\<cdot>)::'a \<Rightarrow> ('b \<Rightarrow>\<^sub>0 'a) \<Rightarrow> ('b \<Rightarrow>\<^sub>0 'a::field)"
-  by standard (simp_all add: algebra_simps scalar_assoc)
+text \<open>There is no need to set up any further interpretation, since interpretation \<open>phull\<close> is exactly
+  what we need.\<close>
 
-lemma subspace_ideal: "vs_poly.subspace (ideal (F::('b::comm_powerprod \<Rightarrow>\<^sub>0 'a::field) set))"
+lemma subspace_ideal: "phull.subspace (ideal (F::('b::comm_powerprod \<Rightarrow>\<^sub>0 'a::field) set))"
   using ideal.span_zero ideal.span_add
-proof (rule vs_poly.subspaceI)
+proof (rule phull.subspaceI)
   fix c p
   assume "p \<in> ideal F"
-  thus "c \<cdot> p \<in> ideal F" unfolding scalar_eq_times by (rule ideal.span_scale)
+  thus "c \<cdot> p \<in> ideal F" unfolding map_scale_eq_times by (rule ideal.span_scale)
 qed
 
-lemma subspace_Polys: "vs_poly.subspace (P[X]::(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) set)"
-  using zero_in_Polys Polys_closed_plus Polys_closed_scalar by (rule vs_poly.subspaceI)
+lemma subspace_Polys: "phull.subspace (P[X]::(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) set)"
+  using zero_in_Polys Polys_closed_plus Polys_closed_map_scale by (rule phull.subspaceI)
 
 lemma subspace_hom_deg_set:
-  assumes "vs_poly.subspace A"
-  shows "vs_poly.subspace (hom_deg_set z A)" (is "vs_poly.subspace ?A")
-proof (rule vs_poly.subspaceI)
-  from assms have "0 \<in> A" by (rule vs_poly.subspace_0)
+  assumes "phull.subspace A"
+  shows "phull.subspace (hom_deg_set z A)" (is "phull.subspace ?A")
+proof (rule phull.subspaceI)
+  from assms have "0 \<in> A" by (rule phull.subspace_0)
   thus "0 \<in> ?A" by (rule zero_in_hom_deg_set)
 next
   fix p q
   assume "p \<in> ?A" and "q \<in> ?A"
-  with vs_poly.subspace_add show "p + q \<in> ?A" by (rule hom_deg_set_closed_plus) (rule assms)
+  with phull.subspace_add show "p + q \<in> ?A" by (rule hom_deg_set_closed_plus) (rule assms)
 next
   fix c p
   assume "p \<in> ?A"
-  with vs_poly.subspace_scale show "c \<cdot> p \<in> ?A" by (rule hom_deg_set_closed_scalar) (rule assms)
+  with phull.subspace_scale show "c \<cdot> p \<in> ?A" by (rule hom_deg_set_closed_scalar) (rule assms)
 qed
 
 lemma hom_deg_set_Polys_eq_span:
-  "hom_deg_set z P[X] = vs_poly.span (monomial (1::'a::field) ` deg_sect X z)" (is "?A = ?B")
+  "hom_deg_set z P[X] = phull.span (monomial (1::'a::field) ` deg_sect X z)" (is "?A = ?B")
 proof
   show "?A \<subseteq> ?B"
   proof
@@ -1092,7 +1092,7 @@ proof
     thus "p \<in> ?B"
     proof (induct p rule: poly_mapping_plus_induct)
       case 1
-      from vs_poly.span_zero show ?case .
+      from phull.span_zero show ?case .
     next
       case (2 p c t)
       let ?m = "monomial c t"
@@ -1111,8 +1111,8 @@ proof
         finally show "deg_pm t = z" .
       qed fact
       hence "monomial 1 t \<in> monomial 1 ` deg_sect X z" by (rule imageI)
-      hence "monomial 1 t \<in> ?B" by (rule vs_poly.span_base)
-      hence "c \<cdot> monomial 1 t \<in> ?B" by (rule vs_poly.span_scale)
+      hence "monomial 1 t \<in> ?B" by (rule phull.span_base)
+      hence "c \<cdot> monomial 1 t \<in> ?B" by (rule phull.span_scale)
       hence "?m \<in> ?B" by simp
       moreover have "p \<in> ?B"
       proof (rule 2)
@@ -1142,7 +1142,7 @@ proof
           finally show "z \<le> poly_deg p" .
         qed
       qed
-      ultimately show ?case by (rule vs_poly.span_add)
+      ultimately show ?case by (rule phull.span_add)
     qed
   qed
 next
@@ -1151,7 +1151,7 @@ next
     fix p
     assume "p \<in> ?B"
     then obtain M u where "M \<subseteq> monomial 1 ` deg_sect X z" and "finite M" and p: "p = (\<Sum>m\<in>M. u m \<cdot> m)"
-      by (auto simp: vs_poly.span_explicit)
+      by (auto simp: phull.span_explicit)
     from this(1) obtain T where "T \<subseteq> deg_sect X z" and M: "M = monomial 1 ` T"
       and inj: "inj_on (monomial (1::'a)) T" by (rule subset_imageE_inj)
     define c where "c = (\<lambda>t. u (monomial 1 t))"
@@ -1173,8 +1173,16 @@ qed
 
 subsection \<open>(Projective) Hilbert Function\<close>
 
+interpretation phull: vector_space map_scale
+  apply standard
+  subgoal by (fact map_scale_distrib_left)
+  subgoal by (fact map_scale_distrib_right)
+  subgoal by (fact map_scale_assoc)
+  subgoal by (fact map_scale_one_left)
+  done
+
 definition Hilbert_fun :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) set \<Rightarrow> nat \<Rightarrow> nat"
-  where "Hilbert_fun A z = vs_poly.dim (hom_deg_set z A)"
+  where "Hilbert_fun A z = phull.dim (hom_deg_set z A)"
 
 lemma Hilbert_fun_empty [simp]: "Hilbert_fun {} = 0"
   by (rule ext) (simp add: Hilbert_fun_def hom_deg_set_def)
@@ -1184,41 +1192,41 @@ lemma Hilbert_fun_zero [simp]: "Hilbert_fun {0} = 0"
 
 lemma Hilbert_fun_direct_decomp:
   assumes "finite X" and "A \<subseteq> P[X]" and "direct_decomp (A::(('x::countable \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) set) ps"
-    and "\<And>s. s \<in> set ps \<Longrightarrow> homogeneous_set s" and "\<And>s. s \<in> set ps \<Longrightarrow> vs_poly.subspace s"
+    and "\<And>s. s \<in> set ps \<Longrightarrow> homogeneous_set s" and "\<And>s. s \<in> set ps \<Longrightarrow> phull.subspace s"
   shows "Hilbert_fun A z = (\<Sum>p\<in>set ps. Hilbert_fun p z)"
 proof -
   from assms(3, 4) have dd: "direct_decomp (hom_deg_set z A) (map (hom_deg_set z) ps)"
     by (rule direct_decomp_hom_deg_set)
-  have "Hilbert_fun A z = vs_poly.dim (hom_deg_set z A)" by (fact Hilbert_fun_def)
-  also from dd have "\<dots> = sum vs_poly.dim (set (map (hom_deg_set z) ps))"
-  proof (rule vs_poly.dim_direct_decomp)
+  have "Hilbert_fun A z = phull.dim (hom_deg_set z A)" by (fact Hilbert_fun_def)
+  also from dd have "\<dots> = sum phull.dim (set (map (hom_deg_set z) ps))"
+  proof (rule phull.dim_direct_decomp)
     from assms(1) have "finite (deg_sect X z)" by (rule finite_deg_sect)
     thus "finite (monomial (1::'a) ` deg_sect X z)" by (rule finite_imageI)
   next
     from assms(2) have "hom_deg_set z A \<subseteq> hom_deg_set z P[X]"
       unfolding hom_deg_set_def by (rule image_mono)
-    thus "hom_deg_set z A \<subseteq> vs_poly.span (monomial 1 ` deg_sect X z)"
+    thus "hom_deg_set z A \<subseteq> phull.span (monomial 1 ` deg_sect X z)"
       by (simp only: hom_deg_set_Polys_eq_span)
   next
     fix s
     assume "s \<in> set (map (hom_deg_set z) ps)"
     then obtain s' where "s' \<in> set ps" and s: "s = hom_deg_set z s'" unfolding set_map ..
-    from this(1) have "vs_poly.subspace s'" by (rule assms(5))
-    thus "vs_poly.subspace s" unfolding s by (rule subspace_hom_deg_set)
+    from this(1) have "phull.subspace s'" by (rule assms(5))
+    thus "phull.subspace s" unfolding s by (rule subspace_hom_deg_set)
   qed
-  also have "\<dots> = sum (vs_poly.dim \<circ> hom_deg_set z) (set ps)" unfolding set_map using finite_set
+  also have "\<dots> = sum (phull.dim \<circ> hom_deg_set z) (set ps)" unfolding set_map using finite_set
   proof (rule sum.reindex_nontrivial)
     fix s1 s2
     note dd
     moreover assume "s1 \<in> set ps" and "s2 \<in> set ps" and "s1 \<noteq> s2"
     moreover have "0 \<in> hom_deg_set z s" if "s \<in> set ps" for s
     proof (rule zero_in_hom_deg_set)
-      from that have "vs_poly.subspace s" by (rule assms(5))
-      thus "0 \<in> s" by (rule vs_poly.subspace_0)
+      from that have "phull.subspace s" by (rule assms(5))
+      thus "0 \<in> s" by (rule phull.subspace_0)
     qed
     ultimately have "hom_deg_set z s1 \<inter> hom_deg_set z s2 = {0}" by (rule direct_decomp_map_Int_zero)
     moreover assume "hom_deg_set z s1 = hom_deg_set z s2"
-    ultimately show "vs_poly.dim (hom_deg_set z s1) = 0" by simp
+    ultimately show "phull.dim (hom_deg_set z s1) = 0" by simp
   qed
   also have "\<dots> = (\<Sum>p\<in>set ps. Hilbert_fun p z)" by (simp only: o_def Hilbert_fun_def)
   finally show ?thesis .
@@ -1258,26 +1266,26 @@ next
 qed
 
 lemma Hilbert_fun_alt:
-  assumes "finite X" and "A \<subseteq> P[X]" and "vs_poly.subspace A"
+  assumes "finite X" and "A \<subseteq> P[X]" and "phull.subspace A"
   shows "Hilbert_fun A z = card (punit.lt ` (hom_deg_set z A - {0}))" (is "_ = card ?A")
 proof -
   have "?A \<subseteq> punit.lt ` (hom_deg_set z A - {0})" by simp
   then obtain B where sub: "B \<subseteq> hom_deg_set z A - {0}" and eq1: "?A = punit.lt ` B"
     and inj: "inj_on punit.lt B" by (rule subset_imageE_inj)
-  have "Hilbert_fun A z = vs_poly.dim (hom_deg_set z A)" by (fact Hilbert_fun_def)
+  have "Hilbert_fun A z = phull.dim (hom_deg_set z A)" by (fact Hilbert_fun_def)
   also have "\<dots> = card B"
-  proof (rule vs_poly.dim_eq_card)
-    show "vs_poly.span B = vs_poly.span (hom_deg_set z A)"
+  proof (rule phull.dim_eq_card)
+    show "phull.span B = phull.span (hom_deg_set z A)"
     proof
       from sub have "B \<subseteq> hom_deg_set z A" by blast
-      thus "vs_poly.span B \<subseteq> vs_poly.span (hom_deg_set z A)" by (rule vs_poly.span_mono)
+      thus "phull.span B \<subseteq> phull.span (hom_deg_set z A)" by (rule phull.span_mono)
     next
-      from assms(3) have "vs_poly.subspace (hom_deg_set z A)" by (rule subspace_hom_deg_set)
-      hence "vs_poly.span (hom_deg_set z A) = hom_deg_set z A" by simp
-      also have "\<dots> \<subseteq> vs_poly.span B"
+      from assms(3) have "phull.subspace (hom_deg_set z A)" by (rule subspace_hom_deg_set)
+      hence "phull.span (hom_deg_set z A) = hom_deg_set z A" by (simp only: phull.span_eq_iff)
+      also have "\<dots> \<subseteq> phull.span B"
       proof (rule ccontr)
-        assume "\<not> hom_deg_set z A \<subseteq> vs_poly.span B"
-        then obtain p0 where "p0 \<in> hom_deg_set z A - vs_poly.span B" (is "_ \<in> ?B") by blast
+        assume "\<not> hom_deg_set z A \<subseteq> phull.span B"
+        then obtain p0 where "p0 \<in> hom_deg_set z A - phull.span B" (is "_ \<in> ?B") by blast
         note assms(1) this
         moreover have "?B \<subseteq> P[X]"
         proof (rule subset_trans)
@@ -1286,8 +1294,8 @@ proof -
         ultimately obtain p where "p \<in> ?B" and p_min: "\<And>q. punit.ord_strict_p q p \<Longrightarrow> q \<notin> ?B"
           by (rule punit.ord_p_minimum_dgrad_p_set[OF dickson_grading_varnum_wrt, where m=0,
                     simplified dgrad_p_set_varnum_wrt]) blast
-        from this(1) have "p \<in> hom_deg_set z A" and "p \<notin> vs_poly.span B" by simp_all
-        from vs_poly.span_zero this(2) have "p \<noteq> 0" by blast
+        from this(1) have "p \<in> hom_deg_set z A" and "p \<notin> phull.span B" by simp_all
+        from phull.span_zero this(2) have "p \<noteq> 0" by blast
         with \<open>p \<in> hom_deg_set z A\<close> have "p \<in> hom_deg_set z A - {0}" by simp
         hence "punit.lt p \<in> punit.lt ` (hom_deg_set z A - {0})" by (rule imageI)
         also have "\<dots> = punit.lt ` B" by (simp only: eq1)
@@ -1296,43 +1304,43 @@ proof -
         hence "b \<in> hom_deg_set z A" and "b \<noteq> 0" by simp_all
         from this(2) have lcb: "punit.lc b \<noteq> 0" by (rule punit.lc_not_0)
         from \<open>p \<noteq> 0\<close> have lcp: "punit.lc p \<noteq> 0" by (rule punit.lc_not_0)
-        from \<open>b \<in> B\<close> have "b \<in> vs_poly.span B" by (rule vs_poly.span_base)
-        hence "(punit.lc p / punit.lc b) \<cdot> b \<in> vs_poly.span B" (is "?b \<in> _") by (rule vs_poly.span_scale)
-        with \<open>p \<notin> vs_poly.span B\<close> have "p - ?b \<noteq> 0" by auto
+        from \<open>b \<in> B\<close> have "b \<in> phull.span B" by (rule phull.span_base)
+        hence "(punit.lc p / punit.lc b) \<cdot> b \<in> phull.span B" (is "?b \<in> _") by (rule phull.span_scale)
+        with \<open>p \<notin> phull.span B\<close> have "p - ?b \<noteq> 0" by auto
         moreover from lcb lcp \<open>b \<noteq> 0\<close> have "punit.lt ?b = punit.lt p"
-          by (simp add: scalar_eq_monom_mult punit.lt_monom_mult eq2)
-        moreover from lcb have "punit.lc ?b = punit.lc p" by (simp add: scalar_eq_monom_mult)
+          by (simp add: punit.map_scale_eq_monom_mult punit.lt_monom_mult eq2)
+        moreover from lcb have "punit.lc ?b = punit.lc p" by (simp add: punit.map_scale_eq_monom_mult)
         ultimately have "punit.lt (p - ?b) \<prec> punit.lt p" by (rule punit.lt_minus_lessI)
         hence "punit.ord_strict_p (p - ?b) p" by (rule punit.lt_ord_p)
         hence "p - ?b \<notin> ?B" by (rule p_min)
-        hence "p - ?b \<notin> hom_deg_set z A \<or> p - ?b \<in> vs_poly.span B" by simp
+        hence "p - ?b \<notin> hom_deg_set z A \<or> p - ?b \<in> phull.span B" by simp
         thus False
         proof
           assume *: "p - ?b \<notin> hom_deg_set z A"
-          from vs_poly.subspace_scale have "?b \<in> hom_deg_set z A"
+          from phull.subspace_scale have "?b \<in> hom_deg_set z A"
           proof (rule hom_deg_set_closed_scalar)
-            show "vs_poly.subspace A" by fact
+            show "phull.subspace A" by fact
           next
             show "b \<in> hom_deg_set z A" by fact
           qed
-          with vs_poly.subspace_diff \<open>p \<in> hom_deg_set z A\<close> have "p - ?b \<in> hom_deg_set z A"
+          with phull.subspace_diff \<open>p \<in> hom_deg_set z A\<close> have "p - ?b \<in> hom_deg_set z A"
             by (rule hom_deg_set_closed_minus) (rule assms(3))
           with * show ?thesis ..
         next
-          assume "p - ?b \<in> vs_poly.span B"
-          hence "p - ?b + ?b \<in> vs_poly.span B" using \<open>?b \<in> vs_poly.span B\<close> by (rule vs_poly.span_add)
-          hence "p \<in> vs_poly.span B" by simp
-          with \<open>p \<notin> vs_poly.span B\<close> show ?thesis ..
+          assume "p - ?b \<in> phull.span B"
+          hence "p - ?b + ?b \<in> phull.span B" using \<open>?b \<in> phull.span B\<close> by (rule phull.span_add)
+          hence "p \<in> phull.span B" by simp
+          with \<open>p \<notin> phull.span B\<close> show ?thesis ..
         qed
       qed
-      finally show "vs_poly.span (hom_deg_set z A) \<subseteq> vs_poly.span B" .
+      finally show "phull.span (hom_deg_set z A) \<subseteq> phull.span B" .
     qed
   next
-    show "vs_poly.independent B"
+    show "phull.independent B"
     proof
-      assume "vs_poly.dependent B"
+      assume "phull.dependent B"
       then obtain B' u b' where "finite B'" and "B' \<subseteq> B" and "(\<Sum>b\<in>B'. u b \<cdot> b) = 0"
-        and "b' \<in> B'" and "u b' \<noteq> 0" unfolding vs_poly.dependent_explicit by blast
+        and "b' \<in> B'" and "u b' \<noteq> 0" unfolding phull.dependent_explicit by blast
       define B0 where "B0 = {b \<in> B'. u b \<noteq> 0}"
       have "B0 \<subseteq> B'" by (simp add: B0_def)
       with \<open>finite B'\<close> have "(\<Sum>b\<in>B0. u b \<cdot> b) = (\<Sum>b\<in>B'. u b \<cdot> b)"

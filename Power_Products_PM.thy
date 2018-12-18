@@ -284,13 +284,13 @@ lemma deg_is_nat: "is_nat_pm t \<Longrightarrow> is_nat (deg_pm t)"
 lemma deg_is_int: "is_int_pm t \<Longrightarrow> is_int (deg_pm t)"
   by (auto simp: deg_pm_superset[OF subset_refl finite_keys] intro: sum_is_int dest: is_int_pmD)
 
-lemma scalar_is_nat_pm: "is_nat c \<Longrightarrow> is_nat_pm t \<Longrightarrow> is_nat_pm (c \<cdot> t)"
+lemma map_scale_is_nat_pm: "is_nat c \<Longrightarrow> is_nat_pm t \<Longrightarrow> is_nat_pm (c \<cdot> t)"
   unfolding is_nat_pm_def is_nat_fun_def using times_is_nat by auto
 
-lemma scalar_is_int_pm: "is_int c \<Longrightarrow> is_int_pm t \<Longrightarrow> is_int_pm (c \<cdot> t)"
+lemma map_scale_is_int_pm: "is_int c \<Longrightarrow> is_int_pm t \<Longrightarrow> is_int_pm (c \<cdot> t)"
   unfolding is_int_pm_def is_int_fun_def using times_is_int by auto
 
-lemma of_nat_pm_scalar: "of_nat_pm (c \<cdot> t) = of_nat c \<cdot> of_nat_pm t"
+lemma of_nat_pm_map_scale: "of_nat_pm (c \<cdot> t) = of_nat c \<cdot> of_nat_pm t"
   by (rule poly_mapping_eqI) (simp add: lookup_of_nat_pm)
 
 subsubsection \<open>Composition\<close>

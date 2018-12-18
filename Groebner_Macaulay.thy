@@ -384,7 +384,7 @@ proof -
     by (rule is_GB_cofactor_boundE_finite_Polys) blast
   from this(1) show ?thesis
   proof (rule punit.Macaulay_list_is_GB)
-    show "G \<subseteq> punit.phull (set (deg_shifts b fs))" (is "_ \<subseteq> ?H")
+    show "G \<subseteq> phull (set (deg_shifts b fs))" (is "_ \<subseteq> ?H")
     proof
       fix g
       assume "g \<in> G"
@@ -392,14 +392,14 @@ proof -
       then obtain q where g: "g = (\<Sum>f\<in>set fs. q f * f)" and "\<And>f. q f \<in> P[X]"
         and "\<And>f. poly_deg (q f * f) \<le> b" by blast
       show "g \<in> ?H" unfolding g
-      proof (rule punit.phull.span_sum)
+      proof (rule phull.span_sum)
         fix f
         assume "f \<in> set fs"
         have "1 \<noteq> (0::'a)" by simp
         show "q f * f \<in> ?H"
         proof (cases "f = 0 \<or> q f = 0")
           case True
-          thus ?thesis by (auto simp add: punit.phull.span_zero)
+          thus ?thesis by (auto simp add: phull.span_zero)
         next
           case False
           hence "q f \<noteq> 0" and "f \<noteq> 0" by simp_all
@@ -411,23 +411,22 @@ proof -
           have "q f * f = (\<Sum>t\<in>deg_le_sect X (b - poly_deg f). punit.monom_mult (lookup (q f) t) t f)"
             unfolding punit.mult_scalar_sum_monomials[simplified] by (rule sum.mono_neutral_left) simp
           also have "\<dots> = (\<Sum>t\<in>deg_le_sect X (b - poly_deg f).
-                              punit.monom_mult (lookup (q f) t) 0 (punit.monom_mult 1 t f))"
-            by (simp add: punit.monom_mult_assoc)
+                              (lookup (q f) t) \<cdot> (punit.monom_mult 1 t f))"
+            by (simp add: punit.monom_mult_assoc punit.map_scale_eq_monom_mult)
           also have "\<dots> = (\<Sum>t\<in>deg_le_sect X (b - poly_deg f).
-                          ((\<lambda>f0. punit.monom_mult (lookup (q f) (punit.lp f0 - punit.lp f)) 0 f0) \<circ>
+                          ((\<lambda>f0. (lookup (q f) (punit.lp f0 - punit.lp f)) \<cdot> f0) \<circ>
                           (\<lambda>t. punit.monom_mult 1 t f)) t)"
             using refl by (rule sum.cong) (simp add: punit.lt_monom_mult[OF \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close>])
-          also have "\<dots> = (\<Sum>f0\<in>set (deg_shifts b [f]).
-                                          punit.monom_mult (lookup (q f) (punit.lp f0 - punit.lp f)) 0 f0)"
+          also have "\<dots> = (\<Sum>f0\<in>set (deg_shifts b [f]). (lookup (q f) (punit.lp f0 - punit.lp f)) \<cdot> f0)"
             unfolding set_deg_shifts_singleton
           proof (intro sum.reindex[symmetric] inj_onI)
             fix s t
             assume "punit.monom_mult 1 s f = punit.monom_mult 1 t f"
             thus "s = t" using \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close> by (rule punit.monom_mult_inj_2)
           qed
-          finally have "q f * f \<in> punit.phull (set (deg_shifts b [f]))"
-            by (simp add: punit.phull.sum_in_spanI)
-          also have "\<dots> \<subseteq> ?H" by (rule punit.phull.span_mono, rule deg_shifts_mono, simp add: \<open>f \<in> set fs\<close>)
+          finally have "q f * f \<in> phull (set (deg_shifts b [f]))"
+            by (simp add: phull.sum_in_spanI)
+          also have "\<dots> \<subseteq> ?H" by (rule phull.span_mono, rule deg_shifts_mono, simp add: \<open>f \<in> set fs\<close>)
           finally show ?thesis .
         qed
       qed
@@ -466,9 +465,9 @@ proof
   with \<open>g \<in> ?G\<close> show "1 \<in> ?G" by simp
 next
   assume ?R
-  also have "\<dots> \<subseteq> punit.phull (set (punit.Macaulay_list (deg_shifts b fs)))"
-    by (rule punit.phull.span_superset)
-  also have "\<dots> = punit.phull (set (deg_shifts b fs))" by (fact punit.phull_Macaulay_list)
+  also have "\<dots> \<subseteq> phull (set (punit.Macaulay_list (deg_shifts b fs)))"
+    by (rule phull.span_superset)
+  also have "\<dots> = phull (set (deg_shifts b fs))" by (fact punit.phull_Macaulay_list)
   also have "\<dots> \<subseteq> ideal (set (deg_shifts b fs))" using punit.phull_subset_module by force
   finally show ?L by simp
 qed

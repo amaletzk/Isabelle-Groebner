@@ -55,9 +55,9 @@ next
   show "f \<in> ideal {f1, f2}" unfolding f_eq by (rule in_idealI_2)
 qed
 
-lemma scalar_binomial:
+lemma map_scale_binomial:
   "a \<cdot> binomial c s d t = binomial (a * c) s (a * (d::_::semiring_0)) (t::_::comm_powerprod)"
-  by (simp add: scalar_eq_monom_mult punit.monom_mult_binomial)
+  by (simp add: punit.map_scale_eq_monom_mult punit.monom_mult_binomial)
 
 definition is_nat_pm_pair :: "(('x \<Rightarrow>\<^sub>0 'b) * ('x \<Rightarrow>\<^sub>0 'b::floor_ceiling)) \<Rightarrow> bool" where
   "is_nat_pm_pair pp = (is_nat_pm (fst pp) \<and> is_nat_pm (snd pp))"
@@ -94,17 +94,17 @@ definition deg_pair :: "('x point \<times> 'x point) \<Rightarrow> rat"
 context pm_powerprod
 begin
 
-lemma scalar_mono:
+lemma map_scale_mono:
   assumes "m \<le> n"
   shows "m \<cdot> t \<preceq> n \<cdot> t"
 proof -
   have "m \<cdot> t \<preceq> m \<cdot> t + (n - m) \<cdot> t" using zero_min plus_monotone_left by fastforce
-  also have "\<dots> = (m + (n - m)) \<cdot> t" by (simp only: scalar_distrib_right)
+  also have "\<dots> = (m + (n - m)) \<cdot> t" by (simp only: map_scale_distrib_right)
   also from assms have "\<dots> = n \<cdot> t" by simp
   finally show ?thesis .
 qed
 
-lemma scalar_mono_left:
+lemma map_scale_mono_left:
   assumes "s \<preceq> t"
   shows "m \<cdot> s \<preceq> m \<cdot> t"
 proof (induct m)
@@ -113,20 +113,20 @@ proof (induct m)
 next
   case (Suc m)
   have "Suc m \<cdot> s = (m + 1) \<cdot> s" by simp
-  also have "\<dots> = m \<cdot> s + s" by (simp only: scalar_distrib_right scalar_one_left)
+  also have "\<dots> = m \<cdot> s + s" by (simp only: map_scale_distrib_right map_scale_one_left)
   also from Suc have "\<dots> \<preceq> m \<cdot> t + s" by (rule plus_monotone)
   also from assms have "\<dots> \<preceq> m \<cdot> t + t" by (rule plus_monotone_left)
-  also have "\<dots> = (m + 1) \<cdot> t" by (simp only: scalar_distrib_right scalar_one_left)
+  also have "\<dots> = (m + 1) \<cdot> t" by (simp only: map_scale_distrib_right map_scale_one_left)
   also have "\<dots> = Suc m \<cdot> t" by simp
   finally show ?case .
 qed
 
-lemma scalar_mono_strict:
+lemma map_scale_mono_strict:
   assumes "m < n" and "t \<noteq> 0"
   shows "m \<cdot> t \<prec> n \<cdot> t"
 proof -
   from assms(1) have "m \<le> n" by simp
-  hence "m \<cdot> t \<preceq> n \<cdot> t" by (rule scalar_mono)
+  hence "m \<cdot> t \<preceq> n \<cdot> t" by (rule map_scale_mono)
   moreover have "m \<cdot> t \<noteq> n \<cdot> t"
   proof
     from assms(2) obtain x where "0 < lookup t x" using aux by auto
@@ -137,12 +137,12 @@ proof -
   ultimately show ?thesis by simp
 qed
 
-lemma scalar_mono_strict_left:
+lemma map_scale_mono_strict_left:
   assumes "s \<prec> t" and "0 < m"
   shows "m \<cdot> s \<prec> m \<cdot> t"
 proof -
   from assms(1) have "s \<preceq> t" by simp
-  hence "m \<cdot> s \<preceq> m \<cdot> t" by (rule scalar_mono_left)
+  hence "m \<cdot> s \<preceq> m \<cdot> t" by (rule map_scale_mono_left)
   moreover have "m \<cdot> s \<noteq> m \<cdot> t"
   proof
     from assms(1) have "s \<noteq> t" by simp
@@ -478,17 +478,17 @@ proof -
         from less.prems(3) \<open>t \<in> keys h\<close> True show "c * lookup h t' \<noteq> 0" by (simp add: c_def)
 
         have "keys (except q1 (fst Y)) \<subseteq> keys q1" by (auto simp: keys_except)
-        with keys_scalar_subset show "keys (c \<cdot> (except q1 (fst Y))) \<subseteq> keys q1" (is "keys ?q1 \<subseteq> _")
+        with keys_map_scale_subset show "keys (c \<cdot> (except q1 (fst Y))) \<subseteq> keys q1" (is "keys ?q1 \<subseteq> _")
           by (rule subset_trans)
 
         have "keys (except q2 (snd Y)) \<subseteq> keys q2" by (auto simp: keys_except)
-        with keys_scalar_subset show "keys (c \<cdot> (except q2 (snd Y))) \<subseteq> keys q2" (is "keys ?q2 \<subseteq> _")
+        with keys_map_scale_subset show "keys (c \<cdot> (except q2 (snd Y))) \<subseteq> keys q2" (is "keys ?q2 \<subseteq> _")
           by (rule subset_trans)
 
-        have "?q1 * f1 + ?q2 * f2 = c \<cdot> h" by (simp add: h_def scalar_eq_times algebra_simps)
+        have "?q1 * f1 + ?q2 * f2 = c \<cdot> h" by (simp add: h_def map_scale_eq_times algebra_simps)
         also have "\<dots> = c \<cdot> (binomial (lookup h t) t (lookup h t') t')" by (subst h) (fact refl)
         also from \<open>t \<in> keys h\<close> have "\<dots> = binomial (lookup f t) t (c * lookup h t') t'"
-          by (simp add: scalar_binomial c_def)
+          by (simp add: map_scale_binomial c_def)
         finally show "?q1 * f1 + ?q2 * f2 = binomial (lookup f t) t (c * lookup h t') t'" .
       qed
     next
@@ -575,7 +575,7 @@ proof -
         define c where "c = (lookup f t * lookup f t') / (lookup f t - c0 * lookup h t)"
         have "c0 \<cdot> h = c0 \<cdot> (binomial (lookup h t) t (lookup h l) l)" by (simp only: h[symmetric])
         also from \<open>l \<in> keys h\<close> have "\<dots> = binomial (c0 * lookup h t) t (lookup f t'') t''"
-          by (simp add: scalar_binomial \<open>l = t''\<close> c0_def)
+          by (simp add: map_scale_binomial \<open>l = t''\<close> c0_def)
         finally have "f - c0 \<cdot> h = ?f - binomial (c0 * lookup h t) t (lookup f t'') t''"
           by (simp only: f[symmetric])
         also have "\<dots> = binomial (lookup f t') t' (lookup f t - c0 * lookup h t) t"
@@ -585,11 +585,11 @@ proof -
         proof
           assume "lookup f t - c0 * lookup h t = 0"
           moreover have "f - c0 \<cdot> h \<in> ideal {f1, f2}"
-            by (simp add: ideal.span_diff less.prems(1) in_idealI_2 scalar_eq_times
+            by (simp add: ideal.span_diff less.prems(1) in_idealI_2 map_scale_eq_times
                 ideal.span_scale h_def)
           ultimately have "monomial (lookup f t') t' \<in> ideal {f1, f2}" by (simp add: 1 binomial_def)
           hence "(1 / lookup f t') \<cdot> (monomial (lookup f t') t') \<in> ideal {f1, f2}"
-            by (simp add: ideal.span_scale scalar_eq_times)
+            by (simp add: ideal.span_scale map_scale_eq_times)
           with \<open>t' \<in> keys f\<close> have "monomial 1 t' \<in> ideal {f1, f2}"
             by (simp flip: lookup_not_eq_zero_eq_in_keys)
           with less.prems(7) show False ..
@@ -599,22 +599,22 @@ proof -
         define q2' where "q2' = (c / lookup f t') \<cdot> (q2 - c0 \<cdot> (except q2 (snd Y)))"
         show ?thesis
         proof (rule less.prems)
-          have "keys q1' \<subseteq> keys (q1 - c0 \<cdot> (except q1 (fst Y)))" by (simp only: q1'_def keys_scalar_subset)
+          have "keys q1' \<subseteq> keys (q1 - c0 \<cdot> (except q1 (fst Y)))" by (simp only: q1'_def keys_map_scale_subset)
           also have "\<dots> \<subseteq> keys q1 \<union> keys (c0 \<cdot> (except q1 (fst Y)))" by (fact keys_minus)
           also have "\<dots> \<subseteq> keys q1 \<union> keys (except q1 (fst Y))"
-            by (meson keys_scalar_subset subset_refl sup.mono)
+            by (meson keys_map_scale_subset subset_refl sup.mono)
           finally show "keys q1' \<subseteq> keys q1" by (auto simp: keys_except)
         next
-          have "keys q2' \<subseteq> keys (q2 - c0 \<cdot> (except q2 (snd Y)))" by (simp only: q2'_def keys_scalar_subset)
+          have "keys q2' \<subseteq> keys (q2 - c0 \<cdot> (except q2 (snd Y)))" by (simp only: q2'_def keys_map_scale_subset)
           also have "\<dots> \<subseteq> keys q2 \<union> keys (c0 \<cdot> (except q2 (snd Y)))" by (fact keys_minus)
           also have "\<dots> \<subseteq> keys q2 \<union> keys (except q2 (snd Y))"
-            by (meson keys_scalar_subset subset_refl sup.mono)
+            by (meson keys_map_scale_subset subset_refl sup.mono)
           finally show "keys q2' \<subseteq> keys q2" by (auto simp: keys_except)
         next
           have "q1' * f1 + q2' * f2 = (c / lookup f t') \<cdot> (f - c0 \<cdot> h)"
-            by (simp add: q1'_def q2'_def h_def less.prems(1) algebra_simps scalar_eq_times)
+            by (simp add: q1'_def q2'_def h_def less.prems(1) algebra_simps map_scale_eq_times)
           also from 2 less.prems(4) have "\<dots> = binomial c t' (lookup f t) t"
-            by (simp add: 1 scalar_binomial c_def)
+            by (simp add: 1 map_scale_binomial c_def)
           finally show "q1' * f1 + q2' * f2 = binomial (lookup f t) t c t'" by (simp only: binomial_comm)
         qed fact
       next
@@ -626,7 +626,7 @@ proof -
           define c where "c = lookup f t' - c0 * lookup h' t'"
           have "c0 \<cdot> h' = c0 \<cdot> (binomial (lookup h' t') t' (lookup h' l') l')" by (simp only: h'[symmetric])
           also from \<open>l' \<in> keys h'\<close> have "\<dots> = binomial (c0 * lookup h' t') t' (lookup f t'') t''"
-            by (simp add: scalar_binomial \<open>l' = t''\<close> c0_def)
+            by (simp add: map_scale_binomial \<open>l' = t''\<close> c0_def)
           finally have "f - c0 \<cdot> h' = ?f - binomial (c0 * lookup h' t') t' (lookup f t'') t''"
             by (simp only: f[symmetric])
           also have "\<dots> = binomial (lookup f t) t c t'" by (simp add: binomial_def single_diff c_def)
@@ -639,11 +639,11 @@ proof -
             proof
               assume "c = 0"
               moreover have "f - c0 \<cdot> h' \<in> ideal {f1, f2}"
-                by (simp add: ideal.span_diff less.prems(1) in_idealI_2 scalar_eq_times
+                by (simp add: ideal.span_diff less.prems(1) in_idealI_2 map_scale_eq_times
                     ideal.span_scale h'_def)
               ultimately have "monomial (lookup f t) t \<in> ideal {f1, f2}" by (simp add: 1 binomial_def)
               hence "(1 / lookup f t) \<cdot> (monomial (lookup f t) t) \<in> ideal {f1, f2}"
-                by (simp add: ideal.span_scale scalar_eq_times)
+                by (simp add: ideal.span_scale map_scale_eq_times)
               with \<open>t \<in> keys f\<close> have "monomial 1 t \<in> ideal {f1, f2}"
                 by (simp flip: lookup_not_eq_zero_eq_in_keys)
               with less.prems(6) show False ..
@@ -652,17 +652,17 @@ proof -
             have "keys q1' \<subseteq> keys q1 \<union> keys (c0 \<cdot> except q1 (fst Y'))"
               by (simp add: q1'_def keys_minus)
             also have "\<dots> \<subseteq> keys q1 \<union> keys (except q1 (fst Y'))"
-              by (meson keys_scalar_subset subset_refl sup.mono)
+              by (meson keys_map_scale_subset subset_refl sup.mono)
             finally show "keys q1' \<subseteq> keys q1" by (auto simp: keys_except)
           next
             have "keys q2' \<subseteq> keys q2 \<union> keys (c0 \<cdot> except q2 (snd Y'))"
               by (simp add: q2'_def keys_minus)
             also have "\<dots> \<subseteq> keys q2 \<union> keys (except q2 (snd Y'))"
-              by (meson keys_scalar_subset subset_refl sup.mono)
+              by (meson keys_map_scale_subset subset_refl sup.mono)
             finally show "keys q2' \<subseteq> keys q2" by (auto simp: keys_except)
           next
             show "q1' * f1 + q2' * f2 = binomial (lookup f t) t c t'" unfolding 1[symmetric]
-              by (simp add: q1'_def q2'_def h'_def less.prems(1) algebra_simps scalar_eq_times)
+              by (simp add: q1'_def q2'_def h'_def less.prems(1) algebra_simps map_scale_eq_times)
           qed
         next
           case False
@@ -678,17 +678,17 @@ proof -
                 by (simp add: c_def c0_def)
             next
               show "keys (c0 \<cdot> except q1 (fst Y')) \<subseteq> keys q1"
-                by (simp add: keys_except keys_scalar)
+                by (simp add: keys_except keys_map_scale)
             next
               show "keys (c0 \<cdot> except q2 (snd Y')) \<subseteq> keys q2"
-                by (simp add: keys_except keys_scalar)
+                by (simp add: keys_except keys_map_scale)
             next
               have "c0 \<cdot> except q1 (fst Y') * f1 + c0 \<cdot> except q2 (snd Y') * f2 = c0 \<cdot> h'"
-                by (simp add: h'_def algebra_simps scalar_eq_times)
+                by (simp add: h'_def algebra_simps map_scale_eq_times)
               also have "\<dots> = c0 \<cdot> (binomial (lookup h' t') t' (lookup h' t) t)"
                 by (simp flip: \<open>l' = t\<close> h')
               also from \<open>t \<in> keys h'\<close> have "\<dots> = binomial c t' (lookup f t) t"
-                by (simp add: scalar_binomial c_def c0_def)
+                by (simp add: map_scale_binomial c_def c0_def)
               finally show "c0 \<cdot> except q1 (fst Y') * f1 + c0 \<cdot> except q2 (snd Y') * f2 =
                             binomial (lookup f t) t c t'" by (simp only: binomial_comm)
             qed
@@ -708,23 +708,23 @@ proof -
                   by (simp add: c_def c0_def c1_def True)
               next
                 have "keys q1' \<subseteq> keys (except q1 (fst Y) - c1 \<cdot> except q1 (fst Y'))"
-                  unfolding q1'_def by (fact keys_scalar_subset)
+                  unfolding q1'_def by (fact keys_map_scale_subset)
                 also have "\<dots> \<subseteq> keys (except q1 (fst Y)) \<union> keys (c1 \<cdot> except q1 (fst Y'))"
                   by (rule keys_minus)
                 also have "\<dots> \<subseteq> keys (except q1 (fst Y)) \<union> keys (except q1 (fst Y'))"
-                  by (meson keys_scalar_subset subset_refl sup.mono)
+                  by (meson keys_map_scale_subset subset_refl sup.mono)
                 finally show "keys q1' \<subseteq> keys q1" by (auto simp: keys_except)
               next
                 have "keys q2' \<subseteq> keys (except q2 (snd Y) - c1 \<cdot> except q2 (snd Y'))"
-                  unfolding q2'_def by (fact keys_scalar_subset)
+                  unfolding q2'_def by (fact keys_map_scale_subset)
                 also have "\<dots> \<subseteq> keys (except q2 (snd Y)) \<union> keys (c1 \<cdot> except q2 (snd Y'))"
                   by (rule keys_minus)
                 also have "\<dots> \<subseteq> keys (except q2 (snd Y)) \<union> keys (except q2 (snd Y'))"
-                  by (meson keys_scalar_subset subset_refl sup.mono)
+                  by (meson keys_map_scale_subset subset_refl sup.mono)
                 finally show "keys q2' \<subseteq> keys q2" by (auto simp: keys_except)
               next
                 have "q1' * f1 + q2' * f2 = c0 \<cdot> (h - c1 \<cdot> h')"
-                  by (simp add: q1'_def q2'_def scalar_eq_times algebra_simps h_def h'_def)
+                  by (simp add: q1'_def q2'_def map_scale_eq_times algebra_simps h_def h'_def)
                 also have "\<dots> = c0 \<cdot> (binomial (lookup h t) t (lookup h l) l -
                                       c1 \<cdot> binomial (lookup h' t') t' (lookup h' l') l')"
                   by (simp only: flip: h h')

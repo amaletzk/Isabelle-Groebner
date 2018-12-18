@@ -331,7 +331,7 @@ lemma ord_rat:
   shows "l < l'"
 proof -
   have eq: "of_nat_pm t - of_nat_pm s = (l' - l) \<cdot> vect f"
-    by (simp add: assms(2, 3) scalar_minus_distrib_right)
+    by (simp add: assms(2, 3) map_scale_minus_distrib_right)
   obtain a b :: int where 1: "l' - l = Fract a b" and "0 < b" by (rule Rat_cases)
   moreover have "0 < a"
   proof (rule ccontr)
@@ -346,13 +346,13 @@ proof -
       by (simp only: eq)
     with \<open>0 < n\<close> have "rat n \<cdot> of_nat_pm t + rat m \<cdot> of_nat_pm (lp f) =
                         rat n \<cdot> of_nat_pm s + rat m \<cdot> of_nat_pm (tp f)"
-      by (simp add: vect_alt algebra_simps scalar_assoc scalar_uminus_left)
+      by (simp add: vect_alt algebra_simps map_scale_assoc map_scale_uminus_left)
     hence "of_nat_pm (n \<cdot> t + m \<cdot> lp f) = (of_nat_pm (n \<cdot> s + m \<cdot> tp f) ::_ \<Rightarrow>\<^sub>0 rat)"
-      by (simp only: of_nat_pm_plus of_nat_pm_scalar)
+      by (simp only: of_nat_pm_plus of_nat_pm_map_scale)
     hence eq2: "n \<cdot> t + m \<cdot> lp f = n \<cdot> s + m \<cdot> tp f" by simp
-    from assms(1) \<open>0 < n\<close> have "n \<cdot> s \<prec> n \<cdot> t" by (rule scalar_mono_strict_left)
+    from assms(1) \<open>0 < n\<close> have "n \<cdot> s \<prec> n \<cdot> t" by (rule map_scale_mono_strict_left)
     hence "n \<cdot> s + m \<cdot> tp f \<prec> n \<cdot> t + m \<cdot> tp f" by (rule plus_monotone_strict)
-    from punit.lt_ge_tt have "m \<cdot> tp f \<preceq> m \<cdot> lp f" by (rule scalar_mono_left)
+    from punit.lt_ge_tt have "m \<cdot> tp f \<preceq> m \<cdot> lp f" by (rule map_scale_mono_left)
     hence "n \<cdot> t + m \<cdot> tp f \<preceq> n \<cdot> t + m \<cdot> lp f" by (rule plus_monotone_left)
     with \<open>n \<cdot> s + m \<cdot> tp f \<prec> n \<cdot> t + m \<cdot> tp f\<close> have "n \<cdot> s + m \<cdot> tp f \<prec> n \<cdot> t + m \<cdot> lp f"
       by (rule ordered_powerprod_lin.less_le_trans)
@@ -414,7 +414,7 @@ lemma associated_p_rat:
   by (simp add: associated_p_def poly_mapping_eq_iff plus_poly_mapping.rep_eq fun_eq_iff lookup_of_rat_pm)
   
 lemma associated_p_alt: "associated_p p s t k \<longleftrightarrow> (s = t + k \<cdot> (fst p - snd p))"
-  by (simp add: associated_p_def scalar_minus_distrib_left,
+  by (simp add: associated_p_def map_scale_minus_distrib_left,
       metis (no_types, lifting) add_diff_cancel add_diff_eq diff_add_cancel)
 
 lemma associated_p_0: "associated_p p s t 0 \<longleftrightarrow> (s = t)"
@@ -436,7 +436,7 @@ proof (rule associated_pI)
   from assms(1) have "t + k \<cdot> fst p = s + k \<cdot> snd p" by (rule associated_pD)
   moreover from assms(2) have "s + m \<cdot> fst p = u + m \<cdot> snd p" by (rule associated_pD)
   ultimately show "t + (k + m) \<cdot> fst p = u + (k + m) \<cdot> snd p"
-    by (simp add: scalar_distrib_right, metis (no_types, lifting) add.assoc add.commute)
+    by (simp add: map_scale_distrib_right, metis (no_types, lifting) add.assoc add.commute)
 qed
 
 lemma associated_alt_associated_p:
@@ -521,10 +521,10 @@ proof (intro conjI)
   next
     have "rat_of_int m1 \<cdot> vect f1 = rat_of_int m1 \<cdot> m \<cdot> vect f2" by (simp only: assms(3))
     also from \<open>0 < m1\<close> have "\<dots> = rat_of_int m2 \<cdot> vect f2"
-      by (simp add: m scalar_assoc Fract_of_int_quotient)
+      by (simp add: m map_scale_assoc Fract_of_int_quotient)
     finally have "of_nat_pm (nat m1 \<cdot> lp f1 + nat m2 \<cdot> tp f2) =
                   (of_nat_pm (nat m1 \<cdot> tp f1 + nat m2 \<cdot> lp f2) :: _ \<Rightarrow>\<^sub>0 rat)"
-      by (simp only: vect_alt algebra_simps of_nat_pm_scalar of_nat_pm_plus m1 m2)
+      by (simp only: vect_alt algebra_simps of_nat_pm_map_scale of_nat_pm_plus m1 m2)
     thus "nat m1 \<cdot> lp f1 + nat m2 \<cdot> tp f2 = nat m1 \<cdot> tp f1 + nat m2 \<cdot> lp f2" by simp
   qed
 qed fact+
@@ -564,7 +564,7 @@ proof -
       hence v2: "vect f2 = - (of_nat_pm s2 - of_nat_pm t2)" by (simp add: f2 vect_alt)
       show ?thesis
       proof (rule parallel_binomialsI_vect)
-        show "vect f1 = m \<cdot> vect f2" by (simp only: v1 v2 assms(5) scalar_uminus_right)
+        show "vect f1 = m \<cdot> vect f2" by (simp only: v1 v2 assms(5) map_scale_uminus_right)
       qed fact+
     next
       assume "t2 \<prec> s2"
@@ -575,7 +575,7 @@ proof -
       show ?thesis
       proof (rule parallel_binomialsI_vect)
         show "vect f1 = (- m) \<cdot> vect f2"
-          by (simp only: v1 v2 assms(5) scalar_uminus_right scalar_uminus_left)
+          by (simp only: v1 v2 assms(5) map_scale_uminus_right map_scale_uminus_left)
       qed fact+
     next
       assume "s2 = t2"
@@ -597,7 +597,7 @@ proof -
       show ?thesis
       proof (rule parallel_binomialsI_vect)
         show "vect f1 = (- m) \<cdot> vect f2"
-          by (simp only: v1 v2 assms(5) scalar_uminus_right scalar_uminus_left) simp
+          by (simp only: v1 v2 assms(5) map_scale_uminus_right map_scale_uminus_left) simp
       qed fact+
     next
       assume "t2 \<prec> s2"
@@ -633,10 +633,10 @@ proof -
       by (simp only: eq)
     hence "rat m1 \<cdot> of_nat_pm (lp f1) + rat m2 \<cdot> of_nat_pm (tp f2) =
             rat m1 \<cdot> of_nat_pm (tp f1) + rat m2 \<cdot> of_nat_pm (lp f2)"
-      by (simp add: of_nat_pm_plus of_nat_pm_scalar)
+      by (simp add: of_nat_pm_plus of_nat_pm_map_scale)
     hence "rat m1 \<cdot> vect f1 = rat m2 \<cdot> vect f2" by (simp add: vect_alt algebra_simps)
     hence "(1 / rat m1) \<cdot> rat m1 \<cdot> vect f1 = (1 / rat m1) \<cdot> rat m2 \<cdot> vect f2" by (simp only:)
-    with \<open>m1 \<noteq> 0\<close> show "vect f1 = (rat m2 / rat m1) \<cdot> vect f2" by (simp add: scalar_assoc)
+    with \<open>m1 \<noteq> 0\<close> show "vect f1 = (rat m2 / rat m1) \<cdot> vect f2" by (simp add: map_scale_assoc)
   qed
 qed
 
@@ -694,7 +694,7 @@ proof -
   moreover from assms(3) have "card (keys ?f2) = 2" by (simp add: card_keys_homogenize 2)
   ultimately have "?f f2 (lp f2) \<noteq> ?f f2 (tp f2)" by auto
   from assms(1) obtain m where m: "vect f1 = m \<cdot> vect f2" by (rule parallel_binomialsE_vect)
-  hence "deg_pm (vect f1) = m * deg_pm (vect f2)" by (simp only: deg_pm_scalar)
+  hence "deg_pm (vect f1) = m * deg_pm (vect f2)" by (simp only: deg_pm_map_scale)
   hence eq0: "rat (deg_pm (tp f1)) - rat (deg_pm (lp f1)) = m * (rat (deg_pm (tp f2)) - rat (deg_pm (lp f2)))"
     by (simp add: vect_alt deg_pm_minus_group deg_of_nat_pm algebra_simps)
   show ?thesis
@@ -718,7 +718,7 @@ proof -
     also have "\<dots> = Poly_Mapping.single h (rat (deg_pm (tp f1)) - rat (deg_pm (lp f1))) + m \<cdot> vect f2"
       by (simp add: eq1 eq2 m)
     also have "\<dots> = m \<cdot> (Poly_Mapping.single h (rat (deg_pm (tp f2)) - rat (deg_pm (lp f2))) + vect f2)"
-      by (simp only: scalar_distrib_left scalar_single eq0)
+      by (simp only: map_scale_distrib_left map_scale_single eq0)
     also have "Poly_Mapping.single h (rat (deg_pm (tp f2)) - rat (deg_pm (lp f2))) + vect f2 =
                 Poly_Mapping.single h (rat (poly_deg f2 - deg_pm (lp f2)) -
                 rat (poly_deg f2 - deg_pm (tp f2))) + vect f2"
@@ -903,7 +903,7 @@ lemma overlapshift_p'_is_int_pm:
   assumes "is_int_pm p"
   shows "is_int_pm (overlapshift_p' f p)"
   unfolding overlapshift_p'_def
-  by (rule plus_is_int_pm, fact, rule scalar_is_int_pm, simp add: is_int_def, fact vect_is_int_pm)
+  by (rule plus_is_int_pm, fact, rule map_scale_is_int_pm, simp add: is_int_def, fact vect_is_int_pm)
 
 lemma overlapshift_p'_above_overlap: "overlap \<unlhd> p \<Longrightarrow> overlapshift_p' f p = p"
   by (simp add: overlapshift_p'_def step_p'_above_overlap)
@@ -1264,7 +1264,7 @@ proof -
     qed fact
   next
     assume "s = lp p" and "t = tp p"
-    hence "of_nat_pm t = of_nat_pm s + (- 1) \<cdot> vect p" by (simp add: vect_alt scalar_uminus_left)
+    hence "of_nat_pm t = of_nat_pm s + (- 1) \<cdot> vect p" by (simp add: vect_alt map_scale_uminus_left)
     show ?thesis
     proof
       show "-1 \<in> {-1, 0, 1::rat}" by simp
@@ -1662,7 +1662,7 @@ proof -
     show ?thesis
     proof (rule that(3))
       have "of_nat_pm (s + t) = of_nat_pm (s + t0) + l' \<cdot> vect f1" by (simp add: of_nat_pm_plus eq2)
-      also have "\<dots> = of_nat_pm (lp g) + (l + l') \<cdot> vect f1" by (simp add: eq1 scalar_distrib_right)
+      also have "\<dots> = of_nat_pm (lp g) + (l + l') \<cdot> vect f1" by (simp add: eq1 map_scale_distrib_right)
       finally show "of_nat_pm (s + t) = of_nat_pm (lp g) + (l + l') \<cdot> vect f1" .
     qed
   qed
@@ -1680,7 +1680,7 @@ proof -
     proof (rule that(3))
       have "of_nat_pm (s + t) = of_nat_pm (s + t0) + l' \<cdot> vect f2" by (simp add: of_nat_pm_plus eq2)
       also have "\<dots> = of_nat_pm (lp g) + (l + l' * m) \<cdot> vect f1"
-        by (simp add: m eq1 scalar_distrib_right scalar_assoc)
+        by (simp add: m eq1 map_scale_distrib_right map_scale_assoc)
       finally show "of_nat_pm (s + t) = of_nat_pm (lp g) + (l + l' * m) \<cdot> vect f1" .
     qed
   qed
@@ -1734,7 +1734,7 @@ proof -
         ultimately show ?thesis by (simp only: g lookup_add)
       next
         case False
-        hence "t \<noteq> lp g" by (metis add.right_neutral scalar_zero_left)
+        hence "t \<noteq> lp g" by (metis add.right_neutral map_scale_zero_left)
         with g_monomial have "t \<notin> keys g" by (auto dest: punit.keys_monomial simp only:)
         moreover have "t \<notin> keys (q1 * f1)"
         proof
@@ -1853,7 +1853,7 @@ proof -
       then obtain l::rat where "0 \<le> l" and eq: "of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1" by blast
       have "rat (deg_pm t) = deg_pm (of_nat_pm t)" by (simp only: deg_of_nat_pm)
       also have "\<dots> = deg_pm (of_nat_pm (lp g)) + l * deg_pm (vect f1)"
-        by (simp add: eq deg_pm_plus deg_pm_scalar)
+        by (simp add: eq deg_pm_plus deg_pm_map_scale)
       also from \<open>0 \<le> l\<close> have "\<dots> \<le> deg_pm (of_nat_pm (lp g))" unfolding add_le_same_cancel1
       proof (rule mult_nonneg_nonpos)
         from True show "deg_pm (vect f1) \<le> 0" by (simp add: vect_alt deg_pm_minus deg_of_nat_pm)
@@ -1893,7 +1893,7 @@ proof -
     hence "0 < deg_pm (vect f1)" by (simp add: vect_alt deg_pm_minus deg_of_nat_pm)
     moreover obtain m::rat where "0 < m" and "vect f2 = m \<cdot> vect f1"
       using parallel_binomials_sym[OF parallel] by (rule parallel_binomialsE_vect)
-    ultimately have "0 < deg_pm (vect f2)" by (simp add: deg_pm_scalar)
+    ultimately have "0 < deg_pm (vect f2)" by (simp add: deg_pm_map_scale)
     hence 0: "deg_pm (tp f2) < deg_pm (lp f2)" by (simp add: vect_alt deg_pm_minus deg_of_nat_pm)
 
     define A where "A = {Q. g = fst Q * f1 + snd Q * f2 \<and>
@@ -1968,10 +1968,10 @@ proof -
       ultimately have "l < l'" using eq2 by (rule ord_rat)
       have "rat (deg_pm (s + t)) = deg_pm (of_nat_pm (s + t))" by (simp only: deg_of_nat_pm)
       also have "\<dots> = deg_pm (of_nat_pm (lp g)) + l * deg_pm (vect f1)"
-        by (simp add: eq1 deg_pm_plus deg_pm_scalar)
+        by (simp add: eq1 deg_pm_plus deg_pm_map_scale)
       also have "\<dots> < deg_pm (of_nat_pm (lp g)) + l' * deg_pm (vect f1)"
         using \<open>0 < deg_pm (vect f1)\<close> \<open>l < l'\<close> by simp
-      also have "\<dots> = deg_pm (of_nat_pm (lp q1 + lp f1))" by (simp add: eq2 deg_pm_plus deg_pm_scalar)
+      also have "\<dots> = deg_pm (of_nat_pm (lp q1 + lp f1))" by (simp add: eq2 deg_pm_plus deg_pm_map_scale)
       also have "\<dots> = rat (deg_pm (lp q1 + lp f1))" by (simp only: deg_of_nat_pm)
       finally show ?thesis by simp
     qed
@@ -2027,20 +2027,20 @@ proof -
         assume "\<not> rat (poly_deg (q1 * f1)) \<le> ?b"
         hence "?b < rat (poly_deg (q1 * f1))" by simp
         moreover have "is_int ?b"
-          by (intro minus_is_int one_is_int deg_is_int plus_is_int_pm vect_is_int_pm scalar_is_int_pm plus_is_int)
+          by (intro minus_is_int one_is_int deg_is_int plus_is_int_pm vect_is_int_pm map_scale_is_int_pm plus_is_int)
              (intro nat_pm_is_int_pm of_nat_pm_is_nat_pm nat_is_int of_nat_is_nat)+
         moreover have "is_int (rat (poly_deg (q1 * f1)))" by (intro nat_is_int of_nat_is_nat)
         ultimately have "?b + 1 \<le> deg_pm (of_nat_pm (lp q1 + lp f1))"
           by (simp add: is_int_less_iff 5 deg_of_nat_pm lp_q1_f1)
         also have "\<dots> = deg_pm (of_nat_pm (lp g) + l' \<cdot> vect f1)" by (simp only: eq2)
         finally have "(rat k + m + 1) * deg_pm (vect f1) \<le> l' * deg_pm (vect f1)"
-          by (simp add: \<open>vect f2 = m \<cdot> vect f1\<close> k_def algebra_simps deg_pm_plus deg_pm_scalar)
+          by (simp add: \<open>vect f2 = m \<cdot> vect f1\<close> k_def algebra_simps deg_pm_plus deg_pm_map_scale)
         with \<open>0 < deg_pm (vect f1)\<close> have "rat k + m + 1 \<le> l'" by simp
         hence "rat k + 1 \<le> l' - m" and "l' - m \<le> l'" and "rat k + m \<le> l' - 1" and "l' - 1 \<le> l'"
           using \<open>0 < m\<close> by simp_all
         from this(1) have "1 \<le> l' - m" by simp
         have "of_nat_pm (lp g) + (l' - m) \<cdot> vect f1 = of_nat_pm (lp q1 + lp f1) - m \<cdot> vect f1"
-          by (simp add: scalar_minus_distrib_right eq2)
+          by (simp add: map_scale_minus_distrib_right eq2)
         also have "\<dots> = of_nat_pm (lp q2 + lp f2) - vect f2" by (simp only: lp_eq2 \<open>vect f2 = m \<cdot> vect f1\<close>)
         also have "\<dots> = of_nat_pm (lp q2 + tp f2)" by (simp add: of_nat_pm_plus vect_alt)
         finally have eq3: "of_nat_pm (lp g) + (l' - m) \<cdot> vect f1 = of_nat_pm (lp q2 + tp f2)" .
@@ -2055,11 +2055,11 @@ proof -
         moreover have "of_nat_pm (lp f1) \<unlhd> of_nat_pm (lp g) + l' \<cdot> vect f1"
           by (simp add: le_of_nat_pm flip: eq2 adds_pm)
         ultimately have "of_nat_pm (lp f1) \<unlhd> of_nat_pm (lp g) + (l' - m) \<cdot> vect f1"
-          using \<open>1 \<le> l' - m\<close> \<open>l' - m \<le> l'\<close> by (rule scalar_le_interval)
+          using \<open>1 \<le> l' - m\<close> \<open>l' - m \<le> l'\<close> by (rule map_scale_le_interval)
         hence adds1: "lp f1 adds lp q2 + tp f2" by (simp only: adds_pm eq3 le_of_nat_pm)
 
         have "of_nat_pm (lp g) + (l' - 1) \<cdot> vect f1 = of_nat_pm (lp q1 + lp f1) - vect f1"
-          by (simp add: scalar_minus_distrib_right eq2)
+          by (simp add: map_scale_minus_distrib_right eq2)
         also have "\<dots> = of_nat_pm (lp q1 + tp f1)" by (simp add: of_nat_pm_plus vect_alt)
         finally have eq4: "of_nat_pm (lp g) + (l' - 1) \<cdot> vect f1 = of_nat_pm (lp q1 + tp f1)" .
         have "of_nat_pm (lp f2) \<unlhd> of_nat_pm (lp g) + (l' - 1) \<cdot> vect f1"
@@ -2219,7 +2219,7 @@ proof -
               with adds1 have "of_nat_pm (s + t) = of_nat_pm (lp q2 + tp f2) - vect f1"
                 by (simp add: s vect_alt of_nat_pm_plus of_nat_pm_minus)
               also have "\<dots> = of_nat_pm (lp g) + (l'' - 1) \<cdot> vect f1"
-                by (simp add: l'' scalar_minus_distrib_right)
+                by (simp add: l'' map_scale_minus_distrib_right)
               finally show ?thesis ..
             qed
           next
@@ -2254,7 +2254,7 @@ proof -
               with adds2 have "of_nat_pm (s + t) = of_nat_pm (lp q1 + tp f1) - vect f2"
                 by (simp add: s vect_alt of_nat_pm_plus of_nat_pm_minus)
               also have "\<dots> = of_nat_pm (lp g) + (l'' - m) \<cdot> vect f1"
-                by (simp add: l'' \<open>vect f2 = m \<cdot> vect f1\<close> scalar_minus_distrib_right)
+                by (simp add: l'' \<open>vect f2 = m \<cdot> vect f1\<close> map_scale_minus_distrib_right)
               finally show ?thesis ..
             qed
           next

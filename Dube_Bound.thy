@@ -206,7 +206,7 @@ proof -
     ultimately have "(h, U) \<in> set ps" by simp
     with assms(3) have "homogeneous h" by (rule hom_decompD)
     thus "homogeneous_set cn" unfolding cn hU by (rule homogeneous_set_coneI)
-    show "vs_poly.subspace cn" unfolding cn by (fact subspace_cone)
+    show "phull.subspace cn" unfolding cn by (fact subspace_cone)
   qed
   also have "\<dots> = (\<Sum>hU\<in>set ps. ((\<lambda>s. Hilbert_fun s z) \<circ> cone) hU)" unfolding set_map using finite_set
   proof (rule sum.reindex_nontrivial)
@@ -603,7 +603,7 @@ proof
     qed
     with \<open>q \<in> cone (ps ! i)\<close> have "q \<in> range (\<lambda>c. c \<cdot> h)" by (simp only: eq cone_empty)
     then obtain c where "q = c \<cdot> h" ..
-    also have "keys \<dots> \<subseteq> keys h" by (fact keys_scalar_subset)
+    also have "keys \<dots> \<subseteq> keys h" by (fact keys_map_scale_subset)
     finally have "t \<in> keys h" using \<open>t \<in> keys q\<close> ..
     hence "t \<in> keys (fst (h, U))" by simp
     with \<open>(h, U) \<in> set ps\<close> show "t \<in> ?A" ..
@@ -775,14 +775,14 @@ lemma Hilbert_fun_X:
             ((z - d) + (n - 1)) choose (n - 1) + Hilbert_fun P z + Hilbert_fun N z"
 proof -
   define ss where "ss = [ideal {f} \<inter> P[X], P, N]"
-  have "homogeneous_set A \<and> vs_poly.subspace A" if "A \<in> set ss" for A
+  have "homogeneous_set A \<and> phull.subspace A" if "A \<in> set ss" for A
   proof -
     from that have "A = ideal {f} \<inter> P[X] \<or> A = P \<or> A = N" by (simp add: ss_def)
     thus ?thesis
     proof (elim disjE)
       assume A: "A = ideal {f} \<inter> P[X]"
       show ?thesis unfolding A
-        by (intro conjI homogeneous_set_IntI vs_poly.subspace_inter homogeneous_set_homogeneous_ideal
+        by (intro conjI homogeneous_set_IntI phull.subspace_inter homogeneous_set_homogeneous_ideal
             homogeneous_set_Polys subspace_ideal subspace_Polys) (simp add: hom_f)
     next
       assume A: "A = P"
@@ -794,7 +794,7 @@ proof -
         by (intro conjI homogeneous_set_cone_decomp subspace_cone_decomp)
     qed
   qed
-  hence 1: "\<And>A. A \<in> set ss \<Longrightarrow> homogeneous_set A" and 2: "\<And>A. A \<in> set ss \<Longrightarrow> vs_poly.subspace A"
+  hence 1: "\<And>A. A \<in> set ss \<Longrightarrow> homogeneous_set A" and 2: "\<And>A. A \<in> set ss \<Longrightarrow> phull.subspace A"
     by simp_all
   have "Hilbert_fun (P[X]::(_ \<Rightarrow>\<^sub>0 'a) set) z = (\<Sum>p\<in>set ss. Hilbert_fun p z)"
     using fin_X subset_refl decomp_Polys unfolding ss_def
@@ -802,7 +802,7 @@ proof -
     fix A
     assume "A \<in> set [ideal {f} \<inter> P[X], P, N]"
     hence "A \<in> set ss" by (simp only: ss_def)
-    thus "homogeneous_set A" and "vs_poly.subspace A" by (rule 1, rule 2)
+    thus "homogeneous_set A" and "phull.subspace A" by (rule 1, rule 2)
   qed
   also have "\<dots> = (\<Sum>p\<in>set ss. count_list ss p * Hilbert_fun p z)"
     using refl
@@ -814,7 +814,7 @@ proof -
     thus "Hilbert_fun p z = count_list ss p * Hilbert_fun p z"
     proof
       assume "1 < count_list ss p"
-      with decomp_Polys have "p = {0}" unfolding ss_def[symmetric] using vs_poly.subspace_0
+      with decomp_Polys have "p = {0}" unfolding ss_def[symmetric] using phull.subspace_0
         by (rule direct_decomp_repeated_eq_zero) (rule 2)
       thus ?thesis by simp
     qed simp

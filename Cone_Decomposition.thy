@@ -116,9 +116,9 @@ lemma normal_form_normal_form: "normal_form F (normal_form F p) = normal_form F 
 lemma normal_form_zero: "normal_form F 0 = 0"
   by (simp add: normal_form_id_iff punit.irred_0)
 
-lemma normal_form_monom_mult:
-  "normal_form F (punit.monom_mult c 0 p) = punit.monom_mult c 0 (normal_form F p)"
-  by (intro normal_form_unique punit.is_irred_monom_mult normal_form punit.red_rtrancl_mult)
+lemma normal_form_map_scale: "normal_form F (c \<cdot> p) = c \<cdot> (normal_form F p)"
+  by (intro normal_form_unique punit.is_irred_map_scale normal_form)
+    (simp add: punit.map_scale_eq_monom_mult punit.red_rtrancl_mult normal_form)
 
 lemma normal_form_uminus: "normal_form F (- p) = - normal_form F p"
   by (intro normal_form_unique punit.red_rtrancl_uminus normal_form)
@@ -373,7 +373,7 @@ lemma coneE:
   using assms by (auto simp: cone_def mult.commute)
 
 lemma cone_empty: "cone (h, {}) = range (\<lambda>c. c \<cdot> h)"
-  by (auto simp: Polys_empty scalar_eq_times intro: coneI elim!: coneE)
+  by (auto simp: Polys_empty map_scale_eq_times intro: coneI elim!: coneE)
 
 lemma cone_zero [simp]: "cone (0, U) = {0}"
   by (auto simp: cone_def intro: zero_in_Polys)
@@ -596,14 +596,14 @@ proof (rule homogeneous_setI)
   qed
 qed
 
-lemma subspace_cone: "vs_poly.subspace (cone hU)"
+lemma subspace_cone: "phull.subspace (cone hU)"
   using zero_in_cone cone_closed_plus
-proof (rule vs_poly.subspaceI)
+proof (rule phull.subspaceI)
   fix c a
   assume "a \<in> cone hU"
   moreover obtain h U where hU: "hU = (h, U)" using prod.exhaust by blast
   ultimately have "a \<in> cone (h, U)" by simp
-  thus "c \<cdot> a \<in> cone hU" unfolding hU scalar_eq_monom_mult using zero_in_PPs
+  thus "c \<cdot> a \<in> cone hU" unfolding hU punit.map_scale_eq_monom_mult using zero_in_PPs
     by (rule cone_closed_monom_mult)
 qed
 
@@ -1143,14 +1143,14 @@ qed
 
 lemma subspace_cone_decomp:
   assumes "cone_decomp T ps"
-  shows "vs_poly.subspace T"
-proof (rule vs_poly.subspace_direct_decomp)
+  shows "phull.subspace (T::(_ \<Rightarrow>\<^sub>0 _::field) set)"
+proof (rule phull.subspace_direct_decomp)
   from assms show "direct_decomp T (map cone ps)" by (rule cone_decompD)
 next
   fix cn
   assume "cn \<in> set (map cone ps)"
   then obtain hU where "hU \<in> set ps" and cn: "cn = cone hU" unfolding set_map ..
-  show "vs_poly.subspace cn" unfolding cn by (rule subspace_cone)
+  show "phull.subspace cn" unfolding cn by (rule subspace_cone)
 qed
 
 definition pos_decomp :: "((('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<times> 'x set) list \<Rightarrow> ((('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<times> 'x set) list"

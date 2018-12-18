@@ -439,121 +439,14 @@ lemma mindeg_min:
 
 subsection \<open>Scalar Multiplication of Polynomial Mappings\<close>
 
-lift_definition scalar_mult_pm :: "'b \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::mult_zero)" (infixr "\<cdot>" 71)
-  is "\<lambda>k f x. k * (f x)"
-  by (rule finite_mult_not_eq_zero_leftI)
-
-text \<open>If @{term t} is interpreted as a power-product, @{term "k \<cdot> t"} corresponds to exponentiation.\<close>
-
-lemmas lookup_scalar [simp] = scalar_mult_pm.rep_eq
-
-lemma scalar_zero_left [simp]: "0 \<cdot> t = 0"
-  by (rule poly_mapping_eqI) simp
-
-lemma scalar_zero_right [simp]: "k \<cdot> 0 = 0"
-  by (rule poly_mapping_eqI) simp
-
-lemma keys_scalar_subset: "keys (k \<cdot> t) \<subseteq> keys t"
-proof
-  fix x
-  assume "x \<in> keys (k \<cdot> t)"
-  hence "lookup (k \<cdot> t) x \<noteq> 0" by (simp del: lookup_scalar)
-  thus "x \<in> keys t" using mult_not_zero by force
-qed
-
-lemma keys_scalar: "keys ((k::'b::semiring_no_zero_divisors) \<cdot> t) = (if k = 0 then {} else keys t)"
-proof (split if_split, intro conjI impI)
-  assume "k = 0"
-  thus "keys (k \<cdot> t) = {}" by simp
-next
-  assume "k \<noteq> 0"
-  show "keys (k \<cdot> t) = keys t"
-  proof
-    show "keys t \<subseteq> keys (k \<cdot> t)" by rule (simp add: \<open>k \<noteq> 0\<close> flip: lookup_not_eq_zero_eq_in_keys)
-  qed (fact keys_scalar_subset)
-qed
-
-lemma scalar_single [simp]: "k \<cdot> Poly_Mapping.single x l = Poly_Mapping.single x (k * l)"
-  by (rule poly_mapping_eqI) (simp add: lookup_single when_distrib)
-
-lemma scalar_one_left [simp]: "(1::'b::{mult_zero,monoid_mult}) \<cdot> t = t"
-  by (rule poly_mapping_eqI) simp
-
-lemma scalar_assoc [ac_simps]: "c \<cdot> d \<cdot> t = (c * d) \<cdot> (t::_ \<Rightarrow>\<^sub>0 _::{semigroup_mult,zero})"
-  by (rule poly_mapping_eqI) (simp add: ac_simps)
-
-lemma scalar_distrib_left [algebra_simps]: "(k::'b::semiring_0) \<cdot> (s + t) = k \<cdot> s + k \<cdot> t"
-  by (rule poly_mapping_eqI) (simp add: lookup_add distrib_left)
-
-lemma scalar_distrib_right [algebra_simps]: "(k + (l::'b::semiring_0)) \<cdot> t = k \<cdot> t + l \<cdot> t"
-  by (rule poly_mapping_eqI) (simp add: lookup_add distrib_right)
-
-lemma scalar_Suc: "(Suc k) \<cdot> t = k \<cdot> t + t"
-  by (rule poly_mapping_eqI) (simp add: lookup_add distrib_right)
-
-lemma scalar_uminus_left: "(- k::'b::ring) \<cdot> p = - (k \<cdot> p)"
-  by (rule poly_mapping_eqI) auto
-
-lemma scalar_uminus_right: "(k::'b::ring) \<cdot> (- p) = - (k \<cdot> p)"
-  by (rule poly_mapping_eqI) auto
-
-lemma scalar_uminus_uminus [simp]: "(- k::'b::ring) \<cdot> (- p) = k \<cdot> p"
-  by (simp add: scalar_uminus_left scalar_uminus_right)
-
-lemma scalar_minus_distrib_left [algebra_simps]: "(k::'b::comm_semiring_1_cancel) \<cdot> (p - q) = k \<cdot> p - k \<cdot> q"
-  by (rule poly_mapping_eqI) (auto simp add: lookup_minus right_diff_distrib')
-
-lemma scalar_minus_distrib_right [algebra_simps]: "(k - (l::'b::comm_semiring_1_cancel)) \<cdot> f = k \<cdot> f - l \<cdot> f"
-  by (rule poly_mapping_eqI) (auto simp add: lookup_minus left_diff_distrib')
-
-lemma scalar_sum_distrib_left: "(k::'b::semiring_0) \<cdot> (sum f A) = (\<Sum>a\<in>A. k \<cdot> f a)"
-proof (induct A rule: infinite_finite_induct)
-  case (infinite A)
-  thus ?case by simp
-next
-  case empty
-  thus ?case by simp
-next
-  case (insert a A)
-  thus ?case by (simp add: scalar_distrib_left)
-qed
-
-lemma scalar_sum_distrib_right: "(sum (f::_ \<Rightarrow> 'b::semiring_0) A) \<cdot> p = (\<Sum>a\<in>A. f a \<cdot> p)"
-proof (induct A rule: infinite_finite_induct)
-  case (infinite A)
-  thus ?case by simp
-next
-  case empty
-  thus ?case by simp
-next
-  case (insert a A)
-  thus ?case by (simp add: scalar_distrib_right)
-qed
-
-lemma deg_pm_scalar: "deg_pm (k \<cdot> t) = (k::'b::semiring_0) * deg_pm t"
-proof -
-  from keys_scalar_subset finite_keys have "deg_pm (k \<cdot> t) = sum (lookup (k \<cdot> t)) (keys t)"
-    by (rule deg_pm_superset)
-  also have "\<dots> = k * sum (lookup t) (keys t)" by (simp add: sum_distrib_left)
-  also from subset_refl finite_keys have "sum (lookup t) (keys t) = deg_pm t"
-    by (rule deg_pm_superset[symmetric])
-  finally show ?thesis .
-qed
-
-lemma scalar_eq_monom_mult: "c \<cdot> p = punit.monom_mult c 0 p"
-  by (rule poly_mapping_eqI) (simp only: lookup_scalar punit.lookup_monom_mult_zero)
-
-lemma scalar_eq_times: "c \<cdot> p = monomial c 0 * (p::_::comm_powerprod \<Rightarrow>\<^sub>0 _)"
-  by (simp only: scalar_eq_monom_mult times_monomial_left)
-
-lemma monomial_power_scalar: "(monomial c t) ^ n = monomial (c ^ n) (n \<cdot> t)"
+lemma monomial_power_map_scale: "(monomial c t) ^ n = monomial (c ^ n) (n \<cdot> t)"
 proof -
   have "(\<Sum>i = 0..<n. t) = (\<Sum>i = 0..<n. 1) \<cdot> t"
-    by (simp only: scalar_sum_distrib_right scalar_one_left)
+    by (simp only: map_scale_sum_distrib_right map_scale_one_left)
   thus ?thesis by (simp add: punit.monomial_power)
 qed
 
-subsection \<open>@{const scalar_mult_pm} and @{const le_pm}\<close>
+subsection \<open>@{const map_scale} and @{const le_pm}\<close>
 
 lemma times_le_interval:
   assumes "x \<le> y + a * z" and "x \<le> y + b * z" and "a \<le> c" and "c \<le> (b::'b::{linorder,ordered_ring})"
@@ -573,7 +466,7 @@ corollary times_le_interval':
   "x \<le> a * z \<Longrightarrow> x \<le> b * z \<Longrightarrow> a \<le> c \<Longrightarrow> c \<le> (b::'b::{linorder,ordered_ring}) \<Longrightarrow> x \<le> c * z"
   using times_le_interval[of x 0 a z b c] by simp
 
-lemma scalar_le_interval:
+lemma map_scale_le_interval:
   assumes "x \<unlhd> y + a \<cdot> z" and "x \<unlhd> y + b \<cdot> z" and "a \<le> c" and "c \<le> (b::'b::{linorder,ordered_ring})"
   shows "x \<unlhd> y + c \<cdot> z"
 proof (rule le_pmI)
@@ -586,9 +479,9 @@ proof (rule le_pmI)
   thus "lookup x k \<le> lookup (y + c \<cdot> z) k" by (simp add: lookup_add)
 qed
 
-corollary scalar_le_interval':
+corollary map_scale_le_interval':
   "x \<unlhd> a \<cdot> z \<Longrightarrow> x \<unlhd> b \<cdot> z \<Longrightarrow> a \<le> c \<Longrightarrow> c \<le> (b::'b::{linorder,ordered_ring}) \<Longrightarrow> x \<unlhd> c \<cdot> z"
-  using scalar_le_interval[of x 0 a z b c] by simp
+  using map_scale_le_interval[of x 0 a z b c] by simp
 
 subsection \<open>Indeterminates\<close>
 
@@ -1030,8 +923,8 @@ lemma Polys_closed_minus: "p \<in> P[X] \<Longrightarrow> q \<in> P[X] \<Longrig
 lemma Polys_closed_monom_mult: "t \<in> .[X] \<Longrightarrow> p \<in> P[X] \<Longrightarrow> punit.monom_mult c t p \<in> P[X]"
   using indets_monom_mult_subset[of c t p] by (auto simp: Polys_alt PPs_def)
 
-corollary Polys_closed_scalar: "p \<in> P[X] \<Longrightarrow> (c::_::semiring_0) \<cdot> p \<in> P[X]"
-  unfolding scalar_eq_monom_mult using zero_in_PPs by (rule Polys_closed_monom_mult)
+corollary Polys_closed_map_scale: "p \<in> P[X] \<Longrightarrow> (c::_::semiring_0) \<cdot> p \<in> P[X]"
+  unfolding punit.map_scale_eq_monom_mult using zero_in_PPs by (rule Polys_closed_monom_mult)
 
 lemma Polys_closed_times: "p \<in> P[X] \<Longrightarrow> q \<in> P[X] \<Longrightarrow> p * q \<in> P[X]"
   using indets_times_subset[of p q] by (auto simp: Polys_alt PPs_def)
@@ -1432,7 +1325,7 @@ qed
 lemma subst_pp_by_monomials:
   assumes "\<And>y. y \<in> keys t \<Longrightarrow> f y = monomial (c y) (s y)"
   shows "subst_pp f t = monomial (\<Prod>y\<in>keys t. (c y) ^ lookup t y) (\<Sum>y\<in>keys t. lookup t y \<cdot> s y)"
-  by (simp add: subst_pp_def assms monomial_power_scalar punit.monomial_prod_sum)
+  by (simp add: subst_pp_def assms monomial_power_map_scale punit.monomial_prod_sum)
 
 lemma poly_deg_subst_pp_eq_zeroI:
   assumes "\<And>x. x \<in> keys t \<Longrightarrow> poly_deg (f x) = 0"
@@ -3256,7 +3149,7 @@ qed
 
 lemma subst_pp_restrict_indets_subst:
   "subst_pp (\<lambda>x. monomial 1 (restrict_indets_subst x)) t = monomial 1 (restrict_indets_pp t)"
-  by (simp add: subst_pp_def monomial_power_scalar restrict_indets_pp_def flip: punit.monomial_prod_sum)
+  by (simp add: subst_pp_def monomial_power_map_scale restrict_indets_pp_def flip: punit.monomial_prod_sum)
 
 lemma restrict_indets_pp_zero [simp]: "restrict_indets_pp 0 = 0"
   by (simp add: restrict_indets_pp_def)
@@ -3276,7 +3169,7 @@ proof -
   also have "sum (lookup t) (keys t - {None}) = (\<Sum>x\<in>keys t. lookup t x * deg_pm (restrict_indets_subst x))"
     by (intro sum.mono_neutral_cong_left) (auto simp: restrict_indets_subst_def deg_pm_single)
   also have "\<dots> = deg_pm (restrict_indets_pp t)"
-    by (simp only: restrict_indets_pp_def deg_pm_sum deg_pm_scalar)
+    by (simp only: restrict_indets_pp_def deg_pm_sum deg_pm_map_scale)
   finally show ?thesis by simp
 qed
 

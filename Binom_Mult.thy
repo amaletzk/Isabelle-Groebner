@@ -100,16 +100,16 @@ lemma associated_0: "associated q s t 0 \<longleftrightarrow> (s = t)"
   by (auto simp add: associated_def poly_mapping_eq_iff)
 
 lemma associated_1: "associated q s t 1 \<longleftrightarrow> (s + tp q = t + lp q)"
-  by (simp only: associated_def scalar_one_left, auto)
+  by (simp only: associated_def map_scale_one_left, auto)
 
 lemma associated_Suc: "associated q s t (Suc k) \<longleftrightarrow> associated q (s + tp q) (t + lp q) k"
-  by (simp add: associated_def scalar_Suc ac_simps)
+  by (simp add: associated_def map_scale_Suc ac_simps)
 
 lemma associated_canc_left: "associated q (u + s) (u + t) k \<longleftrightarrow> associated q s t k"
 proof -
   have "u + t + k \<cdot> lp q = u + (t + k \<cdot> lp q)" by (simp add: ac_simps)
   moreover have "u + s + k \<cdot> tp q = u + (s + k \<cdot> tp q)" by (simp add: ac_simps)
-  ultimately show ?thesis by (simp add: associated_def scalar_distrib_right)
+  ultimately show ?thesis by (simp add: associated_def map_scale_distrib_right)
 qed
 
 lemma associated_canc_right: "associated q (s + u) (t + u) k \<longleftrightarrow> associated q s t k"
@@ -138,7 +138,7 @@ proof (rule associatedI)
   moreover from assms(2) have "s + m \<cdot> (lp q) = u + m \<cdot> (tp q)"
     by (rule associatedD)
   ultimately show "t + (k + m) \<cdot> (lp q) = u + (k + m) \<cdot> (tp q)"
-    by (simp only: scalar_distrib_right, metis (no_types, lifting) add.assoc add.commute)
+    by (simp only: map_scale_distrib_right, metis (no_types, lifting) add.assoc add.commute)
 qed
 
 lemma associated_trans_rev:
@@ -178,9 +178,9 @@ proof -
     show "associated q s ?u m"
     proof (rule associatedI)
       have "?u + m \<cdot> lp q = t + (k + m) \<cdot> lp q - k \<cdot> tp q"
-        by (simp add: add.assoc adds minus_plus scalar_distrib_right)
+        by (simp add: add.assoc adds minus_plus map_scale_distrib_right)
       also from associatedD[OF assms] have "... = (s + m \<cdot> tp q + k \<cdot> tp q) - k \<cdot> tp q"
-        by (simp add: scalar_distrib_right ac_simps)
+        by (simp add: map_scale_distrib_right ac_simps)
       finally show "?u + m \<cdot> lp q = s + m \<cdot> tp q" by simp
     qed
   qed
@@ -488,7 +488,7 @@ qed
 lemma associated_plus:
   assumes "associated p s t k" and "associated p u v m"
   shows "associated p (s + u) (t + v) (k + m)"
-proof (rule associatedI, simp add: scalar_distrib_right)
+proof (rule associatedI, simp add: map_scale_distrib_right)
   from assms(1) have "t + k \<cdot> lp p = s + k \<cdot> tp p" by (rule associatedD)
   moreover from assms(2) have "v + m \<cdot> lp p = u + m \<cdot> tp p" by (rule associatedD)
   ultimately show "t + v + (k \<cdot> lp p + m \<cdot> lp p) = s + u + (k \<cdot> tp p + m \<cdot> tp p)"

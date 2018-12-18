@@ -707,7 +707,7 @@ proof (cases "finite B")
   qed
   finally have *: "?p = (\<Sum>a\<in>?A. monom_mult (?c a) 0 a)" .
 
-  have "?p \<in> phull ?A" unfolding * by (rule phull.sum_in_spanI)
+  have "?p \<in> phull ?A" unfolding * map_scale_eq_monom_mult[symmetric] by (rule phull.sum_in_spanI)
   also have "... \<subseteq> phull A" by (rule phull.span_mono, auto)
   finally show ?thesis .
 next                             
