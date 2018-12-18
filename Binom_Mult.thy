@@ -1039,7 +1039,7 @@ next
       show "associated_poly p ?q"
       proof (rule associated_poly_recI,
             simp_all only: lp_q lc_q tail_q \<open>lp q' = s'\<close> punit.tail_eq_0_iff_has_bounded_keys_1[symmetric])
-        from \<open>tc p \<noteq> 0\<close> show "?c * tc p + lc q' * lc p = 0" by (simp add: field_simps)
+        from \<open>tc p \<noteq> 0\<close> show "?c * tc p + lc q' * lc p = 0" by simp
       qed fact+
     qed fact+
   qed

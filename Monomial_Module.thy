@@ -17,7 +17,7 @@ lemma monomial_pmdl:
   using assms(2)
 proof (induct p rule: pmdl_induct)
   case base: module_0
-  show ?case by (simp add: pmdl.module_0)
+  show ?case by (simp add: pmdl.span_zero)
 next
   case step: (module_plus p b c t)
   have eq: "monomial (lookup (p + monom_mult c t b) v) v =
@@ -26,13 +26,13 @@ next
   from assms(1) step.hyps(3) have "is_monomial b" by (rule is_monomial_setD)
   then obtain d u where b: "b = monomial d u" by (rule is_monomial_monomial)
   have "monomial (lookup (monom_mult c t b) v) v \<in> pmdl B"
-  proof (simp add: b monom_mult_monomial lookup_single when_def pmdl.module_0, intro impI)
+  proof (simp add: b monom_mult_monomial lookup_single when_def pmdl.span_zero, intro impI)
     assume "t \<oplus> u = v"
     hence "monomial (c * d) v = monom_mult c t b" by (simp add: b monom_mult_monomial)
     also from step.hyps(3) have "\<dots> \<in> pmdl B" by (rule monom_mult_in_pmdl)
     finally show "monomial (c * d) v \<in> pmdl B" .
   qed
-  with step.hyps(2) show ?case unfolding eq by (rule pmdl.module_closed_plus)
+  with step.hyps(2) show ?case unfolding eq by (rule pmdl.span_add)
 qed
 
 lemma monomial_pmdl_field:
@@ -354,7 +354,7 @@ proof -
     with \<open>g \<in> G\<close> show ?thesis using \<open>t \<in> keys q\<close> ** by (rule is_red_addsI)
   qed
   from \<open>G \<subseteq> F - {0}\<close> have "G \<subseteq> F" by blast
-  hence "pmdl G \<subseteq> pmdl F" by (rule pmdl.module_mono)
+  hence "pmdl G \<subseteq> pmdl F" by (rule pmdl.span_mono)
   note dgrad fin_comps F_sub
   moreover have "is_reduced_GB (monic ` G)" unfolding is_reduced_GB_def GB_image_monic
   proof (intro conjI image_monic_is_auto_reduced image_monic_is_monic_set)
@@ -395,10 +395,10 @@ proof -
   moreover have "pmdl (monic ` G) = pmdl F" unfolding pmdl_image_monic
   proof
     show "pmdl F \<subseteq> pmdl G"
-    proof (rule pmdl.module_subset_moduleI, rule)
+    proof (rule pmdl.span_subset_spanI, rule)
       fix f
       assume "f \<in> F"
-      hence "f \<in> pmdl F" by (rule pmdl.generator_in_module)
+      hence "f \<in> pmdl F" by (rule pmdl.span_base)
       note dgrad
       moreover from \<open>G \<subseteq> F\<close> F_sub have "G \<subseteq> dgrad_p_set d m" by (rule subset_trans)
       moreover note \<open>pmdl G \<subseteq> pmdl F\<close> 2 \<open>f \<in> pmdl F\<close>
@@ -450,7 +450,7 @@ proof
     assume "is_red ?F p"
     then obtain f v where "f \<in> ?F" and "v \<in> keys p" and "f \<noteq> 0" and adds1: "lt f adds\<^sub>t v"
       by (rule is_red_addsE)
-    from this(1) have "f \<in> pmdl ?F" by (rule pmdl.generator_in_module)
+    from this(1) have "f \<in> pmdl ?F" by (rule pmdl.span_base)
     from dgrad 1 2 have "is_Groebner_basis (reduced_GB ?F)" by (rule reduced_GB_is_GB_dgrad_p_set)
     moreover from \<open>f \<in> pmdl ?F\<close> dgrad 1 2 have "f \<in> pmdl (reduced_GB ?F)"
       by (simp only: reduced_GB_pmdl_dgrad_p_set)

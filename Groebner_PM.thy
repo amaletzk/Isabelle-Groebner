@@ -225,7 +225,7 @@ proof (rule homogeneousI)
   fix s t
   have 1: "deg_pm u = deg_pm (punit.lt g)" if "u \<in> keys g" for u
   proof -
-    from assms(4) have "g \<in> ideal G" by (rule ideal.generator_in_module)
+    from assms(4) have "g \<in> ideal G" by (rule ideal.span_base)
     hence "g \<in> ideal F" by (simp only: assms(3))
     from that have "u \<in> Keys (hom_components g)" by (simp only: Keys_hom_components)
     then obtain q where q: "q \<in> hom_components g" and "u \<in> keys q" by (rule in_KeysE)
@@ -308,12 +308,12 @@ next
   fix p
   assume "p \<in> ideal (dehomogenize x ` G)"
   then obtain G0 q where "G0 \<subseteq> dehomogenize x ` G" and "finite G0" and p: "p = (\<Sum>g\<in>G0. q g * g)"
-    by (rule ideal.in_moduleE)
+    by (rule ideal.spanE)
   from this(1) obtain G' where "G' \<subseteq> G" and G0: "G0 = dehomogenize x ` G'"
     and inj: "inj_on (dehomogenize x) G'" by (rule subset_imageE_inj)
   define p' where "p' = (\<Sum>g\<in>G'. q (dehomogenize x g) * g)"
-  have "p' \<in> ideal G'" unfolding p'_def by (rule ideal.sum_in_moduleI)
-  also from \<open>G' \<subseteq> G\<close> have "\<dots> \<subseteq> ideal G" by (rule ideal.module_mono)
+  have "p' \<in> ideal G'" unfolding p'_def by (rule ideal.sum_in_spanI)
+  also from \<open>G' \<subseteq> G\<close> have "\<dots> \<subseteq> ideal G" by (rule ideal.span_mono)
   finally have "p' \<in> ideal G" .
   with assms(5) have "homogenize x p' \<in> ideal G" (is "?p \<in> _") by (rule homogeneous_ideal_homogenize)
 

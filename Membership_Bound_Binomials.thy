@@ -53,7 +53,7 @@ proof
   then obtain f t where "f \<in> F" and "t \<in> keys g" and "f \<noteq> 0" and lpf: "lp f adds t"
     by (rule punit.is_red_addsE[simplified])
   have "f \<in> ideal ?G" unfolding punit.reduced_GB_pmdl_finite[OF assms(1), simplified]
-    by (rule, fact \<open>f \<in> F\<close>, rule ideal.generator_subset_module)
+    by (rule, fact \<open>f \<in> F\<close>, rule ideal.span_superset)
   from punit.reduced_GB_is_GB_finite[OF assms(1)] this \<open>f \<noteq> 0\<close> obtain g'
     where "g' \<in> ?G" and "g' \<noteq> 0" and lpg': "lp g' adds lp f" by (rule punit.GB_adds_lt[simplified])
   from lpg' lpf have lpg'': "lp g' adds t" by (rule adds_trans)
@@ -99,12 +99,12 @@ proof (rule, rule)
     assume x: "x = monomial 1 s"
     from pbd have "d \<noteq> 0" by (rule is_pbdD)
     have "g \<in> ideal F" unfolding punit.reduced_GB_pmdl_finite[simplified, OF assms(1), symmetric]
-      by (rule, fact \<open>g \<in> ?G\<close>, rule ideal.generator_subset_module)
+      by (rule, fact \<open>g \<in> ?G\<close>, rule ideal.span_superset)
     from xin2 have "monomial 1 s \<in> ideal F" unfolding x .
     hence "punit.monom_mult c 0 (monomial 1 s) \<in> ideal F"
       by (rule punit.pmdl_closed_monom_mult[simplified])
     hence "monomial c s \<in> ideal F" by (simp add: punit.monom_mult_monomial)
-    with \<open>g \<in> ideal F\<close> have "g - monomial c s \<in> ideal F" by (rule ideal.module_closed_minus)
+    with \<open>g \<in> ideal F\<close> have "g - monomial c s \<in> ideal F" by (rule ideal.span_diff)
     hence "monomial d t \<in> ideal F" by (simp add: g binomial_def)
     hence "punit.monom_mult (1 / d) 0 (monomial d t) \<in> ideal F"
       by (rule punit.pmdl_closed_monom_mult[simplified])
@@ -127,25 +127,25 @@ lemma rem_3_1_7_aux:
   assumes "g \<in> ideal F" and "t \<in> keys g"
   obtains f s where "f \<in> F" and "s \<in> keys f" and "s adds (t::'a)"
   using assms
-proof (induct g arbitrary: thesis rule: ideal.module_induct)
-  case base: module_0
+proof (induct g arbitrary: thesis rule: ideal.span_induct')
+  case base
   from base(2) show ?case unfolding keys_zero ..
 next
-  case ind: (module_plus g c f')
-  from ind(6) keys_add_subset have "t \<in> keys g \<union> keys (c * f')" ..
+  case (step g c f')
+  from step(6) keys_add_subset have "t \<in> keys g \<union> keys (c * f')" ..
   thus ?case
   proof
     assume "t \<in> keys g"
     obtain f s where "f \<in> F" and "s \<in> keys f" and "s adds t"
-    proof (rule ind(2))
+    proof (rule step(2))
       show "t \<in> keys g" by fact
     qed
-    thus ?thesis by (rule ind(5))
+    thus ?thesis by (rule step(5))
   next
     assume "t \<in> keys (c * f')"
     then obtain s1 s2 where "s2 \<in> keys f'" and "t = s1 + s2" by (rule in_keys_timesE)
     from \<open>f' \<in> F\<close> this(1) show ?thesis
-    proof (rule ind(5))
+    proof (rule step(5))
       show "s2 adds t" by (simp add: \<open>t = s1 + s2\<close>)
     qed
   qed

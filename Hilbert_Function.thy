@@ -1053,11 +1053,11 @@ interpretation vs_poly: vector_space "(\<cdot>)::'a \<Rightarrow> ('b \<Rightarr
   by standard (simp_all add: algebra_simps scalar_assoc)
 
 lemma subspace_ideal: "vs_poly.subspace (ideal (F::('b::comm_powerprod \<Rightarrow>\<^sub>0 'a::field) set))"
-  using ideal.module_0 ideal.module_closed_plus
+  using ideal.span_zero ideal.span_add
 proof (rule vs_poly.subspaceI)
   fix c p
   assume "p \<in> ideal F"
-  thus "c \<cdot> p \<in> ideal F" unfolding scalar_eq_times by (rule ideal.module_closed_smult)
+  thus "c \<cdot> p \<in> ideal F" unfolding scalar_eq_times by (rule ideal.span_scale)
 qed
 
 lemma subspace_Polys: "vs_poly.subspace (P[X]::(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) set)"

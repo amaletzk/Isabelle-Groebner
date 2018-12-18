@@ -281,8 +281,7 @@ proof -
       and g: "g = restrict_indets g'" unfolding G_def ..
     have "f \<in> ?F \<Longrightarrow> homogeneous f" for f by (auto simp: homogeneous_homogenize)
     with assms(3) have "poly_deg g' \<le> b" using g' by (rule extended_ord.is_hom_GB_boundD)
-    from g' have "g' \<in> ideal (extended_ord.punit.reduced_GB ?F)"
-      by (rule ideal.generator_in_module)
+    from g' have "g' \<in> ideal (extended_ord.punit.reduced_GB ?F)" by (rule ideal.span_base)
     also have "\<dots> = ideal ?F"
     proof (rule extended_ord.reduced_GB_ideal_Polys)
       from \<open>finite Y\<close> show "finite (insert None (Some ` Y))" by simp
@@ -368,11 +367,11 @@ lemma deg_shifts_mono:
 lemma ideal_deg_shifts [simp]: "ideal (set (deg_shifts d fs)) = ideal (set fs)"
 proof
   show "ideal (set (deg_shifts d fs)) \<subseteq> ideal (set fs)"
-    by (rule ideal.module_subset_moduleI, simp add: set_deg_shifts UN_subset_iff,
-        intro ballI image_subsetI, metis ideal.smult_in_module times_monomial_left)
+    by (rule ideal.span_subset_spanI, simp add: set_deg_shifts UN_subset_iff,
+        intro ballI image_subsetI) (metis ideal.span_scale times_monomial_left ideal.span_base)
 next
   from deg_shifts_superset show "ideal (set fs) \<subseteq> ideal (set (deg_shifts d fs))"
-    by (rule ideal.module_mono)
+    by (rule ideal.span_mono)
 qed
 
 lemma thm_2_3_6:
@@ -393,14 +392,14 @@ proof -
       then obtain q where g: "g = (\<Sum>f\<in>set fs. q f * f)" and "\<And>f. q f \<in> P[X]"
         and "\<And>f. poly_deg (q f * f) \<le> b" by blast
       show "g \<in> ?H" unfolding g
-      proof (rule punit.phull.module_closed_sum)
+      proof (rule punit.phull.span_sum)
         fix f
         assume "f \<in> set fs"
         have "1 \<noteq> (0::'a)" by simp
         show "q f * f \<in> ?H"
         proof (cases "f = 0 \<or> q f = 0")
           case True
-          thus ?thesis by (auto simp add: punit.phull.module_0)
+          thus ?thesis by (auto simp add: punit.phull.span_zero)
         next
           case False
           hence "q f \<noteq> 0" and "f \<noteq> 0" by simp_all
@@ -427,8 +426,8 @@ proof -
             thus "s = t" using \<open>1 \<noteq> 0\<close> \<open>f \<noteq> 0\<close> by (rule punit.monom_mult_inj_2)
           qed
           finally have "q f * f \<in> punit.phull (set (deg_shifts b [f]))"
-            by (simp add: punit.phull.sum_in_moduleI)
-          also have "\<dots> \<subseteq> ?H" by (rule punit.phull.module_mono, rule deg_shifts_mono, simp add: \<open>f \<in> set fs\<close>)
+            by (simp add: punit.phull.sum_in_spanI)
+          also have "\<dots> \<subseteq> ?H" by (rule punit.phull.span_mono, rule deg_shifts_mono, simp add: \<open>f \<in> set fs\<close>)
           finally show ?thesis .
         qed
       qed
@@ -468,7 +467,7 @@ proof
 next
   assume ?R
   also have "\<dots> \<subseteq> punit.phull (set (punit.Macaulay_list (deg_shifts b fs)))"
-    by (rule punit.phull.generator_subset_module)
+    by (rule punit.phull.span_superset)
   also have "\<dots> = punit.phull (set (deg_shifts b fs))" by (fact punit.phull_Macaulay_list)
   also have "\<dots> \<subseteq> ideal (set (deg_shifts b fs))" using punit.phull_subset_module by force
   finally show ?L by simp

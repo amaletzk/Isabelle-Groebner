@@ -518,7 +518,7 @@ proof (intro subset_antisym subsetI)
   hence "p \<in> ideal {f}" and "p \<in> P[X]" by simp_all
   have "finite {f}" by simp
   then obtain q where "p = (\<Sum>f'\<in>{f}. q f' * f')" using \<open>p \<in> ideal {f}\<close>
-    by (rule ideal.in_module_finiteE)
+    by (rule ideal.span_finiteE)
   hence p: "p = q f * f" by simp
   with \<open>p \<in> P[X]\<close> have "f * q f \<in> P[X]" by (simp only: mult.commute)
   hence "q f \<in> P[X]" using f_in_Polys f_not_0 by (rule times_in_PolysD)
@@ -527,9 +527,9 @@ next
   fix p
   assume "p \<in> cone (f, X)"
   then obtain q where "q \<in> P[X]" and p: "p = q * f" by (rule coneE)
-  have "f \<in> ideal {f}" by (rule ideal.generator_in_module) simp
+  have "f \<in> ideal {f}" by (rule ideal.span_base) simp
   with \<open>q \<in> P[X]\<close> f_in_Polys show "p \<in> ideal {f} \<inter> P[X]"
-    unfolding p by (intro IntI ideal.module_closed_smult Polys_closed_times)
+    unfolding p by (intro IntI ideal.span_scale Polys_closed_times)
 qed
 
 private definition P_ps where
@@ -622,7 +622,7 @@ proof
       from f_in_Polys show "{f} \<subseteq> P[X]" by simp
     next
       from f_in have "{f} \<subseteq> F" by simp
-      thus "ideal {f} \<subseteq> ideal F" by (rule ideal.module_mono)
+      thus "ideal {f} \<subseteq> ideal F" by (rule ideal.span_mono)
     next
       fix q
       assume "q \<in> ideal F" and "q \<in> P[X]" and "q \<noteq> 0"
@@ -1138,7 +1138,7 @@ proof -
     by (simp only: gbinomial_int_mult_fact) (simp add: numeral_2_eq_2 prod.atLeast0_lessThan_Suc)
   also have "\<dots> = 2 - (int d - 1) * (int d - 2) + int d * (2 * int d - 1)"
     by (simp add: gbinomial_prod_rev numeral_2_eq_2 prod.atLeast0_lessThan_Suc)
-  also have "\<dots> = int (d\<^sup>2 + 2 * d)" by (simp add: algebra_simps power2_eq_square)
+  also have "\<dots> = int (d\<^sup>2 + 2 * d)" by (simp add: power2_eq_square) (simp only: algebra_simps)
   finally show ?thesis by (simp only: int_int_eq)
 qed
 
@@ -1211,7 +1211,7 @@ proof -
                     (- 1)^(n - Suc j) * ((int (aa (n - 1)) gchoose (n - Suc j)) + (int (bb (n - 1)) gchoose (n - Suc j))) =
               (-1)^(n - j) * (2 * ((int d - 1) gchoose (n - Suc j)) -
                     (int (aa (n - 1)) gchoose (n - Suc j)) - (int (bb (n - 1)) gchoose (n - Suc j)))"
-        by (simp add: 1 algebra_simps)
+        by (simp only: 1 algebra_simps)
       also have "\<dots> \<le> (int (cc (n - 1))) gchoose (n - Suc j)"
       proof (cases "even (n - j)")
         case True
@@ -1433,7 +1433,7 @@ next
       moreover define c where "c = lookup f 0"
       ultimately have f: "f = monomial c 0" by simp
       with \<open>f \<noteq> 0\<close> have "c \<noteq> 0" by (simp add: monomial_0_iff)
-      from \<open>f \<in> F\<close> have "f \<in> ideal F" by (rule ideal.generator_in_module)
+      from \<open>f \<in> F\<close> have "f \<in> ideal F" by (rule ideal.span_base)
       hence "punit.monom_mult (1 / c) 0 f \<in> ideal F" by (rule punit.pmdl_closed_monom_mult[simplified])
       with \<open>c \<noteq> 0\<close> have "ideal F = UNIV"
         by (simp add: f punit.monom_mult_monomial ideal_eq_UNIV_iff_contains_one)
@@ -1449,7 +1449,7 @@ next
         note fin_X
         moreover assume "card X \<le> 1"
         moreover note assms(2)
-        moreover from \<open>f \<in> F\<close> have "f \<in> ideal F" by (rule ideal.generator_in_module)
+        moreover from \<open>f \<in> F\<close> have "f \<in> ideal F" by (rule ideal.span_base)
         ultimately have "poly_deg g \<le> poly_deg f"
           using \<open>f \<noteq> 0\<close> assms(4) by (rule deg_reduced_GB_univariate_le)
         also have "\<dots> \<le> Dube (card X) (maxdeg F)" unfolding md by (fact Dube_ge_d)

@@ -6,47 +6,6 @@ theory Cone_Decomposition
   imports Groebner_PM Hilbert_Function
 begin
 
-subsection \<open>Preliminaries\<close>
-
-(* Could be proved more generally for modules, but we need commutativity. *)
-lemma ideal_image_times: "ideal ((*) q ` F) = (*) (q::_::comm_ring_1) ` ideal F" (is "?A = ?B")
-proof (intro subset_antisym subsetI)
-  fix p
-  assume "p \<in> ?A"
-  thus "p \<in> ?B"
-  proof (induct p rule: ideal.module_induct)
-    case module_0
-    from ideal.module_0 show ?case by (rule rev_image_eqI) simp
-  next
-    case (module_plus p r a)
-    from module_plus.hyps(2) obtain p' where "p' \<in> ideal F" and p: "p = q * p'" ..
-    from module_plus.hyps(3) obtain a' where "a' \<in> F" and a: "a = q * a'" ..
-    from this(1) have "a' \<in> ideal F" by (rule ideal.generator_in_module)
-    hence "r * a' \<in> ideal F" by (rule ideal.module_closed_smult)
-    with \<open>p' \<in> ideal F\<close> have "p' + r * a' \<in> ideal F" by (rule ideal.module_closed_plus)
-    hence "q * (p' + r * a') \<in> ?B" by (rule imageI)
-    also have "q * (p' + r * a') = p + r * a" by (simp add: a p algebra_simps)
-    finally show ?case .
-  qed
-next
-  fix p
-  assume "p \<in> ?B"
-  then obtain p' where "p' \<in> ideal F" and "p = q * p'" ..
-  from this(1) show "p \<in> ?A" unfolding \<open>p = q * p'\<close>
-  proof (induct p' rule: ideal.module_induct)
-    case module_0
-    show ?case by (simp add: ideal.module_0)
-  next
-    case (module_plus p r a)
-    from module_plus.hyps(3) have "q * a \<in> (*) q ` F" by (rule imageI)
-    hence "q * a \<in> ?A" by (rule ideal.generator_in_module)
-    hence "r * (q * a) \<in> ?A" by (rule ideal.module_closed_smult)
-    with module_plus.hyps(2) have "q * p + r * (q * a) \<in> ?A" by (rule ideal.module_closed_plus)
-    also have "q * p + r * (q * a) = q * (p + r * a)" by (simp add: algebra_simps)
-    finally show ?case .
-  qed
-qed
-
 subsection \<open>Quotient Ideals\<close>
 
 definition quot_set :: "'a set \<Rightarrow> 'a \<Rightarrow> 'a::semigroup_mult set" (infixl "\<div>" 55)
@@ -74,17 +33,18 @@ proof
     fix b
     assume "b \<in> ideal (ideal B \<div> x)"
     thus "b \<in> ideal B \<div> x"
-    proof (induct b rule: ideal.module_induct)
-      case module_0
-      show ?case by (simp add: quot_set_iff ideal.module_0)
+    proof (induct b rule: ideal.span_induct')
+      case base
+      show ?case by (simp add: quot_set_iff ideal.span_zero)
     next
-      case (module_plus b q p)
+      case (step b q p)
+      hence "x * b \<in> ideal B" and "x * p \<in> ideal B" by (simp_all add: quot_set_iff)
       hence "x * b + q * (x * p) \<in> ideal B"
-        by (simp add: quot_set_iff ideal.module_closed_plus ideal.module_closed_smult)
-      thus ?case by (simp add: quot_set_iff algebra_simps)
+        by (intro ideal.span_add ideal.span_scale[where c=q])
+      thus ?case by (simp only: quot_set_iff algebra_simps)
     qed
   qed
-qed (fact ideal.generator_subset_module)
+qed (fact ideal.span_superset)
 
 lemma quot_set_image_times: "inj ((*) x) \<Longrightarrow> ((*) x ` A) \<div> x = A"
   by (simp add: quot_set_def inj_vimage_image_eq)
@@ -182,9 +142,9 @@ proof -
   next
     from fin_X F_sub have "ideal (punit.reduced_GB F) = ideal F" by (rule reduced_GB_ideal_Polys)
     also have "\<dots> = ideal (ideal F \<inter> P[X])"
-    proof (intro subset_antisym ideal.module_subset_moduleI)
-      from ideal.generator_subset_module[of F] F_sub have "F \<subseteq> ideal F \<inter> P[X]" by simp
-      thus "F \<subseteq> ideal (ideal F \<inter> P[X])" using ideal.generator_subset_module by (rule subset_trans)
+    proof (intro subset_antisym ideal.span_subset_spanI)
+      from ideal.span_superset[of F] F_sub have "F \<subseteq> ideal F \<inter> P[X]" by simp
+      thus "F \<subseteq> ideal (ideal F \<inter> P[X])" using ideal.span_superset by (rule subset_trans)
     qed blast
     finally show "ideal (punit.reduced_GB F) = ideal (ideal F \<inter> P[X])" .
   qed blast
@@ -206,7 +166,7 @@ proof
 next
   assume "p \<in> ideal F"
   hence "p - (p - normal_form F p) \<in> ideal F" using normal_form_diff_in_ideal
-    by (rule ideal.module_closed_minus)
+    by (rule ideal.span_diff)
   also from fin_X F_sub have "\<dots> = ideal (punit.reduced_GB F)" by (rule reduced_GB_ideal_Polys[symmetric])
   finally have *: "normal_form F p \<in> ideal (punit.reduced_GB F)" by simp
   show "normal_form F p = 0"
@@ -230,7 +190,7 @@ proof -
   have "p - q - (normal_form F p - normal_form F q) = (p - normal_form F p) - (q - normal_form F q)"
     by simp
   also from normal_form_diff_in_ideal normal_form_diff_in_ideal have "\<dots> \<in> ideal F"
-    by (rule ideal.module_closed_minus)
+    by (rule ideal.span_diff)
   finally have *: "p - q - (normal_form F p - normal_form F q) \<in> ideal F" .
   show ?thesis
   proof
@@ -239,7 +199,7 @@ proof -
   next
     assume "p - q \<in> ideal F"
     hence "p - q - (p - q - (normal_form F p - normal_form F q)) \<in> ideal F" using *
-      by (rule ideal.module_closed_minus)
+      by (rule ideal.span_diff)
     hence "normal_form F (normal_form F p - normal_form F q) = 0" by (simp add: normal_form_zero_iff)
     thus "normal_form F p = normal_form F q" by (simp add: normal_form_minus_normal_form)
   qed
@@ -284,13 +244,13 @@ proof (rule direct_decompI_alt)
     and qs: "qs = [x, y]" by (rule listset_doubletonE)
   have "sum_list qs = x + y" by (simp add: qs)
   also have "\<dots> \<in> I \<inter> P[X]" unfolding I_def
-  proof (intro IntI ideal.module_closed_plus Polys_closed_plus)
-    have "ideal F \<subseteq> ideal (insert f F)" by (rule ideal.module_mono) blast
+  proof (intro IntI ideal.span_add Polys_closed_plus)
+    have "ideal F \<subseteq> ideal (insert f F)" by (rule ideal.span_mono) blast
     with x show "x \<in> ideal (insert f F)" and "x \<in> P[X]" by blast+
   next
     from y obtain p where "p \<in> P[X]" and y: "y = f * normal_form L p" by blast
-    have "f \<in> ideal (insert f F)" by (rule ideal.generator_in_module) simp
-    hence "normal_form L p * f \<in> ideal (insert f F)" by (rule ideal.module_closed_smult)
+    have "f \<in> ideal (insert f F)" by (rule ideal.span_base) simp
+    hence "normal_form L p * f \<in> ideal (insert f F)" by (rule ideal.span_scale)
     thus "y \<in> ideal (insert f F)" by (simp only: mult.commute y)
 
     have "L \<subseteq> P[X]" by (simp add: L_def)
@@ -312,8 +272,8 @@ next
     with \<open>F0 \<subseteq> insert f F\<close> have "F0 - {f} \<subseteq> F" by blast
     show ?thesis
     proof
-      have "(\<Sum>f0\<in>F0 - {f}. q0 f0 * f0) \<in> ideal (F0 - {f})" by (rule ideal.sum_in_moduleI)
-      also from \<open>F0 - {f} \<subseteq> F\<close> have "\<dots> \<subseteq> ideal F" by (rule ideal.module_mono)
+      have "(\<Sum>f0\<in>F0 - {f}. q0 f0 * f0) \<in> ideal (F0 - {f})" by (rule ideal.sum_in_spanI)
+      also from \<open>F0 - {f} \<subseteq> F\<close> have "\<dots> \<subseteq> ideal F" by (rule ideal.span_mono)
       finally show "(\<Sum>f0\<in>F0 - {f}. q0 f0 * f0) \<in> ideal F" .
     next
       show "(\<Sum>f0\<in>F0 - {f}. q0 f0 * f0) \<in> P[X]"
@@ -334,8 +294,8 @@ next
     with \<open>F0 \<subseteq> insert f F\<close> have "F0 \<subseteq> F" by blast
     show ?thesis
     proof
-      have "a \<in> ideal F0" unfolding a by (rule ideal.sum_in_moduleI)
-      also from \<open>F0 \<subseteq> F\<close> have "\<dots> \<subseteq> ideal F" by (rule ideal.module_mono)
+      have "a \<in> ideal F0" unfolding a by (rule ideal.sum_in_spanI)
+      also from \<open>F0 \<subseteq> F\<close> have "\<dots> \<subseteq> ideal F" by (rule ideal.span_mono)
       finally show "a \<in> ideal F" .
     next
       show "a = 0 * f + a" by simp
@@ -346,10 +306,9 @@ next
   hence "normal_form L q \<in> P[X]" using \<open>q \<in> P[X]\<close> by (rule Polys_closed_normal_form)
   with assms(4) have "?a \<in> P[X]" by (rule Polys_closed_times)
   from \<open>L \<subseteq> P[X]\<close> have "q - normal_form L q \<in> ideal L" by (rule normal_form_diff_in_ideal)
-  also have "\<dots> \<subseteq> ideal (ideal F \<div> f)" unfolding L_def by (rule ideal.module_mono) blast
+  also have "\<dots> \<subseteq> ideal (ideal F \<div> f)" unfolding L_def by (rule ideal.span_mono) blast
   finally have "f * (q - normal_form L q) \<in> ideal F" by (simp add: quot_set_iff)
-  with \<open>a' \<in> ideal F\<close> have "a' + f * (q - normal_form L q) \<in> ideal F"
-    by (rule ideal.module_closed_plus)
+  with \<open>a' \<in> ideal F\<close> have "a' + f * (q - normal_form L q) \<in> ideal F" by (rule ideal.span_add)
   hence "a - ?a \<in> ideal F" by (simp add: a algebra_simps)
 
   define qs where "qs = [a - ?a, ?a]"
@@ -372,12 +331,12 @@ next
     from \<open>x \<in> ideal F \<inter> P[X]\<close> have "x \<in> ideal F" by simp
     have x: "x = a - y" by (simp add: \<open>a = sum_list qs0\<close> qs0)
     have "f * (normal_form L q - normal_form L a0) = x - (a - ?a)" by (simp add: x y a algebra_simps)
-    also from \<open>x \<in> ideal F\<close> \<open>a - ?a \<in> ideal F\<close> have "\<dots> \<in> ideal F" by (rule ideal.module_closed_minus)
+    also from \<open>x \<in> ideal F\<close> \<open>a - ?a \<in> ideal F\<close> have "\<dots> \<in> ideal F" by (rule ideal.span_diff)
     finally have "normal_form L q - normal_form L a0 \<in> ideal F \<div> f" by (rule quot_setI)
     moreover from \<open>L \<subseteq> P[X]\<close> \<open>q \<in> P[X]\<close> \<open>a0 \<in> P[X]\<close> have "normal_form L q - normal_form L a0 \<in> P[X]"
       by (intro Polys_closed_minus Polys_closed_normal_form)
     ultimately have "normal_form L q - normal_form L a0 \<in> L" by (simp add: L_def)
-    also have "\<dots> \<subseteq> ideal L" by (fact ideal.generator_subset_module)
+    also have "\<dots> \<subseteq> ideal L" by (fact ideal.span_superset)
     finally have "normal_form L q - normal_form L a0 = 0" using \<open>L \<subseteq> P[X]\<close>
       by (simp only: normal_form_minus_normal_form flip: normal_form_zero_iff)
     thus "qs0 = qs" by (simp add: qs0 qs_def x y)
@@ -392,7 +351,7 @@ proof -
                                                 (*) 1 ` normal_form ((ideal F \<div> 1) \<inter> P[X]) ` P[X]]"
     by (rule direct_decomp_ideal_insert)
   moreover have "ideal (insert 1 F) = UNIV"
-    by (simp add: ideal_eq_UNIV_iff_contains_one ideal.generator_in_module)
+    by (simp add: ideal_eq_UNIV_iff_contains_one ideal.span_base)
   moreover from refl have "((*) 1 \<circ> normal_form F) ` P[X] = normal_form F ` P[X]"
     by (rule image_cong) simp
   ultimately show ?thesis using assms by (simp add: image_comp normal_form_ideal_Polys)
@@ -737,7 +696,9 @@ proof -
         thus ?thesis by (simp add: qs_def qs0 p1 p2)
       next
         case False
-        from a0 have "(qU - qU0) * h = (qx0 - qx') * xx * h" by (simp add: a qs0 p1 p2 q qx algebra_simps)
+        thm algebra_simps
+        from a0 have "(qU - qU0) * h = (qx0 - qx') * xx * h"
+          by (simp add: a qs0 p1 p2 q qx) (simp only: algebra_simps)
         hence eq: "qU - qU0 = (qx0 - qx') * xx" using False by (rule times_canc_right)
         have "qx0 = qx'"
         proof (rule ccontr)
@@ -763,7 +724,7 @@ proof -
         moreover from this eq have "qU0 = qU" by simp
         ultimately show ?thesis by (simp only: qs_def qs0 p1 p2)
       qed
-    qed (simp_all add: qs_def a q qx algebra_simps)
+    qed (simp_all add: qs_def a q qx, simp only: algebra_simps)
   qed
 qed
 
@@ -1587,7 +1548,7 @@ proof (intro conjI ballI)
       fix a
       assume "a \<in> cone (h, U)"
       then obtain a' where "a' \<in> P[U]" and a: "a = a' * h" by (rule coneE)
-      from \<open>h \<in> ideal F\<close> show "a \<in> ideal F" unfolding a by (rule ideal.module_closed_smult)
+      from \<open>h \<in> ideal F\<close> show "a \<in> ideal F" unfolding a by (rule ideal.span_scale)
     qed
   qed
 next
@@ -1597,7 +1558,7 @@ next
   ultimately have "(h, U) \<in> set qs" by simp
   hence "cone (h, U) \<subseteq> P[X]" and "\<And>a. a \<in> cone (h, U) \<Longrightarrow> a \<in> ideal F \<Longrightarrow> a = 0" by (rule assms)+
   moreover have "0 \<in> cone (h, U) \<inter> ideal F"
-    by (simp add: zero_in_cone ideal.module_0)
+    by (simp add: zero_in_cone ideal.span_zero)
   ultimately show "case hU of (h, U) \<Rightarrow> cone (h, U) \<subseteq> P[X] \<and> cone (h, U) \<inter> ideal F = {0}"
     by (fastforce simp: hU)
 qed (fact assms)+
@@ -1752,7 +1713,7 @@ proof -
           by (rule listset_doubletonE)
         from \<open>x \<in> ideal F\<close> have "p + q \<in> ideal F" by (simp add: x xs)
         moreover from p sub have "p \<in> ideal F" ..
-        ultimately have "p + q - p \<in> ideal F" by (rule ideal.module_closed_minus)
+        ultimately have "p + q - p \<in> ideal F" by (rule ideal.span_diff)
         hence "q \<in> ideal F" by simp
         have "q = 0"
         proof (rule ccontr)
@@ -1903,7 +1864,7 @@ proof (rule set_eqI)
   also have "\<dots> \<longleftrightarrow> a \<in> ideal (monomial 1 ` (\<lambda>s. s - ?x) ` S)"
   proof (induct a rule: poly_mapping_plus_induct)
     case 1
-    show ?case by (simp add: ideal.module_0)
+    show ?case by (simp add: ideal.span_zero)
   next
     case (2 a c t)
     let ?S = "monomial (1::'a) ` (\<lambda>s. s - ?x) ` S"
@@ -1932,23 +1893,23 @@ proof (rule set_eqI)
         by (metis (no_types, lifting) add_minus_2 adds_minus adds_triv_right plus_minus_assoc_pm_nat_1)
       then obtain s' where t: "t = (s - ?x) + s'" by (rule addsE)
       from \<open>s \<in> S\<close> have "monomial 1 (s - ?x) \<in> ?S" by (intro imageI)
-      also have "\<dots> \<subseteq> ideal ?S" by (rule ideal.generator_subset_module)
+      also have "\<dots> \<subseteq> ideal ?S" by (rule ideal.span_superset)
       finally have "monomial c s' * monomial 1 (s - ?x) \<in> ideal ?S"
-        by (rule ideal.module_closed_smult)
+        by (rule ideal.span_scale)
       hence "monomial c t \<in> ideal ?S" by (simp add: times_monomial_monomial t add.commute)
       moreover have "a \<in> ideal ?S"
       proof -
-        from \<open>f \<in> monomial 1 ` S\<close> have "f \<in> ideal (monomial 1 ` S)" by (rule ideal.generator_in_module)
+        from \<open>f \<in> monomial 1 ` S\<close> have "f \<in> ideal (monomial 1 ` S)" by (rule ideal.span_base)
         hence "punit.monom_mult c (?x + t - s) f \<in> ideal (monomial 1 ` S)"
           by (rule punit.pmdl_closed_monom_mult[simplified])
         with \<open>s adds ?x + t\<close> have "monomial c (?x + t) \<in> ideal (monomial 1 ` S)"
           by (simp add: f punit.monom_mult_monomial adds_minus)
         with 1 have "monomial c (?x + t) + punit.monom_mult 1 ?x a - monomial c (?x + t) \<in> ideal (monomial 1 ` S)"
-          by (rule ideal.module_closed_minus)
+          by (rule ideal.span_diff)
         thus ?thesis by (simp add: 2(3) del: One_nat_def)
       qed
       ultimately show "monomial c t + a \<in> ideal ?S"
-        by (rule ideal.module_closed_plus)
+        by (rule ideal.span_add)
     next
       have "is_monomial_set ?S" by (auto intro!: is_monomial_setI monomial_is_monomial)
       moreover assume 1: "monomial c t + a \<in> ideal ?S"
@@ -1965,24 +1926,24 @@ proof (rule set_eqI)
             split: if_splits)
       then obtain s' where t: "?x + t = s + s'" by (rule addsE)
       from \<open>s \<in> S\<close> have "monomial 1 s \<in> monomial 1 ` S" by (rule imageI)
-      also have "\<dots> \<subseteq> ideal (monomial 1 ` S)" by (rule ideal.generator_subset_module)
+      also have "\<dots> \<subseteq> ideal (monomial 1 ` S)" by (rule ideal.span_superset)
       finally have "monomial c s' * monomial 1 s \<in> ideal (monomial 1 ` S)"
-        by (rule ideal.module_closed_smult)
+        by (rule ideal.span_scale)
       hence "monomial c (?x + t) \<in> ideal (monomial 1 ` S)"
         by (simp only: t) (simp add: times_monomial_monomial add.commute)
       moreover have "punit.monom_mult 1 ?x a \<in> ideal (monomial 1 ` S)"
       proof -
-        from \<open>f \<in> ?S\<close> have "f \<in> ideal ?S" by (rule ideal.generator_in_module)
+        from \<open>f \<in> ?S\<close> have "f \<in> ideal ?S" by (rule ideal.span_base)
         hence "punit.monom_mult c (t - (s - ?x)) f \<in> ideal ?S"
           by (rule punit.pmdl_closed_monom_mult[simplified])
         with \<open>s - ?x adds t\<close> have "monomial c t \<in> ideal ?S"
           by (simp add: f punit.monom_mult_monomial adds_minus)
         with 1 have "monomial c t + a - monomial c t \<in> ideal ?S"
-          by (rule ideal.module_closed_minus)
+          by (rule ideal.span_diff)
         thus ?thesis by (simp add: 2(3) del: One_nat_def)
       qed
       ultimately have "monomial c (?x + t) + punit.monom_mult 1 ?x a \<in> ideal (monomial 1 ` S)"
-        by (rule ideal.module_closed_plus)
+        by (rule ideal.span_add)
       thus "punit.monom_mult 1 ?x (monomial c t + a) \<in> ideal (monomial 1 ` S)"
         by (simp add: punit.monom_mult_monomial punit.monom_mult_dist_right)
     qed
@@ -2009,7 +1970,7 @@ proof
 next
   assume "0 \<in> S"
   hence "monomial 1 0 \<in> monomial (1::'a) ` S" by (rule imageI)
-  hence "1 \<in> ideal (monomial (1::'a) ` S)" unfolding single_one by (rule ideal.generator_in_module)
+  hence "1 \<in> ideal (monomial (1::'a) ` S)" unfolding single_one by (rule ideal.span_base)
   hence eq: "ideal F \<div> monomial 1 t = UNIV" (is "_ \<div> ?t = _")
     by (simp only: assms ideal_eq_UNIV_iff_contains_one)
   show "cone (monomial 1 t, U) \<subseteq> ideal F"
@@ -2032,7 +1993,7 @@ proof
     fix s
     assume "s \<in> S"
     hence "monomial 1 s \<in> monomial (1::'a) ` S" (is "?s \<in> _") by (rule imageI)
-    hence "?s \<in> ideal (monomial 1 ` S)" by (rule ideal.generator_in_module)
+    hence "?s \<in> ideal (monomial 1 ` S)" by (rule ideal.span_base)
     also have "\<dots> = ideal F \<div> ?t" by (simp only: assms)
     finally have *: "?s * ?t \<in> ideal F" by (simp only: quot_set_iff mult.commute)
     assume "s \<in> .[U]"
@@ -2070,7 +2031,7 @@ next
       with eq \<open>s \<in> S\<close> show False by blast
     qed
   }
-  thus "cone (?t, U) \<inter> ideal F = {0}" using zero_in_cone ideal.module_0 by blast
+  thus "cone (?t, U) \<inter> ideal F = {0}" using zero_in_cone ideal.span_zero by blast
 qed
 
 subsection \<open>Function \<open>split\<close>\<close>
@@ -2485,19 +2446,19 @@ proof -
       note this(1)
       also from assms(2) have "P[U] \<subseteq> P[X]" by (rule Polys_mono)
       finally have "s' \<in> P[X]" .
-      have "s' * ?s * ?t = ?s * ?t'" by (simp add: t' ac_simps)
+      have "s' * ?s * ?t = ?s * ?t'" by (simp add: t')
       also from refl \<open>?s \<in> P[V]\<close> have "\<dots> \<in> cone (?t', V)" by (rule coneI)
       finally have "s' * ?s * ?t \<in> cone (?t', V)" .
       hence 1: "s' * ?s * ?t \<in> normal_form F ` P[X]" using 2 ..
       from \<open>s \<in> S\<close> have "?s \<in> monomial 1 ` S" by (rule imageI)
-      hence "?s \<in> ideal (monomial 1 ` S)" by (rule ideal.generator_in_module)
-      hence "s' * ?s \<in> ideal (monomial 1 ` S)" by (rule ideal.module_closed_smult)
+      hence "?s \<in> ideal (monomial 1 ` S)" by (rule ideal.span_base)
+      hence "s' * ?s \<in> ideal (monomial 1 ` S)" by (rule ideal.span_scale)
       hence "s' * ?s \<in> ideal F \<div> ?t" by (simp only: assms(5))
       hence "s' * ?s * ?t \<in> ideal F" by (simp only: quot_set_iff mult.commute)
       hence "s' * ?s * ?t \<in> ideal F \<inter> normal_form F ` P[X]" using 1 by (rule IntI)
       also from assms(1, 4) have "\<dots> \<subseteq> {0}"
         by (auto simp: normal_form_normal_form simp flip: normal_form_zero_iff)
-      finally have "?s * ?t' = 0" by (simp add: t' ac_simps)
+      finally have "?s * ?t' = 0" by (simp add: t') (simp only: ac_simps)
       thus "s \<in> {}" by (simp add: times_monomial_monomial monomial_0_iff)
     qed
   qed (fact empty_subsetI)
@@ -2564,7 +2525,7 @@ proof -
     by (rule punit.monomial_eq_itself)
   ultimately have g: "g = monomial 1 t" by simp
   hence "t \<in> keys g" by simp
-  from assms(3) have "g \<in> ideal ?G" by (rule ideal.generator_in_module)
+  from assms(3) have "g \<in> ideal ?G" by (rule ideal.span_base)
   also from assms(1) \<open>?S \<subseteq> P[X]\<close> have ideal_G: "\<dots> = ideal ?S" by (rule reduced_GB_ideal_Polys)
   finally have "g \<in> ideal ?S" .
   moreover from assms(3) have "g \<in> P[X]" by rule (intro reduced_GB_Polys assms(1) \<open>?S \<subseteq> P[X]\<close>)
@@ -2795,7 +2756,7 @@ corollary cor_4_9:
 proof (cases "0 \<in> S")
   case True
   hence "1 \<in> monomial (1::'a) ` S" by (rule rev_image_eqI) (simp only: single_one)
-  hence "1 \<in> ideal (monomial (1::'a) ` S)" by (rule ideal.generator_in_module)
+  hence "1 \<in> ideal (monomial (1::'a) ` S)" by (rule ideal.span_base)
   hence "ideal (monomial (1::'a) ` S) = UNIV" by (simp only: ideal_eq_UNIV_iff_contains_one)
   moreover from assms(3) have "monomial (1::'a) ` S \<subseteq> P[X]" by (auto intro: Polys_closed_monomial)
   ultimately have "punit.reduced_GB (monomial (1::'a) ` S) = {1}"
@@ -2893,7 +2854,7 @@ next
           thus "f \<in> P[X]" unfolding f by (rule Polys_closed_monomial)
         qed
         have "ideal F = (*) (monomial 1 t) ` ideal (monomial 1 ` S)"
-          by (simp only: ideal_image_times F_def)
+          by (simp only: ideal.span_image_scale_eq_image_scale F_def)
         moreover have "inj ((*) (monomial (1::'a) t))"
           by (auto intro!: injI simp: times_monomial_left dest!: punit.monom_mult_inj_3)
         ultimately have eq: "ideal F \<div> monomial 1 t = ideal (monomial 1 ` S)"
@@ -3022,7 +2983,7 @@ proof -
     fix s
     assume "s \<in> S"
     then obtain q where "s = normal_form L q * f" by (auto simp: S_def mult.commute)
-    also have "\<dots> \<in> ideal {f}" by (intro ideal.module_closed_smult ideal.generator_in_module singletonI)
+    also have "\<dots> \<in> ideal {f}" by (intro ideal.span_scale ideal.span_base singletonI)
     finally show "s \<in> ideal {f}" .
   qed
 
@@ -3037,9 +2998,9 @@ proof -
       from fin_X L_sub this(1) have "normal_form L q \<in> P[X]" by (rule Polys_closed_normal_form)
       moreover from \<open>h \<in> J\<close> have "f * normal_form L q \<in> J" by (simp add: h)
       ultimately have "normal_form L q \<in> L" by (simp add: L_def quot_set_iff)
-      hence "normal_form L q \<in> ideal L" by (rule ideal.generator_in_module)
+      hence "normal_form L q \<in> ideal L" by (rule ideal.span_base)
       with normal_form_diff_in_ideal[OF fin_X L_sub] have "(q - normal_form L q) + normal_form L q \<in> ideal L"
-        by (rule ideal.module_closed_plus)
+        by (rule ideal.span_add)
       hence "normal_form L q = 0" using fin_X L_sub by (simp add: normal_form_zero_iff)
       thus "h \<in> {0}" by (simp add: h)
     next
@@ -3048,7 +3009,7 @@ proof -
       proof (intro image_eqI)
         from fin_X L_sub show "0 = normal_form L 0" by (simp only: normal_form_zero)
       qed (simp_all add: zero_in_Polys)
-      ultimately show "h \<in> ideal F \<inter> fst (ideal_decomp_aux F f)" by (simp add: ideal.module_0 eq S_def)
+      ultimately show "h \<in> ideal F \<inter> fst (ideal_decomp_aux F f)" by (simp add: ideal.span_zero eq S_def)
     qed
   qed
 
@@ -3124,7 +3085,7 @@ next
     show ?thesis
     proof (rule insert.prems)
       from dd show "direct_decomp (ideal (insert f0 (insert f F)) \<inter> P[X]) [ideal {f0} \<inter> P[X], T]"
-        by (simp only: insert_commute[of f0] True ideal.module_insert_zero)
+        by (simp only: insert_commute[of f0] True ideal.span_insert_zero)
     next
       assume "\<And>f'. f' \<in> insert f F \<Longrightarrow> homogeneous f'"
       hence "\<And>f. f \<in> F \<Longrightarrow> homogeneous f" by blast
@@ -3159,7 +3120,7 @@ next
       from dd perm.swap have "direct_decomp (ideal (insert f0 F) \<inter> P[X]) [T, ideal {f0} \<inter> P[X]]"
         by (rule direct_decomp_perm)
       hence "T \<subseteq> ideal (insert f0 F) \<inter> P[X]"
-        by (rule direct_decomp_Cons_subsetI) (simp add: ideal.module_0 zero_in_Polys)
+        by (rule direct_decomp_Cons_subsetI) (simp add: ideal.span_zero zero_in_Polys)
       hence "T \<inter> fst ?D \<subseteq> ideal (insert f0 F) \<inter> fst ?D" by blast
       hence "T \<inter> fst ?D \<subseteq> {0}" by (simp only: eq)
       from refl have "direct_decomp ?T [T, fst ?D]"

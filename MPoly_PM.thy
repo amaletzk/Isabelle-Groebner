@@ -2069,18 +2069,18 @@ proof -
   thus ?thesis
   proof (induct p rule: punit.pmdl_induct)
     case module_0
-    show ?case by (simp add: ideal.module_0)
+    show ?case by (simp add: ideal.span_zero)
   next
     case (module_plus a f c t)
     let ?f = "punit.monom_mult c t f"
-    from module_plus.hyps(3) have "f \<in> punit.pmdl F" by (simp add: ideal.generator_in_module)
+    from module_plus.hyps(3) have "f \<in> punit.pmdl F" by (simp add: ideal.span_base)
     hence *: "?f \<in> punit.pmdl F" by (rule punit.pmdl_closed_monom_mult)
     from module_plus.hyps(3) have "homogeneous f" by (rule assms(1))
     hence "homogeneous ?f" by (rule homogeneous_monom_mult)
     hence "hom_component ?f n = (?f when n = poly_deg ?f)" by (rule hom_component_of_homogeneous)
-    also from * have "\<dots> \<in> ideal F" by (simp add: when_def ideal.module_0)
+    also from * have "\<dots> \<in> ideal F" by (simp add: when_def ideal.span_zero)
     finally have "hom_component ?f n \<in> ideal F" .
-    with module_plus.hyps(2) show ?case unfolding hom_component_plus by (rule ideal.module_closed_plus)
+    with module_plus.hyps(2) show ?case unfolding hom_component_plus by (rule ideal.span_add)
   qed
 qed
 
@@ -2102,7 +2102,7 @@ lemma homogeneous_idealE_homogeneous:
     and "\<And>f. f \<in> F' \<Longrightarrow> poly_deg (q f * f) = poly_deg p" and "\<And>f. f \<notin> F' \<Longrightarrow> q f = 0"
 proof -
   from assms(2) obtain F'' q' where "finite F''" and "F'' \<subseteq> F" and p: "p = (\<Sum>f\<in>F''. q' f * f)"
-    by (rule ideal.in_moduleE)
+    by (rule ideal.spanE)
   let ?A = "\<lambda>f. {h \<in> hom_components (q' f). poly_deg h + poly_deg f = poly_deg p}"
   let ?B = "\<lambda>f. {h \<in> hom_components (q' f). poly_deg h + poly_deg f \<noteq> poly_deg p}"
   define F' where "F' = {f \<in> F''. (\<Sum>(?A f)) * f \<noteq> 0}"
@@ -2684,7 +2684,7 @@ proof -
   have "homogenize x p = (\<Sum>q\<in>hom_components p. punit.monom_mult 1 (Poly_Mapping.single x (poly_deg p - poly_deg q)) q)"
     by (fact homogenize_alt)
   also have "\<dots> \<in> ideal F"
-  proof (rule ideal.module_closed_sum)
+  proof (rule ideal.span_sum)
     fix q
     assume "q \<in> hom_components p"
     with assms have "q \<in> ideal F" by (rule homogeneous_ideal')
@@ -3000,15 +3000,15 @@ proof
   assume "q \<in> dehomogenize x ` ideal F"
   then obtain p where "p \<in> ideal F" and q: "q = dehomogenize x p" ..
   from this(1) show "q \<in> ideal (dehomogenize x ` F)" unfolding q
-  proof (induct p rule: ideal.module_induct)
-    case module_0
-    show ?case by (simp add: ideal.module_0)
+  proof (induct p rule: ideal.span_induct')
+    case base
+    show ?case by (simp add: ideal.span_zero)
   next
-    case (module_plus a q p)
+    case (step a q p)
     have "dehomogenize x (a + q * p) = dehomogenize x a + dehomogenize x q * dehomogenize x p"
       by (simp only: dehomogenize_plus dehomogenize_times)
-    also from module_plus.hyps(2, 3) have "\<dots> \<in> ideal (dehomogenize x ` F)"
-      by (intro ideal.module_plus imageI)
+    also from step.hyps(2, 3) have "\<dots> \<in> ideal (dehomogenize x ` F)"
+      by (intro ideal.span_add ideal.span_scale ideal.span_base[of "dehomogenize x p"] imageI)
     finally show ?case .
   qed
 qed
@@ -3023,13 +3023,13 @@ proof -
     thus "x \<notin> indets f" by (auto simp: Polys_alt)
   qed
   show ?thesis
-  proof (intro Set.equalityI ideal.module_subset_moduleI)
+  proof (intro Set.equalityI ideal.span_subset_spanI)
     show "dehomogenize x ` G \<subseteq> ideal F"
     proof
       fix q
       assume "q \<in> dehomogenize x ` G"
       then obtain g where "g \<in> G" and q: "q = dehomogenize x g" ..
-      from this(1) have "g \<in> ideal G" by (rule ideal.generator_in_module)
+      from this(1) have "g \<in> ideal G" by (rule ideal.span_base)
       also have "\<dots> = ideal (homogenize x ` F)" by fact
       finally have "q \<in> dehomogenize x ` ideal (homogenize x ` F)" using q by (rule rev_image_eqI)
       also have "\<dots> \<subseteq> ideal (dehomogenize x ` homogenize x ` F)" by (rule dehomogenize_ideal_subset)
@@ -3043,7 +3043,7 @@ proof -
       fix f
       assume "f \<in> F"
       hence "homogenize x f \<in> homogenize x ` F" by (rule imageI)
-      also have "\<dots> \<subseteq> ideal (homogenize x ` F)" by (rule ideal.generator_subset_module)
+      also have "\<dots> \<subseteq> ideal (homogenize x ` F)" by (rule ideal.span_superset)
       also from assms(1) have "\<dots> = ideal G" by (rule sym)
       finally have "dehomogenize x (homogenize x f) \<in> dehomogenize x ` ideal G" by (rule imageI)
       with \<open>f \<in> F\<close> have "f \<in> dehomogenize x ` ideal G" by (simp only: eq)
@@ -3436,15 +3436,15 @@ proof
   assume "q \<in> extend_indets ` ideal F"
   then obtain p where "p \<in> ideal F" and q: "q = extend_indets p" ..
   from this(1) show "q \<in> ideal (extend_indets ` F)" unfolding q
-  proof (induct p rule: ideal.module_induct)
-    case module_0
-    show ?case by (simp add: ideal.module_0)
+  proof (induct p rule: ideal.span_induct')
+    case base
+    show ?case by (simp add: ideal.span_zero)
   next
-    case (module_plus a q p)
+    case (step a q p)
     have "extend_indets (a + q * p) = extend_indets a + extend_indets q * extend_indets p"
       by (simp only: extend_indets_plus extend_indets_times)
-    also from module_plus.hyps(2, 3) have "\<dots> \<in> ideal (extend_indets ` F)"
-      by (intro ideal.module_plus imageI)
+    also from step.hyps(2, 3) have "\<dots> \<in> ideal (extend_indets ` F)"
+      by (intro ideal.span_add ideal.span_scale ideal.span_base[of "extend_indets p"] imageI)
     finally show ?case .
   qed
 qed
@@ -3455,15 +3455,15 @@ proof
   assume "q \<in> restrict_indets ` ideal F"
   then obtain p where "p \<in> ideal F" and q: "q = restrict_indets p" ..
   from this(1) show "q \<in> ideal (restrict_indets ` F)" unfolding q
-  proof (induct p rule: ideal.module_induct)
-    case module_0
-    show ?case by (simp add: ideal.module_0)
+  proof (induct p rule: ideal.span_induct')
+    case base
+    show ?case by (simp add: ideal.span_zero)
   next
-    case (module_plus a q p)
+    case (step a q p)
     have "restrict_indets (a + q * p) = restrict_indets a + restrict_indets q * restrict_indets p"
       by (simp only: restrict_indets_plus restrict_indets_times)
-    also from module_plus.hyps(2, 3) have "\<dots> \<in> ideal (restrict_indets ` F)"
-      by (intro ideal.module_plus imageI)
+    also from step.hyps(2, 3) have "\<dots> \<in> ideal (restrict_indets ` F)"
+      by (intro ideal.span_add ideal.span_scale ideal.span_base[of "restrict_indets p"] imageI)
     finally show ?case .
   qed
 qed
@@ -3471,13 +3471,13 @@ qed
 lemma ideal_restrict_indets:
   assumes "ideal G = ideal (homogenize None ` extend_indets ` F)" (is "_ = ideal ?F")
   shows "ideal (restrict_indets ` G) = ideal F"
-proof (intro Set.equalityI ideal.module_subset_moduleI)
+proof (intro Set.equalityI ideal.span_subset_spanI)
   show "restrict_indets ` G \<subseteq> ideal F"
   proof
     fix q
     assume "q \<in> restrict_indets ` G"
     then obtain g where "g \<in> G" and q: "q = restrict_indets g" ..
-    from this(1) have "g \<in> ideal G" by (rule ideal.generator_in_module)
+    from this(1) have "g \<in> ideal G" by (rule ideal.span_base)
     also have "\<dots> = ideal ?F" by fact
     finally have "q \<in> restrict_indets ` ideal ?F" using q by (rule rev_image_eqI)
     also have "\<dots> \<subseteq> ideal (restrict_indets ` ?F)" by (rule restrict_indets_ideal_subset)
@@ -3491,7 +3491,7 @@ next
     fix f
     assume "f \<in> F"
     hence "homogenize None (extend_indets f) \<in> ?F" by (intro imageI)
-    also have "\<dots> \<subseteq> ideal ?F" by (rule ideal.generator_subset_module)
+    also have "\<dots> \<subseteq> ideal ?F" by (rule ideal.span_superset)
     also from assms(1) have "\<dots> = ideal G" by (rule sym)
     finally have "restrict_indets (homogenize None (extend_indets f)) \<in> restrict_indets ` ideal G"
       by (rule imageI)
@@ -3782,7 +3782,7 @@ lemma dgrad_p_set_varnum_wrt: "punit.dgrad_p_set (varnum_wrt X) 0 = P[X]"
   by (simp add: punit.dgrad_p_set_def dgrad_set_varnum_wrt Polys_def)
 
 lemmas in_idealE_Polys =
-  punit.in_moduleE_dgrad_p_set[simplified, OF hom_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  punit.in_pmdlE_dgrad_p_set[simplified, OF hom_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
 
 end
 

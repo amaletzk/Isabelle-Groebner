@@ -568,7 +568,7 @@ qed
 subsection \<open>Submodules\<close>
 
 lemma pmdl_closed_sum_list: "(\<And>x. x \<in> set xs \<Longrightarrow> x \<in> pmdl B) \<Longrightarrow> sum_list xs \<in> pmdl B"
-  by (induct xs) (auto intro: pmdl.module_0 pmdl.module_closed_plus)
+  by (induct xs) (auto intro: pmdl.span_zero pmdl.span_add)
 
 end (* term_powerprod *)
   
@@ -584,7 +584,7 @@ text \<open>The following lemma also holds in context @{locale term_powerprod}, 
   power-product), provided the other two arguments (coefficient, polynomial) are non-zero.\<close>
 
 lemma in_pmdl_in_phull:
-  fixes B::"('t \<Rightarrow>\<^sub>0 'b::ring_1_no_zero_divisors) set"
+  fixes B::"('t \<Rightarrow>\<^sub>0 'b::{comm_ring_1,ring_1_no_zero_divisors}) set"
     and A::"('t \<Rightarrow>\<^sub>0 'b) set"
     and q::"('t \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b)"
   assumes "\<And>b t. b \<in> B \<Longrightarrow> t \<in> keys (q b) \<Longrightarrow> monom_mult 1 t b \<in> A"
@@ -707,12 +707,12 @@ proof (cases "finite B")
   qed
   finally have *: "?p = (\<Sum>a\<in>?A. monom_mult (?c a) 0 a)" .
 
-  have "?p \<in> phull ?A" unfolding * by (rule phull.sum_in_moduleI)
-  also have "... \<subseteq> phull A" by (rule phull.module_mono, auto)
+  have "?p \<in> phull ?A" unfolding * by (rule phull.sum_in_spanI)
+  also have "... \<subseteq> phull A" by (rule phull.span_mono, auto)
   finally show ?thesis .
 next                             
   case False
-  thus ?thesis by (simp add: phull.module_0)
+  thus ?thesis by (simp add: phull.span_zero)
 qed
   
 subsection \<open>Trailing Terms and -Coefficients\<close>
