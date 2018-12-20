@@ -254,6 +254,11 @@ next
   with Cons assms(2, 3) show ?thesis by simp
 qed
 
+subsubsection \<open>@{const last}\<close>
+
+lemma last_take_conv_nth: "n < length xs \<Longrightarrow> last (take (Suc n) xs) = xs ! n"
+  by (simp add: take_Suc_conv_app_nth)
+
 subsubsection \<open>@{const count_list}\<close>
 
 lemma count_list_eq_0_iff: "count_list xs x = 0 \<longleftrightarrow> x \<notin> set xs"
