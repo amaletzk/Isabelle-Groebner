@@ -73,6 +73,9 @@ lemma is_nat_pm_pairD:
   shows "is_nat_pm (fst pp)" and "is_nat_pm (snd pp)"
   using assms by (simp_all add: is_nat_pm_pair_def)
 
+lemma is_nat_pm_pair_swap [iff]: "is_nat_pm_pair (prod.swap pp) \<longleftrightarrow> is_nat_pm_pair pp"
+  by (auto simp: is_nat_pm_pair_def)
+
 lemma is_int_pm_pairI: "is_int_pm (fst pp) \<Longrightarrow> is_int_pm (snd pp) \<Longrightarrow> is_int_pm_pair pp"
   unfolding is_int_pm_pair_def ..
     
@@ -87,9 +90,6 @@ lemma nat_pm_pair_is_int_pm_pair: "is_nat_pm_pair pp \<Longrightarrow> is_int_pm
 abbreviation "rat \<equiv> rat_of_nat"
 
 type_synonym 'x point = "('x \<Rightarrow>\<^sub>0 rat)"
-
-definition deg_pair :: "('x point \<times> 'x point) \<Rightarrow> rat"
-  where "deg_pair pp = max (deg_pm (fst pp)) (deg_pm (snd pp))"
 
 context pm_powerprod
 begin
@@ -126,6 +126,56 @@ next
     ultimately show ?thesis by (simp add: punit.monom_mult_monomial)
   qed
   ultimately show ?thesis by blast
+qed
+
+lemma lem_3_3_12:
+  assumes "f \<in> ideal F" and "f' \<in> ideal F" and "is_proper_binomial f" and "monomial 1 (tp f) \<notin> ideal F"
+    and "keys f = keys f'"
+  obtains c where "c \<noteq> (0::_::field)" and "f = punit.monom_mult c 0 f'"
+proof -
+  define c where "c = lc f / lc f'"
+  from assms(3, 5) have f'_pbinomial: "is_proper_binomial f'" by (simp only: is_proper_binomial_def)
+  hence "f' \<noteq> 0" by (rule proper_binomial_not_0)
+  hence "lc f' \<noteq> 0" by (rule punit.lc_not_0)
+  hence eq1: "c * lc f' = lc f" by (simp add: c_def)
+  from f'_pbinomial have "binomial (lc f') (lp f') (tc f') (tp f') = f'" by (rule punit.binomial_eq_itself)
+  moreover from assms(5) have "lp f' = lp f"
+    by (metis lookup_zero not_in_keys_iff_lookup_eq_zero punit.lt_def punit.lt_in_keys)
+  moreover from assms(5) have "tp f' = tp f"
+    by (metis lookup_zero not_in_keys_iff_lookup_eq_zero punit.tt_def punit.tt_in_keys)
+  ultimately have f': "binomial (lc f') (lp f) (tc f') (tp f) = f'" by simp
+  also note assms(2)
+  finally have "monomial c 0 * binomial (lc f') (lp f) (tc f') (tp f) \<in> ideal F"
+    by (rule ideal.span_scale)
+  with \<open>lc f' \<noteq> 0\<close> have 1: "binomial (lc f) (lp f) (c * tc f') (tp f) \<in> ideal F"
+    by (simp add: times_monomial_left punit.monom_mult_binomial c_def)
+  from assms(3) have "binomial (lc f) (lp f) (tc f) (tp f) = f" by (rule punit.binomial_eq_itself)
+  also note assms(1)
+  finally have "binomial (lc f) (lp f) (tc f) (tp f) - binomial (lc f) (lp f) (c * tc f') (tp f) \<in> ideal F"
+    using 1 by (rule ideal.span_diff)
+  hence 2: "monomial (tc f - c * tc f') (tp f) \<in> ideal F" by (simp add: binomial_def single_diff)
+  have eq2: "c * tc f' = tc f"
+  proof (rule ccontr)
+    assume "c * tc f' \<noteq> tc f"
+    hence "tc f - c * tc f' \<noteq> 0" by simp
+    moreover from 2 have "monomial (1 / (tc f - c * tc f')) 0 * monomial (tc f - c * tc f') (tp f) \<in> ideal F"
+      by (rule ideal.span_scale)
+    ultimately have "monomial 1 (tp f) \<in> ideal F" by (simp add: times_monomial_monomial)
+    with assms(4) show False ..
+  qed
+  show ?thesis
+  proof
+    from assms(3) have "f \<noteq> 0" by (rule proper_binomial_not_0)
+    hence "lc f \<noteq> 0" by (rule punit.lc_not_0)
+    with \<open>lc f' \<noteq> 0\<close> show "c \<noteq> 0" by (simp add: c_def)
+  next
+    have "punit.monom_mult c 0 f' = punit.monom_mult c 0 (binomial (lc f') (lp f) (tc f') (tp f))"
+      by (simp only: f')
+    also have "\<dots> = binomial (lc f) (lp f) (tc f) (tp f)"
+      by (simp add: punit.monom_mult_binomial eq1 eq2)
+    also have "\<dots> = f" by fact
+    finally show "f = punit.monom_mult c 0 f'" by (rule sym)
+  qed
 qed
 
 lemma map_scale_mono:
@@ -227,13 +277,21 @@ proof
   ultimately show False ..
 qed
 
+lemma fst_eq_snd_poly_point_iff: "fst (poly_point p) = snd (poly_point p) \<longleftrightarrow> card (keys p) \<le> 1"
+proof -
+  have "fst (poly_point p) = snd (poly_point p) \<longleftrightarrow> lp p = tp p"
+    by (simp add: poly_point_def)
+  also have "\<dots> \<longleftrightarrow> card (keys p) \<le> 1" by (simp only: punit.lt_eq_tt_iff has_bounded_keys_def)
+  finally show ?thesis .
+qed
+
 lemma vect_alt: "vect p = of_nat_pm (lp p) - of_nat_pm (tp p)"
   by (simp only: vect_def fst_poly_point snd_poly_point)
 
 lemma vect_is_int_pm: "is_int_pm (vect p)"
   by (simp add: vect_def is_int_pm_pairD[OF poly_point_is_int_pm_pair] is_int_pm_pairD minus_is_int_pm)
 
-end
+end (* pm_powerprod *)
 
 locale two_polys =
   pm_powerprod ord ord_strict
@@ -309,14 +367,38 @@ lemma shiftsI:
   shows "poly_point f \<in> shifts" and "prod.swap (poly_point f) \<in> shifts"
   using assms by (auto intro: shiftsI1 shiftsI2 shiftsI3 shiftsI4)
 
-lemma shiftsE:
+lemma shifts_cases:
   assumes "s \<in> shifts"
   obtains "s = poly_point f1" | "s = poly_point f2" |
           "s = prod.swap (poly_point f1)" | "s = prod.swap (poly_point f2)"
   using assms by (auto simp: shifts_def)
 
+lemma shifts_cases_poly:
+  assumes "s \<in> shifts"
+  obtains "s = poly_point f1 \<or> s = prod.swap (poly_point f1)" |
+          "s = poly_point f2 \<or> s = prod.swap (poly_point f2)"
+  using assms by (auto simp: shifts_def)
+
+lemma image_swap_shifts [simp]: "prod.swap ` shifts = shifts"
+  by (auto simp: shifts_def)
+
+lemma shifts_is_nat_pm_pair: "z \<in> shifts \<Longrightarrow> is_nat_pm_pair z"
+  by (elim shifts_cases) (simp_all add: poly_point_is_nat_pm_pair)
+
 definition nat_plus_point_pair :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x point \<times> 'x point) \<Rightarrow> ('x point \<times> 'x point)" (infixl "+\<^sub>N" 70)
   where "nat_plus_point_pair t pp = (of_nat_pm t + fst pp, of_nat_pm t + snd pp)"
+
+lemma swap_nat_plus_point_pair: "prod.swap (t +\<^sub>N pp) = t +\<^sub>N prod.swap pp"
+  by (simp add: nat_plus_point_pair_def)
+
+lemma nat_plus_point_pair_is_nat_pm_pair: "is_nat_pm_pair pp \<Longrightarrow> is_nat_pm_pair (t +\<^sub>N pp)"
+  by (simp add: nat_plus_point_pair_def is_nat_pm_pair_def plus_is_nat_pm of_nat_pm_is_nat_pm)
+
+lemma nat_plus_point_pair_is_int_pm_pair: "is_int_pm_pair pp \<Longrightarrow> is_int_pm_pair (t +\<^sub>N pp)"
+  by (simp add: nat_plus_point_pair_def is_int_pm_pair_def plus_is_int_pm of_nat_pm_is_nat_pm nat_pm_is_int_pm)
+
+lemma nat_plus_point_pair_fst_eq_snd_iff [iff]: "fst (t +\<^sub>N pp) = snd (t +\<^sub>N pp) \<longleftrightarrow> fst pp = snd pp"
+  by (auto simp: nat_plus_point_pair_def)
 
 abbreviation "Nshifts \<equiv> case_prod (+\<^sub>N) ` (UNIV \<times> shifts)"
 
@@ -331,9 +413,36 @@ lemma NshiftsE:
   obtains t s where "s \<in> shifts" and "z = t +\<^sub>N s"
   using assms by auto
 
+lemma image_swap_Nshifts [simp]: "prod.swap ` Nshifts = Nshifts"
+proof -
+  have "prod.swap ` Nshifts = case_prod (+\<^sub>N) ` (\<lambda>(x, y). (x, prod.swap y)) ` (UNIV \<times> shifts)"
+    by (simp add: image_image prod.case_distrib swap_nat_plus_point_pair)
+  also have "(\<lambda>(x, y). (x, prod.swap y)) ` (UNIV \<times> shifts) = UNIV \<times> prod.swap ` shifts"
+    by (auto simp del: image_swap_shifts swap_simp intro!: image_eqI)
+  finally show ?thesis by simp
+qed
+
+lemma Nshifts_is_nat_pm_pair: "z \<in> Nshifts \<Longrightarrow> is_nat_pm_pair z"
+  by (elim NshiftsE) (simp add: nat_plus_point_pair_is_nat_pm_pair shifts_is_nat_pm_pair)
+
+definition set_of_vpc :: "('x point \<times> 'x point) list \<Rightarrow> 'x point set"
+  where "set_of_vpc zs = fst ` set zs \<union> snd ` set zs"
+
 definition is_vpc :: "('x point \<times> 'x point) list \<Rightarrow> bool"
   where "is_vpc zs \<longleftrightarrow> zs \<noteq> [] \<and> (\<forall>i<length zs - 1. snd (zs ! i) = fst (zs ! Suc i)) \<and>
                       set zs \<subseteq> Nshifts"
+
+lemma finite_set_of_vpc: "finite (set_of_vpc zs)"
+  by (simp add: set_of_vpc_def)
+
+lemma set_of_vpc_Nil [simp]: "set_of_vpc [] = {}"
+  by (simp add: set_of_vpc_def)
+
+lemma set_of_vpc_empty_iff: "set_of_vpc zs = {} \<longleftrightarrow> zs = []"
+  by (simp add: set_of_vpc_def)
+
+lemma set_of_vpc_Cons: "set_of_vpc (z # zs) = insert (fst z) (insert (snd z) (set_of_vpc zs))"
+  by (simp add: set_of_vpc_def insert_commute)
 
 lemma is_vpcI:
   "zs \<noteq> [] \<Longrightarrow> (\<And>i. Suc i < length zs \<Longrightarrow> snd (zs ! i) = fst (zs ! Suc i)) \<Longrightarrow> set zs \<subseteq> Nshifts \<Longrightarrow>
@@ -349,6 +458,31 @@ lemma is_vpcE:
   assumes "is_vpc zs" and "z \<in> set zs"
   obtains t s where "s \<in> shifts" and "z = t +\<^sub>N s"
   using assms by (auto dest!: is_vpcD(3))
+
+lemma vpc_is_nat_pm_pair:
+  assumes "is_vpc zs" and "z \<in> set zs"
+  shows "is_nat_pm_pair z"
+proof -
+  from assms(1) have "set zs \<subseteq> Nshifts" by (rule is_vpcD)
+  with assms(2) have "z \<in> Nshifts" ..
+  thus ?thesis by (rule Nshifts_is_nat_pm_pair)
+qed
+
+lemma vpc_is_nat_pm:
+  assumes "is_vpc zs" and "p \<in> set_of_vpc zs"
+  shows "is_nat_pm p"
+  using assms(2) unfolding set_of_vpc_def
+proof
+  assume "p \<in> fst ` set zs"
+  then obtain z where "z \<in> set zs" and p: "p = fst z" ..
+  from assms(1) this(1) have "is_nat_pm_pair z" by (rule vpc_is_nat_pm_pair)
+  thus ?thesis unfolding p by (rule is_nat_pm_pairD)
+next
+  assume "p \<in> snd ` set zs"
+  then obtain z where "z \<in> set zs" and p: "p = snd z" ..
+  from assms(1) this(1) have "is_nat_pm_pair z" by (rule vpc_is_nat_pm_pair)
+  thus ?thesis unfolding p by (rule is_nat_pm_pairD)
+qed
 
 lemma is_vpc_takeI: "is_vpc zs \<Longrightarrow> 0 < n \<Longrightarrow> is_vpc (take n zs)"
   using set_take_subset[of n zs] by (auto intro!: is_vpcI dest: is_vpcD)
@@ -418,15 +552,110 @@ proof -
   thus ?thesis by simp
 qed
 
+lemma is_vpc_ConsD:
+  assumes "is_vpc (z # zs)"
+  shows "z \<in> Nshifts" and "zs \<noteq> [] \<Longrightarrow> is_vpc zs" and "zs \<noteq> [] \<Longrightarrow> snd z = fst (hd zs)"
+proof -
+  have "z \<in> set (z # zs)" by simp
+  also from assms have "\<dots> \<subseteq> Nshifts" by (rule is_vpcD)
+  finally show "z \<in> Nshifts" .
+next
+  assume "zs \<noteq> []"
+  hence "Suc 0 < length (z # zs)" by simp
+  with assms have "is_vpc (drop (Suc 0) (z # zs))" and "snd ((z # zs) ! 0) = fst ((z # zs) ! Suc 0)"
+    by (rule is_vpc_dropI, rule is_vpcD)
+  thus "is_vpc zs" and "snd z = fst (hd zs)" using \<open>zs \<noteq> []\<close> by (simp_all add: hd_conv_nth)
+qed
+
+lemma is_vpc_revI:
+  assumes "is_vpc zs"
+  shows "is_vpc (map prod.swap (rev zs))" (is "is_vpc ?zs")
+proof (rule is_vpcI)
+  from assms have "zs \<noteq> []" by (rule is_vpcD)
+  thus "?zs \<noteq> []" by simp
+next
+  fix i
+  assume "Suc i < length ?zs"
+  hence *: "Suc i < length zs" by simp
+  moreover define j where "j = length zs - Suc (Suc i)"
+  ultimately have Sj: "Suc j = length zs - Suc i" and **: "Suc j < length zs" by simp_all
+  from * have "fst (?zs ! Suc i) = snd (zs ! j)" by (simp add: rev_nth j_def)
+  also from assms ** have "\<dots> = fst (zs ! Suc j)" by (rule is_vpcD)
+  also from * have "\<dots> = snd (?zs ! i)" by (simp add: rev_nth Sj)
+  finally show "snd (?zs ! i) = fst (?zs ! Suc i)" by (rule sym)
+next
+  have "set ?zs = prod.swap ` set zs" by simp
+  also from assms have "set zs \<subseteq> Nshifts" by (rule is_vpcD)
+  finally have "set ?zs \<subseteq> prod.swap ` Nshifts" by blast
+  thus "set ?zs \<subseteq> Nshifts" by simp
+qed
+
+lemma vpc_induct [consumes 1, case_names single Cons]:
+  assumes "is_vpc zs" and "\<And>z. z \<in> Nshifts \<Longrightarrow> P [z]"
+    and "\<And>z zs. is_vpc zs \<Longrightarrow> z \<in> Nshifts \<Longrightarrow> snd z = fst (hd zs) \<Longrightarrow> P zs \<Longrightarrow> P (z # zs)"
+  shows "P zs"
+  using assms(1)
+proof (induct zs)
+  case Nil
+  thus ?case by (simp add: is_vpc_def)
+next
+  case (Cons z zs)
+  from Cons(2) have 1: "z \<in> Nshifts" by (rule is_vpc_ConsD)
+  show ?case
+  proof (cases "zs = []")
+    case True
+    moreover from 1 have "P [z]" by (rule assms(2))
+    ultimately show ?thesis by simp
+  next
+    case False
+    with Cons(2) have 2: "is_vpc zs" and 3: "snd z = fst (hd zs)" by (rule is_vpc_ConsD)+
+    from this(1) have "P zs" by (rule Cons(1))
+    with 2 1 3 show ?thesis by (rule assms(3))
+  qed
+qed
+
 context
   assumes f1_pbinomial: "is_proper_binomial f1"
   assumes f2_pbinomial: "is_proper_binomial f2"
 begin
 
+lemma shifts_fst_not_eq_snd: "s \<in> shifts \<Longrightarrow> fst s \<noteq> snd s"
+proof (elim shifts_cases_poly)
+  from f1_pbinomial have "fst (poly_point f1) \<noteq> snd (poly_point f1)"
+    by (simp add: fst_eq_snd_poly_point_iff is_proper_binomial_def)
+  moreover assume "s = poly_point f1 \<or> s = prod.swap (poly_point f1)"
+  ultimately show ?thesis by auto
+next
+  from f2_pbinomial have "fst (poly_point f2) \<noteq> snd (poly_point f2)"
+    by (simp add: fst_eq_snd_poly_point_iff is_proper_binomial_def)
+  moreover assume "s = poly_point f2 \<or> s = prod.swap (poly_point f2)"
+  ultimately show ?thesis by auto
+qed
+
+lemma Nshifts_fst_not_eq_snd: "z \<in> Nshifts \<Longrightarrow> fst z \<noteq> snd z"
+  by (elim NshiftsE) (simp add: shifts_fst_not_eq_snd)
+
+lemma vpc_fst_not_eq_snd:
+  assumes "is_vpc zs" and "z \<in> set zs"
+  shows "fst z \<noteq> snd z" and "to_nat_pm (fst z) \<noteq> to_nat_pm (snd z)"
+proof -
+  from assms(1) have "set zs \<subseteq> Nshifts" by (rule is_vpcD)
+  with assms(2) have "z \<in> Nshifts" ..
+  thus "fst z \<noteq> snd z" by (rule Nshifts_fst_not_eq_snd)
+
+  from assms have "is_nat_pm_pair z" by (rule vpc_is_nat_pm_pair)
+  hence "is_nat_pm (fst z)" and "is_nat_pm (snd z)" by (rule is_nat_pm_pairD)+
+  hence "of_nat_pm (to_nat_pm (fst z)) = fst z" and "of_nat_pm (to_nat_pm (snd z)) = snd z"
+    by (simp_all add: of_nat_pm_comp_to_nat_pm)
+  with \<open>fst z \<noteq> snd z\<close> have "of_nat_pm (to_nat_pm (fst z)) \<noteq> (of_nat_pm (to_nat_pm (snd z))::_ \<Rightarrow>\<^sub>0 rat)"
+    by simp
+  thus "to_nat_pm (fst z) \<noteq> to_nat_pm (snd z)" by simp
+qed
+
 text \<open>If VPCs were defined w.r.t. arbitrary sets of polynomials, the following lemma could most
   probably be proved for arbitrary sets of proper binomials.\<close>
 
-lemma vpcE_ideal:
+lemma idealE_vpc:
   assumes "f \<in> ideal {f1, f2}" and "is_proper_binomial f" and "monomial 1 (lp f) \<notin> ideal {f1, f2}"
   obtains zs where "is_vpc zs" and "fst (hd zs) = of_nat_pm (lp f)" and "snd (last zs) = of_nat_pm (tp f)"
 proof -
@@ -646,13 +875,246 @@ proof -
   thus ?thesis ..
 qed
 
-text \<open>Lemma \<open>vpcE_ideal\<close> corresponds to Theorem 3.3.14 in @{cite "MWW2015"}. There, however, it is
+text \<open>Lemma \<open>idealE_vpc\<close> corresponds to Theorem 3.3.14 in @{cite "MWW2015"}. There, however, it is
   proved quite differently, relying on the fairly complicated Lemma 3.3.11. The proof of this lemma
-  contains a substantial gap which, intuitively, could be closed, but I have no idea how to do it
-  rigorously. That is the reason for the different approach here.\<close>
+  contains a substantial gap which, intuitively, seems correct and could thus be closed, but I have
+  no idea how to do it rigorously. That is the reason for the different approach here.\<close>
 
 definition deg_vpc :: "('x point \<times> 'x point) list \<Rightarrow> rat"
-  where "deg_vpc zs = Max (deg_pair ` set zs)"
+  where "deg_vpc zs = (if zs = [] then 0 else Max (deg_pm ` set_of_vpc zs))"
+
+text \<open>Although @{const deg_vpc} will mostly be applied to arguments \<open>zs\<close> satisfying @{prop "is_vpc zs"}
+  and which are therefore not empty, it still makes sense to treat the case @{prop "zs = []"}
+  separately in the definition of @{const deg_vpc}.\<close>
+
+lemma deg_vpc_max:
+  assumes "p \<in> set_of_vpc zs"
+  shows "deg_pm p \<le> deg_vpc zs"
+proof -
+  from finite_set_of_vpc have "finite (deg_pm ` set_of_vpc zs)" by (rule finite_imageI)
+  moreover from assms have "deg_pm p \<in> deg_pm ` set_of_vpc zs" by (rule imageI)
+  ultimately have "deg_pm p \<le> Max (deg_pm ` set_of_vpc zs)" by (rule Max_ge)
+  with assms show ?thesis by (auto simp: deg_vpc_def)
+qed
+
+lemma deg_vpc_leI:
+  assumes "\<And>p. p \<in> set_of_vpc zs \<Longrightarrow> deg_pm p \<le> rat d"
+  shows "deg_vpc zs \<le> rat d"
+proof (cases "zs = []")
+  case True
+  thus ?thesis by (simp add: deg_vpc_def)
+next
+  case False
+  from finite_set_of_vpc have "finite (deg_pm ` set_of_vpc zs)" by (rule finite_imageI)
+  moreover from False have "deg_pm ` set_of_vpc zs \<noteq> {}" by (simp add: set_of_vpc_empty_iff)
+  ultimately have "Max (deg_pm ` set_of_vpc zs) \<le> rat d"
+  proof (rule Max.boundedI)
+    fix a
+    assume "a \<in> deg_pm ` set_of_vpc zs"
+    then obtain p where "p \<in> set_of_vpc zs" and a: "a = deg_pm p" ..
+    from this(1) show "a \<le> rat d" unfolding a by (rule assms)
+  qed
+  with False show ?thesis by (simp add: deg_vpc_def)
+qed
+
+lemma deg_vpc_Cons: "zs \<noteq> [] \<Longrightarrow> deg_vpc (z # zs) = max (deg_vpc [z]) (deg_vpc zs)"
+  by (simp add: deg_vpc_def set_of_vpc_Cons finite_set_of_vpc max.assoc set_of_vpc_empty_iff)
+
+corollary deg_vpc_Cons_ge: "deg_vpc [z] \<le> deg_vpc (z # zs)"
+  by (cases "zs = []") (simp_all add: deg_vpc_Cons)
+
+lemma vpcE_ideal_singleton:
+  assumes "z \<in> Nshifts"
+  obtains q1 q2 where "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {fst z, snd z}"
+    and "rat (poly_deg (q1 * f1)) \<le> deg_vpc [z]" and "rat (poly_deg (q2 * f2)) \<le> deg_vpc [z]"
+proof -
+  from assms obtain t s where "s \<in> shifts" and z: "z = t +\<^sub>N s" by (rule NshiftsE)
+  from this(1) show ?thesis
+  proof (rule shifts_cases_poly)
+    assume "s = poly_point f1 \<or> s = prod.swap (poly_point f1)"
+    hence eq1: "{fst z, snd z} = of_nat_pm ` {t + lp f1, t + tp f1}"
+      by (auto simp: z poly_point_def nat_plus_point_pair_def of_nat_pm_plus)
+    hence eq1': "set_of_vpc [z] = of_nat_pm ` {t + lp f1, t + tp f1}" by (simp add: set_of_vpc_Cons)
+    show ?thesis
+    proof
+      have "keys (monomial 1 t * f1 + 0 * f2) = keys (monomial 1 t * f1)" by simp
+      also from f1_pbinomial have eq2: "keys (monomial 1 t * f1) = {t + lp f1, t + tp f1}"
+        by (simp add: times_monomial_left punit.keys_monom_mult punit.keys_proper_binomial)
+      finally show "of_nat_pm ` keys (monomial 1 t * f1 + 0 * f2) = {fst z, snd z}"
+        by (simp only: eq1)
+
+      have "poly_deg (monomial 1 t * f1) \<le> max (deg_pm (t + lp f1)) (deg_pm (t + tp f1))"
+        by (rule poly_deg_leI) (auto simp: eq2)
+      also have "rat \<dots> = max (deg_pm (of_nat_pm (t + lp f1))) (deg_pm (of_nat_pm (t + tp f1)))"
+        by (simp add: deg_of_nat_pm)
+      also have "\<dots> \<le> deg_vpc [z]" by (intro max.boundedI deg_vpc_max) (simp_all add: eq1')
+      finally show "rat (poly_deg (monomial 1 t * f1)) \<le> deg_vpc [z]" by simp
+
+      have "rat (poly_deg (0 * f2)) \<le> rat (poly_deg (monomial 1 t * f1))" by simp
+      also have "\<dots> \<le> deg_vpc [z]" by fact
+      finally show "rat (poly_deg (0 * f2)) \<le> deg_vpc [z]" .
+    qed
+  next
+    assume "s = poly_point f2 \<or> s = prod.swap (poly_point f2)"
+    hence eq1: "{fst z, snd z} = of_nat_pm ` {t + lp f2, t + tp f2}"
+      by (auto simp: z poly_point_def nat_plus_point_pair_def of_nat_pm_plus)
+    hence eq1': "set_of_vpc [z] = of_nat_pm ` {t + lp f2, t + tp f2}" by (simp add: set_of_vpc_Cons)
+    show ?thesis
+    proof
+      have "keys (0 * f1 + monomial 1 t * f2) = keys (monomial 1 t * f2)" by simp
+      also from f2_pbinomial have eq2: "keys (monomial 1 t * f2) = {t + lp f2, t + tp f2}"
+        by (simp add: times_monomial_left punit.keys_monom_mult punit.keys_proper_binomial)
+      finally show "of_nat_pm ` keys (0 * f1 + monomial 1 t * f2) = {fst z, snd z}"
+        by (simp only: eq1)
+
+      have "poly_deg (monomial 1 t * f2) \<le> max (deg_pm (t + lp f2)) (deg_pm (t + tp f2))"
+        by (rule poly_deg_leI) (auto simp: eq2)
+      also have "rat \<dots> = max (deg_pm (of_nat_pm (t + lp f2))) (deg_pm (of_nat_pm (t + tp f2)))"
+        by (simp add: deg_of_nat_pm)
+      also have "\<dots> \<le> deg_vpc [z]" by (intro max.boundedI deg_vpc_max) (simp_all add: eq1')
+      finally show "rat (poly_deg (monomial 1 t * f2)) \<le> deg_vpc [z]" by simp
+
+      have "rat (poly_deg (0 * f1)) \<le> rat (poly_deg (monomial 1 t * f2))" by simp
+      also have "\<dots> \<le> deg_vpc [z]" by fact
+      finally show "rat (poly_deg (0 * f1)) \<le> deg_vpc [z]" .
+    qed
+  qed
+qed
+
+lemma vpcE_ideal:
+  assumes "is_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)"
+  obtains q1 q2 where "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {fst (hd zs), snd (last zs)}"
+    and "rat (poly_deg (q1 * f1)) \<le> deg_vpc zs" and "rat (poly_deg (q2 * f2)) \<le> deg_vpc zs"
+  using assms
+proof (induct zs arbitrary: thesis rule: vpc_induct)
+  case (single z)
+  from single(1) obtain q1 q2 where "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {fst z, snd z}"
+    and 1: "rat (poly_deg (q1 * f1)) \<le> deg_vpc [z]" and 2: "rat (poly_deg (q2 * f2)) \<le> deg_vpc [z]"
+    by (rule vpcE_ideal_singleton)
+  from this(1) have "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {fst (hd [z]), snd (last [z])}"
+    by simp
+  thus ?case using 1 2 by (rule single)
+next
+  case (Cons z zs)
+  from Cons.hyps(1) have "zs \<noteq> []" by (rule is_vpcD)
+  with Cons.prems(2) have "fst z \<noteq> snd (last zs)" by simp
+  from Cons.hyps(2) have "is_nat_pm_pair z" by (rule Nshifts_is_nat_pm_pair)
+  hence "is_nat_pm (fst z)" by (rule is_nat_pm_pairD)
+  hence eq_z: "of_nat_pm (to_nat_pm (fst z)) = fst z" by (simp add: of_nat_pm_comp_to_nat_pm)
+  from Cons.hyps(1) last_in_set have "is_nat_pm_pair (last zs)"
+    by (rule vpc_is_nat_pm_pair) fact
+  hence "is_nat_pm (snd (last zs))" by (rule is_nat_pm_pairD)
+  hence eq0: "of_nat_pm (to_nat_pm (snd (last zs))) = snd (last zs)"
+    by (simp add: of_nat_pm_comp_to_nat_pm)
+  hence "of_nat_pm (to_nat_pm (fst z)) \<noteq> (of_nat_pm (to_nat_pm (snd (last zs)))::_ \<Rightarrow>\<^sub>0 rat)"
+    using \<open>fst z \<noteq> snd (last zs)\<close> by (simp add: eq_z)
+  hence neq1: "to_nat_pm (fst z) \<noteq> to_nat_pm (snd (last zs))" by simp
+  from Cons.hyps(2) have "is_vpc [z]" by simp
+  hence neq2: "to_nat_pm (fst z) \<noteq> to_nat_pm (snd z)" by (rule vpc_fst_not_eq_snd) simp
+  from Cons.hyps(2) obtain q1 q2 where eq1: "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {fst z, snd z}"
+    and 10: "rat (poly_deg (q1 * f1)) \<le> deg_vpc [z]" and 20: "rat (poly_deg (q2 * f2)) \<le> deg_vpc [z]"
+    by (rule vpcE_ideal_singleton)
+  let ?f = "q1 * f1 + q2 * f2"
+  from 10 deg_vpc_Cons_ge have 1: "rat (poly_deg (q1 * f1)) \<le> deg_vpc (z # zs)" by (rule order.trans)
+  from 20 deg_vpc_Cons_ge have 2: "rat (poly_deg (q2 * f2)) \<le> deg_vpc (z # zs)" by (rule order.trans)
+  show ?case
+  proof (cases "fst (hd zs) = snd (last zs)")
+    case True
+    with \<open>zs \<noteq> []\<close> have eq2: "snd (last (z # zs)) = snd z" by (simp add: Cons.hyps(3))
+    have "of_nat_pm ` keys ?f = {fst (hd (z # zs)), snd (last (z # zs))}"
+      by (simp only: eq1 eq2 list.sel(1))
+    thus ?thesis using 1 2 by (rule Cons.prems)
+  next
+    case False
+    then obtain q1' q2' where eq2: "of_nat_pm ` keys (q1' * f1 + q2' * f2) = {fst (hd zs), snd (last zs)}"
+      and 30: "rat (poly_deg (q1' * f1)) \<le> deg_vpc zs" and 40: "rat (poly_deg (q2' * f2)) \<le> deg_vpc zs"
+      using Cons.hyps(4) by blast
+    from \<open>zs \<noteq> []\<close> 30 have 3: "rat (poly_deg (q1' * f1)) \<le> deg_vpc (z # zs)" by (simp add: deg_vpc_Cons)
+    from \<open>zs \<noteq> []\<close> 40 have 4: "rat (poly_deg (q2' * f2)) \<le> deg_vpc (z # zs)" by (simp add: deg_vpc_Cons)
+    let ?g = "q1' * f1 + q2' * f2"
+    have eq3: "of_nat_pm ` keys (q1' * f1 + q2' * f2) = {snd z, snd (last zs)}"
+      by (simp only: eq2 Cons.hyps(3))
+    define c where "c = lookup ?f (to_nat_pm (snd z))"
+    define d where "d = lookup ?g (to_nat_pm (snd z))"
+    have "keys ?f = to_nat_pm ` (of_nat_pm::_ \<Rightarrow> ('x \<Rightarrow>\<^sub>0 rat)) ` keys ?f" by (simp add: image_image)
+    also have "\<dots> = {to_nat_pm (fst z), to_nat_pm (snd z)}" by (simp add: eq1)
+    finally have keys_f: "keys ?f = {to_nat_pm (fst z), to_nat_pm (snd z)}" .
+    hence "c \<noteq> 0" by (simp add: c_def)
+    have "keys ?g = to_nat_pm ` (of_nat_pm::_ \<Rightarrow> ('x \<Rightarrow>\<^sub>0 rat)) ` keys ?g" by (simp add: image_image)
+    also have "\<dots> = {to_nat_pm (snd z), to_nat_pm (snd (last zs))}" by (simp add: eq3)
+    finally have keys_g: "keys ?g = {to_nat_pm (snd z), to_nat_pm (snd (last zs))}" .
+    hence "d \<noteq> 0" by (simp add: d_def)
+    with \<open>c \<noteq> 0\<close> have "- (c / d) \<noteq> 0" by simp
+    hence keys_g': "keys ((- (c / d)) \<cdot> ?g) = {to_nat_pm (snd z), to_nat_pm (snd (last zs))}"
+      by (simp add: keys_map_scale keys_g)
+    define q1'' where "q1'' = - (c / d) \<cdot> q1'"
+    define q2'' where "q2'' = - (c / d) \<cdot> q2'"
+    show ?thesis
+    proof (rule Cons.prems)
+      have "keys ((q1 + q1'') * f1 + (q2 + q2'') * f2) = keys (?f + (- (c / d)) \<cdot> ?g)"
+        by (simp add: q1''_def q2''_def map_scale_eq_times algebra_simps)
+      also have "\<dots> = {to_nat_pm (fst z), to_nat_pm (snd (last zs))}" (is "?A = ?B")
+      proof (intro subset_antisym insert_subsetI empty_subsetI, rule subsetI)
+        fix t
+        assume "t \<in> ?A"
+        also have "\<dots> \<subseteq> keys ?f \<union> keys ((- (c / d)) \<cdot> ?g)" by (rule keys_add_subset)
+        finally have "t \<in> insert (to_nat_pm (snd z)) ?B" by (auto simp: keys_f keys_g')
+        moreover have "t \<noteq> to_nat_pm (snd z)"
+        proof
+          assume "t = to_nat_pm (snd z)"
+          with \<open>d \<noteq> 0\<close> have "t \<notin> ?A" by (simp add: lookup_add c_def d_def)
+          thus False using \<open>t \<in> ?A\<close> ..
+        qed
+        ultimately show "t \<in> ?B" by simp
+      next
+        have "to_nat_pm (fst z) \<in> keys ?f" by (simp add: keys_f)
+        moreover from neq1 neq2 have "to_nat_pm (fst z) \<notin> keys ((- (c / d)) \<cdot> ?g)"
+          by (simp add: keys_g')
+        ultimately show "to_nat_pm (fst z) \<in> ?A" by (rule in_keys_plusI1)
+      next
+        have neq3: "to_nat_pm (snd (last zs)) \<noteq> to_nat_pm (snd z)"
+        proof -
+          from Cons.hyps(1) hd_in_set have "is_nat_pm_pair (hd zs)"
+            by (rule vpc_is_nat_pm_pair) fact
+          hence "is_nat_pm (fst (hd zs))" by (rule is_nat_pm_pairD)
+          hence "of_nat_pm (to_nat_pm (fst (hd zs))) = fst (hd zs)" by (simp add: of_nat_pm_comp_to_nat_pm)
+          hence "of_nat_pm (to_nat_pm (snd z)) \<noteq> (of_nat_pm (to_nat_pm (snd (last zs)))::_ \<Rightarrow>\<^sub>0 rat)"
+            using False by (simp add: Cons.hyps(3) eq0)
+          thus ?thesis by simp
+        qed
+        have "to_nat_pm (snd (last zs)) \<in> keys ((- (c / d)) \<cdot> ?g)" by (simp add: keys_g')
+        moreover from neq1[symmetric] neq3 False have "to_nat_pm (snd (last zs)) \<notin> keys ?f"
+          by (simp add: keys_f)
+        ultimately show "to_nat_pm (snd (last zs)) \<in> ?A" by (rule in_keys_plusI2)
+      qed
+      finally show "of_nat_pm ` keys ((q1 + q1'') * f1 + (q2 + q2'') * f2) =
+                      {fst (hd (z # zs)), snd (last (z # zs))}"
+        using \<open>zs \<noteq> []\<close> by (simp add: eq_z eq0)
+    next
+      have "poly_deg ((q1 + q1'') * f1) = poly_deg (q1 * f1 + q1'' * f1)" by (simp only: algebra_simps)
+      also have "\<dots> \<le> max (poly_deg (q1 * f1)) (poly_deg (q1'' * f1))" by (rule poly_deg_plus_le)
+      also have "poly_deg (q1'' * f1) = poly_deg ((- (c / d)) \<cdot> (q1' * f1))"
+        by (simp only: q1''_def map_scale_eq_times ac_simps)
+      also from \<open>- (c / d) \<noteq> 0\<close> have "\<dots> = poly_deg (q1' * f1)" by (simp add: poly_deg_map_scale)
+      finally have "rat (poly_deg ((q1 + q1'') * f1)) \<le>
+                      max (rat (poly_deg (q1 * f1))) (rat (poly_deg (q1' * f1)))"
+        by simp
+      also from 1 3 have "\<dots> \<le> deg_vpc (z # zs)" by (rule max.boundedI)
+      finally show "rat (poly_deg ((q1 + q1'') * f1)) \<le> deg_vpc (z # zs)" .
+    next
+      have "poly_deg ((q2 + q2'') * f2) = poly_deg (q2 * f2 + q2'' * f2)" by (simp only: algebra_simps)
+      also have "\<dots> \<le> max (poly_deg (q2 * f2)) (poly_deg (q2'' * f2))" by (rule poly_deg_plus_le)
+      also have "poly_deg (q2'' * f2) = poly_deg ((- (c / d)) \<cdot> (q2' * f2))"
+        by (simp only: q2''_def map_scale_eq_times ac_simps)
+      also from \<open>- (c / d) \<noteq> 0\<close> have "\<dots> = poly_deg (q2' * f2)" by (simp add: poly_deg_map_scale)
+      finally have "rat (poly_deg ((q2 + q2'') * f2)) \<le>
+                      max (rat (poly_deg (q2 * f2))) (rat (poly_deg (q2' * f2)))"
+        by simp
+      also from 2 4 have "\<dots> \<le> deg_vpc (z # zs)" by (rule max.boundedI)
+      finally show "rat (poly_deg ((q2 + q2'') * f2)) \<le> deg_vpc (z # zs)" .
+    qed
+  qed
+qed
 
 definition is_min_vpc :: "('x point \<times> 'x point) list \<Rightarrow> bool"
   where "is_min_vpc zs \<longleftrightarrow> is_vpc zs \<and>

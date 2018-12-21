@@ -320,7 +320,7 @@ proof (rule poly_deg_leI)
 qed
 
 lemma poly_deg_times:
-  assumes "p \<noteq> 0" and "q \<noteq> (0::('x::linorder \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::semiring_no_zero_divisors)"
+  assumes "p \<noteq> 0" and "q \<noteq> (0::('x::linorder \<Rightarrow>\<^sub>0 'a::add_linorder_min) \<Rightarrow>\<^sub>0 'b::semiring_no_zero_divisors)"
   shows "poly_deg (p * q) = poly_deg p + poly_deg q"
   using poly_deg_times_le
 proof (rule antisym)
@@ -331,14 +331,16 @@ proof (rule antisym)
   define q2 where "q2 = except q (- ?A q)"
   have deg_p1: "deg_pm t = poly_deg p" if "t \<in> keys p1" for t
   proof -
-    from that have "t \<in> keys p" and "poly_deg p \<le> deg_pm t" by (simp_all add: p1_def keys_except)
+    from that have "t \<in> keys p" and "poly_deg p \<le> deg_pm t"
+      by (simp_all add: p1_def keys_except not_less)
     from this(1) have "deg_pm t \<le> poly_deg p" by (rule poly_deg_max_keys)
     thus ?thesis using \<open>poly_deg p \<le> deg_pm t\<close> by (rule antisym)
   qed
   have deg_p2: "t \<in> keys p2 \<Longrightarrow> deg_pm t < poly_deg p" for t by (simp add: p2_def keys_except)
   have deg_q1: "deg_pm t = poly_deg q" if "t \<in> keys q1" for t
   proof -
-    from that have "t \<in> keys q" and "poly_deg q \<le> deg_pm t" by (simp_all add: q1_def keys_except)
+    from that have "t \<in> keys q" and "poly_deg q \<le> deg_pm t"
+      by (simp_all add: q1_def keys_except not_less)
     from this(1) have "deg_pm t \<le> poly_deg q" by (rule poly_deg_max_keys)
     thus ?thesis using \<open>poly_deg q \<le> deg_pm t\<close> by (rule antisym)
   qed
@@ -377,14 +379,14 @@ proof (rule antisym)
           by (rule in_keys_timesE)
         from \<open>s' \<in> keys p1\<close> have "deg_pm s' = poly_deg p" by (rule deg_p1)
         moreover from \<open>t' \<in> keys q2\<close> have "deg_pm t' < poly_deg q" by (rule deg_q2)
-        ultimately show ?thesis by (simp only: u deg_pm_plus)
+        ultimately show ?thesis by (simp add: u deg_pm_plus)
       next
         assume "u \<in> keys (p2 * q)"
         then obtain s' t' where "s' \<in> keys p2" and "t' \<in> keys q" and u: "u = s' + t'"
           by (rule in_keys_timesE)
         from \<open>s' \<in> keys p2\<close> have "deg_pm s' < poly_deg p" by (rule deg_p2)
         moreover from \<open>t' \<in> keys q\<close> have "deg_pm t' \<le> poly_deg q" by (rule poly_deg_max_keys)
-        ultimately show ?thesis by (simp only: u deg_pm_plus)
+        ultimately show ?thesis by (simp add: u deg_pm_plus add_less_le_mono)
       qed
       thus False by (simp only: eq)
     qed
@@ -416,6 +418,10 @@ proof (rule order.antisym, fact poly_deg_monom_mult_le)
   qed
   finally show "deg_pm t + poly_deg p \<le> poly_deg (punit.monom_mult c t p)" .
 qed
+
+lemma poly_deg_map_scale:
+  "poly_deg (c \<cdot> p) = (if c = (0::_::semiring_no_zero_divisors) then 0 else poly_deg p)"
+  by (simp add: poly_deg_def keys_map_scale)
 
 lemma poly_deg_sum_le: "((poly_deg (sum f A))::'a::add_linorder_min) \<le> Max (poly_deg ` f ` A)"
 proof (cases "finite A")
@@ -484,8 +490,6 @@ proof -
     by (simp only: map_scale_sum_distrib_right map_scale_one_left)
   thus ?thesis by (simp add: punit.monomial_power)
 qed
-
-subsection \<open>@{const map_scale} and @{const le_pm}\<close>
 
 lemma times_le_interval:
   assumes "x \<le> y + a * z" and "x \<le> y + b * z" and "a \<le> c" and "c \<le> (b::'b::{linorder,ordered_ring})"
