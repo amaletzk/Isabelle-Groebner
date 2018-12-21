@@ -590,6 +590,111 @@ next
   thus "set ?zs \<subseteq> Nshifts" by simp
 qed
 
+lemma cut_vpc_fst:
+  assumes "is_vpc zs" and "i < j" and "j < length zs" and "fst (zs ! i) = fst (zs ! j)"
+  obtains zs' where "is_vpc zs'" and "fst (hd zs') = fst (hd zs)" and "snd (last zs') = snd (last zs)"
+    and "set zs' \<subseteq> set zs" and "length zs = length zs' + (j - i)"
+proof -
+  from assms(1) have "zs \<noteq> []" by (rule is_vpcD)
+  define zs2 where "zs2 = drop j zs"
+  from assms(1, 3) have "is_vpc zs2" unfolding zs2_def by (rule is_vpc_dropI)
+  hence "zs2 \<noteq> []" by (rule is_vpcD)
+  from assms(3) have eq1: "hd zs2 = zs ! j" by (simp add: zs2_def hd_drop_conv_nth)
+  from assms(3) have eq2: "last zs2 = last zs" by (simp add: zs2_def)
+  show ?thesis
+  proof (cases "i = 0")
+    case True
+    from \<open>is_vpc zs2\<close> show ?thesis
+    proof
+      from \<open>zs \<noteq> []\<close> assms(4) show "fst (hd zs2) = fst (hd zs)" by (simp add: eq1 hd_conv_nth True)
+    next
+      show "set zs2 \<subseteq> set zs" by (simp only: zs2_def set_drop_subset)
+    next
+      from assms(3) show "length zs = length zs2 + (j - i)" by (simp add: zs2_def True)
+    qed (simp only: eq2)
+  next
+    case False
+    hence "0 < i" by simp
+    moreover define k where "k = i - 1"
+    ultimately have i: "i = Suc k" by simp
+    from assms(2, 3) have "i < length zs" by (rule less_trans)
+    hence "k < length zs" by (simp add: k_def)
+    define zs1 where "zs1 = take i zs"
+    from assms(1) \<open>0 < i\<close> have "is_vpc zs1" unfolding zs1_def by (rule is_vpc_takeI)
+    hence "zs1 \<noteq> []" by (rule is_vpcD)
+    from \<open>0 < i\<close> have eq3: "hd zs1 = hd zs" by (simp add: zs1_def)
+    from \<open>k < length zs\<close> have "snd (last zs1) = snd (zs ! k)"
+      by (simp add: zs1_def last_take_conv_nth i)
+    also from assms(1) \<open>i < length zs\<close> have "\<dots> = fst (zs ! i)" unfolding i by (rule is_vpcD)
+    also have "\<dots> = fst (hd zs2)" by (simp only: assms(4) eq1)
+    finally have eq4: "snd (last zs1) = fst (hd zs2)" .
+    show ?thesis
+    proof
+      from \<open>is_vpc zs1\<close> \<open>is_vpc zs2\<close> eq4 show "is_vpc (zs1 @ zs2)" by (rule is_vpc_appendI)
+    next
+      from \<open>zs1 \<noteq> []\<close> show "fst (hd (zs1 @ zs2)) = fst (hd zs)" by (simp add: eq3)
+    next
+      from \<open>zs2 \<noteq> []\<close> show "snd (last (zs1 @ zs2)) = snd (last zs)" by (simp add: eq2)
+    next
+      show "set (zs1 @ zs2) \<subseteq> set zs" by (simp add: zs1_def zs2_def set_drop_subset set_take_subset)
+    next
+      from \<open>i < length zs\<close> assms(2, 3) show "length zs = length (zs1 @ zs2) + (j - i)"
+        by (simp add: zs1_def zs2_def)
+    qed
+  qed
+qed
+
+lemma cut_vpc_snd:
+  assumes "is_vpc zs" and "i < j" and "j < length zs" and "snd (zs ! i) = snd (zs ! j)"
+  obtains zs' where "is_vpc zs'" and "fst (hd zs') = fst (hd zs)" and "snd (last zs') = snd (last zs)"
+    and "set zs' \<subseteq> set zs" and "length zs = length zs' + (j - i)"
+proof -
+  from assms(2, 3) have "i < length zs" by (rule less_trans)
+  from assms(1) have "zs \<noteq> []" by (rule is_vpcD)
+  define zs1 where "zs1 = take (Suc i) zs"
+  from assms(1) have "is_vpc zs1" unfolding zs1_def by (rule is_vpc_takeI) simp
+  hence "zs1 \<noteq> []" by (rule is_vpcD)
+  have eq1: "hd zs1 = hd zs" by (simp add: zs1_def)
+  from \<open>i < length zs\<close> have eq2: "last zs1 = zs ! i" by (simp add: zs1_def last_take_conv_nth)
+  show ?thesis
+  proof (cases "Suc j = length zs")
+    case True
+    from \<open>is_vpc zs1\<close> show ?thesis
+    proof
+      from \<open>zs \<noteq> []\<close> assms(3, 4) show "snd (last zs1) = snd (last zs)"
+        by (simp add: eq2 last_conv_nth flip: True)
+    next
+      show "set zs1 \<subseteq> set zs" by (simp only: zs1_def set_take_subset)
+    next
+      from assms(3) show "length zs = length zs1 + (j - i)" by (simp add: zs1_def flip: True)
+    qed (simp only: eq1)
+  next
+    case False
+    with assms(3) have *: "Suc j < length zs" by simp
+    define zs2 where "zs2 = drop (Suc j) zs"
+    from assms(1) * have "is_vpc zs2" unfolding zs2_def by (rule is_vpc_dropI)
+    hence "zs2 \<noteq> []" by (rule is_vpcD)
+    from * have eq4: "last zs2 = last zs" by (simp add: zs2_def)
+    have "snd (last zs1) = snd (zs ! j)" by (simp only: assms(4) eq2)
+    also from assms(1) * have "\<dots> = fst (zs ! Suc j)" by (rule is_vpcD)
+    also from * have "\<dots> = fst (hd zs2)" by (simp add: zs2_def hd_drop_conv_nth)
+    finally have eq3: "snd (last zs1) = fst (hd zs2)" .
+    show ?thesis
+    proof
+      from \<open>is_vpc zs1\<close> \<open>is_vpc zs2\<close> eq3 show "is_vpc (zs1 @ zs2)" by (rule is_vpc_appendI)
+    next
+      from \<open>zs1 \<noteq> []\<close> show "fst (hd (zs1 @ zs2)) = fst (hd zs)" by (simp add: eq1)
+    next
+      from \<open>zs2 \<noteq> []\<close> show "snd (last (zs1 @ zs2)) = snd (last zs)" by (simp add: eq4)
+    next
+      show "set (zs1 @ zs2) \<subseteq> set zs" by (simp add: zs1_def zs2_def set_drop_subset set_take_subset)
+    next
+      from \<open>i < length zs\<close> assms(2, 3) show "length zs = length (zs1 @ zs2) + (j - i)"
+        by (simp add: zs1_def zs2_def)
+    qed
+  qed
+qed
+
 lemma vpc_induct [consumes 1, case_names single Cons]:
   assumes "is_vpc zs" and "\<And>z. z \<in> Nshifts \<Longrightarrow> P [z]"
     and "\<And>z zs. is_vpc zs \<Longrightarrow> z \<in> Nshifts \<Longrightarrow> snd z = fst (hd zs) \<Longrightarrow> P zs \<Longrightarrow> P (z # zs)"
@@ -1116,10 +1221,82 @@ next
   qed
 qed
 
-definition is_min_vpc :: "('x point \<times> 'x point) list \<Rightarrow> bool"
-  where "is_min_vpc zs \<longleftrightarrow> is_vpc zs \<and>
+definition min_length_vpc :: "('x point \<times> 'x point) list \<Rightarrow> bool"
+  where "min_length_vpc zs \<longleftrightarrow> is_vpc zs \<and>
+                   (\<forall>zs'. is_vpc zs' \<longrightarrow> fst (hd zs') = fst (hd zs) \<longrightarrow> snd (last zs') = snd (last zs) \<longrightarrow>
+                          length zs \<le> length zs')"
+
+definition min_vpc :: "('x point \<times> 'x point) list \<Rightarrow> bool"
+  where "min_vpc zs \<longleftrightarrow> is_vpc zs \<and>
                    (\<forall>zs'. is_vpc zs' \<longrightarrow> fst (hd zs') = fst (hd zs) \<longrightarrow> snd (last zs') = snd (last zs) \<longrightarrow>
                           length zs < length zs' \<or> (length zs = length zs' \<and> deg_vpc zs \<le> deg_vpc zs'))"
+
+lemma min_length_vpcI:
+  "is_vpc zs \<Longrightarrow> (\<And>zs'. is_vpc zs' \<Longrightarrow> fst (hd zs') = fst (hd zs) \<Longrightarrow> snd (last zs') = snd (last zs) \<Longrightarrow>
+          length zs \<le> length zs') \<Longrightarrow> min_length_vpc zs"
+  by (simp add: min_length_vpc_def)
+
+lemma min_length_vpcD:
+  assumes "min_length_vpc zs"
+  shows "is_vpc zs"
+    and "is_vpc zs' \<Longrightarrow> fst (hd zs') = fst (hd zs) \<Longrightarrow> snd (last zs') = snd (last zs) \<Longrightarrow> length zs \<le> length zs'"
+  using assms by (simp_all add: min_length_vpc_def)
+
+lemma min_vpcI:
+  "is_vpc zs \<Longrightarrow> (\<And>zs'. is_vpc zs' \<Longrightarrow> fst (hd zs') = fst (hd zs) \<Longrightarrow> snd (last zs') = snd (last zs) \<Longrightarrow>
+          (length zs < length zs' \<or> (length zs = length zs' \<and> deg_vpc zs \<le> deg_vpc zs'))) \<Longrightarrow> min_vpc zs"
+  by (simp add: min_vpc_def)
+
+lemma min_vpcD:
+  assumes "min_vpc zs"
+  shows "is_vpc zs" and "min_length_vpc zs"
+  using assms by (auto simp: min_length_vpc_def min_vpc_def)
+
+lemma min_vpc_cases:
+  assumes "min_vpc zs" and "is_vpc zs'" and "fst (hd zs') = fst (hd zs)" and "snd (last zs') = snd (last zs)"
+  assumes "length zs < length zs' \<Longrightarrow> thesis"
+  assumes "length zs = length zs' \<Longrightarrow> deg_vpc zs \<le> deg_vpc zs' \<Longrightarrow> thesis"
+  shows thesis
+  using assms by (auto simp: min_vpc_def)
+
+lemma min_length_vpc_distinct:
+  assumes "min_length_vpc zs"
+  shows "distinct (map fst zs)" and "distinct (map snd zs)" and "distinct zs"
+proof -
+  from assms have "is_vpc zs" by (rule min_length_vpcD)
+
+  show "distinct (map fst zs)"
+  proof (intro distinctI notI)
+    fix i j :: nat
+    assume "i < j"
+    assume "i < length (map fst zs)" and "j < length (map fst zs)"
+    hence "i < length zs" and "j < length zs" by simp_all
+    moreover assume "map fst zs ! i = map fst zs ! j"
+    ultimately have "fst (zs ! i) = fst (zs ! j)" by simp
+    with \<open>is_vpc zs\<close> \<open>i < j\<close> \<open>j < length zs\<close> obtain zs' where "is_vpc zs'"
+      and "fst (hd zs') = fst (hd zs)" and "snd (last zs') = snd (last zs)"
+      and eq: "length zs = length zs' + (j - i)" by (rule cut_vpc_fst)
+    from assms this(1, 2, 3) have "length zs \<le> length zs'" by (rule min_length_vpcD)
+    with \<open>i < j\<close> show False by (simp add: eq)
+  qed
+
+  show "distinct (map snd zs)"
+  proof (intro distinctI notI)
+    fix i j :: nat
+    assume "i < j"
+    assume "i < length (map snd zs)" and "j < length (map snd zs)"
+    hence "i < length zs" and "j < length zs" by simp_all
+    moreover assume "map snd zs ! i = map snd zs ! j"
+    ultimately have "snd (zs ! i) = snd (zs ! j)" by simp
+    with \<open>is_vpc zs\<close> \<open>i < j\<close> \<open>j < length zs\<close> obtain zs' where "is_vpc zs'"
+      and "fst (hd zs') = fst (hd zs)" and "snd (last zs') = snd (last zs)"
+      and eq: "length zs = length zs' + (j - i)" by (rule cut_vpc_snd)
+    from assms this(1, 2, 3) have "length zs \<le> length zs'" by (rule min_length_vpcD)
+    with \<open>i < j\<close> show False by (simp add: eq)
+  qed
+
+  thus "distinct zs" by (simp only: distinct_map)
+qed
 
 end
 
