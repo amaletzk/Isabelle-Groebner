@@ -48,17 +48,38 @@ lemma le_pmI: "(\<And>x. lookup s x \<le> lookup t x) \<Longrightarrow> s \<unlh
 lemma le_pmD: "s \<unlhd> t \<Longrightarrow> lookup s x \<le> lookup t x"
   by (simp add: le_pm_def le_fun_def)
 
-lemma le_pm_refl [simp]: "s \<unlhd> (s::_ \<Rightarrow>\<^sub>0 _::{preorder,zero})"
+lemma le_pm_refl [simp]: "s \<unlhd> (s::_ \<Rightarrow>\<^sub>0 _::preorder)"
   by (simp add: le_pm_def)
 
-lemma le_pm_antisym: "s \<unlhd> t \<Longrightarrow> t \<unlhd> s \<Longrightarrow> s = (t::_ \<Rightarrow>\<^sub>0 _::{order,zero})"
+lemma le_pm_antisym: "s \<unlhd> t \<Longrightarrow> t \<unlhd> s \<Longrightarrow> s = (t::_ \<Rightarrow>\<^sub>0 _::order)"
   by (simp add: le_pm_def poly_mapping_eq_iff)
 
-lemma le_pm_trans [trans]: "s \<unlhd> t \<Longrightarrow> t \<unlhd> u \<Longrightarrow> s \<unlhd> (u::_ \<Rightarrow>\<^sub>0 _::{preorder,zero})"
+lemma le_pm_trans [trans]: "s \<unlhd> t \<Longrightarrow> t \<unlhd> u \<Longrightarrow> s \<unlhd> (u::_ \<Rightarrow>\<^sub>0 _::preorder)"
   by (auto simp: le_pm_def dest: order_trans)
 
-lemma le_pm_mono_plus: "s \<unlhd> t \<Longrightarrow> s + u \<unlhd> t + (u::_ \<Rightarrow>\<^sub>0 _::ordered_ab_group_add)"
-  by (simp add: le_pm_def lookup_plus_fun)
+lemma le_pm_mono_plus_right: "s \<unlhd> t \<Longrightarrow> s + u \<unlhd> t + (u::_ \<Rightarrow>\<^sub>0 _::ordered_ab_semigroup_add)"
+  by (simp add: le_pm_def lookup_plus_fun le_fun_def add_right_mono)
+
+lemma le_pm_mono_plus_left: "s \<unlhd> t \<Longrightarrow> u + s \<unlhd> u + (t::_ \<Rightarrow>\<^sub>0 _::ordered_ab_semigroup_add)"
+  by (simp add: le_pm_def lookup_plus_fun le_fun_def add_left_mono)
+
+lemma le_pm_mono_plus: "s \<unlhd> t \<Longrightarrow> u \<unlhd> v \<Longrightarrow> s + u \<unlhd> t + (v::_ \<Rightarrow>\<^sub>0 _::ordered_ab_semigroup_add)"
+  by (simp add: le_pm_def lookup_plus_fun le_fun_def add_mono)
+
+lemma le_pm_increasing: "0 \<unlhd> u \<Longrightarrow> s \<unlhd> t \<Longrightarrow> s \<unlhd> u + (t::_ \<Rightarrow>\<^sub>0 _::ordered_comm_monoid_add)"
+  using le_pm_mono_plus[of 0 u s t] by simp
+
+lemma le_pm_increasing2: "0 \<unlhd> u \<Longrightarrow> s \<unlhd> t \<Longrightarrow> s \<unlhd> t + (u::_ \<Rightarrow>\<^sub>0 _::ordered_comm_monoid_add)"
+  by (simp add: le_pm_increasing add.commute[of t])
+
+lemma le_pm_decreasing: "u \<unlhd> 0 \<Longrightarrow> s \<unlhd> t \<Longrightarrow> u + s \<unlhd> (t::_ \<Rightarrow>\<^sub>0 _::ordered_comm_monoid_add)"
+  using le_pm_mono_plus[of u 0 s t] by simp
+
+lemma le_pm_decreasing2: "u \<unlhd> 0 \<Longrightarrow> s \<unlhd> t \<Longrightarrow> s + u \<unlhd> (t::_ \<Rightarrow>\<^sub>0 _::ordered_comm_monoid_add)"
+  using le_pm_mono_plus[of s t u 0] by simp
+
+lemma zero_le_pm: "0 \<unlhd> (t::_ \<Rightarrow>\<^sub>0 _::add_linorder_min)"
+  by (simp add: le_pmI)
 
 lemma le_pm_mono_minus: "s \<unlhd> t \<Longrightarrow> s - u \<unlhd> t - (u::_ \<Rightarrow>\<^sub>0 _::ordered_ab_group_add)"
   by (simp add: le_pm_def lookup_minus_fun)
@@ -68,6 +89,20 @@ lemma adds_pmI: "s \<unlhd> t \<Longrightarrow> s adds (t::'a \<Rightarrow>\<^su
 
 lemma adds_pm: "s adds t \<longleftrightarrow> s \<unlhd> (t::'a \<Rightarrow>\<^sub>0 'b::add_linorder_min)"
   by (simp add: adds_poly_mapping le_pm_def)
+
+lemma gcs_le_pm:
+  shows "gcs s t \<unlhd> s" and "gcs s t \<unlhd> t"
+  by (simp_all add: gcs_leq_fun_1 gcs_leq_fun_2 le_pm_def lookup_gcs_fun)
+
+lemma gcs_ge_pm: "u \<unlhd> s \<Longrightarrow> u \<unlhd> t \<Longrightarrow> u \<unlhd> gcs s t"
+  by (simp add: leq_gcs_fun le_pm_def lookup_gcs_fun)
+
+lemma lcs_ge_pm:
+  shows "s \<unlhd> lcs s t" and "t \<unlhd> lcs s t"
+  by (simp_all add: leq_lcs_fun_1 leq_lcs_fun_2 le_pm_def lookup_lcs_fun)
+
+lemma lcs_le_pm: "s \<unlhd> u \<Longrightarrow> t \<unlhd> u \<Longrightarrow> lcs s t \<unlhd> u"
+  by (simp add: lcs_leq_fun le_pm_def lookup_lcs_fun)
 
 lemma deg_pm_mono_le: "s \<unlhd> t \<Longrightarrow> deg_pm s \<le> deg_pm (t::'a \<Rightarrow>\<^sub>0 'b::add_linorder)"
   unfolding le_pm_def by (transfer) (auto intro!: deg_fun_leq simp: supp_fun_def)

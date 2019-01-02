@@ -322,10 +322,13 @@ lemma of_int_pm_comp_of_nat_pm [simp]: "of_int_pm (of_nat_pm t) = of_nat_pm t"
 
 subsection \<open>Order relation on polynomial mappings\<close>
 
-lemma le_of_nat_pm: "of_nat_pm s \<unlhd> ((of_nat_pm t)::'a \<Rightarrow>\<^sub>0 ('b::linordered_semidom)) \<longleftrightarrow> s \<unlhd> t"
+lemma le_of_nat_pm: "of_nat_pm s \<unlhd> ((of_nat_pm t)::_ \<Rightarrow>\<^sub>0 _::linordered_semidom) \<longleftrightarrow> s \<unlhd> t"
   by (simp add: le_pm_def of_nat_pm.rep_eq leq_of_nat_fun)
 
-lemma le_of_int_pm: "of_int_pm s \<unlhd> ((of_int_pm t)::'a \<Rightarrow>\<^sub>0 ('b::linordered_idom)) \<longleftrightarrow> s \<unlhd> t"
+lemma zero_le_of_nat_pm: "0 \<unlhd> ((of_nat_pm t)::_ \<Rightarrow>\<^sub>0 _::linordered_semidom)"
+  using le_of_nat_pm zero_le_pm by force
+
+lemma le_of_int_pm: "of_int_pm s \<unlhd> ((of_int_pm t)::_ \<Rightarrow>\<^sub>0 _::linordered_idom) \<longleftrightarrow> s \<unlhd> t"
   by (simp add: le_pm_def of_int_pm.rep_eq leq_of_int_fun)
 
 lemma to_nat_pm_mono: "s \<unlhd> t \<Longrightarrow> to_nat_pm s \<unlhd> to_nat_pm t"
