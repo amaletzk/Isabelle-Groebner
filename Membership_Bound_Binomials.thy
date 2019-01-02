@@ -1,13 +1,13 @@
 section \<open>New Bounds for the Membership Problem for Binomial Ideals\<close>
 
 theory Membership_Bound_Binomials
-  imports VPC
+  imports Binom_Mult VPC
 begin
 
 subsection \<open>Structure of Binomial Ideals\<close>
 
 (* The following lemmas could be proved in context "gd_term", but the abbreviations for "punit.lt"
-  etc. introduced in theory "Binom_Mult" are inconsistent with similar abbreviations introduced
+  etc. introduced in theory "MPoly_PM" are inconsistent with similar abbreviations introduced
   in "gd_term". *)
 
 context gd_powerprod
@@ -1198,7 +1198,7 @@ lemma thm_3_2_aux_0:
     and "keys g \<inter> keys (q2 * f2) = {}" and "\<And>t. t \<in> keys g \<Longrightarrow> \<exists>v\<in>keys q1. t = v + tp f1"
 proof -
   from assms(2) have "g \<in> ideal {f1, f2}" by (rule membership_problem_assmsD)
-  then obtain q1 q2 where g_eq: "g = q1 * f1 + q2 * f2" by (rule in_idealE_2)
+  then obtain q1 q2 where g_eq: "g = q1 * f1 + q2 * f2" by (rule idealE_2)
   
   have 1: "keys g \<inter> keys (q2 * f2) = {}"
   proof (simp only: disjoint_eq_subset_Compl, rule, rule)
@@ -1397,7 +1397,7 @@ proof -
       qed
       with _ show "monomial 1 t \<in> ideal {f1, f2}"
       proof (rule punit.monomial_1_in_pmdlI[simplified])
-        show "q1' * f1 + ?q2 * f2 \<in> ideal {f1, f2}" by (rule in_idealI_2)
+        show "q1' * f1 + ?q2 * f2 \<in> ideal {f1, f2}" by (rule idealI_2)
       qed
     qed
       
@@ -1642,7 +1642,7 @@ lemma thm_3_2_2_aux_3':
             \<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
 proof -
   from mpa have "g \<in> ideal {f1, f2}" by (rule membership_problem_assmsD)
-  then obtain q1' q2' where g: "g = q1' * f1 + q2' * f2" by (rule in_idealE_2)
+  then obtain q1' q2' where g: "g = q1' * f1 + q2' * f2" by (rule idealE_2)
   define S1 where "S1 = {t. \<forall>s\<in>keys f1. \<forall>l. of_nat_pm (t + s) \<noteq> of_nat_pm (lp g) + l \<cdot> vect f1}"
   define S2 where "S2 = {t. \<forall>s\<in>keys f2. \<forall>l. of_nat_pm (t + s) \<noteq> of_nat_pm (lp g) + l \<cdot> vect f1}"
   define q1 where "q1 = except q1' S1"

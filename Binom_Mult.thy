@@ -7,11 +7,6 @@ begin
 context ordered_powerprod
 begin
 
-abbreviation "lc \<equiv> punit.lc"
-abbreviation "tc \<equiv> punit.tc"
-abbreviation "lp \<equiv> punit.lt"
-abbreviation "tp \<equiv> punit.tt"
-
 lemma keys_monomial_plus_times:
   assumes "is_proper_binomial (p::'a \<Rightarrow>\<^sub>0 'b::field)" and "q \<noteq> 0" and "v \<prec> u"
     and "keys (q * p) = {u + tp p, v + tp p}"

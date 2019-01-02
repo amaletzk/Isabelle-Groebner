@@ -3564,6 +3564,16 @@ qed
 
 subsection \<open>Locale @{term pm_powerprod}\<close>
 
+context ordered_powerprod
+begin
+
+abbreviation "lc \<equiv> punit.lc"
+abbreviation "tc \<equiv> punit.tc"
+abbreviation "lp \<equiv> punit.lt"
+abbreviation "tp \<equiv> punit.tt"
+
+end (* ordered_powerprod *)
+
 locale pm_powerprod =
   ordered_powerprod ord ord_strict
   for ord::"('x::{countable,linorder} \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)
@@ -3574,35 +3584,35 @@ sublocale gd_powerprod ..
 
 lemma PPs_closed_lp:
   assumes "p \<in> P[X]"
-  shows "punit.lt p \<in> .[X]"
+  shows "lp p \<in> .[X]"
 proof (cases "p = 0")
   case True
   thus ?thesis by (simp add: zero_in_PPs)
 next
   case False
-  hence "punit.lt p \<in> keys p" by (rule punit.lt_in_keys)
+  hence "lp p \<in> keys p" by (rule punit.lt_in_keys)
   also from assms have "\<dots> \<subseteq> .[X]" by (rule PolysD)
   finally show ?thesis .
 qed
 
-corollary PPs_closed_image_lp: "F \<subseteq> P[X] \<Longrightarrow> punit.lt ` F \<subseteq> .[X]"
+corollary PPs_closed_image_lp: "F \<subseteq> P[X] \<Longrightarrow> lp ` F \<subseteq> .[X]"
   by (auto intro: PPs_closed_lp)
 
 lemma hom_component_lp:
   assumes "p \<noteq> 0"
-  shows "hom_component p (deg_pm (punit.lt p)) \<noteq> 0" (is "?p \<noteq> 0")
-    and "punit.lt (hom_component p (deg_pm (punit.lt p))) = punit.lt p"
+  shows "hom_component p (deg_pm (lp p)) \<noteq> 0" (is "?p \<noteq> 0")
+    and "lp (hom_component p (deg_pm (lp p))) = lp p"
 proof -
-  from assms have "punit.lt p \<in> keys p" by (rule punit.lt_in_keys)
-  hence *: "punit.lt p \<in> keys ?p" by (simp add: keys_hom_component)
+  from assms have "lp p \<in> keys p" by (rule punit.lt_in_keys)
+  hence *: "lp p \<in> keys ?p" by (simp add: keys_hom_component)
   thus "?p \<noteq> 0" by auto
 
-  from * show "punit.lt ?p = punit.lt p"
+  from * show "lp ?p = lp p"
   proof (rule punit.lt_eqI_keys)
     fix t
     assume "t \<in> keys ?p"
     hence "t \<in> keys p" by (simp add: keys_hom_component)
-    thus "t \<preceq> punit.lt p" by (rule punit.lt_max_keys)
+    thus "t \<preceq> lp p" by (rule punit.lt_max_keys)
   qed
 qed
 

@@ -1,7 +1,7 @@
 section \<open>Valid Polygonial Chains\<close>
 
 theory VPC
-  imports Binomials Binom_Mult
+  imports Binomials Power_Products_PM Poly_Utils
 begin
 
 subsection \<open>Preliminaries\<close>
