@@ -327,6 +327,16 @@ lemma gcs_le_overlap':
 lemma overlap_is_int_pm: "is_int_pm overlap"
   using overlap_is_nat_pm by (rule nat_pm_is_int_pm)
 
+lemma overlap_leI:
+  "gcs (lp f1) (tp f1) adds t \<Longrightarrow> gcs (lp f2) (tp f2) adds t \<Longrightarrow> overlap \<unlhd> of_nat_pm t"
+  unfolding overlap_alt' le_of_nat_pm adds_pm[symmetric] by (rule lcs_adds)
+
+lemma overlap_leD:
+  assumes "overlap \<unlhd> of_nat_pm t"
+  shows "gcs (lp f1) (tp f1) adds t" and "gcs (lp f2) (tp f2) adds t"
+  using assms by (auto simp: overlap_alt' le_of_nat_pm adds_pm[symmetric]
+                       intro: adds_trans[OF adds_lcs] adds_trans[OF adds_lcs_2])
+
 lemma lem_3_1_13:
   assumes "of_nat_pm (tp f1) \<unlhd> p" and "of_nat_pm (tp f2) \<unlhd> p"
   shows "overlap \<unlhd> p"
@@ -344,6 +354,8 @@ next
   also from assms(2) have "... \<le> lookup p" by (simp only: le_pm_def)
   finally show "lookup (gcs ?t ?s) \<le> lookup p" .
 qed
+
+end (* two_polys *)
 
 subsection \<open>VPCs\<close>
 
@@ -583,6 +595,65 @@ next
   then obtain z where "z \<in> set zs" and p: "p = snd z" ..
   from assms(1) this(1) have "is_nat_pm_pair z" by (rule vpc_is_nat_pm_pair)
   thus ?thesis unfolding p by (rule is_nat_pm_pairD)
+qed
+
+lemma set_of_vpc_alt_1:
+  assumes "is_vpc zs"
+  shows "set_of_vpc zs = insert (fst (hd zs)) (snd ` set zs)" (is "_ = ?A")
+proof
+  have "fst ` set zs \<subseteq> ?A"
+  proof
+    fix p
+    assume "p \<in> fst ` set zs"
+    then obtain z where "z \<in> set zs" and p: "p = fst z" ..
+    from this(1) obtain i where "i < length zs" and z: "z = zs ! i" by (metis in_set_conv_nth)
+    show "p \<in> ?A"
+    proof (cases i)
+      case 0
+      moreover from assms have "zs \<noteq> []" by (rule is_vpcD)
+      ultimately show ?thesis by (simp add: p z hd_conv_nth)
+    next
+      case i: (Suc j)
+      from assms \<open>i < length zs\<close> have "p = snd (zs ! j)"
+        unfolding p z i by (rule is_vpcD(2)[symmetric])
+      moreover from \<open>i < length zs\<close> have "j < length zs" by (simp add: i)
+      ultimately show ?thesis by auto
+    qed
+  qed
+  thus "set_of_vpc zs \<subseteq> ?A" unfolding set_of_vpc_def by blast
+next
+  from assms have "zs \<noteq> []" by (rule is_vpcD)
+  hence "hd zs \<in> set zs" by (rule hd_in_set)
+  thus "?A \<subseteq> set_of_vpc zs" unfolding set_of_vpc_def by blast
+qed
+
+lemma set_of_vpc_alt_2:
+  assumes "is_vpc zs"
+  shows "set_of_vpc zs = insert (snd (last zs)) (fst ` set zs)" (is "_ = ?A")
+proof
+  have "snd ` set zs \<subseteq> ?A"
+  proof
+    fix p
+    assume "p \<in> snd ` set zs"
+    then obtain z where "z \<in> set zs" and p: "p = snd z" ..
+    from this(1) obtain i where "i < length zs" and z: "z = zs ! i" by (metis in_set_conv_nth)
+    show "p \<in> ?A"
+    proof (cases "length zs = Suc i")
+      case True
+      moreover from assms have "zs \<noteq> []" by (rule is_vpcD)
+      ultimately show ?thesis by (simp add: p z last_conv_nth)
+    next
+      case False
+      with \<open>i < length zs\<close> have "Suc i < length zs" by simp
+      with assms have "snd (zs ! i) = fst (zs ! Suc i)" by (rule is_vpcD)
+      thus ?thesis using \<open>Suc i < length zs\<close> by (auto simp: p z)
+    qed
+  qed
+  thus "set_of_vpc zs \<subseteq> ?A" unfolding set_of_vpc_def by blast
+next
+  from assms have "zs \<noteq> []" by (rule is_vpcD)
+  hence "last zs \<in> set zs" by (rule last_in_set)
+  thus "?A \<subseteq> set_of_vpc zs" unfolding set_of_vpc_def by blast
 qed
 
 lemma is_vpc_takeI: "is_vpc zs \<Longrightarrow> 0 < n \<Longrightarrow> is_vpc (take n zs)"
@@ -1312,6 +1383,27 @@ next
   qed
 qed
 
+lemma thm_3_3_18:
+  assumes "is_vpc zs" and "Suc i < length zs" and "zs ! i \<in> shifts {f}" and "zs ! Suc i \<in> shifts {f'}"
+    and "{f, f'} = {f1, f2}"
+  shows "overlap \<unlhd> snd (zs ! i)"
+proof -
+  from assms(3) obtain s where "zs ! i = s +\<^sub>N poly_point f \<or> zs ! i = s +\<^sub>N prod.swap (poly_point f)"
+    by (rule shiftsE_singleton)
+  hence *: "gcs (of_nat_pm (lp f)) (of_nat_pm (tp f)) \<unlhd> snd (zs ! i)"
+    by (auto simp: poly_point_def nat_plus_point_pair_def of_nat_pm_plus
+            intro!: le_pm_increasing gcs_le_pm zero_le_of_nat_pm)
+  from assms(4) obtain t where "zs ! Suc i = t +\<^sub>N poly_point f' \<or> zs ! Suc i = t +\<^sub>N prod.swap (poly_point f')"
+    by (rule shiftsE_singleton)
+  hence "gcs (of_nat_pm (lp f')) (of_nat_pm (tp f')) \<unlhd> fst (zs ! Suc i)"
+    by (auto simp: poly_point_def nat_plus_point_pair_def of_nat_pm_plus
+            intro!: le_pm_increasing gcs_le_pm zero_le_of_nat_pm)
+  also from assms(1, 2) have "\<dots> = snd (zs ! i)" by (rule is_vpcD(2)[symmetric])
+  finally have "gcs (of_nat_pm (lp f')) (of_nat_pm (tp f')) \<unlhd> snd (zs ! i)" .
+  moreover from assms(5) have "(f = f1 \<and> f' = f2) \<or> (f = f2 \<and> f' = f1)" by fastforce
+  ultimately show ?thesis using * by (auto simp: overlap_alt intro: lcs_le_pm)
+qed
+
 definition min_length_vpc :: "('x point \<times> 'x point) list \<Rightarrow> bool"
   where "min_length_vpc zs \<longleftrightarrow> is_vpc zs \<and>
                    (\<forall>zs'. is_vpc zs' \<longrightarrow> fst (hd zs') = fst (hd zs) \<longrightarrow> snd (last zs') = snd (last zs) \<longrightarrow>
@@ -1387,6 +1479,376 @@ proof -
   qed
 
   thus "distinct zs" by (simp only: distinct_map)
+qed
+
+corollary lem_3_3_19:
+  assumes "min_length_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)" and "Suc i < length zs"
+    and "zs ! i \<in> shifts {f}" and "zs ! Suc i \<in> shifts {f}"
+  assumes "zs ! i \<in> pos_shifts {f} \<Longrightarrow> zs ! Suc i \<in> pos_shifts {f} \<Longrightarrow> thesis"
+  assumes "zs ! i \<in> neg_shifts {f} \<Longrightarrow> zs ! Suc i \<in> neg_shifts {f} \<Longrightarrow> thesis"
+  shows thesis
+proof -
+  from assms(1) have "is_vpc zs" by (rule min_length_vpcD)
+  have rl: ?thesis if "fst (zs ! i) = snd (zs ! Suc i)"
+  proof (cases i)
+    case i: 0
+    show ?thesis
+    proof (cases "length zs = Suc (Suc i)")
+      case True
+      from \<open>is_vpc zs\<close> have "zs \<noteq> []" by (rule is_vpcD)
+      with that have "fst (hd zs) = snd (last zs)" by (simp add: hd_conv_nth last_conv_nth i True)
+      with assms(2) show ?thesis ..
+    next
+      case False
+      with assms(3) have 0: "Suc (Suc i) < length zs" by simp
+      with \<open>is_vpc zs\<close> have "snd (zs ! Suc i) = fst (zs ! Suc (Suc i))" by (rule is_vpcD)
+      hence eq5: "fst (zs ! i) = fst (zs ! Suc (Suc i))" by (simp only: that)
+      from assms(1) have "distinct (map fst zs)" by (rule min_length_vpc_distinct)
+      moreover from assms(3) have 1: "i < length (map fst zs)" by simp
+      moreover from 0 have 2: "Suc (Suc i) < length (map fst zs)" by simp
+      ultimately have "(map fst zs) ! i = (map fst zs) ! Suc (Suc i) \<longleftrightarrow> i = Suc (Suc i)"
+        by (rule nth_eq_iff_index_eq)
+      with 1 2 show ?thesis by (simp add: eq5)
+    qed
+  next
+    case i: (Suc j)
+    with assms(3) have "Suc j < length zs" by simp
+    with \<open>is_vpc zs\<close> have "snd (zs ! j) = fst (zs ! Suc j)" by (rule is_vpcD)
+    also have "\<dots> = snd (zs ! Suc (Suc j))" by (simp only: that flip: i)
+    finally have eq5: "snd (zs ! j) = snd (zs ! Suc (Suc j))" .
+    from assms(1) have "distinct (map snd zs)" by (rule min_length_vpc_distinct)
+    moreover from \<open>Suc j < length zs\<close> have 1: "j < length (map snd zs)" by simp
+    moreover from assms(3) have 2: "Suc (Suc j) < length (map snd zs)" by (simp add: i)
+    ultimately have "(map snd zs) ! j = (map snd zs) ! Suc (Suc j) \<longleftrightarrow> j = Suc (Suc j)"
+      by (rule nth_eq_iff_index_eq)
+    with 1 2 show ?thesis by (simp add: eq5)
+  qed
+  from assms(4, 5) show ?thesis
+  proof (elim shiftsE_shift)
+    assume "zs ! i \<in> pos_shifts {f}" and "zs ! Suc i \<in> pos_shifts {f}"
+    thus ?thesis by (rule assms(6))
+  next
+    from \<open>is_vpc zs\<close> have eq1: "snd (zs ! i) = fst (zs ! Suc i)" using assms(3) by (rule is_vpcD)
+    assume "zs ! i \<in> neg_shifts {f}"
+    then obtain s where eq2: "zs ! i = s +\<^sub>N poly_point f" unfolding neg_shifts_singleton ..
+    assume "zs ! Suc i \<in> pos_shifts {f}"
+    then obtain t where eq3: "zs ! Suc i = t +\<^sub>N prod.swap (poly_point f)" unfolding pos_shifts_singleton ..
+    from eq1 have "fst (zs ! i) = snd (zs ! Suc i)" by (simp add: eq2 eq3 nat_plus_point_pair_def)
+    thus ?thesis by (rule rl)
+  next
+    from \<open>is_vpc zs\<close> have eq1: "snd (zs ! i) = fst (zs ! Suc i)" using assms(3) by (rule is_vpcD)
+    assume "zs ! i \<in> pos_shifts {f}"
+    then obtain s where eq2: "zs ! i = s +\<^sub>N prod.swap (poly_point f)" unfolding pos_shifts_singleton ..
+    assume "zs ! Suc i \<in> neg_shifts {f}"
+    then obtain t where eq3: "zs ! Suc i = t +\<^sub>N poly_point f" unfolding neg_shifts_singleton ..
+    from eq1 have "fst (zs ! i) = snd (zs ! Suc i)" by (simp add: eq2 eq3 nat_plus_point_pair_def)
+    thus ?thesis by (rule rl)
+  next
+    assume "zs ! i \<in> neg_shifts {f}" and "zs ! Suc i \<in> neg_shifts {f}"
+    thus ?thesis by (rule assms(7))
+  qed
+qed
+
+corollary lem_3_3_19':
+  assumes "min_length_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)" and "i \<le> j" and "j < length zs"
+    and "\<And>k. i \<le> k \<Longrightarrow> k \<le> j \<Longrightarrow> zs ! k \<in> shifts {f}"
+  assumes "(\<And>k. i \<le> k \<Longrightarrow> k \<le> j \<Longrightarrow> zs ! k \<in> pos_shifts {f}) \<Longrightarrow> thesis"
+  assumes "(\<And>k. i \<le> k \<Longrightarrow> k \<le> j \<Longrightarrow> zs ! k \<in> neg_shifts {f}) \<Longrightarrow> thesis"
+  shows thesis
+proof -
+  from le_refl assms(3) have "zs ! i \<in> shifts {f}" by (rule assms(5))
+  thus ?thesis
+  proof (rule shiftsE_shift)
+    assume *: "zs ! i \<in> pos_shifts {f}"
+    show ?thesis
+    proof (rule assms(6))
+      fix k
+      assume "i \<le> k"
+      moreover define l where "l = k - i"
+      ultimately have k: "k = i + l" by simp
+      moreover assume "k \<le> j"
+      ultimately have "i + l \<le> j" by simp
+      thus "zs ! k \<in> pos_shifts {f}" unfolding k
+      proof (induct l)
+        case 0
+        from * show ?case by simp
+      next
+        case (Suc l)
+        from Suc.prems have "i + l \<le> j" and "Suc (i + l) \<le> j" by simp_all
+        from this(1) have **: "zs ! (i + l) \<in> pos_shifts {f}" by (rule Suc.hyps)
+        note assms(1, 2)
+        moreover from \<open>Suc (i + l) \<le> j\<close> assms(4) have "Suc (i + l) < length zs" by (rule le_less_trans)
+        moreover from _ \<open>i + l \<le> j\<close> have "zs ! (i + l) \<in> shifts {f}" by (rule assms(5)) simp
+        moreover from _ \<open>Suc (i + l) \<le> j\<close> have "zs ! Suc (i + l) \<in> shifts {f}" by (rule assms(5)) simp
+        ultimately show ?case
+        proof (rule lem_3_3_19)
+          assume "zs ! (i + l) \<in> neg_shifts {f}"
+          with ** have "pos_shifts {f} \<inter> neg_shifts {f} \<noteq> {}" by blast
+          hence "pos_shifts {f} = neg_shifts {f}" by (rule pos_shifts_eq_neg_shiftsI)
+          moreover assume "zs ! Suc (i + l) \<in> neg_shifts {f}"
+          ultimately show "zs ! (i + Suc l) \<in> pos_shifts {f}" by simp
+        qed simp
+      qed
+    qed
+  next
+    assume *: "zs ! i \<in> neg_shifts {f}"
+    show ?thesis
+    proof (rule assms(7))
+      fix k
+      assume "i \<le> k"
+      moreover define l where "l = k - i"
+      ultimately have k: "k = i + l" by simp
+      moreover assume "k \<le> j"
+      ultimately have "i + l \<le> j" by simp
+      thus "zs ! k \<in> neg_shifts {f}" unfolding k
+      proof (induct l)
+        case 0
+        from * show ?case by simp
+      next
+        case (Suc l)
+        from Suc.prems have "i + l \<le> j" and "Suc (i + l) \<le> j" by simp_all
+        from this(1) have **: "zs ! (i + l) \<in> neg_shifts {f}" by (rule Suc.hyps)
+        note assms(1, 2)
+        moreover from \<open>Suc (i + l) \<le> j\<close> assms(4) have "Suc (i + l) < length zs" by (rule le_less_trans)
+        moreover from _ \<open>i + l \<le> j\<close> have "zs ! (i + l) \<in> shifts {f}" by (rule assms(5)) simp
+        moreover from _ \<open>Suc (i + l) \<le> j\<close> have "zs ! Suc (i + l) \<in> shifts {f}" by (rule assms(5)) simp
+        ultimately show ?case
+        proof (rule lem_3_3_19)
+          assume "zs ! (i + l) \<in> pos_shifts {f}"
+          with ** have "pos_shifts {f} \<inter> neg_shifts {f} \<noteq> {}" by blast
+          hence "pos_shifts {f} = neg_shifts {f}" by (rule pos_shifts_eq_neg_shiftsI)
+          moreover assume "zs ! Suc (i + l) \<in> pos_shifts {f}"
+          ultimately show "zs ! (i + Suc l) \<in> neg_shifts {f}" by simp
+        qed simp
+      qed
+    qed
+  qed
+qed
+
+lemma vpc_pos_shifts_conv_vect:
+  assumes "is_vpc zs" and "i \<le> j" and "j < length zs"
+    and "\<And>k. i \<le> k \<Longrightarrow> k \<le> j \<Longrightarrow> zs ! k \<in> pos_shifts {f}"
+  shows "snd (zs ! j) + rat i \<cdot> vect f = fst (zs ! i) + rat (Suc j) \<cdot> vect f"
+proof -
+  define l where "l = j - i"
+  with assms(2) have j: "j = i + l" by simp
+  from assms(3, 4) show ?thesis unfolding j
+  proof (induct l)
+    case 0
+    from le_refl have "zs ! i \<in> pos_shifts {f}" by (rule 0) simp
+    then obtain t where "zs ! i = t +\<^sub>N prod.swap (poly_point f)" unfolding pos_shifts_singleton ..
+    thus ?case by (simp add: map_scale_distrib_right nat_plus_point_pair_def vect_def)
+  next
+    case (Suc l)
+    from Suc.prems(1) have "Suc (i + l) < length zs" by simp
+    have "2 \<cdot> vect f = (1 + 1) \<cdot> vect f" by simp
+    also have "\<dots> = vect f + vect f" by (simp only: map_scale_distrib_right map_scale_one_left)
+    finally have eq0: "2 \<cdot> vect f = vect f + vect f" .
+    have eq: "snd (zs ! (i + l)) + rat i \<cdot> vect f = fst (zs ! i) + rat (Suc (i + l)) \<cdot> vect f"
+    proof (rule Suc.hyps)
+      from Suc.prems(1) show "i + l < length zs" by simp
+    next
+      fix k
+      assume "i \<le> k"
+      assume "k \<le> i + l"
+      hence "k \<le> i + Suc l" by simp
+      with \<open>i \<le> k\<close> show "zs ! k \<in> pos_shifts {f}" by (rule Suc.prems)
+    qed
+    have "zs ! Suc (i + l) \<in> pos_shifts {f}" by (rule Suc.prems) simp_all
+    then obtain t where "zs ! Suc (i + l) = t +\<^sub>N prod.swap (poly_point f)" unfolding pos_shifts_singleton ..
+    hence "snd (zs ! Suc (i + l)) = fst (zs ! Suc (i + l)) + vect f"
+      by (simp add: nat_plus_point_pair_def vect_def)
+    also from assms(1) have "fst (zs ! Suc (i + l)) = snd (zs ! (i + l))"
+      by (rule is_vpcD(2)[symmetric]) fact
+    finally have "snd (zs ! Suc (i + l)) = snd (zs ! (i + l)) + vect f" .
+    hence "snd (zs ! (i + Suc l)) + rat i \<cdot> vect f =
+            (snd (zs ! (i + l)) + rat i \<cdot> vect f) + vect f" by simp
+    also have "\<dots> = fst (zs ! i) + rat (Suc (i + l)) \<cdot> vect f + vect f" by (simp only: eq)
+    finally show ?case by (simp add: map_scale_distrib_right eq0)
+  qed
+qed
+
+lemma vpc_neg_shifts_conv_vect:
+  assumes "is_vpc zs" and "i \<le> j" and "j < length zs"
+    and "\<And>k. i \<le> k \<Longrightarrow> k \<le> j \<Longrightarrow> zs ! k \<in> neg_shifts {f}"
+  shows "snd (zs ! j) + rat (Suc j) \<cdot> vect f = fst (zs ! i) + rat i \<cdot> vect f"
+proof -
+  define l where "l = j - i"
+  with assms(2) have j: "j = i + l" by simp
+  from assms(3, 4) show ?thesis unfolding j
+  proof (induct l)
+    case 0
+    from le_refl have "zs ! i \<in> neg_shifts {f}" by (rule 0) simp
+    then obtain t where "zs ! i = t +\<^sub>N poly_point f" unfolding neg_shifts_singleton ..
+    thus ?case by (simp add: map_scale_distrib_right nat_plus_point_pair_def vect_def)
+  next
+    case (Suc l)
+    from Suc.prems(1) have "Suc (i + l) < length zs" by simp
+    have "2 \<cdot> vect f = (1 + 1) \<cdot> vect f" by simp
+    also have "\<dots> = vect f + vect f" by (simp only: map_scale_distrib_right map_scale_one_left)
+    finally have eq0: "2 \<cdot> vect f = vect f + vect f" .
+    have eq: "snd (zs ! (i + l)) + rat (Suc (i + l)) \<cdot> vect f = fst (zs ! i) + rat i \<cdot> vect f"
+    proof (rule Suc.hyps)
+      from Suc.prems(1) show "i + l < length zs" by simp
+    next
+      fix k
+      assume "i \<le> k"
+      assume "k \<le> i + l"
+      hence "k \<le> i + Suc l" by simp
+      with \<open>i \<le> k\<close> show "zs ! k \<in> neg_shifts {f}" by (rule Suc.prems)
+    qed
+    have "zs ! Suc (i + l) \<in> neg_shifts {f}" by (rule Suc.prems) simp_all
+    then obtain t where "zs ! Suc (i + l) = t +\<^sub>N poly_point f" unfolding neg_shifts_singleton ..
+    hence "snd (zs ! Suc (i + l)) + vect f = fst (zs ! Suc (i + l))"
+      by (simp add: nat_plus_point_pair_def vect_def)
+    also from assms(1) have "fst (zs ! Suc (i + l)) = snd (zs ! (i + l))"
+      by (rule is_vpcD(2)[symmetric]) fact
+    finally have "snd (zs ! Suc (i + l)) + vect f = snd (zs ! (i + l))" .
+    hence "snd (zs ! (i + Suc l)) + rat (Suc (i + l)) \<cdot> vect f + vect f =
+            snd (zs ! (i + l)) + rat (Suc (i + l)) \<cdot> vect f" by simp
+    also have "\<dots> = fst (zs ! i) + rat i \<cdot> vect f" by (simp only: eq)
+    finally show ?case by (simp add: map_scale_distrib_right eq0 ac_simps)
+  qed
+qed
+
+text \<open>A VPC of minimal length, which starts and ends in the overlap region, lies in that region
+  entirely:\<close>
+
+lemma thm_3_3_20:
+  assumes "min_length_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)" and "overlap \<unlhd> fst (hd zs)"
+    and "overlap \<unlhd> snd (last zs)" and "p \<in> set_of_vpc zs"
+  shows "overlap \<unlhd> p"
+proof -
+  from assms(1) have "is_vpc zs" by (rule min_length_vpcD)
+  hence "zs \<noteq> []" and "set_of_vpc zs = insert (snd (last zs)) (fst ` set zs)"
+    by (rule is_vpcD, rule set_of_vpc_alt_2)
+  from this(2) assms(5) have "p = snd (last zs) \<or> p \<in> fst ` set zs" by simp
+  thus ?thesis
+  proof
+    assume "p = snd (last zs)"
+    with assms(4) show ?thesis by simp
+  next
+    assume "p \<in> fst ` set zs"
+    then obtain z where "z \<in> set zs" and p: "p = fst z" ..
+    from this(1) obtain i where "i < length zs" and z: "z = zs ! i" by (metis in_set_conv_nth)
+    from this(1) show ?thesis unfolding p z
+    proof (induct i)
+      case 0
+      from assms(3) \<open>zs \<noteq> []\<close> show ?case by (simp add: hd_conv_nth)
+    next
+      case (Suc i)
+      from Suc.prems have "i < length zs" by simp
+      hence overlap_i: "overlap \<unlhd> fst (zs ! i)" by (rule Suc.hyps)
+      from \<open>i < length zs\<close> have "zs ! i \<in> set zs" by simp
+      also from \<open>is_vpc zs\<close> have "\<dots> \<subseteq> shifts {f1, f2}" by (rule is_vpcD)
+      finally obtain f where "f \<in> {f1, f2}" and "zs ! i \<in> shifts {f}" by (rule shiftsE_poly)
+      obtain j where "i \<le> j" and "j < length zs" and "\<And>k. i \<le> k \<Longrightarrow> k \<le> j \<Longrightarrow> zs ! k \<in> shifts {f}"
+        and "overlap \<unlhd> snd (zs ! j)"
+      proof -
+        let ?B = "{j\<in>{i..<length zs}. zs ! j \<notin> shifts {f}}"
+        show ?thesis
+        proof (cases "?B = {}")
+          case True
+          show ?thesis
+          proof
+            from \<open>i < length zs\<close> show "i \<le> length zs - 1" and "length zs - 1 < length zs" by simp_all
+          next
+            fix k
+            assume "i \<le> k" and "k \<le> length zs - 1"
+            with True \<open>i < length zs\<close> show "zs ! k \<in> shifts {f}" by simp
+          next
+            from \<open>zs \<noteq> []\<close> assms(4) show "overlap \<unlhd> snd (zs ! (length zs - 1))"
+              by (simp del: One_nat_def flip: last_conv_nth)
+          qed
+        next
+          case False
+          define j where "j = Min ?B"
+          have "finite ?B" by simp
+          hence "j \<in> ?B" using False unfolding j_def by (rule Min_in)
+          hence "i \<le> j" and "j < length zs" and "zs ! j \<notin> shifts {f}" by simp_all
+          from \<open>zs ! i \<in> shifts {f}\<close> this(3) have "i \<noteq> j" by blast
+          with \<open>i \<le> j\<close> have "i < j" by simp
+          hence "i \<le> j - 1" by simp
+          have 1: "zs ! k \<in> shifts {f}" if "i \<le> k" and "k \<le> j - 1" for k
+          proof (rule ccontr)
+            from that(2) \<open>i < j\<close> have "k < j" by simp
+            assume "zs ! k \<notin> shifts {f}"
+            moreover from \<open>k < j\<close> \<open>j < length zs\<close> have "k < length zs" by (rule less_trans)
+            ultimately have "k \<in> ?B" using that(1) by simp
+            with \<open>finite ?B\<close> have "j \<le> k" unfolding j_def by (rule Min_le)
+            with \<open>k < j\<close> show False by simp
+          qed
+          show ?thesis
+          proof
+            from \<open>i < j\<close> show "i \<le> j - 1" by simp
+          next
+            from \<open>j < length zs\<close> show "j - 1 < length zs" by simp
+          next
+            fix k
+            assume "i \<le> k" and "k \<le> j - 1"
+            thus "zs ! k \<in> shifts {f}" by (rule 1)
+          next
+            from \<open>j < length zs\<close> have "zs ! j \<in> set zs" by simp
+            also from \<open>is_vpc zs\<close> have "\<dots> \<subseteq> shifts {f1, f2}" by (rule is_vpcD)
+            finally obtain f' where "f' \<in> {f1, f2}" and *: "zs ! j \<in> shifts {f'}" by (rule shiftsE_poly)
+            from this(2) \<open>zs ! j \<notin> shifts {f}\<close> have "f \<noteq> f'" by blast
+            with \<open>f \<in> {f1, f2}\<close> \<open>f' \<in> {f1, f2}\<close> have "{f, f'} = {f1, f2}" by blast
+            note \<open>is_vpc zs\<close>
+            moreover from \<open>i < j\<close> \<open>j < length zs\<close> have "Suc (j - 1) < length zs" by simp
+            moreover from \<open>i \<le> j - 1\<close> le_refl have "zs ! (j - 1) \<in> shifts {f}" by (rule 1)
+            moreover from \<open>i < j\<close> * have "zs ! Suc (j - 1) \<in> shifts {f'}" by simp
+            ultimately show "overlap \<unlhd> snd (zs ! (j - 1))"
+              using \<open>{f, f'} = {f1, f2}\<close> by (rule thm_3_3_18)
+          qed
+        qed
+      qed
+      from assms(1, 2) this(1, 2, 3) obtain v where "fst (zs ! i) + 1 \<cdot> v = snd (zs ! i)"
+        and eq: "fst (zs ! i) + (rat (Suc j) - rat i) \<cdot> v = snd (zs ! j)"
+      proof (rule lem_3_3_19')
+        assume s: "\<And>k. i \<le> k \<Longrightarrow> k \<le> j \<Longrightarrow> zs ! k \<in> neg_shifts {f}"
+        have "snd (zs ! i) + rat (Suc i) \<cdot> vect f = fst (zs ! i) + rat i \<cdot> vect f"
+          using \<open>is_vpc zs\<close> le_refl \<open>i < length zs\<close>
+        proof (rule vpc_neg_shifts_conv_vect)
+          fix k
+          assume "i \<le> k"
+          assume "k \<le> i"
+          hence "k \<le> j" using \<open>i \<le> j\<close> by (rule le_trans)
+          with \<open>i \<le> k\<close> show "zs ! k \<in> neg_shifts {f}" by (rule s)
+        qed
+        hence 1: "fst (zs ! i) + 1 \<cdot> (- vect f) = snd (zs ! i)" by (simp add: algebra_simps)
+        have "snd (zs ! j) + rat (Suc j) \<cdot> vect f = fst (zs ! i) + rat i \<cdot> vect f"
+          using \<open>is_vpc zs\<close> \<open>i \<le> j\<close> \<open>j < length zs\<close> s by (rule vpc_neg_shifts_conv_vect)
+        hence "fst (zs ! i) + (rat (Suc j) - rat i) \<cdot> (- vect f) = snd (zs ! j)"
+          by (simp add: algebra_simps map_scale_uminus_right)
+        with 1 show ?thesis ..
+      next
+        assume s: "\<And>k. i \<le> k \<Longrightarrow> k \<le> j \<Longrightarrow> zs ! k \<in> pos_shifts {f}"
+        have "snd (zs ! i) + rat i \<cdot> vect f = fst (zs ! i) + rat (Suc i) \<cdot> vect f"
+          using \<open>is_vpc zs\<close> le_refl \<open>i < length zs\<close>
+        proof (rule vpc_pos_shifts_conv_vect)
+          fix k
+          assume "i \<le> k"
+          assume "k \<le> i"
+          hence "k \<le> j" using \<open>i \<le> j\<close> by (rule le_trans)
+          with \<open>i \<le> k\<close> show "zs ! k \<in> pos_shifts {f}" by (rule s)
+        qed
+        hence 1: "fst (zs ! i) + 1 \<cdot> vect f = snd (zs ! i)" by (simp add: algebra_simps)
+        have "snd (zs ! j) + rat i \<cdot> vect f = fst (zs ! i) + rat (Suc j) \<cdot> vect f"
+          using \<open>is_vpc zs\<close> \<open>i \<le> j\<close> \<open>j < length zs\<close> s by (rule vpc_pos_shifts_conv_vect)
+        hence "fst (zs ! i) + (rat (Suc j) - rat i) \<cdot> vect f = snd (zs ! j)"
+          by (simp add: algebra_simps)
+        with 1 show ?thesis ..
+      qed
+      from overlap_i have "overlap \<unlhd> fst (zs ! i) + 0 \<cdot> v" by simp
+      moreover have "overlap \<unlhd> fst (zs ! i) + (rat (Suc j) - rat i) \<cdot> v" unfolding eq by fact
+      moreover note _
+      moreover from \<open>i \<le> j\<close> have "1 \<le> rat (Suc j) - rat i" by simp
+      ultimately have "overlap \<unlhd> fst (zs ! i) + 1 \<cdot> v" by (rule map_scale_le_interval) simp
+      also have "\<dots> = snd (zs ! i)" by fact
+      also from \<open>is_vpc zs\<close> Suc.prems have "\<dots> = fst (zs ! Suc i)" by (rule is_vpcD)
+      finally show ?case .
+    qed
+  qed
 qed
 
 end

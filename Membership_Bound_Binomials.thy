@@ -771,16 +771,6 @@ definition overlapshift' :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub
 definition overlapshift :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat)" where
   "overlapshift = to_nat_pm o overlapshift_p o of_nat_pm"
 
-lemma overlap_leI:
-  "gcs (lp f1) (tp f1) adds g \<Longrightarrow> gcs (lp f2) (tp f2) adds g \<Longrightarrow> overlap \<unlhd> of_nat_pm g"
-  unfolding overlap_alt' le_of_nat_pm adds_pm[symmetric] by (rule lcs_adds)
-
-lemma overlap_leD:
-  assumes "overlap \<unlhd> of_nat_pm g"
-  shows "gcs (lp f1) (tp f1) adds g" and "gcs (lp f2) (tp f2) adds g"
-  using assms by (auto simp: overlap_alt' le_of_nat_pm adds_pm[symmetric]
-                       intro: adds_trans[OF adds_lcs] adds_trans[OF adds_lcs_2])
-
 lemma finite_step_p'_carrier: "finite {x::'x. 0 < lookup (vect f) x \<and> lookup p x < lookup overlap x}"
 proof (rule finite_subset)
   show "{x. 0 < lookup (vect f) x \<and> lookup p x < lookup overlap x} \<subseteq> keys (vect f)"
