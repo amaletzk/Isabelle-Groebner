@@ -181,6 +181,18 @@ proof
   qed
 qed
 
+lemma int_pm_is_nat_pmI:
+  assumes "is_int_pm f" and "is_nat_pm g" and "g \<unlhd> (f::_ \<Rightarrow>\<^sub>0 _::preorder)"
+  shows "is_nat_pm f"
+  using assms(1)
+proof (rule int_pm_is_nat_pm)
+  fix x
+  from assms(2) have "is_nat (lookup g x)" by (rule is_nat_pmD)
+  hence "0 \<le> lookup g x" by (rule is_nat_geq_zero)
+  also from assms(3) have "\<dots> \<le> lookup f x" by (rule le_pmD)
+  finally show "0 \<le> lookup f x" .
+qed
+
 lemma of_nat_pm_is_nat_pm: "is_nat_pm (of_nat_pm f)"
   by (simp add: is_nat_pm_def is_nat_fun_def lookup_of_nat_pm of_nat_is_nat)
 

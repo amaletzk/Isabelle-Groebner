@@ -130,6 +130,18 @@ proof
   ultimately show "is_nat (f x)" by (rule int_is_nat)
 qed
 
+lemma int_fun_is_nat_funI:
+  assumes "is_int_fun f" and "is_nat_fun g" and "g \<le> (f::_ \<Rightarrow> _::preorder)"
+  shows "is_nat_fun f"
+  using assms(1)
+proof (rule int_fun_is_nat_fun)
+  fix x
+  from assms(2) have "is_nat (g x)" by (simp only: is_nat_fun_def)
+  hence "0 \<le> g x" by (rule is_nat_geq_zero)
+  also from assms(3) have "\<dots> \<le> f x" by (rule le_funD)
+  finally show "0 \<le> (f x)" .
+qed
+
 lemma of_nat_is_nat: "is_nat (of_nat n)"
   unfolding is_nat_def to_nat_def by simp
     
