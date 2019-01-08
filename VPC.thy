@@ -567,6 +567,11 @@ definition is_vpc :: "('x point \<times> 'x point) list \<Rightarrow> bool"
 lemma finite_set_of_vpc: "finite (set_of_vpc zs)"
   by (simp add: set_of_vpc_def)
 
+lemma set_of_vpcE:
+  assumes "p \<in> set_of_vpc zs"
+  obtains z where "z \<in> set zs" and "p = fst z \<or> p = snd z"
+  using assms by (auto simp: set_of_vpc_def)
+
 lemma set_of_vpc_Nil [simp]: "set_of_vpc [] = {}"
   by (simp add: set_of_vpc_def)
 
@@ -586,6 +591,53 @@ lemma is_vpcD:
   shows "zs \<noteq> []" and "Suc i < length zs \<Longrightarrow> snd (zs ! i) = fst (zs ! Suc i)"
     and "set zs \<subseteq> shifts {f1, f2}"
   using assms by (simp_all add: is_vpc_def)
+
+lemma set_of_vpcE_vpc:
+  assumes "is_vpc zs" and "p \<in> set_of_vpc zs"
+  assumes "p = fst (hd zs) \<Longrightarrow> thesis"
+  assumes "p = snd (last zs) \<Longrightarrow> thesis"
+  assumes "\<And>i. i < length zs \<Longrightarrow> Suc i < length zs \<Longrightarrow> p = snd (zs ! i) \<Longrightarrow> p = fst (zs ! Suc i) \<Longrightarrow> thesis"
+  shows thesis
+proof -
+  from assms(1) have "zs \<noteq> []" by (rule is_vpcD)
+  from assms(2) obtain z where "z \<in> set zs" and disj: "p = fst z \<or> p = snd z" by (rule set_of_vpcE)
+  from this(1) obtain i where "i < length zs" and z: "z = zs ! i" by (metis in_set_conv_nth)
+  from disj show ?thesis
+  proof
+    assume p: "p = fst z"
+    show ?thesis
+    proof (cases i)
+      case 0
+      show ?thesis by (rule assms(3)) (simp add: p z 0 hd_conv_nth \<open>zs \<noteq> []\<close>)
+    next
+      case (Suc j)
+      with \<open>i < length zs\<close> have "j < length zs" and *: "Suc j < length zs" by simp_all
+      thus ?thesis
+      proof (rule assms(5))
+        show "p = fst (zs ! Suc j)" by (simp only: p z Suc)
+        also from assms(1) * have "\<dots> = snd (zs ! j)" by (rule is_vpcD(2)[symmetric])
+        finally show "p = snd (zs ! j)" .
+      qed
+    qed
+  next
+    assume p: "p = snd z"
+    show ?thesis
+    proof (cases "Suc i = length zs")
+      case True
+      hence i: "i = length zs - 1" by simp
+      show ?thesis by (rule assms(4)) (simp add: p z i last_conv_nth \<open>zs \<noteq> []\<close>)
+    next
+      case False
+      with \<open>i < length zs\<close> have *: "Suc i < length zs" by simp
+      with \<open>i < length zs\<close> show ?thesis
+      proof (rule assms(5))
+        show "p = snd (zs ! i)" by (simp only: p z)
+        also from assms(1) * have "\<dots> = fst (zs ! Suc i)" by (rule is_vpcD)
+        finally show "p = fst (zs ! Suc i)" .
+      qed
+    qed
+  qed
+qed
 
 lemma vpc_is_nat_pm_pair:
   assumes "is_vpc zs" and "z \<in> set zs"
@@ -928,6 +980,149 @@ next
   qed
 qed
 
+lemma vpc_trans_fst:
+  assumes "transp rel" and "is_vpc zs" and "\<And>z. z \<in> set zs \<Longrightarrow> rel (fst z) (snd z)"
+    and "i < j" and "j < length zs"
+  shows "rel (fst (zs ! i)) (fst (zs ! j))"
+proof -
+  from assms(4) have "0 < j - i" by simp
+  then obtain k where "j - i = Suc k" using Suc_pred' by blast
+  hence j: "j = i + Suc k" by simp
+  from assms(5) show ?thesis unfolding j
+  proof (induct k)
+    case 0
+    hence "Suc i < length zs" by simp
+    hence "zs ! i \<in> set zs" by simp
+    hence "rel (fst (zs ! i)) (snd (zs ! i))" by (rule assms(3))
+    also from assms(2) \<open>Suc i < length zs\<close> have "\<dots> = fst (zs ! Suc i)" by (rule is_vpcD)
+    finally show ?case by simp
+  next
+    case (Suc k)
+    from Suc.prems have *: "Suc (Suc (i + k)) < length zs" by simp
+    hence "Suc (i + k) < length zs" by simp
+    hence "i + Suc k < length zs" by simp
+    hence "rel (fst (zs ! i)) (fst (zs ! (i + Suc k)))" by (rule Suc.hyps)
+    also have "\<dots> = fst (zs ! (Suc (i + k)))" by simp
+    also from nth_mem have "rel \<dots> (snd (zs ! (Suc (i + k))))" by (rule assms(3)) fact
+    also(assms(1)[THEN transpD]) from assms(2) * have "\<dots> = fst (zs ! (Suc (Suc (i + k))))"
+      by (rule is_vpcD)
+    finally show ?case by simp
+  qed
+qed
+
+corollary vpc_trans_snd:
+  assumes "transp rel" and "is_vpc zs" and "\<And>z. z \<in> set zs \<Longrightarrow> rel (fst z) (snd z)"
+    and "i < j" and "j < length zs"
+  shows "rel (snd (zs ! i)) (snd (zs ! j))"
+proof -
+  from assms(5) have "zs ! j \<in> set zs" by simp
+  hence *: "rel (fst (zs ! j)) (snd (zs ! j))" by (rule assms(3))
+  from assms(4) have "Suc i \<le> j" by simp
+  hence "Suc i < length zs" using assms(5) by (rule le_less_trans)
+  with assms(2) have eq: "snd (zs ! i) = fst (zs ! Suc i)" by (rule is_vpcD)
+  show ?thesis
+  proof (cases "Suc i = j")
+    case True
+    with * show ?thesis by (simp only: eq)
+  next
+    case False
+    with \<open>Suc i \<le> j\<close> have "Suc i < j" by simp
+    with assms(1-3) have "rel (fst (zs ! Suc i)) (fst (zs ! j))" using assms(5) by (rule vpc_trans_fst)
+    with assms(1) show ?thesis using * unfolding eq by (rule transpD)
+  qed
+qed
+
+corollary vpc_trans_fst_snd:
+  assumes "transp rel" and "is_vpc zs" and "\<And>z. z \<in> set zs \<Longrightarrow> rel (fst z) (snd z)"
+    and "i \<le> j" and "j < length zs"
+  shows "rel (fst (zs ! i)) (snd (zs ! j))"
+proof -
+  from assms(4, 5) have "i < length zs" by (rule le_less_trans)
+  hence "zs ! i \<in> set zs" by simp
+  hence *: "rel (fst (zs ! i)) (snd (zs ! i))" by (rule assms(3))
+  show ?thesis
+  proof (cases "i = j")
+    case True
+    with * show ?thesis by simp
+  next
+    case False
+    with assms(4) have "i < j" by simp
+    with assms(1-3) have "rel (snd (zs ! i)) (snd (zs ! j))" using assms(5) by (rule vpc_trans_snd)
+    with assms(1) * show ?thesis by (rule transpD)
+  qed
+qed
+
+corollary vpc_trans_hd:
+  assumes "transp rel" and "reflp rel" and "is_vpc zs" and "\<And>z. z \<in> set zs \<Longrightarrow> rel (fst z) (snd z)"
+    and "p \<in> set_of_vpc zs"
+  shows "rel (fst (hd zs)) p"
+proof -
+  from assms(5) obtain z where "z \<in> set zs" and disj: "p = fst z \<or> p = snd z" by (rule set_of_vpcE)
+  from this(1) obtain j where "j < length zs" and z: "z = zs ! j" by (metis in_set_conv_nth)
+  from assms(3) have "zs \<noteq> []" by (rule is_vpcD)
+  hence hd: "hd zs = zs ! 0" by (rule hd_conv_nth)
+  from disj show ?thesis unfolding hd
+  proof
+    assume p: "p = fst z"
+    show "rel (fst (zs ! 0)) p" unfolding p z
+    proof (cases "j = 0")
+      case True
+      from assms(2) show "rel (fst (zs ! 0)) (fst (zs ! j))" unfolding True by (rule reflpD)
+    next
+      case False
+      hence "0 < j" by simp
+      with assms(1, 3, 4) show "rel (fst (zs ! 0)) (fst (zs ! j))"
+        using \<open>j < length zs\<close> by (rule vpc_trans_fst)
+    qed
+  next
+    assume p: "p = snd z"
+    from assms(1, 3, 4) le0 \<open>j < length zs\<close> show "rel (fst (zs ! 0)) p"
+      unfolding p z by (rule vpc_trans_fst_snd)
+  qed
+qed
+
+corollary vpc_trans_last:
+  assumes "transp rel" and "reflp rel" and "is_vpc zs" and "\<And>z. z \<in> set zs \<Longrightarrow> rel (fst z) (snd z)"
+    and "p \<in> set_of_vpc zs"
+  shows "rel p (snd (last zs))"
+proof -
+  from assms(5) obtain z where "z \<in> set zs" and disj: "p = fst z \<or> p = snd z" by (rule set_of_vpcE)
+  from this(1) obtain i where "i < length zs" and z: "z = zs ! i" by (metis in_set_conv_nth)
+  from assms(3) have "zs \<noteq> []" by (rule is_vpcD)
+  hence *: "length zs - 1 < length zs" and last: "last zs = zs ! (length zs - 1)"
+    by (simp_all add: last_conv_nth)
+  from disj show ?thesis unfolding last
+  proof
+    assume p: "p = snd z"
+    show "rel p (snd (zs ! (length zs - 1)))" unfolding p z
+    proof (cases "i = length zs - 1")
+      case True
+      from assms(2) show "rel (snd (zs ! i)) (snd (zs ! (length zs - 1)))"
+        unfolding True by (rule reflpD)
+    next
+      case False
+      with \<open>i < length zs\<close> have "i < length zs - 1" by simp
+      with assms(1, 3, 4) show "rel (snd (zs ! i)) (snd (zs ! (length zs - 1)))"
+        using * by (rule vpc_trans_snd)
+    qed
+  next
+    assume p: "p = fst z"
+    from \<open>i < length zs\<close> have "i \<le> length zs - 1" by simp
+    with assms(1, 3, 4) show "rel p (snd (zs ! (length zs - 1)))" using *
+      unfolding p z by (rule vpc_trans_fst_snd)
+  qed
+qed
+
+corollary vpc_trans_hd_last:
+  assumes "transp rel" and "is_vpc zs" and "\<And>z. z \<in> set zs \<Longrightarrow> rel (fst z) (snd z)"
+  shows "rel (fst (hd zs)) (snd (last zs))"
+proof -
+  from assms(2) have "zs \<noteq> []" by (rule is_vpcD)
+  hence "length zs - 1 < length zs" by simp
+  with assms le0 have "rel (fst (zs ! 0)) (snd (zs ! (length zs - 1)))" by (rule vpc_trans_fst_snd)
+  with \<open>zs \<noteq> []\<close> show ?thesis by (simp add: hd_conv_nth last_conv_nth)
+qed
+
 subsection \<open>Correspondence Between VPCs and Ideal Elements\<close>
 
 context
@@ -1204,23 +1399,20 @@ proof -
 qed
 
 lemma deg_vpc_leI:
-  assumes "\<And>p. p \<in> set_of_vpc zs \<Longrightarrow> deg_pm p \<le> rat d"
-  shows "deg_vpc zs \<le> rat d"
-proof (cases "zs = []")
-  case True
-  thus ?thesis by (simp add: deg_vpc_def)
-next
-  case False
+  assumes "is_vpc zs" and "\<And>p. p \<in> set_of_vpc zs \<Longrightarrow> deg_pm p \<le> d"
+  shows "deg_vpc zs \<le> d"
+proof-
+  from assms(1) have "zs \<noteq> []" by (rule is_vpcD)
   from finite_set_of_vpc have "finite (deg_pm ` set_of_vpc zs)" by (rule finite_imageI)
-  moreover from False have "deg_pm ` set_of_vpc zs \<noteq> {}" by (simp add: set_of_vpc_empty_iff)
-  ultimately have "Max (deg_pm ` set_of_vpc zs) \<le> rat d"
+  moreover from \<open>zs \<noteq> []\<close> have "deg_pm ` set_of_vpc zs \<noteq> {}" by (simp add: set_of_vpc_empty_iff)
+  ultimately have "Max (deg_pm ` set_of_vpc zs) \<le> d"
   proof (rule Max.boundedI)
     fix a
     assume "a \<in> deg_pm ` set_of_vpc zs"
     then obtain p where "p \<in> set_of_vpc zs" and a: "a = deg_pm p" ..
-    from this(1) show "a \<le> rat d" unfolding a by (rule assms)
+    from this(1) show "a \<le> d" unfolding a by (rule assms)
   qed
-  with False show ?thesis by (simp add: deg_vpc_def)
+  with \<open>zs \<noteq> []\<close> show ?thesis by (simp add: deg_vpc_def)
 qed
 
 lemma deg_vpc_Cons: "zs \<noteq> [] \<Longrightarrow> deg_vpc (z # zs) = max (deg_vpc [z]) (deg_vpc zs)"
