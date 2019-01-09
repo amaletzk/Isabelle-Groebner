@@ -104,6 +104,18 @@ lemma lcs_ge_pm:
 lemma lcs_le_pm: "s \<unlhd> u \<Longrightarrow> t \<unlhd> u \<Longrightarrow> lcs s t \<unlhd> u"
   by (simp add: lcs_leq_fun le_pm_def lookup_lcs_fun)
 
+lemma gcs_add_distrib_left: "gcs s t + u = gcs (s + u) (t + (u::_ \<Rightarrow>\<^sub>0 _::ordered_ab_semigroup_add_imp_le))"
+  by (rule poly_mapping_eqI) (simp only: lookup_gcs_fun lookup_add gcs_fun min_add_distrib_left)
+
+lemma gcs_add_distrib_right: "u + gcs s t = gcs (u + s) (u + (t::_ \<Rightarrow>\<^sub>0 _::ordered_ab_semigroup_add_imp_le))"
+  by (rule poly_mapping_eqI) (simp only: lookup_gcs_fun lookup_add gcs_fun min_add_distrib_right)
+
+lemma lcs_add_distrib_left: "lcs s t + u = lcs (s + u) (t + (u::_ \<Rightarrow>\<^sub>0 _::ordered_ab_semigroup_add_imp_le))"
+  by (rule poly_mapping_eqI) (simp only: lookup_lcs_fun lookup_add lcs_fun_def max_add_distrib_left)
+
+lemma lcs_add_distrib_right: "u + lcs s t = lcs (u + s) (u + (t::_ \<Rightarrow>\<^sub>0 _::ordered_ab_semigroup_add_imp_le))"
+  by (rule poly_mapping_eqI) (simp only: lookup_lcs_fun lookup_add lcs_fun_def max_add_distrib_right)
+
 lemma deg_pm_mono_le: "s \<unlhd> t \<Longrightarrow> deg_pm s \<le> deg_pm (t::'a \<Rightarrow>\<^sub>0 'b::add_linorder)"
   unfolding le_pm_def by (transfer) (auto intro!: deg_fun_leq simp: supp_fun_def)
 
