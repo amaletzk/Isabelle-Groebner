@@ -2975,6 +2975,1105 @@ proof -
   finally show ?thesis .
 qed
 
+subsection \<open>Degree Bounds on VPCs\<close>
+
+lemma deg_vpc_eq_hdI:
+  assumes "is_vpc zs" and "\<And>z. z \<in> set zs \<Longrightarrow> deg_pm (snd z) \<le> deg_pm (fst z)"
+  shows "deg_vpc zs = deg_pm (fst (hd zs))"
+proof (rule antisym)
+  from assms(1) show "deg_vpc zs \<le> deg_pm (fst (hd zs))"
+  proof (rule deg_vpc_leI)
+    fix p
+    have "transp (\<lambda>x y. deg_pm y \<le> (deg_pm x :: rat))" by (rule transpI) (drule order.trans)
+    moreover from order.refl have "reflp (\<lambda>x y. deg_pm y \<le> (deg_pm x :: rat))" by (rule reflpI)
+    moreover note assms
+    moreover assume "p \<in> set_of_vpc zs"
+    ultimately show "deg_pm p \<le> deg_pm (fst (hd zs))" by (rule vpc_trans_hd)
+  qed
+next
+  from assms(1) have "zs \<noteq> []" by (rule is_vpcD)
+  hence "fst (hd zs) \<in> set_of_vpc zs" by (simp add: set_of_vpc_def)
+  thus "deg_pm (fst (hd zs)) \<le> deg_vpc zs" by (rule deg_vpc_max)
+qed
+
+lemma deg_vpc_eq_lastI:
+  assumes "is_vpc zs" and "\<And>z. z \<in> set zs \<Longrightarrow> deg_pm (fst z) \<le> deg_pm (snd z)"
+  shows "deg_vpc zs = deg_pm (snd (last zs))"
+proof (rule antisym)
+  from assms(1) show "deg_vpc zs \<le> deg_pm (snd (last zs))"
+  proof (rule deg_vpc_leI)
+    fix p
+    have "transp (\<lambda>x y. deg_pm x \<le> (deg_pm y :: rat))" by (rule transpI) (drule order.trans)
+    moreover from order.refl have "reflp (\<lambda>x y. deg_pm x \<le> (deg_pm y :: rat))" by (rule reflpI)
+    moreover note assms
+    moreover assume "p \<in> set_of_vpc zs"
+    ultimately show "deg_pm p \<le> deg_pm (snd (last zs))" by (rule vpc_trans_last)
+  qed
+next
+  from assms(1) have "zs \<noteq> []" by (rule is_vpcD)
+  hence "snd (last zs) \<in> set_of_vpc zs" by (simp add: set_of_vpc_def)
+  thus "deg_pm (snd (last zs)) \<le> deg_vpc zs" by (rule deg_vpc_max)
+qed
+
+lemma vpc_deg_cases:
+  assumes "min_length_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)" and "overlap \<unlhd> fst (hd zs)"
+    and "overlap \<unlhd> snd (last zs)"
+  assumes "(\<And>z. z \<in> set zs \<Longrightarrow> deg_pm (fst z) \<le> deg_pm (snd z)) \<Longrightarrow> thesis"
+  assumes "(\<And>z. z \<in> set zs \<Longrightarrow> deg_pm (snd z) \<le> deg_pm (fst z)) \<Longrightarrow> thesis"
+  assumes "\<And>f f'. {f1, f2} = {f, f'} \<Longrightarrow> f \<noteq> f' \<Longrightarrow>
+            (\<And>z. z \<in> set zs \<Longrightarrow> deg_pm (fst z) < deg_pm (snd z) \<longleftrightarrow> z \<in> Nshifts {f}) \<Longrightarrow>
+            (\<And>z. z \<in> set zs \<Longrightarrow> deg_pm (snd z) < deg_pm (fst z) \<longleftrightarrow> z \<in> Nshifts {f'}) \<Longrightarrow>
+            (\<And>z. z \<in> set zs \<Longrightarrow> deg_pm (fst z) \<noteq> deg_pm (snd z)) \<Longrightarrow> thesis"
+  shows thesis
+proof (cases "\<forall>z\<in>set zs. deg_pm (fst z) \<le> deg_pm (snd z)")
+  case True
+  hence "\<And>z. z \<in> set zs \<Longrightarrow> deg_pm (fst z) \<le> deg_pm (snd z)" by simp
+  thus ?thesis by (rule assms(5))
+next
+  case *: False
+  show ?thesis
+  proof (cases "\<forall>z\<in>set zs. deg_pm (snd z) \<le> deg_pm (fst z)")
+    case True
+    hence "\<And>z. z \<in> set zs \<Longrightarrow> deg_pm (snd z) \<le> deg_pm (fst z)" by simp
+    thus ?thesis by (rule assms(6))
+  next
+    case False
+    then obtain z1 where "z1 \<in> set zs" and deg_z1: "deg_pm (fst z1) < deg_pm (snd z1)" by auto
+    from * obtain z2 where "z2 \<in> set zs" and deg_z2: "deg_pm (snd z2) < deg_pm (fst z2)" by auto
+
+    from assms(1) have "is_vpc zs" by (rule min_length_vpcD)
+    hence sub: "set zs \<subseteq> Nshifts {f1, f2}" by (rule is_vpcD)
+    from \<open>z1 \<in> set zs\<close> sub have "z1 \<in> Nshifts {f1, f2}" ..
+    then obtain f where "f \<in> {f1, f2}" and "z1 \<in> Nshifts {f}" by (rule NshiftsE_poly)
+    from assms(1-4) this(1) have 1: "deg_pm (fst z) < deg_pm (snd z)"
+      if "z \<in> set zs" and "z \<in> Nshifts {f}" for z
+    proof (rule thm_3_3_22)
+      assume sub2: "set zs \<inter> Nshifts {f} \<subseteq> pos_Nshifts {f}"
+      from \<open>z1 \<in> set zs\<close> \<open>z1 \<in> Nshifts {f}\<close> have "z1 \<in> set zs \<inter> Nshifts {f}" ..
+      hence z1: "z1 \<in> pos_Nshifts {f}" using sub2 ..
+      from that have "z \<in> set zs \<inter> Nshifts {f}" ..
+      hence "z \<in> pos_Nshifts {f}" using sub2 ..
+      with deg_z1 z1 show ?thesis
+        by (auto simp: pos_Nshifts_singleton nat_plus_point_pair_def deg_pm_plus)
+    next
+      assume sub2: "set zs \<inter> Nshifts {f} \<subseteq> neg_Nshifts {f}"
+      from \<open>z1 \<in> set zs\<close> \<open>z1 \<in> Nshifts {f}\<close> have "z1 \<in> set zs \<inter> Nshifts {f}" ..
+      hence z1: "z1 \<in> neg_Nshifts {f}" using sub2 ..
+      from that have "z \<in> set zs \<inter> Nshifts {f}" ..
+      hence "z \<in> neg_Nshifts {f}" using sub2 ..
+      with deg_z1 z1 show ?thesis
+        by (auto simp: neg_Nshifts_singleton nat_plus_point_pair_def deg_pm_plus)
+    qed
+
+    from \<open>z2 \<in> set zs\<close> sub have "z2 \<in> Nshifts {f1, f2}" ..
+    then obtain f' where "f' \<in> {f1, f2}" and "z2 \<in> Nshifts {f'}" by (rule NshiftsE_poly)
+    from assms(1-4) this(1) have 2: "deg_pm (snd z) < deg_pm (fst z)"
+      if "z \<in> set zs" and "z \<in> Nshifts {f'}" for z
+    proof (rule thm_3_3_22)
+      assume sub2: "set zs \<inter> Nshifts {f'} \<subseteq> pos_Nshifts {f'}"
+      from \<open>z2 \<in> set zs\<close> \<open>z2 \<in> Nshifts {f'}\<close> have "z2 \<in> set zs \<inter> Nshifts {f'}" ..
+      hence z2: "z2 \<in> pos_Nshifts {f'}" using sub2 ..
+      from that have "z \<in> set zs \<inter> Nshifts {f'}" ..
+      hence "z \<in> pos_Nshifts {f'}" using sub2 ..
+      with deg_z2 z2 show ?thesis
+        by (auto simp: pos_Nshifts_singleton nat_plus_point_pair_def deg_pm_plus)
+    next
+      assume sub2: "set zs \<inter> Nshifts {f'} \<subseteq> neg_Nshifts {f'}"
+      from \<open>z2 \<in> set zs\<close> \<open>z2 \<in> Nshifts {f'}\<close> have "z2 \<in> set zs \<inter> Nshifts {f'}" ..
+      hence z2: "z2 \<in> neg_Nshifts {f'}" using sub2 ..
+      from that have "z \<in> set zs \<inter> Nshifts {f'}" ..
+      hence "z \<in> neg_Nshifts {f'}" using sub2 ..
+      with deg_z2 z2 show ?thesis
+        by (auto simp: neg_Nshifts_singleton nat_plus_point_pair_def deg_pm_plus)
+    qed
+
+    show ?thesis
+    proof (rule assms(7))
+      show "f \<noteq> f'"
+      proof
+        assume "f = f'"
+        with \<open>z1 \<in> Nshifts {f}\<close> have "z1 \<in> Nshifts {f'}" by simp
+        with \<open>z1 \<in> set zs\<close> have "deg_pm (snd z1) < deg_pm (fst z1)" by (rule 2)
+        also from \<open>z1 \<in> set zs\<close> \<open>z1 \<in> Nshifts {f}\<close> have "\<dots> < deg_pm (snd z1)" by (rule 1)
+        finally show False .
+      qed
+      with \<open>f \<in> {f1, f2}\<close> \<open>f' \<in> {f1, f2}\<close> show eq: "{f1, f2} = {f, f'}" by blast
+  
+      fix z
+      assume "z \<in> set zs"
+      hence "z \<in> Nshifts {f1, f2}" using sub ..
+      then obtain g where "g \<in> {f, f'}" and "z \<in> Nshifts {g}" unfolding eq by (rule NshiftsE_poly)
+      thus "deg_pm (fst z) < deg_pm (snd z) \<longleftrightarrow> z \<in> Nshifts {f}"
+        and "deg_pm (snd z) < deg_pm (fst z) \<longleftrightarrow> z \<in> Nshifts {f'}"
+        and "deg_pm (fst z) \<noteq> deg_pm (snd z)"
+        using \<open>z \<in> set zs\<close> by (auto dest: 1 2)
+    qed
+  qed
+qed
+
+definition is_peak :: "('x point \<times> 'x point) list \<Rightarrow> nat \<Rightarrow> bool"
+  where "is_peak zs i \<longleftrightarrow> (Suc i < length zs \<and> deg_pm (fst (zs ! i)) < deg_pm (snd (zs ! i)) \<and>
+                        deg_pm (snd (zs ! Suc i)) < deg_pm (snd (zs ! i)))"
+
+lemma is_peakI:
+  "Suc i < length zs \<Longrightarrow> deg_pm (fst (zs ! i)) < deg_pm (snd (zs ! i)) \<Longrightarrow>
+    deg_pm (snd (zs ! Suc i)) < deg_pm (snd (zs ! i)) \<Longrightarrow> is_peak zs i"
+  by (simp add: is_peak_def)
+
+lemma is_peakD:
+  assumes "is_peak zs i"
+  shows "i < length zs" and "Suc i < length zs" and "deg_pm (fst (zs ! i)) < deg_pm (snd (zs ! i))"
+    and "deg_pm (snd (zs ! Suc i)) < deg_pm (snd (zs ! i))"
+  using assms by (simp_all add: is_peak_def)
+
+lemma is_peakE:
+  assumes "is_vpc zs" and "is_peak zs i"
+  obtains f f' where "f \<in> shifts {f1, f2}" and "f' \<in> shifts {f1, f2}" and "f \<noteq> f'"
+    and "zs ! i \<in> shifts_of {f}" and "zs ! Suc i \<in> shifts_of {f'}"
+    and "snd (zs ! Suc i) + fst f - snd f = fst (zs ! i) + snd f' - fst f'"
+    and "deg_pm (fst f) < deg_pm (snd f)" and "deg_pm (snd f') < deg_pm (fst f')"
+    and "shifts_of {f} \<inter> shifts_of {f'} = {}"
+proof -
+  from assms(2) have "Suc i < length zs" by (rule is_peakD)
+  hence "zs ! i \<in> set zs" and "zs ! Suc i \<in> set zs" by simp_all
+  moreover from assms(1) have "set zs \<subseteq> Nshifts {f1, f2}" by (rule is_vpcD)
+  ultimately have "zs ! i \<in> Nshifts {f1, f2}" and *: "zs ! Suc i \<in> Nshifts {f1, f2}" by blast+
+  from this(1) obtain f where f_in: "f \<in> shifts {f1, f2}" and i_in: "zs ! i \<in> shifts_of {f}"
+    unfolding Nshifts_alt by (rule shifts_ofE_poly)
+  from this(2) have snd_i: "snd (zs ! i) = fst (zs ! i) + snd f - fst f" by (rule shifts_of_singletonD)
+  from * obtain f' where f'_in: "f' \<in> shifts {f1, f2}" and Si_in: "zs ! Suc i \<in> shifts_of {f'}"
+    unfolding Nshifts_alt by (rule shifts_ofE_poly)
+  from this(2) have snd_Si: "snd (zs ! Suc i) = fst (zs ! Suc i) + snd f' - fst f'"
+    by (rule shifts_of_singletonD)
+
+  from f_in f'_in _ i_in Si_in show ?thesis
+  proof
+    from assms(1) \<open>Suc i < length zs\<close> have eq: "snd (zs ! i) = fst (zs ! Suc i)" by (rule is_vpcD)
+    also from snd_Si have "\<dots> = snd (zs ! Suc i) + fst f' - snd f'" by simp
+    finally have "snd (zs ! Suc i) = snd (zs ! i) + snd f' - fst f'" by simp
+    thus "snd (zs ! Suc i) + fst f - snd f = fst (zs ! i) + snd f' - fst f'" by (simp add: snd_i)
+
+    from assms(2) have "deg_pm (fst (zs ! i)) < deg_pm (snd (zs ! i))" by (rule is_peakD)
+    thus deg_f: "deg_pm (fst f) < deg_pm (snd f)"
+      by (simp add: snd_i shifts_of_singletonD deg_pm_plus deg_pm_minus)
+
+    from assms(2) have "deg_pm (snd (zs ! Suc i)) < deg_pm (snd (zs ! i))" by (rule is_peakD)
+    thus deg_f': "deg_pm (snd f') < deg_pm (fst f')"
+      by (simp add: snd_Si shifts_of_singletonD deg_pm_plus deg_pm_minus eq)
+
+    with deg_f show "f \<noteq> f'" by auto
+
+    show "shifts_of {f} \<inter> shifts_of {f'} = {}"
+    proof (intro set_eqI iffI, elim IntE)
+      fix z
+      assume "z \<in> shifts_of {f}"
+      hence "snd z = fst z + snd f - fst f" by (rule shifts_of_singletonD)
+      with deg_f have "deg_pm (fst z) < deg_pm (snd z)" by (simp add: deg_pm_plus deg_pm_minus)
+      assume "z \<in> shifts_of {f'}"
+      hence "snd z = fst z + snd f' - fst f'" by (rule shifts_of_singletonD)
+      with deg_f' have "deg_pm (snd z) < deg_pm (fst z)" by (simp add: deg_pm_plus deg_pm_minus)
+      also have "\<dots> < deg_pm (snd z)" by fact
+      finally show "z \<in> {}" .
+    qed simp
+  qed
+qed
+
+lemma finite_peaks: "finite {i. is_peak zs i}"
+proof (rule finite_subset)
+  show "{i. is_peak zs i} \<subseteq> {..length zs}" by (auto simp: is_peak_def)
+qed (fact finite_atMost)
+
+lemma peak_deg_gr_zero:
+  assumes "is_vpc zs" and "is_peak zs i"
+  shows "0 < to_nat (deg_pm (snd (zs ! i)))"
+proof -
+  from assms(2) have "i < length zs" and "deg_pm (fst (zs ! i)) < deg_pm (snd (zs ! i))" (is "?a < ?b")
+    by (rule is_peakD)+
+  from this(1) have "zs ! i \<in> set zs" by simp
+  with assms(1) have "is_nat_pm_pair (zs ! i)" by (rule vpc_is_nat_pm_pair)
+  hence "is_nat ?a" and "is_nat ?b" by (simp_all add: is_nat_pm_pair_def deg_is_nat)
+  from this(1) have "rat (to_nat ?a) = ?a" by (simp only: is_nat_def)
+  also have "\<dots> < ?b" by fact
+  also from \<open>is_nat ?b\<close> have "\<dots> = rat (to_nat ?b)" by (simp only: is_nat_def)
+  finally have "to_nat ?a < to_nat ?b" by (simp only: of_nat_less_iff)
+  with le0 show ?thesis by (rule le_less_trans)
+qed
+
+lemma deg_vpc_cases:
+  assumes "min_length_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)" and "overlap \<unlhd> fst (hd zs)"
+    and "overlap \<unlhd> snd (last zs)"
+  assumes "deg_vpc zs = deg_pm (fst (hd zs)) \<Longrightarrow> thesis"
+  assumes "deg_vpc zs = deg_pm (snd (last zs)) \<Longrightarrow> thesis"
+  assumes "\<And>i. i < length zs \<Longrightarrow> is_peak zs i \<Longrightarrow> deg_vpc zs = deg_pm (snd (zs ! i)) \<Longrightarrow> thesis"
+  shows thesis
+proof -
+  from assms(1) have "is_vpc zs" by (rule min_length_vpcD)
+  from assms(1-4) show ?thesis
+  proof (rule vpc_deg_cases)
+    assume "\<And>z. z \<in> set zs \<Longrightarrow> deg_pm (fst z) \<le> deg_pm (snd z)"
+    with \<open>is_vpc zs\<close> have "deg_vpc zs = deg_pm (snd (last zs))" by (rule deg_vpc_eq_lastI)
+    thus ?thesis by (rule assms(6))
+  next
+    assume "\<And>z. z \<in> set zs \<Longrightarrow> deg_pm (snd z) \<le> deg_pm (fst z)"
+    with \<open>is_vpc zs\<close> have "deg_vpc zs = deg_pm (fst (hd zs))" by (rule deg_vpc_eq_hdI)
+    thus ?thesis by (rule assms(5))
+  next
+    assume rl: "\<And>z. z \<in> set zs \<Longrightarrow> deg_pm (fst z) \<noteq> deg_pm (snd z)"
+    from \<open>is_vpc zs\<close> have "zs \<noteq> []" by (rule is_vpcD)
+    hence "deg_pm ` set_of_vpc zs \<noteq> {}" by (simp add: set_of_vpc_def)
+    with finite_imageI have "Max (deg_pm ` set_of_vpc zs) \<in> deg_pm ` set_of_vpc zs"
+      by (rule Max_in) (fact finite_set_of_vpc)
+    with \<open>zs \<noteq> []\<close> have "deg_vpc zs \<in> deg_pm ` set_of_vpc zs" by (simp add: deg_vpc_def)
+    then obtain p where "p \<in> set_of_vpc zs" and eq: "deg_vpc zs = deg_pm p" ..
+    from \<open>is_vpc zs\<close> this(1) show ?thesis
+    proof (rule set_of_vpcE_vpc)
+      assume "p = fst (hd zs)"
+      hence "deg_vpc zs = deg_pm (fst (hd zs))" by (simp only: eq)
+      thus ?thesis by (rule assms(5))
+    next
+      assume "p = snd (last zs)"
+      hence "deg_vpc zs = deg_pm (snd (last zs))" by (simp only: eq)
+      thus ?thesis by (rule assms(6))
+    next
+      fix i
+      assume "i < length zs" and *: "Suc i < length zs" and p1[symmetric]: "p = fst (zs ! Suc i)"
+        and p2: "p = snd (zs ! i)"
+      note this(1)
+      moreover from * have "is_peak zs i"
+      proof (rule is_peakI)
+        from \<open>i < length zs\<close> have "zs ! i \<in> set zs" by simp
+        hence "fst (zs ! i) \<in> set_of_vpc zs" by (simp add: set_of_vpc_def)
+        hence "deg_pm (fst (zs ! i)) \<le> deg_vpc zs" by (rule deg_vpc_max)
+        hence "deg_pm (fst (zs ! i)) \<le> deg_pm (snd (zs ! i))" by (simp only: eq p2)
+        moreover from \<open>zs ! i \<in> set zs\<close> have "deg_pm (fst (zs ! i)) \<noteq> deg_pm (snd (zs ! i))"
+          by (rule rl)
+        ultimately show "deg_pm (fst (zs ! i)) < deg_pm (snd (zs ! i))" by (rule le_neq_trans)
+      next
+        from * have "zs ! Suc i \<in> set zs" by simp
+        hence "snd (zs ! Suc i) \<in> set_of_vpc zs" by (simp add: set_of_vpc_def)
+        hence "deg_pm (snd (zs ! Suc i)) \<le> deg_vpc zs" by (rule deg_vpc_max)
+        hence "deg_pm (snd (zs ! Suc i)) \<le> deg_pm (snd (zs ! i))" by (simp only: eq p2)
+        moreover from \<open>zs ! Suc i \<in> set zs\<close> have "deg_pm (snd (zs ! Suc i)) \<noteq> deg_pm (fst (zs ! Suc i))"
+          by (rule rl[symmetric])
+        ultimately show "deg_pm (snd (zs ! Suc i)) < deg_pm (snd (zs ! i))"
+          unfolding p1 p2 by (rule le_neq_trans)
+      qed
+      moreover have "deg_vpc zs = deg_pm (snd (zs ! i))" by (simp only: eq p2)
+      ultimately show ?thesis by (rule assms(7))
+    qed
+  qed
+qed
+
+definition repl_peaks :: "('x point \<times> 'x point) list \<Rightarrow> nat set"
+  where "repl_peaks zs = {i. is_peak zs i \<and>
+                                    (\<exists>f\<in>shifts {f1, f2}. \<exists>f'\<in>shifts {f1, f2}.
+                                        zs ! i \<in> shifts_of {f} \<and> zs ! Suc i \<in> shifts_of {f'} \<and>
+                                        lcs (fst f) (snd f') \<unlhd> fst (zs ! i) + snd f' - fst f')}"
+
+definition maxdeg_repl_peaks :: "('x point \<times> 'x point) list \<Rightarrow> nat"
+  where "maxdeg_repl_peaks zs = (if repl_peaks zs = {} then 0
+                                else to_nat (Max (deg_pm ` snd ` (!) zs ` repl_peaks zs)))"
+
+definition mrepl_peaks :: "('x point \<times> 'x point) list \<Rightarrow> nat set"
+  where "mrepl_peaks zs = {i\<in>repl_peaks zs. deg_pm (snd (zs ! i)) = rat (maxdeg_repl_peaks zs)}"
+
+text \<open>@{const repl_peaks} stands for `replaceable peaks', because any such peak can be replaced by
+  something else, as will be shown below.\<close>
+
+lemma repl_peaksI:
+  "is_peak zs i \<Longrightarrow> f \<in> shifts {f1, f2} \<Longrightarrow> f' \<in> shifts {f1, f2} \<Longrightarrow> zs ! i \<in> shifts_of {f} \<Longrightarrow>
+    zs ! Suc i \<in> shifts_of {f'} \<Longrightarrow> lcs (fst f) (snd f') \<unlhd> fst (zs ! i) + snd f' - fst f' \<Longrightarrow>
+    i \<in> repl_peaks zs"
+  by (auto simp: repl_peaks_def)
+
+lemma repl_peaksD:
+  assumes "i \<in> repl_peaks zs"
+  shows "i < length zs" and "Suc i < length zs" and "is_peak zs i"
+  using assms by (auto simp: repl_peaks_def dest: is_peakD)
+
+lemma repl_peaksE:
+  assumes "is_vpc zs" and "i \<in> repl_peaks zs"
+  obtains f f' where "f \<in> shifts {f1, f2}" and "f' \<in> shifts {f1, f2}"
+    and "zs ! i \<in> shifts_of {f}" and "zs ! Suc i \<in> shifts_of {f'}"
+    and "lcs (fst f) (snd f') \<unlhd> fst (zs ! i) + snd f' - fst f'"
+    and "snd (zs ! Suc i) + fst f - snd f = fst (zs ! i) + snd f' - fst f'"
+    and "deg_pm (fst f) < deg_pm (snd f)" and "deg_pm (snd f') < deg_pm (fst f')"
+proof -
+  from assms(2) obtain f f' where "f \<in> shifts {f1, f2}" and "f' \<in> shifts {f1, f2}"
+    and 1: "zs ! i \<in> shifts_of {f}" and 2: "zs ! Suc i \<in> shifts_of {f'}"
+    and "lcs (fst f) (snd f') \<unlhd> fst (zs ! i) + snd f' - fst f'" by (auto simp: repl_peaks_def)
+  thus ?thesis
+  proof
+    from assms(2) have *: "Suc i < length zs" by (rule repl_peaksD)
+    from 1 have "fst (zs ! i) + snd f - fst f = snd (zs ! i)" by (simp only: shifts_of_singletonD)
+    also from assms(1) * have eq: "\<dots> = fst (zs ! Suc i)" by (rule is_vpcD)
+    also from 2 have "\<dots> = snd (zs ! Suc i) + fst f' - snd f'" by (simp add: shifts_of_singletonD)
+    finally show "snd (zs ! Suc i) + fst f - snd f = fst (zs ! i) + snd f' - fst f'"
+      by (smt add_diff_eq diff_add_eq_diff_diff_swap diff_diff_eq2 group_eq_aux)
+
+    from assms(2) have "is_peak zs i" by (rule repl_peaksD)
+    hence "deg_pm (fst (zs ! i)) < deg_pm (snd (zs ! i))" by (rule is_peakD)
+    with 1 show "deg_pm (fst f) < deg_pm (snd f)"
+      by (simp add: shifts_of_singletonD deg_pm_plus deg_pm_minus)
+
+    from assms(2) have "is_peak zs i" by (rule repl_peaksD)
+    hence "deg_pm (snd (zs ! Suc i)) < deg_pm (snd (zs ! i))" by (rule is_peakD)
+    with 2 show "deg_pm (snd f') < deg_pm (fst f')"
+      by (simp add: eq shifts_of_singletonD deg_pm_plus deg_pm_minus)
+  qed
+qed
+
+lemma repl_peaks_cong:
+  assumes "i \<in> repl_peaks zs" and "length zs \<le> length zs'" and "zs' ! i = zs ! i"
+    and "zs' ! Suc i = zs ! Suc i"
+  shows "i \<in> repl_peaks zs'"
+proof -
+  from assms(1) have "Suc i < length zs" and "is_peak zs i" by (rule repl_peaksD)+
+  from this(1) assms(2) have "Suc i < length zs'" by simp
+  hence "is_peak zs' i"
+  proof (rule is_peakI)
+    show "deg_pm (fst (zs' ! i)) < deg_pm (snd (zs' ! i))"
+      unfolding assms(3) using \<open>is_peak zs i\<close> by (rule is_peakD)
+  next
+    show "deg_pm (snd (zs' ! Suc i)) < deg_pm (snd (zs' ! i))"
+      unfolding assms(3, 4) using \<open>is_peak zs i\<close> by (rule is_peakD)
+  qed
+  moreover from assms(1) obtain f f' where "f \<in> shifts {f1, f2}" and "f' \<in> shifts {f1, f2}"
+    and "zs' ! i \<in> shifts_of {f}" and "zs' ! Suc i \<in> shifts_of {f'}"
+    and "lcs (fst f) (snd f') \<unlhd> fst (zs' ! i) + snd f' - fst f'"
+    by (auto simp: assms(3, 4) repl_peaks_def)
+  ultimately show ?thesis by (rule repl_peaksI)
+qed
+
+lemma finite_repl_peaks: "finite (repl_peaks zs)"
+proof (rule finite_subset)
+  show "repl_peaks zs \<subseteq> {i. is_peak zs i}" by (auto simp: repl_peaks_def)
+qed (fact finite_peaks)
+
+lemma finite_mrepl_peaks: "finite (mrepl_peaks zs)"
+proof (rule finite_subset)
+  show "mrepl_peaks zs \<subseteq> repl_peaks zs" by (auto simp: mrepl_peaks_def)
+qed (fact finite_repl_peaks)
+
+lemma maxdeg_repl_peaks_max:
+  assumes "is_vpc zs" and "i \<in> repl_peaks zs"
+  shows "deg_pm (snd (zs ! i)) \<le> rat (maxdeg_repl_peaks zs)"
+proof -
+  from assms(2) have "i < length zs" by (rule repl_peaksD)
+  hence "snd (zs ! i) \<in> set_of_vpc zs" by (simp add: set_of_vpc_def)
+  with assms(1) have "is_nat_pm (snd (zs ! i))" by (rule vpc_is_nat_pm)
+  hence "is_nat (deg_pm (snd (zs ! i)))" (is "is_nat ?d") by (rule deg_is_nat)
+  hence eq: "rat (to_nat ?d) = ?d" by (simp only: is_nat_def)
+  from finite_repl_peaks have "finite (deg_pm ` snd ` (!) zs ` repl_peaks zs)" by (intro finite_imageI)
+  moreover from assms(2) have "?d \<in> deg_pm ` snd ` (!) zs ` repl_peaks zs" by (intro imageI)
+  ultimately have "?d \<le> Max (deg_pm ` snd ` (!) zs ` repl_peaks zs)" by (rule Max_ge)
+  with assms(2) have "to_nat ?d \<le> maxdeg_repl_peaks zs"
+    by (auto simp: maxdeg_repl_peaks_def dest: to_nat_mono)
+  hence "rat (to_nat ?d) \<le> rat (maxdeg_repl_peaks zs)" by (rule of_nat_mono)
+  thus ?thesis by (simp only: eq)
+qed
+
+lemma maxdeg_repl_peaksE:
+  assumes "is_vpc zs" and "repl_peaks zs \<noteq> {}"
+  obtains i where "i \<in> repl_peaks zs" and "deg_pm (snd (zs ! i)) = rat (maxdeg_repl_peaks zs)"
+proof -
+  from finite_repl_peaks have "finite (deg_pm ` snd ` (!) zs ` repl_peaks zs)" (is "finite ?A")
+    by (intro finite_imageI)
+  moreover from assms(2) have "?A \<noteq> {}" by simp
+  ultimately have "Max ?A \<in> ?A" by (rule Max_in)
+  then obtain i where "i \<in> repl_peaks zs" and "Max ?A = deg_pm (snd (zs ! i))" (is "_ = ?d") by blast
+  from assms(2) this(2) have eq: "rat (to_nat ?d) = rat (maxdeg_repl_peaks zs)"
+    by (simp add: maxdeg_repl_peaks_def)
+  from \<open>i \<in> repl_peaks zs\<close> have "i < length zs" by (rule repl_peaksD)
+  hence "snd (zs ! i) \<in> set_of_vpc zs" by (simp add: set_of_vpc_def)
+  with assms(1) have "is_nat_pm (snd (zs ! i))" by (rule vpc_is_nat_pm)
+  hence "is_nat (deg_pm (snd (zs ! i)))" (is "is_nat ?d") by (rule deg_is_nat)
+  hence "?d = rat (maxdeg_repl_peaks zs)" by (simp only: eq is_nat_def)
+  with \<open>i \<in> repl_peaks zs\<close> show ?thesis ..
+qed
+
+lemma maxdeg_repl_peaks_le:
+  assumes "is_vpc zs" and "\<And>i. i \<in> repl_peaks zs \<Longrightarrow> deg_pm (snd (zs ! i)) \<le> rat n"
+  shows "maxdeg_repl_peaks zs \<le> n"
+proof (cases "repl_peaks zs = {}")
+  case True
+  thus ?thesis by (simp add: maxdeg_repl_peaks_def)
+next
+  case False
+  with assms(1) obtain i where "i \<in> repl_peaks zs"
+    and eq: "deg_pm (snd (zs ! i)) = rat (maxdeg_repl_peaks zs)" by (rule maxdeg_repl_peaksE)
+  from this(1) have "deg_pm (snd (zs ! i)) \<le> rat n" by (rule assms(2))
+  thus ?thesis by (simp add: eq)
+qed
+
+lemma mrepl_peaks_empty_iff:
+  assumes "is_vpc zs"
+  shows "mrepl_peaks zs = {} \<longleftrightarrow> repl_peaks zs = {}"
+proof
+  assume a: "mrepl_peaks zs = {}"
+  show "repl_peaks zs = {}"
+  proof (rule ccontr)
+    assume "repl_peaks zs \<noteq> {}"
+    with assms obtain i where "i \<in> repl_peaks zs" and "deg_pm (snd (zs ! i)) = rat (maxdeg_repl_peaks zs)"
+      by (rule maxdeg_repl_peaksE)
+    hence "i \<in> mrepl_peaks zs" by (simp add: mrepl_peaks_def)
+    thus False by (simp add: a)
+  qed
+qed (simp add: mrepl_peaks_def)
+
+lemma maxdeg_repl_peaks_eq_zero_iff:
+  assumes "is_vpc zs"
+  shows "maxdeg_repl_peaks zs = 0 \<longleftrightarrow> repl_peaks zs = {}"
+proof
+  assume a: "maxdeg_repl_peaks zs = 0"
+  show "repl_peaks zs = {}"
+  proof (rule ccontr)
+    assume "repl_peaks zs \<noteq> {}"
+    with assms obtain i where "i \<in> repl_peaks zs" and "deg_pm (snd (zs ! i)) = rat (maxdeg_repl_peaks zs)"
+      by (rule maxdeg_repl_peaksE)
+    from this(2) have "to_nat (deg_pm (snd (zs ! i))) = 0" by (simp add: a to_nat_def)
+    also from assms have "\<dots> < to_nat (deg_pm (snd (zs ! i)))"
+    proof (rule peak_deg_gr_zero)
+      from \<open>i \<in> repl_peaks zs\<close> show "is_peak zs i" by (rule repl_peaksD)
+    qed
+    finally show False ..
+  qed
+qed (simp add: maxdeg_repl_peaks_def)
+
+lemma thm_3_3_25:
+  assumes "is_vpc zs" and "repl_peaks zs \<noteq> {}"
+  obtains zs' where "is_vpc zs'" and "fst (hd zs') = fst (hd zs)" and "snd (last zs') = snd (last zs)"
+    and "length zs' = length zs"
+    and "maxdeg_repl_peaks zs' < maxdeg_repl_peaks zs \<or>
+          (maxdeg_repl_peaks zs' = maxdeg_repl_peaks zs \<and> card (mrepl_peaks zs') < card (mrepl_peaks zs))"
+proof -
+  from assms obtain i where "i \<in> repl_peaks zs"
+    and deg_i: "deg_pm (snd (zs ! i)) = rat (maxdeg_repl_peaks zs)" by (rule maxdeg_repl_peaksE)
+  from assms(1) this(1) obtain f f' where f_in: "f \<in> shifts {f1, f2}" and f'_in: "f' \<in> shifts {f1, f2}"
+    and i_in: "zs ! i \<in> shifts_of {f}" and Si_in: "zs ! Suc i \<in> shifts_of {f'}"
+    and lcs: "lcs (fst f) (snd f') \<unlhd> fst (zs ! i) + snd f' - fst f'"
+    and eq: "snd (zs ! Suc i) + fst f - snd f = fst (zs ! i) + snd f' - fst f'"
+    and deg_f: "deg_pm (fst f) < deg_pm (snd f)" and deg_f': "deg_pm (snd f') < deg_pm (fst f')"
+    by (rule repl_peaksE)
+  let ?y = "(fst (zs ! i), fst (zs ! i) + snd f' - fst f')"
+  let ?z = "(snd (zs ! Suc i) + fst f - snd f, snd (zs ! Suc i))"
+  from \<open>i \<in> repl_peaks zs\<close> have *: "Suc i < length zs" and "is_peak zs i" by (rule repl_peaksD)+
+  from assms(1) obtain zs' where "is_vpc zs'" and "fst (hd zs') = fst (hd zs)"
+    and "snd (last zs') = snd (last zs)" and zs': "zs' = take i zs @ [?y, ?z] @ drop (Suc (Suc i)) zs"
+  proof (rule replace_vpc)
+    show "i \<le> Suc i" by simp
+  next
+    show "Suc i < length zs" by fact
+  next
+    have "?z \<in> Nshifts {f1, f2}"
+    proof -
+      define t' where "t' = snd (zs ! Suc i) - snd f"
+      from * have "zs ! Suc i \<in> set zs" by simp
+      with assms(1) have "is_nat_pm_pair (zs ! Suc i)" by (rule vpc_is_nat_pm_pair)
+      moreover from f_in have "is_nat_pm_pair f" by (rule shifts_is_nat_pm_pair)
+      ultimately have "is_int_pm t'"
+        by (simp add: t'_def is_nat_pm_pair_def minus_is_int_pm nat_pm_is_int_pm)
+      from lcs have "lcs (fst f) (snd f') \<unlhd> snd (zs ! Suc i) + fst f - snd f" by (simp only: eq)
+      with lcs_ge_pm(1) have "fst f \<unlhd> snd (zs ! Suc i) + fst f - snd f" by (rule le_pm_trans)
+      hence "fst f - fst f \<unlhd> snd (zs ! Suc i) + fst f - snd f - fst f" by (rule le_pm_mono_minus)
+      hence "0 \<unlhd> t'" by (simp add: t'_def)
+      with \<open>is_int_pm t'\<close> zero_is_nat_pm have "is_nat_pm t'" by (rule int_pm_is_nat_pmI)
+      moreover define t where "t = to_nat_pm t'"
+      ultimately have t: "of_nat_pm t = t'" by (simp only: of_nat_pm_comp_to_nat_pm)
+      have "snd (zs ! Suc i) + fst f - snd f = t' + fst f" by (simp add: t'_def)
+      moreover from this have "snd (zs ! Suc i) = t' + snd f"
+        by (simp add: linordered_field_class.sign_simps)
+      ultimately have "?z = t +\<^sub>N f" by (simp add: t nat_plus_point_pair_def)
+      with f_in show ?thesis by (auto simp: Nshifts_alt shifts_of_def)
+    qed
+    hence "is_vpc [?z]" by (simp only: is_vpc_singleton)
+    moreover have "?y \<in> Nshifts {f1, f2}"
+    proof -
+      define t' where "t' = fst (zs ! i) - fst f'"
+      from * have "zs ! i \<in> set zs" by simp
+      with assms(1) have "is_nat_pm_pair (zs ! i)" by (rule vpc_is_nat_pm_pair)
+      moreover from f'_in have "is_nat_pm_pair f'" by (rule shifts_is_nat_pm_pair)
+      ultimately have "is_int_pm t'"
+        by (simp add: t'_def is_nat_pm_pair_def minus_is_int_pm nat_pm_is_int_pm)
+      from lcs_ge_pm(2) lcs have "snd f' \<unlhd> fst (zs ! i) + snd f' - fst f'" by (rule le_pm_trans)
+      hence "snd f' - snd f' \<unlhd> fst (zs ! i) + snd f' - fst f' - snd f'" by (rule le_pm_mono_minus)
+      hence "0 \<unlhd> t'" by (simp add: t'_def)
+      with \<open>is_int_pm t'\<close> zero_is_nat_pm have "is_nat_pm t'" by (rule int_pm_is_nat_pmI)
+      moreover define t where "t = to_nat_pm t'"
+      ultimately have t: "of_nat_pm t = t'" by (simp only: of_nat_pm_comp_to_nat_pm)
+      have "fst (zs ! i) + snd f' - fst f' = t' + snd f'" by (simp add: t'_def)
+      moreover from this have "fst (zs ! i) = t' + fst f'"
+        by (simp add: linordered_field_class.sign_simps)
+      ultimately have "?y = t +\<^sub>N f'" by (simp add: t nat_plus_point_pair_def)
+      with f'_in show ?thesis by (auto simp: Nshifts_alt shifts_of_def)
+    qed
+    ultimately show "is_vpc [?y, ?z]" by (rule is_vpc_ConsI) (simp add: eq)
+  next
+    show "fst (hd [?y, ?z]) = fst (zs ! i)" by simp
+  next
+    show "snd (last [?y, ?z]) = snd (zs ! Suc i)" by simp
+  next
+    assume "[?y, ?z] = []"
+    thus False by simp
+    thus "fst (zs ! i) = snd (zs ! Suc i)" ..
+  qed
+  note this(1, 2, 3)
+  moreover from * have len_zs': "length zs' = length zs" by (simp add: zs')
+  moreover have "maxdeg_repl_peaks zs' < maxdeg_repl_peaks zs \<or>
+      (maxdeg_repl_peaks zs' = maxdeg_repl_peaks zs \<and> card (mrepl_peaks zs') < card (mrepl_peaks zs))"
+  proof -
+    from \<open>Suc i < length zs\<close> have min_i: "min (length zs) i = i" by simp
+    have zs'_nth: "zs' ! j = zs ! j" if "j < length zs" and "j \<noteq> i" and "j \<noteq> Suc i" for j
+    proof -
+      {
+        assume "\<not> j < i"
+        with that(2, 3) have "Suc (Suc i) \<le> j" by linarith
+        hence "Suc (Suc (j - 2)) = j" by simp
+      }
+      with that show ?thesis by (simp add: min_i zs' nth_append)
+    qed
+    have fst_zs': "fst (zs' ! j) = fst (zs ! j)" if "j < length zs" and "j \<noteq> Suc i" for j
+    proof (cases "j = i")
+      case True
+      thus ?thesis by (simp add: min_i zs' nth_append)
+    next
+      case False
+      with that show ?thesis by (simp add: zs'_nth)
+    qed
+    have snd_zs': "snd (zs' ! j) = snd (zs ! j)" if "j < length zs" and "j \<noteq> i" for j
+    proof (cases "j = Suc i")
+      case True
+      thus ?thesis by (simp add: min_i zs' nth_append)
+    next
+      case False
+      with that show ?thesis by (simp add: zs'_nth)
+    qed
+    have "i \<notin> repl_peaks zs'"
+    proof
+      assume "i \<in> repl_peaks zs'"
+      hence "is_peak zs' i" by (rule repl_peaksD)
+      hence **: "deg_pm (fst (zs' ! i)) < deg_pm (snd (zs' ! i))" by (rule is_peakD)
+      from * have "zs' ! i = ?y" by (simp add: zs' nth_append)
+      moreover from * have "zs' ! Suc i = ?z" by (simp add: zs' nth_append)
+      ultimately have "deg_pm (snd (zs' ! i)) < deg_pm (fst (zs' ! i))" using deg_f'
+        by (simp add: deg_pm_plus deg_pm_minus)
+      with ** show False by (rule order.asym)
+    qed
+    moreover have "repl_peaks zs' \<subseteq> insert (Suc i) (insert (i - 1) (repl_peaks zs))"
+    proof
+      fix j
+      assume j_in: "j \<in> repl_peaks zs'"
+      with \<open>i \<notin> repl_peaks zs'\<close> have "j \<noteq> i" by blast
+      {
+        assume "j \<noteq> Suc i" and "j \<noteq> i - 1"
+        from j_in have "j \<in> repl_peaks zs"
+        proof (rule repl_peaks_cong)
+          from j_in have "j < length zs'" by (rule repl_peaksD)
+          hence "j < length zs" by (simp only: len_zs')
+          thus "zs ! j = zs' ! j" using \<open>j \<noteq> i\<close> \<open>j \<noteq> Suc i\<close> by (rule zs'_nth[symmetric])
+        next
+          from j_in have "Suc j < length zs'" by (rule repl_peaksD)
+          hence "Suc j < length zs" by (simp only: len_zs')
+          moreover from \<open>j \<noteq> i - 1\<close> have "Suc j \<noteq> i" by simp
+          moreover from \<open>j \<noteq> i\<close> have "Suc j \<noteq> Suc i" by simp
+          ultimately show "zs ! Suc j = zs' ! Suc j" by (rule zs'_nth[symmetric])
+        qed (simp add: len_zs')
+      }
+      thus "j \<in> insert (Suc i) (insert (i - 1) (repl_peaks zs))" by blast
+    qed
+    ultimately have sub: "repl_peaks zs' \<subseteq> insert (Suc i) (insert (i - 1) (repl_peaks zs)) - {i}"
+      by blast
+    have less1: "deg_pm (snd (zs' ! Suc i)) < rat (maxdeg_repl_peaks zs)" if "Suc i \<in> repl_peaks zs'"
+    proof -
+      from that have "Suc i < length zs'" by (rule repl_peaksD)
+      hence "Suc i < length zs" by (simp only: len_zs')
+      hence "snd (zs' ! Suc i) = snd (zs ! Suc i)" by (rule snd_zs') simp
+      also from \<open>is_peak zs i\<close> have "deg_pm \<dots> < deg_pm (snd (zs ! i))" by (rule is_peakD)
+      also have "\<dots> = rat (maxdeg_repl_peaks zs)" by fact
+      finally show ?thesis .
+    qed
+    have less2: "deg_pm (snd (zs' ! (i - 1))) < rat (maxdeg_repl_peaks zs)" if "i - 1 \<in> repl_peaks zs'"
+    proof -
+      from that sub have "i - 1 \<noteq> i" by blast
+      hence "Suc (i - 1) = i" by simp
+      from that have "Suc (i - 1) < length zs'" by (rule repl_peaksD)
+      hence "Suc (i - 1) < length zs" by (simp only: len_zs')
+      hence "i - 1 < length zs" by simp
+      hence "snd (zs' ! (i - 1)) = snd (zs ! (i - 1))" using \<open>i - 1 \<noteq> i\<close> by (rule snd_zs')
+      also from assms(1) \<open>Suc (i - 1) < length zs\<close> have "\<dots> = fst (zs ! Suc (i - 1))" by (rule is_vpcD)
+      also have "deg_pm \<dots> < deg_pm (snd (zs ! i))" unfolding \<open>Suc (i - 1) = i\<close> using \<open>is_peak zs i\<close>
+        by (rule is_peakD)
+      also have "\<dots> = rat (maxdeg_repl_peaks zs)" by fact
+      finally show ?thesis .
+    qed
+    from \<open>is_vpc zs'\<close> have "maxdeg_repl_peaks zs' \<le> maxdeg_repl_peaks zs"
+    proof (rule maxdeg_repl_peaks_le)
+      fix j
+      assume j_in: "j \<in> repl_peaks zs'"
+      with sub have "j \<in> insert (Suc i) (insert (i - 1) (repl_peaks zs))" and "j \<noteq> i" by blast+
+      thus "deg_pm (snd (zs' ! j)) \<le> rat (maxdeg_repl_peaks zs)"
+      proof (elim insertE)
+        assume j: "j = Suc i"
+        from j_in have "deg_pm (snd (zs' ! j)) < rat (maxdeg_repl_peaks zs)"
+          unfolding j by (rule less1)
+        thus ?thesis by simp
+      next
+        assume j: "j = i - 1"
+        from j_in have "deg_pm (snd (zs' ! j)) < rat (maxdeg_repl_peaks zs)"
+          unfolding j by (rule less2)
+        thus ?thesis by simp
+      next
+        assume j: "j \<in> repl_peaks zs"
+        hence "j < length zs" by (rule repl_peaksD)
+        hence eq2: "snd (zs' ! j) = snd (zs ! j)" using \<open>j \<noteq> i\<close> by (rule snd_zs')
+        from \<open>is_vpc zs\<close> j show ?thesis unfolding eq2 by (rule maxdeg_repl_peaks_max)
+      qed
+    qed
+    hence "maxdeg_repl_peaks zs' < maxdeg_repl_peaks zs \<or> maxdeg_repl_peaks zs' = maxdeg_repl_peaks zs"
+      by (simp only: order.order_iff_strict)
+    thus ?thesis
+    proof
+      assume "maxdeg_repl_peaks zs' < maxdeg_repl_peaks zs"
+      thus ?thesis ..
+    next
+      assume eq1: "maxdeg_repl_peaks zs' = maxdeg_repl_peaks zs"
+      from sub less1 less2 have "mrepl_peaks zs' \<subseteq> mrepl_peaks zs - {i}"
+        by (auto simp: mrepl_peaks_def eq1 snd_zs' dest!: subsetD dest: repl_peaksD)
+      moreover from \<open>i \<in> repl_peaks zs\<close> have "i \<in> mrepl_peaks zs" by (simp add: mrepl_peaks_def deg_i)
+      ultimately have "mrepl_peaks zs' \<subset> mrepl_peaks zs" by blast
+      with finite_mrepl_peaks have "card (mrepl_peaks zs') < card (mrepl_peaks zs)"
+        by (rule psubset_card_mono)
+      with eq1 show ?thesis by blast
+    qed
+  qed
+  ultimately show ?thesis ..
+qed
+
+corollary thm_3_3_25':
+  assumes "is_vpc zs"
+  obtains zs' where "is_vpc zs'" and "fst (hd zs') = fst (hd zs)" and "snd (last zs') = snd (last zs)"
+    and "length zs' = length zs" and "repl_peaks zs' = {}"
+proof -
+  define A where "A = {zs'. is_vpc zs' \<and> fst (hd zs') = fst (hd zs) \<and> snd (last zs') = snd (last zs) \<and>
+                            length zs' = length zs}"
+  define m where "m = (LEAST x. x \<in> maxdeg_repl_peaks ` A)"
+  from assms have "zs \<in> A" by (simp add: A_def)
+  hence "maxdeg_repl_peaks zs \<in> maxdeg_repl_peaks ` A" by (rule imageI)
+  hence "m \<in> maxdeg_repl_peaks ` A" unfolding m_def by (rule LeastI)
+  then obtain zs0 where "zs0 \<in> A" and m: "m = maxdeg_repl_peaks zs0" ..
+  define B where "B = {zs'\<in>A. maxdeg_repl_peaks zs' = m}"
+  define c where "c = (LEAST x. x \<in> card ` mrepl_peaks ` B)"
+  from \<open>zs0 \<in> A\<close> have "zs0 \<in> B" by (simp add: B_def m)
+  hence "card (mrepl_peaks zs0) \<in> card ` mrepl_peaks ` B" by (intro imageI)
+  hence "c \<in> card ` mrepl_peaks ` B" unfolding c_def by (rule LeastI)
+  then obtain zs' where "zs' \<in> B" and c: "c = card (mrepl_peaks zs')" by blast
+  from this(1) have "zs' \<in> A" and m_zs': "maxdeg_repl_peaks zs' = m" by (simp_all add: B_def)
+  hence "is_vpc zs'" and hd_zs': "fst (hd zs') = fst (hd zs)"
+    and last_zs': "snd (last zs') = snd (last zs)" and len_zs': "length zs' = length zs"
+    by (simp_all add: A_def)
+  thus ?thesis
+  proof
+    show "repl_peaks zs' = {}"
+    proof (rule ccontr)
+      assume "repl_peaks zs' \<noteq> {}"
+      with \<open>is_vpc zs'\<close> obtain zs2 where "is_vpc zs2" and "fst (hd zs2) = fst (hd zs')"
+        and "snd (last zs2) = snd (last zs')" and "length zs2 = length zs'"
+        and disj: "maxdeg_repl_peaks zs2 < maxdeg_repl_peaks zs' \<or>
+          (maxdeg_repl_peaks zs2 = maxdeg_repl_peaks zs' \<and> card (mrepl_peaks zs2) < card (mrepl_peaks zs'))"
+        by (rule thm_3_3_25)
+      from this(1-4) have "zs2 \<in> A" by (simp add: A_def hd_zs' last_zs' len_zs')
+      from disj have "maxdeg_repl_peaks zs2 < m \<or> (maxdeg_repl_peaks zs2 = m \<and> card (mrepl_peaks zs2) < c)"
+        by (simp only: m_zs' c)
+      thus False
+      proof (elim disjE conjE)
+        from \<open>zs2 \<in> A\<close> have "maxdeg_repl_peaks zs2 \<in> maxdeg_repl_peaks ` A" by (rule imageI)
+        hence "m \<le> maxdeg_repl_peaks zs2" unfolding m_def by (rule Least_le)
+        also assume "\<dots> < m"
+        finally show ?thesis ..
+      next
+        assume "maxdeg_repl_peaks zs2 = m"
+        with \<open>zs2 \<in> A\<close> have "zs2 \<in> B" by (simp add: B_def)
+        hence "card (mrepl_peaks zs2) \<in> card ` mrepl_peaks ` B" by (intro imageI)
+        hence "c \<le> card (mrepl_peaks zs2)" unfolding c_def by (rule Least_le)
+        also assume "\<dots> < c"
+        finally show ?thesis ..
+      qed
+    qed
+  qed
+qed
+
+lemma lem_3_3_30:
+  assumes "f \<in> shifts {f1, f2}" and "f' \<in> shifts {f1, f2}" and "\<not> lcs (fst f) (snd f') \<unlhd> r"
+    and "overlap \<unlhd> r + snd f - fst f" and "overlap \<unlhd> r + fst f' - snd f'"
+  shows "\<not> overlap \<unlhd> r"
+proof
+  assume a: "overlap \<unlhd> r"
+  have "lcs (fst f) (snd f') \<unlhd> r"
+  proof (rule lcs_le_pm)
+    from assms(1) have "gcs (fst f) (snd f) \<unlhd> overlap" (is "?g \<unlhd> _")
+      by (auto simp: shifts_def overlap_def gcs_comm lcs_ge_pm)
+    hence "?g \<unlhd> r" using a by (rule le_pm_trans)
+    moreover from \<open>?g \<unlhd> overlap\<close> assms(4) have "?g \<unlhd> r + snd f - fst f" by (rule le_pm_trans)
+    ultimately have "?g \<unlhd> gcs r (r + snd f - fst f)" by (rule gcs_ge_pm)
+    hence "fst f + ?g \<unlhd> fst f + gcs r (r + snd f - fst f)" by (rule le_pm_mono_plus_left)
+    also have "\<dots> = r + ?g" by (simp add: gcs_add_distrib_right add.commute)
+    finally have "fst f + ?g - ?g \<unlhd> r + ?g - ?g" by (rule le_pm_mono_minus)
+    thus "fst f \<unlhd> r" by simp
+  next
+    from assms(2) have "gcs (fst f') (snd f') \<unlhd> overlap" (is "?g \<unlhd> _")
+      by (auto simp: shifts_def overlap_def gcs_comm lcs_ge_pm)
+    hence "?g \<unlhd> r" using a by (rule le_pm_trans)
+    moreover from \<open>?g \<unlhd> overlap\<close> assms(5) have "?g \<unlhd> r + fst f' - snd f'" by (rule le_pm_trans)
+    ultimately have "?g \<unlhd> gcs r (r + fst f' - snd f')" by (rule gcs_ge_pm)
+    hence "snd f' + ?g \<unlhd> snd f' + gcs r (r + fst f' - snd f')" by (rule le_pm_mono_plus_left)
+    also have "\<dots> = r + ?g" by (simp add: gcs_add_distrib_right add.commute gcs_comm)
+    finally have "snd f' + ?g - ?g \<unlhd> r + ?g - ?g" by (rule le_pm_mono_minus)
+    thus "snd f' \<unlhd> r" by simp
+  qed
+  with assms(3) show False ..
+qed
+
+definition coneN :: "'x point \<Rightarrow> 'x point \<Rightarrow> 'x point \<Rightarrow> 'x point set"
+  where "coneN h a b = {h + rat l \<cdot> a + rat l' \<cdot> b | l l'. 0 < l \<and> 0 < l'}"
+
+definition coneQ :: "'x point \<Rightarrow> 'x point \<Rightarrow> 'x point \<Rightarrow> 'x point set"
+  where "coneQ h a b = {h + l \<cdot> a + l' \<cdot> b | l l'. 0 < l \<and> 0 < l'}"
+
+definition conn :: "'x point \<Rightarrow> 'x point \<Rightarrow> 'x point set"
+  where "conn a b = {a + l \<cdot> (b - a) | l. 0 \<le> l \<and> l \<le> 1}"
+
+lemma coneN_I: "p = h + rat l \<cdot> a + rat l' \<cdot> b \<Longrightarrow> 0 < l \<Longrightarrow> 0 < l' \<Longrightarrow> p \<in> coneN h a b"
+  by (auto simp: coneN_def)
+
+lemma coneN_E:
+  assumes "p \<in> coneN h a b"
+  obtains l l' where "0 < l" and "0 < l'" and "p = h + rat l \<cdot> a + rat l' \<cdot> b"
+  using assms by (auto simp: coneN_def)
+
+lemma coneQ_I: "p = h + l \<cdot> a + l' \<cdot> b \<Longrightarrow> 0 < l \<Longrightarrow> 0 < l' \<Longrightarrow> p \<in> coneQ h a b"
+  by (auto simp: coneQ_def)
+
+lemma coneQ_E:
+  assumes "p \<in> coneQ h a b"
+  obtains l l' where "0 < l" and "0 < l'" and "p = h + l \<cdot> a + l' \<cdot> b"
+  using assms by (auto simp: coneQ_def)
+
+lemma coneN_subset_coneQ: "coneN h a b \<subseteq> coneQ h a b"
+  by (auto elim!: coneN_E intro: coneQ_I)
+
+lemma connI: "p = a + l \<cdot> (b - a) \<Longrightarrow> 0 \<le> l \<Longrightarrow> l \<le> 1 \<Longrightarrow> p \<in> conn a b"
+  by (auto simp: conn_def)
+
+lemma connE:
+  assumes "p \<in> conn a b"
+  obtains l where "0 \<le> l" and "l \<le> 1" and "p = a + l \<cdot> (b - a)"
+  using assms by (auto simp: conn_def)
+
+lemma conn_geI: "x \<unlhd> a \<Longrightarrow> x \<unlhd> b \<Longrightarrow> p \<in> conn a b \<Longrightarrow> x \<unlhd> p"
+  by (auto elim!: connE intro: map_scale_le_interval[of x a 0 "b - a" 1])
+
+lemma conn_deg_leI:
+  assumes "p \<in> conn a b"
+  shows "deg_pm p \<le> max (deg_pm a) (deg_pm b)"
+proof -
+  have "0 \<le> l \<Longrightarrow> l \<le> 1 \<Longrightarrow> deg_pm a + l * (deg_pm b - deg_pm a) \<le> max (deg_pm a) (deg_pm b)" for l
+    by (metis add.commute add_decreasing2 le_diff_eq max.cobounded1 max.coboundedI2 mult_left_le_one_le
+          mult_nonneg_nonpos zero_le_mult_iff zero_le_square)
+  with assms show ?thesis by (auto elim!: connE simp: deg_pm_plus deg_pm_map_scale deg_pm_minus)
+qed
+
+lemma lem_3_3_33:
+  assumes "r \<in> coneQ h a b" and "0 < k" and "0 < k'" and "c = h + k \<cdot> a" and "d = h + k' \<cdot> b"
+  obtains L l where "L \<in> conn c d" and "0 < l" and "r = h + l \<cdot> (L - h)"
+proof -
+  from assms(1) obtain la lb where "0 < la" and "0 < lb" and r: "r = h + la \<cdot> a + lb \<cdot> b"
+    by (rule coneQ_E)
+  let ?c = "k' * la + k * lb"
+  define m where "m = k * lb / ?c"
+  let ?L = "c + m \<cdot> (d - c)"
+  define l where "l = ?c / (k * k')"
+  from assms(2, 3) have "0 < k * k'" by simp
+  from assms(2) \<open>0 < lb\<close> have "0 < k * lb" by simp
+  moreover from assms(3) \<open>0 < la\<close> have "0 < k' * la" by simp
+  ultimately have "0 < ?c" by simp
+  with \<open>0 < k * lb\<close> \<open>0 < k' * la\<close> have "0 \<le> m" and "m \<le> 1" by (simp_all add: m_def)
+  with refl have "?L \<in> conn c d" by (rule connI)
+  moreover from \<open>0 < ?c\<close> \<open>0 < k * k'\<close> have "0 < l" by (simp add: l_def)
+  moreover have "r = h + l \<cdot> (?L - h)"
+  proof -
+    from \<open>0 < ?c\<close> assms(2, 3) have la: "la = (1 - m) * l * k" unfolding l_def m_def
+      by (smt add_diff_cancel_right' diff_divide_eq_iff less_irrefl mult.commute mult_numeral_1
+            nonzero_eq_divide_eq nonzero_mult_divide_mult_cancel_right numeral_One times_divide_eq_right)
+    from \<open>0 < ?c\<close> assms(2, 3) have lb: "lb = m * l * k'" by (simp add: l_def m_def)
+    have "la \<cdot> a + lb \<cdot> b = ((1 - m) * l * k) \<cdot> a + (m * l * k') \<cdot> b + (1 - m) \<cdot> h + m \<cdot> h - h"
+      by (simp add: map_scale_minus_distrib_right la lb)
+    also have "\<dots> = l \<cdot> (?L - h)" by (simp add: assms(4, 5) algebra_simps map_scale_assoc)
+    finally show ?thesis by (simp add: r)
+  qed
+  ultimately show ?thesis ..
+qed
+
+lemma thm_3_3_26:
+  assumes "min_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)" and "overlap \<unlhd> fst (hd zs)"
+    and "overlap \<unlhd> snd (last zs)"
+  shows "deg_vpc zs \<le> max (deg_pm (fst (hd zs))) (deg_pm (snd (last zs))) +
+                        (\<bar>deg_pm (vect f1)\<bar> + \<bar>deg_pm (vect f2)\<bar>)"
+proof -
+  from assms(1) have "is_vpc zs" and "min_length_vpc zs" by (rule min_vpcD)+
+  from this(1) obtain zs' where "is_vpc zs'" and hd_zs': "fst (hd zs') = fst (hd zs)"
+    and last_zs': "snd (last zs') = snd (last zs)" and len_zs': "length zs' = length zs"
+    and "repl_peaks zs' = {}" by (rule thm_3_3_25')
+  from assms(1) this(1, 2, 3) have "deg_vpc zs \<le> deg_vpc zs'"
+    by (rule min_vpc_cases) (simp add: len_zs')
+  also have "\<dots> \<le> max (deg_pm (fst (hd zs'))) (deg_pm (snd (last zs'))) +
+                        (\<bar>deg_pm (vect f1)\<bar> + \<bar>deg_pm (vect f2)\<bar>)" (is "_ \<le> ?m + (\<bar>?d1\<bar> + \<bar>?d2\<bar>)")
+  proof (rule deg_vpc_cases)
+    assume "deg_vpc zs' = deg_pm (fst (hd zs'))"
+    also have "\<dots> \<le> ?m" by (rule max.cobounded1)
+    also have "\<dots> \<le> ?m + (\<bar>?d1\<bar> + \<bar>?d2\<bar>)" by linarith
+    finally show ?thesis .
+  next
+    assume "deg_vpc zs' = deg_pm (snd (last zs'))"
+    also have "\<dots> \<le> ?m" by (rule max.cobounded2)
+    also have "\<dots> \<le> ?m + (\<bar>?d1\<bar> + \<bar>?d2\<bar>)" by linarith
+    finally show ?thesis .
+  next
+    from \<open>is_vpc zs'\<close> show mlvpc: "min_length_vpc zs'"
+    proof (rule min_length_vpcI)
+      fix zs0
+      assume "is_vpc zs0"
+      assume "fst (hd zs0) = fst (hd zs')" and "snd (last zs0) = snd (last zs')"
+      hence "fst (hd zs0) = fst (hd zs)" and "snd (last zs0) = snd (last zs)"
+        by (simp_all only: hd_zs' last_zs')
+      with \<open>min_length_vpc zs\<close> \<open>is_vpc zs0\<close> show "length zs' \<le> length zs0"
+        unfolding len_zs' by (rule min_length_vpcD)
+    qed
+    define A where "A = fst (hd zs')"
+    define B where "B = snd (last zs')"
+    from assms(2) show 1: "A \<noteq> B" by (simp add: hd_zs' last_zs' A_def B_def)
+    from assms(3) show 2: "overlap \<unlhd> A" by (simp add: hd_zs' A_def)
+    from assms(4) show 3: "overlap \<unlhd> B" by (simp add: last_zs' B_def)
+
+    fix i
+    assume "i < length zs'"
+    assume "is_peak zs' i"
+    moreover from \<open>is_vpc zs'\<close> this obtain f f' where f_in: "f \<in> shifts {f1, f2}"
+      and f'_in: "f' \<in> shifts {f1, f2}" and "f \<noteq> f'" and i_in: "zs' ! i \<in> shifts_of {f}"
+      and Si_in: "zs' ! Suc i \<in> shifts_of {f'}"
+      and eq0: "snd (zs' ! Suc i) + fst f - snd f = fst (zs' ! i) + snd f' - fst f'"
+      and deg_f: "deg_pm (fst f) < deg_pm (snd f)" and deg_f': "deg_pm (snd f') < deg_pm (fst f')"
+      and disjnt: "shifts_of {f} \<inter> shifts_of {f'} = {}" by (rule is_peakE)
+    moreover have "i \<notin> repl_peaks zs'" by (simp add: \<open>repl_peaks zs' = {}\<close>)
+    moreover define R where "R = fst (zs' ! i) + snd f' - fst f'"
+    ultimately have a_13: "\<not> lcs (fst f) (snd f') \<unlhd> R" by (simp add: repl_peaks_def)
+    from i_in have a_12: "snd (zs' ! i) = R + snd f - fst f + fst f' - snd f'"
+      by (simp add: shifts_of_singletonD R_def)
+    from \<open>i < length zs'\<close> have "fst (zs' ! i) \<in> set_of_vpc zs'" by (simp add: set_of_vpc_def)
+    with mlvpc 1 2 3 have "overlap \<unlhd> fst (zs' ! i)" unfolding A_def B_def by (rule thm_3_3_20)
+    hence a_15: "overlap \<unlhd> R + fst f' - snd f'" by (simp add: R_def)
+    from \<open>is_peak zs' i\<close> have Si_less: "Suc i < length zs'" by (rule is_peakD)
+    hence "snd (zs' ! Suc i) \<in> set_of_vpc zs'" by (simp add: set_of_vpc_def)
+    with mlvpc 1 2 3 have "overlap \<unlhd> snd (zs' ! Suc i)" unfolding A_def B_def by (rule thm_3_3_20)
+    also have "\<dots> = fst (zs' ! i) + snd f' - fst f' + (snd f - fst f)" by (simp flip: eq0)
+    finally have a_14: "overlap \<unlhd> R + snd f - fst f" by (simp add: R_def algebra_simps)
+
+    let ?S = "set zs' \<inter> shifts_of {f}"
+    let ?S' = "set zs' \<inter> shifts_of {f'}"
+    have "finite ?S" and "finite ?S'" by simp_all
+    define k where "k = card ?S"
+    define k' where "k' = card ?S'"
+    from \<open>i < length zs'\<close> i_in have "zs' ! i \<in> ?S" by simp
+    hence "?S \<noteq> {}" by blast
+    hence "0 < k" by (simp add: k_def card_gt_0_iff)
+    from Si_less have "zs' ! Suc i \<in> ?S'" using Si_in by simp
+    hence "?S' \<noteq> {}" by blast
+    hence "0 < k'" by (simp add: k'_def card_gt_0_iff)
+    from mlvpc 1 2 3 f_in f'_in \<open>f \<noteq> f'\<close> \<open>?S \<noteq> {}\<close> \<open>?S' \<noteq> {}\<close> obtain g g'
+      where "{f1, f2} = {g, g'}" and "g \<noteq> g'" and "f \<in> shifts {g}" and "f' \<in> shifts {g'}"
+      and zs'_sub: "set zs' \<subseteq> shifts_of {f} \<union> shifts_of {f'}"
+      unfolding A_def B_def by (rule vpc_subset_shifts_of)
+    from \<open>f \<in> shifts {g}\<close> have "\<bar>deg_pm (snd f - fst f)\<bar> = \<bar>deg_pm (vect g)\<bar>"
+      by (auto simp: shifts_def vect_def deg_pm_minus)
+    moreover from \<open>f' \<in> shifts {g'}\<close> have "\<bar>deg_pm (snd f' - fst f')\<bar> = \<bar>deg_pm (vect g')\<bar>"
+      by (auto simp: shifts_def vect_def deg_pm_minus)
+    moreover from \<open>{f1, f2} = {g, g'}\<close> have "(f1 = g \<and> f2 = g') \<or> (f1 = g' \<and> f2 = g)" by fastforce
+    ultimately have eq3: "\<bar>deg_pm (snd f - fst f)\<bar> + \<bar>deg_pm (snd f' - fst f')\<bar> = \<bar>?d1\<bar> + \<bar>?d2\<bar>"
+      by auto
+    from zs'_sub have set_zs': "?S \<union> ?S' = set zs'" by blast
+    from disjnt have "?S \<inter> ?S' = {}" by (simp add: ac_simps)
+    with \<open>finite ?S\<close> \<open>finite ?S'\<close> have "card (?S \<union> ?S') = k + k'" unfolding k_def k'_def
+      by (rule card_Un_disjoint)
+    hence "k + k' = card (set zs')" by (simp only: set_zs')
+    also from min_length_vpc_distinct(3) have "\<dots> = length zs'" by (rule distinct_card) fact
+    finally have "k + k' = length zs'" .
+    have eq1: "B = A + rat k \<cdot> (snd f - fst f) + rat k' \<cdot> (snd f' - fst f')"
+      unfolding k_def k'_def A_def B_def using mlvpc zs'_sub disjnt by (rule vpc_snd_last_conv_shifts_of)
+    define H where "H = A + rat k \<cdot> (snd f - fst f)"
+    have H_alt: "H = B - rat k' \<cdot> (snd f' - fst f')" by (simp add: H_def eq1)
+    hence a_11: "R \<in> coneN H (fst f - snd f) (snd f' - fst f')"
+    proof -
+      define l where "l = card (set (take (Suc i) zs') \<inter> shifts_of {f})"
+      define l' where "l' = card (set (take (Suc i) zs') \<inter> shifts_of {f'})"
+      from set_take_subset[of "Suc i" zs'] have "l \<le> k" by (auto simp: l_def k_def intro!: card_mono)
+      have "snd (zs' ! i) = A + rat l \<cdot> (snd f - fst f) + rat l' \<cdot> (snd f' - fst f')"
+        unfolding l_def l'_def A_def using mlvpc zs'_sub disjnt \<open>i < length zs'\<close>
+        by (rule vpc_snd_nth_conv_shifts_of)
+      also have "\<dots> = H + rat l \<cdot> (snd f - fst f) + rat l' \<cdot> (snd f' - fst f') - rat k \<cdot> (snd f - fst f)"
+        by (simp add: H_def)
+      finally have "snd (zs' ! i) + fst f - snd f + snd f' - fst f' =
+                      H + rat (Suc (k - l)) \<cdot> (fst f - snd f) + rat (Suc l') \<cdot> (snd f' - fst f')"
+        using \<open>l \<le> k\<close> by (simp add: of_nat_diff algebra_simps)
+      hence "R = H + rat (Suc (k - l)) \<cdot> (fst f - snd f) + rat (Suc l') \<cdot> (snd f' - fst f')"
+        by (simp add: a_12)
+      thus ?thesis by (rule coneN_I) simp_all
+    qed
+    from f_in f'_in a_13 a_14 a_15 have a_16: "\<not> overlap \<unlhd> R" by (rule lem_3_3_30)
+
+    from \<open>overlap \<unlhd> A\<close> \<open>overlap \<unlhd> B\<close> have a_17: "overlap \<unlhd> l" if "l \<in> conn A B" for l
+      using that by (rule conn_geI)
+    have a_18: "deg_pm l \<le> max (deg_pm A) (deg_pm B)" if "l \<in> conn A B" for l
+      using that by (rule conn_deg_leI)
+    from a_11 coneN_subset_coneQ have "R \<in> coneQ H (fst f - snd f) (snd f' - fst f')" ..
+    moreover from \<open>0 < k\<close> have "0 < rat k" by simp
+    moreover from \<open>0 < k'\<close> have "0 < rat k'" by simp
+    moreover have "A = H + rat k \<cdot> (fst f - snd f)" by (simp add: A_def H_def algebra_simps)
+    moreover have "B = H + rat k' \<cdot> (snd f' - fst f')" by (simp add: B_def H_alt algebra_simps)
+    ultimately obtain L l where L_in: "L \<in> conn A B" and "0 < l" and R: "R = H + l \<cdot> (L - H)"
+      by (rule lem_3_3_33)
+
+    have "1 < l"
+    proof (rule ccontr)
+      assume "\<not> 1 < l"
+      note R
+      moreover from \<open>0 < l\<close> have "0 \<le> l" by simp
+      moreover from \<open>\<not> 1 < l\<close> have "l \<le> 1" by simp
+      ultimately have "R \<in> conn H L" by (rule connI)
+      have "\<not> overlap \<unlhd> H"
+      proof
+        assume "overlap \<unlhd> H"
+        moreover from L_in have "overlap \<unlhd> L" by (rule a_17)
+        ultimately have "overlap \<unlhd> R" using \<open>R \<in> conn H L\<close> by (rule conn_geI)
+        with a_16 show False ..
+      qed
+      let ?L = "conn (R + snd f - fst f) (R + fst f' - snd f')"
+      
+      have "R \<in> coneQ H (R + snd f - fst f - H) (R + fst f' - snd f' - H)"
+      proof -
+        from a_11 obtain r r' where "0 < r" and "0 < r'"
+          and R_alt: "R = H + rat r \<cdot> (fst f - snd f) + rat r' \<cdot> (snd f' - fst f')" by (rule coneN_E)
+        let ?d = "rat r + rat r' - 1"
+        let ?r = "rat r / ?d"
+        let ?r' = "rat r' / ?d"
+        from \<open>0 < r\<close> \<open>0 < r'\<close> have "0 < ?d" by simp
+        have "?d \<cdot> R = ?d \<cdot> H + rat r \<cdot> (R + snd f - fst f - H) + rat r' \<cdot> (R + fst f' - snd f' - H)"
+          by (simp add: R_alt algebra_simps)
+        hence "inverse ?d \<cdot> ?d \<cdot> R =
+            inverse ?d \<cdot> (?d \<cdot> H + rat r \<cdot> (R + snd f - fst f - H) + rat r' \<cdot> (R + fst f' - snd f' - H))"
+          by simp
+        with \<open>0 < ?d\<close> have "R = H + ?r \<cdot> (R + snd f - fst f - H) + ?r' \<cdot> (R + fst f' - snd f' - H)"
+          by (simp add: map_scale_assoc map_scale_distrib_left divide_rat_def mult.commute)
+        moreover from \<open>0 < r\<close> \<open>0 < ?d\<close> have "0 < ?r" by simp
+        moreover from \<open>0 < r'\<close> \<open>0 < ?d\<close> have "0 < ?r'" by simp
+        ultimately show ?thesis by (rule coneQ_I)
+      qed
+      moreover have "0 < (1::rat)" and "0 < (1::rat)" by simp_all
+      moreover have "R + snd f - fst f = H + 1 \<cdot> (R + snd f - fst f - H)" by simp
+      moreover have "R + fst f' - snd f' = H + 1 \<cdot> (R + fst f' - snd f' - H)" by simp
+      ultimately obtain L' l' where "L' \<in> ?L" and "0 < l'" and R_alt: "R = H + l' \<cdot> (L' - H)"
+        by (rule lem_3_3_33)
+      from a_14 a_15 \<open>L' \<in> ?L\<close> have "overlap \<unlhd> L'" by (rule conn_geI)
+      have "l' < 1"
+      proof (rule ccontr)
+        assume "\<not> l' < 1"
+        moreover from a_16 \<open>overlap \<unlhd> L'\<close> have "l' \<noteq> 1" by (intro notI) (simp add: R_alt)
+        ultimately have "1 < l'" by simp
+        with \<open>l \<le> 1\<close> have "l < l'" by (rule le_less_trans)
+        from R_alt have "H + l' \<cdot> (L' - H) = R" by (rule sym)
+        also have "\<dots> = H + l \<cdot> (L - H)" by (fact R)
+        finally have "(l' - l) \<cdot> H = l' \<cdot> L' - l \<cdot> L" by (simp add: algebra_simps)
+        hence "inverse (l' - l) \<cdot> (l' - l) \<cdot> H = inverse (l' - l) \<cdot> (l' \<cdot> L' - l \<cdot> L)" by simp
+        with \<open>l < l'\<close> have "H = (l' / (l' - l)) \<cdot> L' - (l / (l' - l)) \<cdot> L"
+          by (simp add: map_scale_assoc map_scale_minus_distrib_left divide_rat_def mult.commute)
+        also from \<open>l < l'\<close> have "l / (l' - l) = l' / (l' - l) - 1" by (simp add: field_simps)
+        finally have H: "H = L + (l' / (l' - l)) \<cdot> (L' - L)" by (simp add: algebra_simps)
+        have "R = L + ((1 - l) * l' / (l' - l)) \<cdot> (L' - L)"
+          by (simp add: H R map_scale_assoc divide_rat_def algebra_simps)
+        moreover from \<open>l < l'\<close> \<open>0 < l'\<close> \<open>l \<le> 1\<close> have "0 \<le> (1 - l) * l' / (l' - l)" by simp
+        moreover from \<open>0 < l\<close> \<open>1 < l'\<close> \<open>l < l'\<close> have "(1 - l) * l' / (l' - l) \<le> 1"
+          by (simp add: algebra_simps)
+        ultimately have "R \<in> conn L L'" by (rule connI)
+        with a_17 \<open>overlap \<unlhd> L'\<close> have "overlap \<unlhd> R" by (rule conn_geI) fact
+        with a_16 show False ..
+      qed
+
+      from \<open>L' \<in> ?L\<close> obtain m where "0 \<le> m" and "m \<le> 1"
+        and "L' = (R + snd f - fst f) + m \<cdot> ((R + fst f' - snd f') - (R + snd f - fst f))" by (rule connE)
+      from this(3) have L': "L' = R + snd f - fst f + m \<cdot> (fst f - snd f + fst f' - snd f')"
+        by (simp add: algebra_simps)
+      note R_alt
+      also have "l' \<cdot> (L' - H) = l' \<cdot> R + (- l' * (1 - m)) \<cdot> (fst f - snd f) +
+                                (- l' * m) \<cdot> (snd f' - fst f') - l' \<cdot> H"
+        by (simp add: L' map_scale_assoc map_scale_uminus_left algebra_simps)
+      finally have "(1 - l') \<cdot> R = (1 - l') \<cdot> H + (- l' * (1 - m)) \<cdot> (fst f - snd f) +
+                                (- l' * m) \<cdot> (snd f' - fst f')" by (simp add: algebra_simps)
+      hence "inverse (1 - l') \<cdot> (1 - l') \<cdot> R = inverse (1 - l') \<cdot> ((1 - l') \<cdot> H +
+                                  (- l' * (1 - m)) \<cdot> (fst f - snd f) + (- l' * m) \<cdot> (snd f' - fst f'))"
+        by simp
+      with \<open>l' < 1\<close> have R_1: "R = H + (- l' * (1 - m) / (1 - l')) \<cdot> (fst f - snd f) +
+                                    (- l' * m / (1 - l')) \<cdot> (snd f' - fst f')"
+        by (simp add: map_scale_assoc map_scale_distrib_left divide_rat_def mult.commute)
+      from \<open>0 < l'\<close> \<open>m \<le> 1\<close> \<open>l' < 1\<close> have "- l' * (1 - m) / (1 - l') \<le> 0" (is "?j \<le> _") by simp
+      from \<open>0 < l'\<close> \<open>0 \<le> m\<close> \<open>l' < 1\<close> have "- l' * m / (1 - l') \<le> 0" (is "?j' \<le> _") by simp
+      from a_11 obtain j j' where "0 < j" and "0 < j'"
+        and "R = H + rat j \<cdot> (fst f - snd f) + rat j' \<cdot> (snd f' - fst f')" by (rule coneN_E)
+      from this(3) have "rat j \<cdot> (fst f - snd f) + rat j' \<cdot> (snd f' - fst f') =
+                          ?j \<cdot> (fst f - snd f) + ?j' \<cdot> (snd f' - fst f')"
+        by (simp add: R_1)
+      hence "(?j' - rat j') \<cdot> (snd f' - fst f') = (?j - rat j) \<cdot> (snd f - fst f)"
+        by (simp add: algebra_simps)
+      hence "inverse (?j' - rat j') \<cdot> ((?j' - rat j') \<cdot> (snd f' - fst f')) =
+              inverse (?j' - rat j') \<cdot> ((?j - rat j) \<cdot> (snd f - fst f))" by (rule arg_cong)
+      moreover from \<open>?j' \<le> 0\<close> \<open>0 < j'\<close> have "?j' - rat j' < 0" by simp
+      moreover define q where "q = (?j - rat j) / (?j' - rat j')"
+      ultimately have eq2: "snd f' - fst f' = q \<cdot> (snd f - fst f)"
+        by (simp add: map_scale_assoc divide_rat_def mult.commute)
+      from \<open>0 < j\<close> \<open>?j \<le> 0\<close> have "?j - rat j < 0" by simp
+      hence "0 < q" unfolding q_def using \<open>?j' - rat j' < 0\<close> by (rule divide_neg_neg)
+      with deg_f have "0 < deg_pm (q \<cdot> (snd f - fst f))" by (simp add: deg_pm_map_scale deg_pm_minus)
+      also have "\<dots> = deg_pm (snd f' - fst f')" by (simp only: eq2)
+      also from deg_f' have "\<dots> < 0" by (simp only: deg_pm_minus_group)
+      finally show False .
+    qed
+
+    from L_in have a_19: "deg_pm L \<le> max (deg_pm A) (deg_pm B)" by (rule a_18)
+    also have "\<dots> \<le> deg_pm H"
+    proof (rule max.boundedI)
+      from deg_f show "deg_pm A \<le> deg_pm H"
+        by (simp add: H_def deg_pm_plus deg_pm_map_scale deg_pm_minus)
+    next
+      from deg_f' show "deg_pm B \<le> deg_pm H"
+        by (simp add: H_alt deg_pm_plus deg_pm_map_scale deg_pm_minus mult_le_0_iff)
+    qed
+    finally have "deg_pm (L - H) \<le> 0" by (simp add: deg_pm_minus)
+    have "deg_pm R = deg_pm H + l * deg_pm (L - H)" by (simp only: R deg_pm_plus deg_pm_map_scale)
+    also from \<open>deg_pm (L - H) \<le> 0\<close> \<open>1 < l\<close> have "\<dots> \<le> deg_pm H + deg_pm (L - H)"
+      by (metis add_diff_cancel_left diff_gt_0_iff_gt left_diff_distrib mult.left_neutral not_le
+              zero_less_mult_pos)
+    also have "\<dots> = deg_pm L" by (simp add: deg_pm_minus)
+    also from a_19 have "\<dots> \<le> ?m" by (simp only: A_def B_def)
+    finally have "deg_pm R \<le> ?m" .
+
+    assume "deg_vpc zs' = deg_pm (snd (zs' ! i))"
+    also have "\<dots> = deg_pm R + (deg_pm (snd f - fst f) - deg_pm (snd f' - fst f'))"
+      by (simp add: a_12 deg_pm_plus deg_pm_minus)
+    also from \<open>deg_pm R \<le> ?m\<close> have "\<dots> \<le> ?m + (\<bar>deg_pm (snd f - fst f)\<bar> + \<bar>deg_pm (snd f' - fst f')\<bar>)"
+      by linarith
+    also have "\<dots> = ?m + (\<bar>?d1\<bar> + \<bar>?d2\<bar>)" by (simp only: eq3)
+    finally show ?thesis .
+  qed
+  finally show ?thesis by (simp only: hd_zs' last_zs')
+qed
+
 end
 
 end (* two_polys *)
