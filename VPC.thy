@@ -390,6 +390,12 @@ begin
 text \<open>It is better to define sets of shifts for arbitrary sets of polynomials, not just for the two
   implicitly fixed \<open>f1\<close> and \<open>f2\<close>.\<close>
 
+definition shifts :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::zero) set \<Rightarrow> ('x point \<times> 'x point) set"
+  where "shifts F = prod.swap ` poly_point ` F \<union> poly_point ` F"
+
+definition shifts_of :: "('x point \<times> 'x point) set \<Rightarrow> ('x point \<times> 'x point) set"
+  where "shifts_of F = case_prod (+\<^sub>N) ` (UNIV \<times> F)"
+
 definition pos_Nshifts :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::zero) set \<Rightarrow> ('x point \<times> 'x point) set"
   where "pos_Nshifts F = case_prod (+\<^sub>N) ` (UNIV \<times> prod.swap ` poly_point ` F)"
 
@@ -398,6 +404,25 @@ definition neg_Nshifts :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0
 
 definition Nshifts :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::zero) set \<Rightarrow> ('x point \<times> 'x point) set"
   where "Nshifts F = pos_Nshifts F \<union> neg_Nshifts F"
+
+lemma shiftsE_poly:
+  assumes "z \<in> shifts F"
+  obtains f where "f \<in> F" and "z \<in> shifts {f}"
+  using assms by (auto simp: shifts_def)
+
+lemma shifts_ofE_poly:
+  assumes "z \<in> shifts_of F"
+  obtains f where "f \<in> F" and "z \<in> shifts_of {f}"
+  using assms by (auto simp: shifts_of_def)
+
+lemma shifts_of_singleton: "shifts_of {f} = range (\<lambda>t. t +\<^sub>N f)"
+  by (auto simp: shifts_of_def intro!: image_eqI)
+
+corollary shifts_of_singletonD: "z \<in> shifts_of {f} \<Longrightarrow> snd z = fst z + snd f - fst f"
+  by (auto simp: shifts_of_singleton nat_plus_point_pair_def)
+
+lemma shifts_of_mono: "F \<subseteq> G \<Longrightarrow> shifts_of F \<subseteq> shifts_of G"
+  by (fastforce simp: shifts_of_def)
 
 lemma pos_NshiftsI: "f \<in> F \<Longrightarrow> z = t +\<^sub>N prod.swap (poly_point f) \<Longrightarrow> z \<in> pos_Nshifts F"
   by (auto simp: pos_Nshifts_def)
@@ -485,6 +510,12 @@ next
   with \<open>f \<in> F\<close> show ?thesis ..
 qed
 
+lemma Nshifts_alt: "Nshifts F = shifts_of (shifts F)"
+  by (simp only: Nshifts_def pos_Nshifts_def neg_Nshifts_def shifts_of_def shifts_def Sigma_Un_distrib2 image_Un)
+
+lemma image_swap_shifts [simp]: "prod.swap ` shifts F = shifts F"
+  by (simp add: shifts_def image_Un image_image Un_commute)
+
 lemma image_swap_pos_Nshifts [simp]: "prod.swap ` pos_Nshifts F = neg_Nshifts F"
 proof -
   have "prod.swap ` pos_Nshifts F =
@@ -508,6 +539,9 @@ qed
 lemma image_swap_Nshifts [simp]: "prod.swap ` Nshifts F = Nshifts F"
   by (simp add: Nshifts_def image_Un Un_commute)
 
+lemma shifts_is_nat_pm_pair: "z \<in> shifts F \<Longrightarrow> is_nat_pm_pair z"
+  by (auto simp: shifts_def nat_plus_point_pair_is_nat_pm_pair poly_point_is_nat_pm_pair)
+
 lemma pos_Nshifts_is_nat_pm_pair: "z \<in> pos_Nshifts F \<Longrightarrow> is_nat_pm_pair z"
   by (elim pos_NshiftsE) (simp add: nat_plus_point_pair_is_nat_pm_pair poly_point_is_nat_pm_pair)
 
@@ -517,9 +551,9 @@ lemma neg_Nshifts_is_nat_pm_pair: "z \<in> neg_Nshifts F \<Longrightarrow> is_na
 lemma Nshifts_is_nat_pm_pair: "z \<in> Nshifts F \<Longrightarrow> is_nat_pm_pair z"
   by (auto simp: Nshifts_def intro: pos_Nshifts_is_nat_pm_pair neg_Nshifts_is_nat_pm_pair)
 
-lemma pos_Nshifts_eq_neg_NshiftsI:
+lemma pos_neg_Nshifts_not_disjointD:
   assumes "pos_Nshifts {f} \<inter> neg_Nshifts {f} \<noteq> {}"
-  shows "pos_Nshifts {f} = neg_Nshifts {f}"
+  shows "lp f = tp f " and "pos_Nshifts {f} = neg_Nshifts {f}"
 proof -
   from assms obtain z where "z \<in> pos_Nshifts {f}" and "z \<in> neg_Nshifts {f}" by blast
   from this(2) obtain s where "z = s +\<^sub>N poly_point f" unfolding neg_Nshifts_singleton ..
@@ -529,11 +563,21 @@ proof -
   hence "s + lp f = t + tp f" and "s + tp f = t + lp f"
     by (simp_all add: nat_plus_point_pair_def poly_point_def flip: of_nat_pm_plus)
   hence "(s + lp f) + (t + lp f) = (s + tp f) + (t + tp f)" by (simp only: add.commute)
-  hence "lp f = tp f"
+  thus "lp f = tp f"
     by (simp add: ac_simps)
         (metis (no_types, hide_lams) ord_canc ordered_powerprod_lin.antisym plus_monotone_left punit.lt_ge_tt)
   hence "prod.swap (poly_point f) = poly_point f" by (simp add: poly_point_def)
-  thus ?thesis by (simp only: pos_Nshifts_singleton neg_Nshifts_singleton)
+  thus "pos_Nshifts {f} = neg_Nshifts {f}" by (simp only: pos_Nshifts_singleton neg_Nshifts_singleton)
+qed
+
+corollary pos_neg_Nshifts_disjointI:
+  assumes "is_proper_binomial f"
+  shows "pos_Nshifts {f} \<inter> neg_Nshifts {f} = {}"
+proof (rule ccontr)
+  assume "pos_Nshifts {f} \<inter> neg_Nshifts {f} \<noteq> {}"
+  hence "lp f = tp f" by (rule pos_neg_Nshifts_not_disjointD)
+  also from assms have "\<dots> \<prec> lp f" by (rule punit.lt_gr_tt_binomial)
+  finally show False ..
 qed
 
 lemma Nshifts_fst_not_eq_snd_proper_binomials:
@@ -1850,7 +1894,7 @@ proof -
         proof (rule lem_3_3_19)
           assume "zs ! (i + l) \<in> neg_Nshifts {f}"
           with ** have "pos_Nshifts {f} \<inter> neg_Nshifts {f} \<noteq> {}" by blast
-          hence "pos_Nshifts {f} = neg_Nshifts {f}" by (rule pos_Nshifts_eq_neg_NshiftsI)
+          hence "pos_Nshifts {f} = neg_Nshifts {f}" by (rule pos_neg_Nshifts_not_disjointD)
           moreover assume "zs ! Suc (i + l) \<in> neg_Nshifts {f}"
           ultimately show "zs ! (i + Suc l) \<in> pos_Nshifts {f}" by simp
         qed simp
@@ -1882,7 +1926,7 @@ proof -
         proof (rule lem_3_3_19)
           assume "zs ! (i + l) \<in> pos_Nshifts {f}"
           with ** have "pos_Nshifts {f} \<inter> neg_Nshifts {f} \<noteq> {}" by blast
-          hence "pos_Nshifts {f} = neg_Nshifts {f}" by (rule pos_Nshifts_eq_neg_NshiftsI)
+          hence "pos_Nshifts {f} = neg_Nshifts {f}" by (rule pos_neg_Nshifts_not_disjointD)
           moreover assume "zs ! Suc (i + l) \<in> pos_Nshifts {f}"
           ultimately show "zs ! (i + Suc l) \<in> neg_Nshifts {f}" by simp
         qed simp
@@ -2347,7 +2391,7 @@ next
   have disjnt: "pos_Nshifts {f} \<inter> neg_Nshifts {f} = {}"
   proof (rule ccontr)
     assume "pos_Nshifts {f} \<inter> neg_Nshifts {f} \<noteq> {}"
-    hence "pos_Nshifts {f} = neg_Nshifts {f}" by (rule pos_Nshifts_eq_neg_NshiftsI)
+    hence "pos_Nshifts {f} = neg_Nshifts {f}" by (rule pos_neg_Nshifts_not_disjointD)
     with False show False unfolding Nshifts_def by blast
   qed
   obtain i where "i < length zs" and i_neg: "zs ! i \<in> neg_Nshifts {f}"
