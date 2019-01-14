@@ -2655,6 +2655,326 @@ next
   qed
 qed
 
+lemma vpc_subset_shifts_of:
+  assumes "min_length_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)" and "overlap \<unlhd> fst (hd zs)"
+    and "overlap \<unlhd> snd (last zs)" and "f \<in> shifts {f1, f2}" and "f' \<in> shifts {f1, f2}" and "f \<noteq> f'"
+    and "set zs \<inter> shifts_of {f} \<noteq> {}" and "set zs \<inter> shifts_of {f'} \<noteq> {}"
+  obtains g g' where "{f1, f2} = {g, g'}" and "g \<noteq> g'" and "f \<in> shifts {g}" and "f' \<in> shifts {g'}"
+    and "set zs \<subseteq> shifts_of {f} \<union> shifts_of {f'}"
+proof -
+  from assms(1) have "is_vpc zs" by (rule min_length_vpcD)
+  hence sub1: "set zs \<subseteq> Nshifts {f1, f2}" by (rule is_vpcD)
+  from assms(5) obtain g where g_in: "g \<in> {f1, f2}" and f_in: "f \<in> shifts {g}" by (rule shiftsE_poly)
+  have "shifts_of {f} \<subseteq> Nshifts {g}" unfolding Nshifts_alt by (rule shifts_of_mono) (simp add: f_in)
+  from g_in f1_pbinomial f2_pbinomial have "is_proper_binomial g" by blast
+  hence g_disjnt: "pos_Nshifts {g} \<inter> neg_Nshifts {g} = {}" by (rule pos_neg_Nshifts_disjointI)
+  from assms(6) obtain g' where g'_in: "g' \<in> {f1, f2}" and f'_in: "f' \<in> shifts {g'}" by (rule shiftsE_poly)
+  have "shifts_of {f'} \<subseteq> Nshifts {g'}" unfolding Nshifts_alt by (rule shifts_of_mono) (simp add: f'_in)
+  from g'_in f1_pbinomial f2_pbinomial have "is_proper_binomial g'" by blast
+  hence g'_disjnt: "pos_Nshifts {g'} \<inter> neg_Nshifts {g'} = {}" by (rule pos_neg_Nshifts_disjointI)
+  from assms(8) obtain z where "z \<in> set zs" and "z \<in> shifts_of {f}" by blast
+  from this(2) \<open>shifts_of {f} \<subseteq> Nshifts {g}\<close> have "z \<in> Nshifts {g}" ..
+  with \<open>z \<in> set zs\<close> have z_in: "z \<in> set zs \<inter> Nshifts {g}" by (rule IntI)
+  from assms(9) obtain z' where "z' \<in> set zs" and "z' \<in> shifts_of {f'}" by blast
+  from this(2) \<open>shifts_of {f'} \<subseteq> Nshifts {g'}\<close> have "z' \<in> Nshifts {g'}" ..
+  with \<open>z' \<in> set zs\<close> have z'_in: "z' \<in> set zs \<inter> Nshifts {g'}" by (rule IntI)
+  from _ _ f_in f'_in show ?thesis
+  proof
+    from assms(1-4) g_in have "g \<noteq> g' \<and> {f1, f2} = {g, g'} \<and> set zs \<subseteq> shifts_of {f} \<union> shifts_of {f'}"
+    proof (rule thm_3_3_22)
+      assume sub2: "set zs \<inter> Nshifts {g} \<subseteq> pos_Nshifts {g}"
+      with z_in have "z \<in> pos_Nshifts {g}" ..
+      with g_disjnt have "z \<notin> neg_Nshifts {g}" by blast
+      from f_in have f: "f = prod.swap (poly_point g)" unfolding shifts_def
+      proof
+        assume "f \<in> poly_point ` {g}"
+        with \<open>z \<in> shifts_of {f}\<close> have "z \<in> neg_Nshifts {g}"
+          by (simp add: neg_Nshifts_singleton shifts_of_singleton)
+        with \<open>z \<notin> neg_Nshifts {g}\<close> show ?thesis ..
+      qed simp
+      hence pos_g: "pos_Nshifts {g} = shifts_of {f}"
+        by (simp only: pos_Nshifts_singleton shifts_of_singleton)
+      from assms(1-4) g'_in show ?thesis
+      proof (rule thm_3_3_22)
+        assume sub3: "set zs \<inter> Nshifts {g'} \<subseteq> pos_Nshifts {g'}"
+        with z'_in have "z' \<in> pos_Nshifts {g'}" ..
+        with g'_disjnt have "z' \<notin> neg_Nshifts {g'}" by blast
+        from f'_in have f': "f' = prod.swap (poly_point g')" unfolding shifts_def
+        proof
+          assume "f' \<in> poly_point ` {g'}"
+          with \<open>z' \<in> shifts_of {f'}\<close> have "z' \<in> neg_Nshifts {g'}"
+            by (simp add: neg_Nshifts_singleton shifts_of_singleton)
+          with \<open>z' \<notin> neg_Nshifts {g'}\<close> show ?thesis ..
+        qed simp
+        hence pos_g': "pos_Nshifts {g'} = shifts_of {f'}"
+          by (simp only: pos_Nshifts_singleton shifts_of_singleton)
+        show ?thesis
+        proof (intro conjI subsetI)
+          from assms(7) show "g \<noteq> g'" by (auto simp: f f')
+          with g_in g'_in show eq1: "{f1, f2} = {g, g'}" by blast
+
+          fix z0
+          assume "z0 \<in> set zs"
+          with sub1 have "z0 \<in> Nshifts {f1, f2}" ..
+          hence "z0 \<in> Nshifts {g} \<union> Nshifts {g'}" by (auto simp: eq1 elim: NshiftsE_poly)
+          thus "z0 \<in> shifts_of {f} \<union> shifts_of {f'}"
+          proof
+            assume "z0 \<in> Nshifts {g}"
+            with \<open>z0 \<in> set zs\<close> sub2 have "z0 \<in> pos_Nshifts {g}" by blast
+            thus ?thesis by (simp add: pos_g)
+          next
+            assume "z0 \<in> Nshifts {g'}"
+            with \<open>z0 \<in> set zs\<close> sub3 have "z0 \<in> pos_Nshifts {g'}" by blast
+            thus ?thesis by (simp add: pos_g')
+          qed
+        qed
+      next
+        assume sub3: "set zs \<inter> Nshifts {g'} \<subseteq> neg_Nshifts {g'}"
+        with z'_in have "z' \<in> neg_Nshifts {g'}" ..
+        with g'_disjnt have "z' \<notin> pos_Nshifts {g'}" by blast
+        from f'_in have f': "f' = poly_point g'" unfolding shifts_def
+        proof
+          assume "f' \<in> prod.swap ` poly_point ` {g'}"
+          with \<open>z' \<in> shifts_of {f'}\<close> have "z' \<in> pos_Nshifts {g'}"
+            by (simp add: pos_Nshifts_singleton shifts_of_singleton)
+          with \<open>z' \<notin> pos_Nshifts {g'}\<close> show ?thesis ..
+        qed simp
+        hence neg_g': "neg_Nshifts {g'} = shifts_of {f'}"
+          by (simp only: neg_Nshifts_singleton shifts_of_singleton)
+        show ?thesis
+        proof (intro conjI subsetI)
+          show "g \<noteq> g'"
+          proof
+            assume "g = g'"
+            with sub2 sub3 g'_disjnt z'_in show False by blast
+          qed
+          with g_in g'_in show eq1: "{f1, f2} = {g, g'}" by blast
+
+          fix z0
+          assume "z0 \<in> set zs"
+          with sub1 have "z0 \<in> Nshifts {f1, f2}" ..
+          hence "z0 \<in> Nshifts {g} \<union> Nshifts {g'}" by (auto simp: eq1 elim: NshiftsE_poly)
+          thus "z0 \<in> shifts_of {f} \<union> shifts_of {f'}"
+          proof
+            assume "z0 \<in> Nshifts {g}"
+            with \<open>z0 \<in> set zs\<close> sub2 have "z0 \<in> pos_Nshifts {g}" by blast
+            thus ?thesis by (simp add: pos_g)
+          next
+            assume "z0 \<in> Nshifts {g'}"
+            with \<open>z0 \<in> set zs\<close> sub3 have "z0 \<in> neg_Nshifts {g'}" by blast
+            thus ?thesis by (simp add: neg_g')
+          qed
+        qed
+      qed
+    next
+      assume sub2: "set zs \<inter> Nshifts {g} \<subseteq> neg_Nshifts {g}"
+      with z_in have "z \<in> neg_Nshifts {g}" ..
+      with g_disjnt have "z \<notin> pos_Nshifts {g}" by blast
+      from f_in have f: "f = poly_point g" unfolding shifts_def
+      proof
+        assume "f \<in> prod.swap ` poly_point ` {g}"
+        with \<open>z \<in> shifts_of {f}\<close> have "z \<in> pos_Nshifts {g}"
+          by (simp add: pos_Nshifts_singleton shifts_of_singleton)
+        with \<open>z \<notin> pos_Nshifts {g}\<close> show ?thesis ..
+      qed simp
+      hence neg_g: "neg_Nshifts {g} = shifts_of {f}"
+        by (simp only: neg_Nshifts_singleton shifts_of_singleton)
+      from assms(1-4) g'_in show ?thesis
+      proof (rule thm_3_3_22)
+        assume sub3: "set zs \<inter> Nshifts {g'} \<subseteq> pos_Nshifts {g'}"
+        with z'_in have "z' \<in> pos_Nshifts {g'}" ..
+        with g'_disjnt have "z' \<notin> neg_Nshifts {g'}" by blast
+        from f'_in have f': "f' = prod.swap (poly_point g')" unfolding shifts_def
+        proof
+          assume "f' \<in> poly_point ` {g'}"
+          with \<open>z' \<in> shifts_of {f'}\<close> have "z' \<in> neg_Nshifts {g'}"
+            by (simp add: neg_Nshifts_singleton shifts_of_singleton)
+          with \<open>z' \<notin> neg_Nshifts {g'}\<close> show ?thesis ..
+        qed simp
+        hence pos_g': "pos_Nshifts {g'} = shifts_of {f'}"
+          by (simp only: pos_Nshifts_singleton shifts_of_singleton)
+        show ?thesis
+        proof (intro conjI subsetI)
+          show "g \<noteq> g'"
+          proof
+            assume "g = g'"
+            with sub2 sub3 g'_disjnt z'_in show False by blast
+          qed
+          with g_in g'_in show eq1: "{f1, f2} = {g, g'}" by blast
+
+          fix z0
+          assume "z0 \<in> set zs"
+          with sub1 have "z0 \<in> Nshifts {f1, f2}" ..
+          hence "z0 \<in> Nshifts {g} \<union> Nshifts {g'}" by (auto simp: eq1 elim: NshiftsE_poly)
+          thus "z0 \<in> shifts_of {f} \<union> shifts_of {f'}"
+          proof
+            assume "z0 \<in> Nshifts {g}"
+            with \<open>z0 \<in> set zs\<close> sub2 have "z0 \<in> neg_Nshifts {g}" by blast
+            thus ?thesis by (simp add: neg_g)
+          next
+            assume "z0 \<in> Nshifts {g'}"
+            with \<open>z0 \<in> set zs\<close> sub3 have "z0 \<in> pos_Nshifts {g'}" by blast
+            thus ?thesis by (simp add: pos_g')
+          qed
+        qed
+      next
+        assume sub3: "set zs \<inter> Nshifts {g'} \<subseteq> neg_Nshifts {g'}"
+        with z'_in have "z' \<in> neg_Nshifts {g'}" ..
+        with g'_disjnt have "z' \<notin> pos_Nshifts {g'}" by blast
+        from f'_in have f': "f' = poly_point g'" unfolding shifts_def
+        proof
+          assume "f' \<in> prod.swap ` poly_point ` {g'}"
+          with \<open>z' \<in> shifts_of {f'}\<close> have "z' \<in> pos_Nshifts {g'}"
+            by (simp add: pos_Nshifts_singleton shifts_of_singleton)
+          with \<open>z' \<notin> pos_Nshifts {g'}\<close> show ?thesis ..
+        qed simp
+        hence neg_g': "neg_Nshifts {g'} = shifts_of {f'}"
+          by (simp only: neg_Nshifts_singleton shifts_of_singleton)
+        show ?thesis
+        proof (intro conjI subsetI)
+          from assms(7) show "g \<noteq> g'" by (auto simp: f f')
+          with g_in g'_in show eq1: "{f1, f2} = {g, g'}" by blast
+
+          fix z0
+          assume "z0 \<in> set zs"
+          with sub1 have "z0 \<in> Nshifts {f1, f2}" ..
+          hence "z0 \<in> Nshifts {g} \<union> Nshifts {g'}" by (auto simp: eq1 elim: NshiftsE_poly)
+          thus "z0 \<in> shifts_of {f} \<union> shifts_of {f'}"
+          proof
+            assume "z0 \<in> Nshifts {g}"
+            with \<open>z0 \<in> set zs\<close> sub2 have "z0 \<in> neg_Nshifts {g}" by blast
+            thus ?thesis by (simp add: neg_g)
+          next
+            assume "z0 \<in> Nshifts {g'}"
+            with \<open>z0 \<in> set zs\<close> sub3 have "z0 \<in> neg_Nshifts {g'}" by blast
+            thus ?thesis by (simp add: neg_g')
+          qed
+        qed
+      qed
+    qed
+    thus "{f1, f2} = {g, g'}" and "g \<noteq> g'" and "set zs \<subseteq> shifts_of {f} \<union> shifts_of {f'}" by simp_all
+  qed
+qed
+
+lemma vpc_snd_nth_conv_shifts_of:
+  assumes "min_length_vpc zs" and "set zs \<subseteq> shifts_of {f} \<union> shifts_of {f'}"
+    and "shifts_of {f} \<inter> shifts_of {f'} = {}" and "i < length zs"
+  shows "snd (zs ! i) =
+            fst (hd zs) + rat (card (set (take (Suc i) zs) \<inter> shifts_of {f})) \<cdot> (snd f - fst f) +
+                          rat (card (set (take (Suc i) zs) \<inter> shifts_of {f'})) \<cdot> (snd f' - fst f')"
+  using assms(4)
+proof (induct i)
+  case 0
+  define k where "k = card ({zs ! 0} \<inter> shifts_of {f})"
+  define k' where "k' = card ({zs ! 0} \<inter> shifts_of {f'})"
+  from 0 have "zs \<noteq> []" by simp
+  hence "zs ! 0 \<in> set zs" by simp
+  with assms(2) have "zs ! 0 \<in> shifts_of {f} \<union> shifts_of {f'}" ..
+  hence "snd (zs ! 0) = fst (zs ! 0) + rat k \<cdot> (snd f - fst f) + rat k' \<cdot> (snd f' - fst f')"
+  proof
+    assume *: "zs ! 0 \<in> shifts_of {f}"
+    hence "k = 1" by (simp add: k_def)
+    from * assms(3) have "zs ! 0 \<notin> shifts_of {f'}" by blast
+    hence "k' = 0" by (simp add: k'_def)
+    from * have "snd (zs ! 0) = fst (zs ! 0) + snd f - fst f" by (rule shifts_of_singletonD)
+    also have "\<dots> = fst (zs ! 0) + rat k \<cdot> (snd f - fst f) + rat k' \<cdot> (snd f' - fst f')"
+      by (simp add: \<open>k = 1\<close> \<open>k' = 0\<close>)
+    finally show ?thesis .
+  next
+    assume *: "zs ! 0 \<in> shifts_of {f'}"
+    hence "k' = 1" by (simp add: k'_def)
+    from * assms(3) have "zs ! 0 \<notin> shifts_of {f}" by blast
+    hence "k = 0" by (simp add: k_def)
+    from * have "snd (zs ! 0) = fst (zs ! 0) + snd f' - fst f'" by (rule shifts_of_singletonD)
+    also have "\<dots> = fst (zs ! 0) + rat k \<cdot> (snd f - fst f) + rat k' \<cdot> (snd f' - fst f')"
+      by (simp add: \<open>k = 0\<close> \<open>k' = 1\<close>)
+    finally show ?thesis .
+  qed
+  with \<open>zs \<noteq> []\<close> show ?case by (simp add: k_def k'_def take_Suc_conv_app_nth[OF 0] hd_conv_nth)
+next
+  case (Suc i)
+  define k where "k = card (set (take (Suc i) zs) \<inter> shifts_of {f})"
+  define k' where "k' = card (set (take (Suc i) zs) \<inter> shifts_of {f'})"
+  define l where "l = card (set (take (Suc (Suc i)) zs) \<inter> shifts_of {f})"
+  define l' where "l' = card (set (take (Suc (Suc i)) zs) \<inter> shifts_of {f'})"
+  from Suc.prems have "i < length zs" by simp
+  hence eq1: "snd (zs ! i) = fst (hd zs) + rat k \<cdot> (snd f - fst f) + rat k' \<cdot> (snd f' - fst f')"
+    unfolding k_def k'_def by (rule Suc.hyps)
+  from assms(1) have "is_vpc zs" by (rule min_length_vpcD)
+  hence "snd (zs ! i) = fst (zs ! Suc i)" using Suc.prems by (rule is_vpcD)
+  hence eq2: "fst (zs ! Suc i) = fst (hd zs) + rat k \<cdot> (snd f - fst f) + rat k' \<cdot> (snd f' - fst f')"
+    by (simp only: eq1)
+  from Suc.prems have "zs ! Suc i \<in> set zs" by simp
+  with assms(2) have "zs ! Suc i \<in> shifts_of {f} \<union> shifts_of {f'}" ..
+  thus "snd (zs ! Suc i) = fst (hd zs) + rat l \<cdot> (snd f - fst f) + rat l' \<cdot> (snd f' - fst f')"
+  proof
+    assume *: "zs ! Suc i \<in> shifts_of {f}"
+    hence "set (take (Suc (Suc i)) zs) \<inter> shifts_of {f} =
+                  insert (zs ! Suc i) (set (take (Suc i) zs) \<inter> shifts_of {f})" (is "?A = insert ?z ?B")
+      by (simp add: take_Suc_conv_app_nth[OF Suc.prems])
+    have "finite ?B" by simp
+    moreover have "?z \<notin> ?B"
+    proof (intro notI, elim IntE)
+      assume "zs ! Suc i \<in> set (take (Suc i) zs)"
+      then obtain j where "j < length (take (Suc i) zs)" and "zs ! Suc i = (take (Suc i) zs) ! j"
+        by (metis in_set_conv_nth)
+      with Suc.prems have "j < Suc i" and "zs ! Suc i = zs ! j" by simp_all
+      moreover from assms(1) have "distinct zs" by (rule min_length_vpc_distinct)
+      ultimately show False using Suc.prems by (simp add: nth_eq_iff_index_eq)
+    qed
+    ultimately have "l = Suc k" unfolding l_def k_def \<open>?A = insert ?z ?B\<close> by (rule card_insert_disjoint)
+    from * assms(3) have "zs ! Suc i \<notin> shifts_of {f'}" by blast
+    hence "l' = k'" by (simp add: l'_def k'_def take_Suc_conv_app_nth[OF Suc.prems])
+    from * have "snd (zs ! Suc i) = fst (zs ! Suc i) + snd f - fst f" by (rule shifts_of_singletonD)
+    also have "\<dots> = fst (hd zs) + rat l \<cdot> (snd f - fst f) + rat l' \<cdot> (snd f' - fst f')"
+      by (simp add: eq2 \<open>l = Suc k\<close> \<open>l' = k'\<close> map_scale_distrib_right)
+    finally show ?thesis .
+  next
+    assume *: "zs ! Suc i \<in> shifts_of {f'}"
+    hence "set (take (Suc (Suc i)) zs) \<inter> shifts_of {f'} =
+                  insert (zs ! Suc i) (set (take (Suc i) zs) \<inter> shifts_of {f'})" (is "?A = insert ?z ?B")
+      by (simp add: take_Suc_conv_app_nth[OF Suc.prems])
+    have "finite ?B" by simp
+    moreover have "?z \<notin> ?B"
+    proof (intro notI, elim IntE)
+      assume "zs ! Suc i \<in> set (take (Suc i) zs)"
+      then obtain j where "j < length (take (Suc i) zs)" and "zs ! Suc i = (take (Suc i) zs) ! j"
+        by (metis in_set_conv_nth)
+      with Suc.prems have "j < Suc i" and "zs ! Suc i = zs ! j" by simp_all
+      moreover from assms(1) have "distinct zs" by (rule min_length_vpc_distinct)
+      ultimately show False using Suc.prems by (simp add: nth_eq_iff_index_eq)
+    qed
+    ultimately have "l' = Suc k'" unfolding l'_def k'_def \<open>?A = insert ?z ?B\<close>
+      by (rule card_insert_disjoint)
+    from * assms(3) have "zs ! Suc i \<notin> shifts_of {f}" by blast
+    hence "l = k" by (simp add: l_def k_def take_Suc_conv_app_nth[OF Suc.prems])
+    from * have "snd (zs ! Suc i) = fst (zs ! Suc i) + snd f' - fst f'" by (rule shifts_of_singletonD)
+    also have "\<dots> = fst (hd zs) + rat l \<cdot> (snd f - fst f) + rat l' \<cdot> (snd f' - fst f')"
+      by (simp add: eq2 \<open>l' = Suc k'\<close> \<open>l = k\<close> map_scale_distrib_right)
+    finally show ?thesis .
+  qed
+qed
+
+corollary vpc_snd_last_conv_shifts_of:
+  assumes "min_length_vpc zs" and "set zs \<subseteq> shifts_of {f} \<union> shifts_of {f'}"
+    and "shifts_of {f} \<inter> shifts_of {f'} = {}"
+  shows "snd (last zs) = fst (hd zs) + rat (card (set zs \<inter> shifts_of {f})) \<cdot> (snd f - fst f) +
+                                       rat (card (set zs \<inter> shifts_of {f'})) \<cdot> (snd f' - fst f')"
+proof -
+  define i where "i = length zs - 1"
+  from assms(1) have "is_vpc zs" by (rule min_length_vpcD)
+  hence "zs \<noteq> []" by (rule is_vpcD)
+  hence "i < length zs" and eq: "take (Suc i) zs = zs" by (simp_all add: i_def)
+  from \<open>zs \<noteq> []\<close> have "snd (last zs) = snd (zs ! i)" by (simp add: i_def last_conv_nth)
+  also have "\<dots> = fst (hd zs) + rat (card (set (take (Suc i) zs) \<inter> shifts_of {f})) \<cdot> (snd f - fst f) +
+                                rat (card (set (take (Suc i) zs) \<inter> shifts_of {f'})) \<cdot> (snd f' - fst f')"
+    using assms \<open>i < length zs\<close> by (rule vpc_snd_nth_conv_shifts_of)
+  also have "\<dots> = fst (hd zs) + rat (card (set zs \<inter> shifts_of {f})) \<cdot> (snd f - fst f) +
+                                rat (card (set zs \<inter> shifts_of {f'})) \<cdot> (snd f' - fst f')"
+    by (simp only: eq)
+  finally show ?thesis .
+qed
+
 end
 
 end (* two_polys *)
