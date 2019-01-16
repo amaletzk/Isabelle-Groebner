@@ -276,5 +276,13 @@ lemma min_is_int: "is_int x \<Longrightarrow> is_int y \<Longrightarrow> is_int 
 
 lemma max_is_int: "is_int x \<Longrightarrow> is_int y \<Longrightarrow> is_int (max x y)"
   by (simp add: max_def)
+
+subsubsection \<open>@{const abs}\<close>
+
+lemma abs_is_int: "is_int x \<Longrightarrow> is_int \<bar>x\<bar>"
+  by (metis abs_abs abs_eq_iff uminus_is_int)
+
+lemma abs_is_nat: "is_int x \<Longrightarrow> is_nat \<bar>x\<bar>"
+  by (intro int_is_nat abs_is_int abs_ge_zero)
   
 end (* theory *)
