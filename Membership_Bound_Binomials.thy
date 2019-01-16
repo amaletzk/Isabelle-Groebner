@@ -201,9 +201,7 @@ definition membership_problem_assms ::
 definition membership_problem_concl ::
     "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_1) \<Rightarrow> nat \<Rightarrow> bool"
   where "membership_problem_concl f1 f2 g d =
-        (\<exists>q1 q2. g = q1 * f1 + q2 * f2 \<and>
-          (q1 \<noteq> 0 \<longrightarrow> poly_deg (q1 * f1) \<le> d) \<and>
-          (q2 \<noteq> 0 \<longrightarrow> poly_deg (q2 * f2) \<le> d))"
+        (\<exists>q1 q2. g = q1 * f1 + q2 * f2 \<and> poly_deg (q1 * f1) \<le> d \<and> poly_deg (q2 * f2) \<le> d)"
 
 definition membership_problem :: "('b::field itself) \<Rightarrow> nat \<Rightarrow> bool"
   where "membership_problem _ d =
@@ -913,7 +911,7 @@ proof -
     by (subst punit.monomial_eq_itself[OF \<open>is_monomial f2\<close>, symmetric],
         simp add: times_monomial_left \<open>lc f2 \<noteq> 0\<close> punit.monom_mult_monomial u_eq lc2_def)
   show ?thesis
-  proof (simp only: membership_problem_concl_def, intro exI conjI impI)
+  proof (simp only: membership_problem_concl_def, intro exI conjI)
     show "g = q1 * f1 + ?q2 * f2"
       by (simp only: eq1 eq2 binomial_def monomial_uminus[symmetric],
           simp add: punit.monomial_eq_itself[OF \<open>is_monomial g\<close>])
@@ -1300,7 +1298,7 @@ proof -
       finally show ?thesis by simp
     qed
     show ?thesis unfolding membership_problem_concl_def
-    proof (intro exI conjI impI)
+    proof (intro exI conjI)
       have "poly_deg (q1 * f1) \<le> deg_pm (lp g)"
       proof (rule poly_deg_leI)
         fix t
@@ -1459,7 +1457,7 @@ proof -
     qed fact
     finally have deg_q1_f1: "poly_deg (q1 * f1) = poly_deg (q2 * f2)" .
     show ?thesis unfolding membership_problem_concl_def
-    proof (intro exI conjI impI)
+    proof (intro exI conjI)
       have "rat (poly_deg (q1 * f1)) \<le> ?b"
       proof (rule ccontr)
         assume "\<not> rat (poly_deg (q1 * f1)) \<le> ?b"
@@ -1787,7 +1785,7 @@ proof -
     by (simp only: inj_image_eq_iff inj_of_nat_pm)
   define c where "c = tc g / lookup ?g (tp g)"
   show ?thesis unfolding membership_problem_concl_def
-  proof (intro exI conjI impI)
+  proof (intro exI conjI)
     from assms(4) have "g \<noteq> 0" by (rule proper_binomial_not_0)
     hence "tc g \<noteq> 0" by (rule punit.tc_not_0)
     moreover have **: "lookup ?g (tp g) \<noteq> 0" by (simp add: keys_g')
