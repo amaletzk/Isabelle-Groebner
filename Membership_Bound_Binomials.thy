@@ -196,7 +196,7 @@ definition membership_problem_assms ::
     "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::field) \<Rightarrow> bool"
     where "membership_problem_assms f1 f2 g =
         (is_binomial f1 \<and> is_binomial f2 \<and> is_binomial g \<and> g \<in> ideal {f1, f2} \<and>
-          \<not> punit.is_red {f1, f2} g \<and> (is_proper_binomial g \<longrightarrow> \<not> (monomial 1 ` keys g) \<subseteq> ideal {f1, f2}))"
+          \<not> punit.is_red {f1, f2} g \<and> (is_proper_binomial g \<longrightarrow> monomial 1 ` keys g \<inter> ideal {f1, f2} = {}))"
 
 definition membership_problem_concl ::
     "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::semiring_1) \<Rightarrow> nat \<Rightarrow> bool"
@@ -213,7 +213,7 @@ definition membership_problem :: "('b::field itself) \<Rightarrow> nat \<Rightar
 lemma membership_problem_assmsD:
   assumes "membership_problem_assms f1 f2 g"
   shows "is_binomial f1" and "is_binomial f2" and "is_binomial g" and "g \<in> ideal {f1, f2}"
-    and "\<not> punit.is_red {f1, f2} g" and "is_proper_binomial g \<Longrightarrow> \<not> (monomial 1 ` keys g) \<subseteq> ideal {f1, f2}"
+    and "\<not> punit.is_red {f1, f2} g" and "is_proper_binomial g \<Longrightarrow> monomial 1 ` keys g \<inter> ideal {f1, f2} = {}"
   using assms by (simp_all add: membership_problem_assms_def)
 
 lemma membership_problemI:
@@ -839,11 +839,11 @@ proof -
       qed
     qed
       
-    from mpa \<open>is_proper_binomial g\<close> have "\<not> monomial 1 ` (keys g) \<subseteq> ideal {f1, f2}"
+    from mpa \<open>is_proper_binomial g\<close> have "monomial 1 ` keys g \<inter> ideal {f1, f2} = {}"
       by (rule membership_problem_assmsD)
-    moreover from **[OF \<open>lp g \<in> keys g\<close>] **[OF \<open>tp g \<in> keys g\<close>]
-      have "monomial 1 ` (keys g) \<subseteq> ideal {f1, f2}" unfolding keys_g by simp
-    ultimately show ?thesis ..
+    moreover from \<open>lp g \<in> keys g\<close> have "monomial 1 (lp g) \<in> monomial 1 ` keys g" by (rule imageI)
+    moreover from \<open>lp g \<in> keys g\<close> have "monomial 1 (lp g) \<in> ideal {f1, f2}" by (rule **)
+    ultimately show ?thesis by blast
   qed
 qed
   
@@ -1255,13 +1255,6 @@ text \<open>I do not know whether the above lemma really holds. Intuitively, it 
   So, this proposal must be understood as an overall strategy for obtaining \<^emph>\<open>cofactor\<close> bounds for
   \<^emph>\<open>some\<close> Gr\"obner basis of \<open>f1\<close> and \<open>f2\<close> (if \<open>f1\<close> and \<open>f2\<close> are parallel binomials, but also in
   general); it cannot be used, however, to only circumvent the single theorem below.\<close>
-
-text \<open>It seems that the degree bounds obtained for a proper binomial in the Groebner basis can,
-  in some sense, also be applied to a monomial: Assume \<open>g\<close> is a monomial. If it is possible to prove
-  that there is a VPC from \<open>g\<close> to \<open>g\<close> (which intuitively seems possible), then there is also a VPC
-  from \<open>g + vect f\<close> to \<open>g\<close> for some @{prop "f \<in> {f1, f2}"}, and these two points are distinct. Hence,
-  the results from theory @{theory Draft.VPC} can be applied to obtain similar (though slightly weaker)
-  bounds as the ones MWW derived directly.\<close>
 
 theorem thm_3_2_2:
   "membership_problem_concl f1 f2 g
@@ -1742,6 +1735,104 @@ proof -
 qed
 
 end
+
+subsection \<open>Degree Bounds on the Shifts for Generating a Proper Binomial\<close>
+
+theorem thm_3_3_35:
+  assumes "membership_problem_assms f1 f2 g" and "is_proper_binomial f1" and "is_proper_binomial f2"
+    and "is_proper_binomial g"
+  shows "membership_problem_concl f1 f2 g (Max {deg_pm (lp g), deg_pm (tp g),
+            max (deg_pm (overlapshift (lp g))) (deg_pm (overlapshift (tp g))) +
+              to_nat (\<bar>deg_pm (vect f1)\<bar> + \<bar>deg_pm (vect f2)\<bar>)})"
+proof -
+  from assms(1) have "g \<in> ideal {f1, f2}" and disjnt: "monomial 1 ` keys g \<inter> ideal {f1, f2} = {}"
+    by (rule membership_problem_assmsD)+ fact
+  from assms(4) have keys_g: "keys g = {lp g, tp g}" by (rule punit.keys_proper_binomial)
+  hence "lp g \<in> keys g" by simp
+  hence "monomial 1 (lp g) \<in> monomial 1 ` keys g" by (rule imageI)
+  with disjnt have *: "monomial 1 (lp g) \<notin> ideal {f1, f2}" by blast
+  note assms(2, 3)
+  moreover obtain zs where "is_vpc zs" and "fst (hd zs) = of_nat_pm (lp g)"
+    and "snd (last zs) = of_nat_pm (tp g)" using assms(2, 3) \<open>g \<in> ideal {f1, f2}\<close> assms(4) *
+    by (rule idealE_vpc)
+  moreover from assms(4) have "lp g \<noteq> tp g" by (auto dest: punit.lt_gr_tt_binomial)
+  ultimately obtain zs' where "is_vpc zs'" and hd': "fst (hd zs') = of_nat_pm (lp g)"
+    and last': "snd (last zs') = of_nat_pm (tp g)"
+    and deg': "deg_vpc zs' \<le> rat (Max {deg_pm (lp g), deg_pm (tp g),
+                                     max (deg_pm (overlapshift (lp g))) (deg_pm (overlapshift (tp g))) +
+                                     to_nat (\<bar>deg_pm (vect f1)\<bar> + \<bar>deg_pm (vect f2)\<bar>)})"
+                (is "_ \<le> rat ?m")
+  proof (rule thm_3_3_34)
+    fix f
+    assume "f \<in> {f1, f2}"
+    with assms(2, 3) have "f \<noteq> 0" by (auto dest: proper_binomial_not_0)
+    from assms(1) have irred: "\<not> punit.is_red {f1, f2} g" by (rule membership_problem_assmsD)
+    have rl: "\<not> lp f adds t" if "t \<in> keys g" for t
+    proof
+      assume "lp f adds t"
+      with \<open>f \<in> {f1, f2}\<close> \<open>f \<noteq> 0\<close> that have "punit.is_red {f1, f2} g"
+        by (rule punit.is_red_addsI[simplified])
+      with irred show False ..
+    qed
+    show "\<not> lp f adds lp g" and "\<not> lp f adds tp g" by (rule rl, simp add: keys_g)+
+  qed
+  note assms(2, 3) this(1)
+  moreover from \<open>lp g \<noteq> tp g\<close> have "fst (hd zs') \<noteq> snd (last zs')" by (simp add: hd' last')
+  ultimately obtain q1 q2 where "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {fst (hd zs'), snd (last zs')}"
+    and "rat (poly_deg (q1 * f1)) \<le> deg_vpc zs'" and "rat (poly_deg (q2 * f2)) \<le> deg_vpc zs'"
+    by (rule vpcE_ideal)
+  note this(1)
+  also have "{fst (hd zs'), snd (last zs')} = of_nat_pm ` {lp g, tp g}" by (simp add: hd' last')
+  finally have keys_g': "keys (q1 * f1 + q2 * f2) = {lp g, tp g}" (is "keys ?g = _")
+    by (simp only: inj_image_eq_iff inj_of_nat_pm)
+  define c where "c = tc g / lookup ?g (tp g)"
+  show ?thesis unfolding membership_problem_concl_def
+  proof (intro exI conjI impI)
+    from assms(4) have "g \<noteq> 0" by (rule proper_binomial_not_0)
+    hence "tc g \<noteq> 0" by (rule punit.tc_not_0)
+    moreover have **: "lookup ?g (tp g) \<noteq> 0" by (simp add: keys_g')
+    ultimately have "c \<noteq> 0" by (simp add: c_def)
+    have "?g \<in> ideal {f1, f2}" by (fact idealI_2)
+    hence "c \<cdot> ?g \<in> ideal {f1, f2}" unfolding map_scale_eq_times by (rule ideal.span_scale)
+    with \<open>g \<in> ideal {f1, f2}\<close> have "g - c \<cdot> ?g \<in> ideal {f1, f2}" by (rule ideal.span_diff)
+    have "keys (g - c \<cdot> ?g) \<subseteq> keys g \<union> keys (c \<cdot> ?g)" by (rule keys_minus)
+    also from \<open>c \<noteq> 0\<close> have "\<dots> = {lp g, tp g}" by (simp add: keys_map_scale keys_g' keys_g)
+    finally have "keys (g - c \<cdot> ?g) \<subseteq> {lp g, tp g}" .
+    moreover from ** have "tp g \<notin> keys (g - c \<cdot> ?g)"
+      by (simp add: lookup_minus c_def flip: punit.tc_def)
+    moreover have "keys (g - c \<cdot> ?g) \<noteq> {lp g}"
+    proof
+      assume a: "keys (g - c \<cdot> ?g) = {lp g}"
+      moreover define d where "d = lookup (g - c \<cdot> ?g) (lp g)"
+      ultimately have "d \<noteq> 0" by simp
+      have "monomial d (lp g) = g - c \<cdot> ?g"
+        by (rule poly_mapping_keys_eqI) (simp_all add: \<open>d \<noteq> 0\<close> a, simp only: d_def)
+      also have "\<dots> \<in> ideal {f1, f2}" by fact
+      finally have "inverse d \<cdot> monomial d (lp g) \<in> ideal {f1, f2}"
+        unfolding map_scale_eq_times by (rule ideal.span_scale)
+      with \<open>d \<noteq> 0\<close> have "monomial 1 (lp g) \<in> ideal {f1, f2}" by simp
+      with * show False ..
+    qed
+    ultimately have "keys (g - c \<cdot> ?g) = {}" by blast
+    hence "g = c \<cdot> ?g" by simp
+    also have "\<dots> = c \<cdot> q1 * f1 + c \<cdot> q2 * f2" by (simp only: map_scale_eq_times algebra_simps)
+    finally show "g = c \<cdot> q1 * f1 + c \<cdot> q2 * f2" .
+  next
+    have "poly_deg (c \<cdot> q1 * f1) = poly_deg (c \<cdot> (q1 * f1))"
+      by (simp only: map_scale_eq_times mult.assoc)
+    also have "\<dots> \<le> poly_deg (q1 * f1)" by (simp add: poly_deg_map_scale)
+    also have "rat \<dots> \<le> deg_vpc zs'" by fact
+    also have "\<dots> \<le> rat ?m" by fact
+    finally show "poly_deg (c \<cdot> q1 * f1) \<le> ?m" by (simp only: of_nat_le_iff)
+  next
+    have "poly_deg (c \<cdot> q2 * f2) = poly_deg (c \<cdot> (q2 * f2))"
+      by (simp only: map_scale_eq_times mult.assoc)
+    also have "\<dots> \<le> poly_deg (q2 * f2)" by (simp add: poly_deg_map_scale)
+    also have "rat \<dots> \<le> deg_vpc zs'" by fact
+    also have "\<dots> \<le> rat ?m" by fact
+    finally show "poly_deg (c \<cdot> q2 * f2) \<le> ?m" by (simp only: of_nat_le_iff)
+  qed
+qed
 
 end (* two_polys *)
 
