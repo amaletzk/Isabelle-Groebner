@@ -1,8 +1,6 @@
 This repository contains the Isabelle/HOL source files of the formalization of various advanced concepts in the theory of Groebner bases, including
 
-- reduced Groebner bases,
-- basics of Macaulay matrices,
-- Faugere's F4 algorithm,
+- signature-based Groebner basis algorithms (e.g. Faugere's F5),
 - a method for computing Groebner bases through Macaulay matrices,
 - degree-bounds of Groebner bases.
 
