@@ -205,27 +205,20 @@ lemma not_has_bounded_keys: "\<not> has_bounded_keys n p \<longleftrightarrow> n
   by (auto simp add: has_bounded_keys_def)
   
 lemma has_bounded_keys_set_union:
-  shows "has_bounded_keys_set n (A \<union> B) \<longleftrightarrow> (has_bounded_keys_set n A \<and> has_bounded_keys_set n B)"
-  unfolding has_bounded_keys_set_def by auto
+  "has_bounded_keys_set n (A \<union> B) \<longleftrightarrow> (has_bounded_keys_set n A \<and> has_bounded_keys_set n B)"
+  by (auto simp: has_bounded_keys_set_def)
 
-lemma has_bounded_keys_set_singleton:
-  shows "has_bounded_keys_set n {p} \<longleftrightarrow> has_bounded_keys n p"
-  unfolding has_bounded_keys_set_def by simp
+lemma has_bounded_keys_set_singleton: "has_bounded_keys_set n {p} \<longleftrightarrow> has_bounded_keys n p"
+  by (simp add: has_bounded_keys_set_def)
     
-lemma has_bounded_keys_set_subset:
-  assumes "has_bounded_keys_set n A" and "B \<subseteq> A"
-  shows "has_bounded_keys_set n B"
-  using assms unfolding has_bounded_keys_set_def by auto
+lemma has_bounded_keys_set_subset: "has_bounded_keys_set n A \<Longrightarrow> B \<subseteq> A \<Longrightarrow> has_bounded_keys_set n B"
+  by (auto simp: has_bounded_keys_set_def)
 
-lemma has_bounded_keys_setI:
-  assumes "\<And>a. a \<in> A \<Longrightarrow> has_bounded_keys n a"
-  shows "has_bounded_keys_set n A"
-  unfolding has_bounded_keys_set_def using assms by simp
+lemma has_bounded_keys_setI: "(\<And>a. a \<in> A \<Longrightarrow> has_bounded_keys n a) \<Longrightarrow> has_bounded_keys_set n A"
+  by (simp add: has_bounded_keys_set_def)
 
-lemma has_bounded_keys_setD:
-  assumes "has_bounded_keys_set n A" and "a \<in> A"
-  shows "has_bounded_keys n a"
-  using assms unfolding has_bounded_keys_set_def by simp
+lemma has_bounded_keys_setD: "has_bounded_keys_set n A \<Longrightarrow> a \<in> A \<Longrightarrow> has_bounded_keys n a"
+  by (simp add: has_bounded_keys_set_def)
     
 subsection \<open>Binomials\<close>
   
@@ -249,34 +242,35 @@ definition is_pbd :: "'b::zero \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> '
 
 text \<open>@{const is_pbd} stands for "is proper binomial data".\<close>
 
-lemma is_monomial_setI:
-  assumes "\<And>p. p \<in> A \<Longrightarrow> is_monomial p"
-  shows "is_monomial_set A"
-  using assms unfolding is_monomial_set_def by simp
+lemma is_monomial_setI: "(\<And>p. p \<in> A \<Longrightarrow> is_monomial p) \<Longrightarrow> is_monomial_set A"
+  by (simp add: is_monomial_set_def)
 
-lemma is_monomial_setD:
-  assumes "is_monomial_set A" and "p \<in> A"
-  shows "is_monomial p"
-  using assms unfolding is_monomial_set_def by simp
+lemma is_monomial_setD: "is_monomial_set A \<Longrightarrow> p \<in> A \<Longrightarrow> is_monomial p"
+  by (simp add: is_monomial_set_def)
+
+lemma is_monomial_set_subset: "is_monomial_set B \<Longrightarrow> A \<subseteq> B \<Longrightarrow> is_monomial_set A"
+  by (auto simp: is_monomial_set_def)
+
+lemma is_monomial_set_Un: "is_monomial_set (A \<union> B) \<longleftrightarrow> (is_monomial_set A \<and> is_monomial_set B)"
+  by (auto simp: is_monomial_set_def)
     
-lemma is_binomial_setI:
-  assumes "\<And>p. p \<in> A \<Longrightarrow> is_binomial p"
-  shows "is_binomial_set A"
-  using assms unfolding is_binomial_set_def by simp
+lemma is_binomial_setI: "(\<And>p. p \<in> A \<Longrightarrow> is_binomial p) \<Longrightarrow> is_binomial_set A"
+  by (simp add: is_binomial_set_def)
 
-lemma is_binomial_setD:
-  assumes "is_binomial_set A" and "p \<in> A"
-  shows "is_binomial p"
-  using assms unfolding is_binomial_set_def by simp
+lemma is_binomial_setD: "is_binomial_set A \<Longrightarrow> p \<in> A \<Longrightarrow> is_binomial p"
+  by (simp add: is_binomial_set_def)
 
-lemma has_bounded_keys_1_I1:
-  assumes "is_monomial p"
-  shows "has_bounded_keys 1 p"
-  using assms unfolding is_monomial_def has_bounded_keys_def by simp
+lemma is_binomial_set_subset: "is_binomial_set B \<Longrightarrow> A \<subseteq> B \<Longrightarrow> is_binomial_set A"
+  by (auto simp: is_binomial_set_def)
 
-lemma has_bounded_keys_1_I2:
-  shows "has_bounded_keys 1 0"
-  unfolding has_bounded_keys_def by simp
+lemma is_binomial_set_Un: "is_binomial_set (A \<union> B) \<longleftrightarrow> (is_binomial_set A \<and> is_binomial_set B)"
+  by (auto simp: is_binomial_set_def)
+
+lemma has_bounded_keys_1_I1: "is_monomial p \<Longrightarrow> has_bounded_keys 1 p"
+  by (simp add: is_monomial_def has_bounded_keys_def)
+
+lemma has_bounded_keys_1_I2: "has_bounded_keys 1 0"
+  by (simp add: has_bounded_keys_def)
     
 lemma has_bounded_keys_1_D:
   assumes "has_bounded_keys 1 p"
@@ -296,14 +290,11 @@ proof -
   qed
 qed
   
-lemma has_bounded_keys_2_I1:
-  assumes "is_binomial p"
-  shows "has_bounded_keys 2 p"
-  using assms unfolding is_binomial_def has_bounded_keys_def by auto
+lemma has_bounded_keys_2_I1: "is_binomial p \<Longrightarrow> has_bounded_keys 2 p"
+  by (auto simp: is_binomial_def has_bounded_keys_def)
 
-lemma has_bounded_keys_2_I2:
-  shows "has_bounded_keys 2 0"
-  unfolding has_bounded_keys_def keys_zero by simp
+lemma has_bounded_keys_2_I2: "has_bounded_keys 2 0"
+  by (simp add: has_bounded_keys_def)
     
 lemma has_bounded_keys_2_D:
   assumes "has_bounded_keys 2 p"
