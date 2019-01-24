@@ -188,6 +188,9 @@ lemma less_of_int_fun: "of_int_fun f < ((of_int_fun g)::'a \<Rightarrow> ('b::li
 lemma to_nat_mono: "x \<le> y \<Longrightarrow> to_nat x \<le> to_nat y"
   by (auto simp: to_nat_def dest: floor_mono)
 
+lemma of_nat_to_nat_ge: "is_int x \<Longrightarrow> x \<le> of_nat (to_nat x)"
+  by (metis int_is_nat is_nat_def linear of_nat_0_le_iff order_trans)
+
 lemma to_nat_fun_mono: "f \<le> g \<Longrightarrow> to_nat_fun f \<le> to_nat_fun g"
   by (auto simp: to_nat_fun_def le_fun_def dest: to_nat_mono)
 
@@ -212,6 +215,12 @@ lemma zero_is_int: "is_int 0"
 
 lemma one_is_int: "is_int 1"
   using one_is_nat by (rule nat_is_int)
+
+lemma to_nat_zero [simp]: "to_nat 0 = 0"
+  by (simp add: to_nat_def)
+
+lemma to_nat_one [simp]: "to_nat 1 = 1"
+  by (simp add: to_nat_def)
 
 subsubsection \<open>@{const plus} and @{const minus}\<close>
 
@@ -246,8 +255,31 @@ lemma sum_is_nat: "(\<And>a. a \<in> A \<Longrightarrow> is_nat (f a)) \<Longrig
 lemma sum_is_int: "(\<And>a. a \<in> A \<Longrightarrow> is_int (f a)) \<Longrightarrow> is_int (sum f A)"
   by (induct A rule: infinite_finite_induct) (auto intro: zero_is_int plus_is_int)
 
+lemma to_nat_plus_le: "is_int a \<Longrightarrow> is_int b \<Longrightarrow> to_nat (a + b) \<le> to_nat a + to_nat b"
+  by (metis (full_types) add_le_same_cancel1 add_le_same_cancel2 int_is_nat is_nat_def linear
+      of_nat_add to_nat_mono to_nat_of_nat trans_le_add1 trans_le_add2)
+
+lemma to_nat_sum_le: "(\<And>a. a \<in> A \<Longrightarrow> is_int (f a)) \<Longrightarrow> to_nat (sum f A) \<le> (\<Sum>a\<in>A. to_nat (f a))"
+proof (induct A rule: infinite_finite_induct)
+  case (infinite A)
+  thus ?case by simp
+next
+  case empty
+  thus ?case by simp
+next
+  case (insert a A)
+  have rl: "\<And>x. x \<in> A \<Longrightarrow> is_int (f x)" by (auto intro: insert.prems)
+  hence "is_int (sum f A)" by (rule sum_is_int)
+  have "is_int (f a)" by (rule insert.prems) simp
+  from insert.hyps(1, 2) have "to_nat (sum f (insert a A)) = to_nat (f a + sum f A)" by simp
+  also have "\<dots> \<le> to_nat (f a) + to_nat (sum f A)" by (rule to_nat_plus_le) fact+
+  also have "\<dots> \<le> to_nat (f a) + (\<Sum>x\<in>A. to_nat (f x))" by (intro add_left_mono insert.hyps rl)
+  also from insert.hyps(1, 2) have "\<dots> = (\<Sum>x\<in>insert a A. to_nat (f x))" by simp
+  finally show ?case .
+qed
+
 subsubsection \<open>@{const times}\<close>
-  
+
 lemma times_is_nat: "is_nat x \<Longrightarrow> is_nat y \<Longrightarrow> is_nat (x * y)"
   by (metis is_nat_def of_nat_is_nat of_nat_mult)
 

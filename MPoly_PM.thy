@@ -116,6 +116,12 @@ lemma lcs_add_distrib_left: "lcs s t + u = lcs (s + u) (t + (u::_ \<Rightarrow>\
 lemma lcs_add_distrib_right: "u + lcs s t = lcs (u + s) (u + (t::_ \<Rightarrow>\<^sub>0 _::ordered_ab_semigroup_add_imp_le))"
   by (rule poly_mapping_eqI) (simp only: lookup_lcs_fun lookup_add lcs_fun_def max_add_distrib_right)
 
+lemma gcs_diff_distrib_left: "gcs s t - u = gcs (s - u) (t - (u::_ \<Rightarrow>\<^sub>0 _::ordered_ab_group_add))"
+  by (rule poly_mapping_eqI) (simp only: lookup_gcs_fun lookup_minus gcs_fun min_diff_distrib_left)
+
+lemma lcs_diff_distrib_left: "lcs s t - u = lcs (s - u) (t - (u::_ \<Rightarrow>\<^sub>0 _::ordered_ab_group_add))"
+  by (rule poly_mapping_eqI) (simp only: lookup_lcs_fun lookup_minus lcs_fun_def max_diff_distrib_left)
+
 lemma deg_pm_mono_le: "s \<unlhd> t \<Longrightarrow> deg_pm s \<le> deg_pm (t::'a \<Rightarrow>\<^sub>0 'b::add_linorder)"
   unfolding le_pm_def by (transfer) (auto intro!: deg_fun_leq simp: supp_fun_def)
 
@@ -530,6 +536,9 @@ lemma mindeg_min:
   unfolding mindeg_def using assms by auto
 
 subsection \<open>Scalar Multiplication of Polynomial Mappings\<close>
+
+lemma map_scale_eq_0_iff: "c \<cdot> t = 0 \<longleftrightarrow> ((c::_::semiring_no_zero_divisors) = 0 \<or> t = 0)"
+  by (metis aux lookup_map_scale mult_eq_0_iff)
 
 lemma monomial_power_map_scale: "(monomial c t) ^ n = monomial (c ^ n) (n \<cdot> t)"
 proof -

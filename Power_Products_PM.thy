@@ -332,6 +332,19 @@ lemma of_int_pm_comp_to_int_pm: "is_int_pm t \<Longrightarrow> of_int_pm (to_int
 lemma of_int_pm_comp_of_nat_pm [simp]: "of_int_pm (of_nat_pm t) = of_nat_pm t"
   by (simp add: poly_mapping_eq_iff of_int_pm.rep_eq of_nat_pm.rep_eq, fact of_int_fun_comp_of_nat_fun)
 
+lemma to_nat_deg_pm_le:
+  assumes "is_int_pm t"
+  shows "to_nat (deg_pm t) \<le> deg_pm (to_nat_pm t)"
+proof -
+  from subset_refl finite_keys have "deg_pm t = sum (lookup t) (keys t)" by (rule deg_pm_superset)
+  also have "to_nat \<dots> \<le> (\<Sum>x\<in>keys t. to_nat (lookup t x))" by (intro to_nat_sum_le is_int_pmD assms)
+  also have "\<dots> = sum (lookup (to_nat_pm t)) (keys t)" by (simp flip: lookup_to_nat_pm)
+  also have "\<dots> = deg_pm (to_nat_pm t)"
+    by (rule sym, rule deg_pm_superset)
+        (auto simp add: in_keys_iff lookup_to_nat_pm simp del: lookup_not_eq_zero_eq_in_keys)
+  finally show ?thesis .
+qed
+
 subsection \<open>Order relation on polynomial mappings\<close>
 
 lemma le_of_nat_pm: "of_nat_pm s \<unlhd> ((of_nat_pm t)::_ \<Rightarrow>\<^sub>0 _::linordered_semidom) \<longleftrightarrow> s \<unlhd> t"
@@ -358,5 +371,8 @@ proof -
   also from assms(3) have "\<dots> = t" by (simp only: of_int_pm_comp_to_int_pm)
   finally show ?thesis .
 qed
+
+lemma of_nat_to_nat_ge_pm: "is_int_pm t \<Longrightarrow> t \<unlhd> of_nat_pm (to_nat_pm t)"
+  by (auto intro!: le_pmI of_nat_to_nat_ge is_int_pmD simp: lookup_of_nat_pm lookup_to_nat_pm)
 
 end (* theory *)
