@@ -1,7 +1,7 @@
 section \<open>Two Polynomials\<close>
 
 theory Two_Polynomials
-  imports Binomials Binom_Mult
+  imports Binomials Binom_Mult Power_Products_PM
 begin
 
 (* FIXME: Theory "Binom_Mult" is only needed because of constant "associated". Restructuring that
@@ -543,11 +543,8 @@ qed
 lemma step_p_alt2: "\<not> (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p) \<Longrightarrow> step_p p = 0"
   by (auto simp: step_p_def)
 
-lemma overlapshift_p'_is_int_pm:
-  assumes "is_int_pm p"
-  shows "is_int_pm (overlapshift_p' f p)"
-  unfolding overlapshift_p'_def
-  by (rule plus_is_int_pm, fact, rule map_scale_is_int_pm, simp add: is_int_def, fact vect_is_int_pm)
+lemma overlapshift_p'_is_int_pm: "is_int_pm p \<Longrightarrow> is_int_pm (overlapshift_p' f p)"
+  unfolding overlapshift_p'_def by (intro plus_is_int_pm map_scale_is_int_pm Ints_of_nat vect_is_int_pm)
 
 lemma overlapshift_p'_above_overlap: "overlap \<unlhd> p \<Longrightarrow> overlapshift_p' f p = p"
   by (simp add: overlapshift_p'_def step_p'_above_overlap)
@@ -813,9 +810,8 @@ proof (rule int_pm_is_nat_pm, rule overlapshift_p_is_int_pm, rule nat_pm_is_int_
   have eq: "overlapshift_p (of_nat_pm q) = overlapshift_p' f (of_nat_pm q)"
     by (rule overlapshift_p_alt1, fact f_in, fact f_pbinomial,
         simp only: le_of_nat_pm adds_pm[symmetric], fact tp_adds)
-  from overlap_is_nat_pm have "is_nat (lookup overlap x)"
-    by (simp only: is_nat_pm_def is_nat_fun_def)
-  hence "(0::rat) \<le> lookup overlap x" by (rule is_nat_geq_zero)
+  from overlap_is_nat_pm have "lookup overlap x \<in> \<nat>" by (rule is_nat_pmD)
+  hence "(0::rat) \<le> lookup overlap x" by (rule Nats_ge_0)
   also have "\<dots> \<le> lookup (overlapshift_p' f (of_nat_pm q)) x" by fact
   finally show "0 \<le> lookup (overlapshift_p (of_nat_pm q)) x" by (simp only: eq)
 qed

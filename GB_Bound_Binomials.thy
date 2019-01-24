@@ -109,8 +109,7 @@ proof (rule le_pmI, simp add: lookup_lcs_fun lcs_fun_def lookup_add lookup_of_na
     from True assms(4) have "?a \<le> rat (lookup (tp f) x) + rat (step (tp f)) * lookup (vect f) x"
       (is "_ \<le> ?c") by (simp add: mult_right_mono)
     also have "\<dots> \<le> rat (to_nat ?c)"
-      by (intro of_nat_to_nat_ge plus_is_int times_is_int is_int_pmD vect_is_int_pm)
-          (intro nat_is_int of_nat_is_nat)+
+      by (intro of_nat_to_nat_ge Ints_add Ints_mult is_int_pmD vect_is_int_pm) (fact Ints_of_nat)+
     also have "\<dots> = rat (lookup (overlapshift (tp f)) x)"
       by (simp add: eq1 eq2 overlapshift'_alt lookup_add lookup_of_nat_pm)
     also have "\<dots> \<le> ?b" by (rule max.cobounded1)
@@ -262,7 +261,7 @@ proof (rule poly_deg_leI)
     using f1_pbinomial le_pm_refl by (rule overlapshift_p_alt1, rule step_alt1, rule overlapshift_alt1)
   have "deg_pm (overlapshift_p (of_nat_pm (tp f1))) \<le>
           rat (to_nat (deg_pm (overlapshift_p (of_nat_pm (tp f1)))))"
-    by (intro of_nat_to_nat_ge deg_is_int 1)
+    by (intro of_nat_to_nat_ge Ints_deg 1)
   also have "\<dots> \<le> rat (deg_pm (to_nat_pm (overlapshift_p (of_nat_pm (tp f1)))))"
     by (intro of_nat_mono to_nat_deg_pm_le 1)
   also have "\<dots> = rat (deg_pm (overlapshift (tp f1)))" by (simp only: eq1 eq3 overlapshift'_def)
@@ -395,12 +394,11 @@ proof -
       thus "lookup (of_nat_pm (lp f1)) y \<le> lookup Q y" by (simp only: lookup_of_nat_pm)
     qed
 
-    from of_nat_is_nat have int_step: "is_int (rat (step (lp g)))" by (rule nat_is_int)
-    with tp1_is_int have "is_int_pm Q" unfolding Q_def
+    from tp1_is_int Ints_of_nat have "is_int_pm Q" unfolding Q_def
       by (intro lcs_is_int_pm overlap_is_int_pm plus_is_int_pm map_scale_is_int_pm vect_is_int_pm)
     hence "is_nat_pm Q" using of_nat_pm_is_nat_pm \<open>of_nat_pm (lp f1) \<unlhd> Q\<close> by (rule int_pm_is_nat_pmI)
 
-    from \<open>is_int_pm Q\<close> int_step have "is_int_pm Q'"
+    from \<open>is_int_pm Q\<close> Ints_of_nat have "is_int_pm Q'"
       unfolding Q'_def by (intro minus_is_int_pm map_scale_is_int_pm vect_is_int_pm)
     hence "is_nat_pm Q'" using of_nat_pm_is_nat_pm \<open>of_nat_pm (tp f1) \<unlhd> Q'\<close> by (rule int_pm_is_nat_pmI)
 

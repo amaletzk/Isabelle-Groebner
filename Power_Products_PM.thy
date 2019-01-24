@@ -114,90 +114,87 @@ definition is_nat_pm where "is_nat_pm t = is_nat_fun (lookup t)"
 definition is_int_pm where "is_int_pm t = is_int_fun (lookup t)"
 
 lemma is_nat_pmI:
-  assumes "\<And>x. x \<in> keys t \<Longrightarrow> is_nat (lookup t x)"
+  assumes "\<And>x. x \<in> keys t \<Longrightarrow> lookup t x \<in> \<nat>"
   shows "is_nat_pm t"
-  unfolding is_nat_pm_def is_nat_fun_def
-proof
+  unfolding is_nat_pm_def
+proof (rule is_nat_funI)
   fix x
-  show "is_nat (lookup t x)"
+  show "lookup t x \<in> \<nat>"
   proof (cases "x \<in> keys t")
     case True
     thus ?thesis by (rule assms)
   next
     case False
-    hence "lookup t x = 0" by simp
-    thus ?thesis by (simp add: zero_is_nat)
+    thus ?thesis by simp
   qed
 qed
 
-lemma is_nat_pmD: "is_nat_pm t \<Longrightarrow> is_nat (lookup t x)"
-  by (simp only: is_nat_pm_def is_nat_fun_def)
+lemma is_nat_pmD: "is_nat_pm t \<Longrightarrow> lookup t x \<in> \<nat>"
+  unfolding is_nat_pm_def by (drule is_nat_funD)
 
 lemma is_int_pmI:
-  assumes "\<And>x. x \<in> keys t \<Longrightarrow> is_int (lookup t x)"
+  assumes "\<And>x. x \<in> keys t \<Longrightarrow> lookup t x \<in> \<int>"
   shows "is_int_pm t"
-  unfolding is_int_pm_def is_int_fun_def
-proof
+  unfolding is_int_pm_def
+proof (rule is_int_funI)
   fix x
-  show "is_int (lookup t x)"
+  show "lookup t x \<in> \<int>"
   proof (cases "x \<in> keys t")
     case True
     thus ?thesis by (rule assms)
   next
     case False
-    hence "lookup t x = 0" by simp
-    thus ?thesis by (simp add: is_int_def)
+    thus ?thesis by simp
   qed
 qed
 
-lemma is_int_pmD: "is_int_pm t \<Longrightarrow> is_int (lookup t x)"
-  by (simp only: is_int_pm_def is_int_fun_def)
+lemma is_int_pmD: "is_int_pm t \<Longrightarrow> lookup t x \<in> \<int>"
+  unfolding is_int_pm_def by (drule is_int_funD)
 
 lemma nat_pm_is_int_pm:
   assumes "is_nat_pm t"
   shows "is_int_pm t"
 proof (rule is_int_pmI)
   fix x
-  from assms have "is_nat (lookup t x)" by (rule is_nat_pmD)
-  thus "is_int (lookup t x)" by (rule nat_is_int)
+  from assms have "lookup t x \<in> \<nat>" by (rule is_nat_pmD)
+  thus "lookup t x \<in> \<int>" by (rule Nats_imp_Ints)
 qed
 
 lemma int_pm_is_nat_pm:
-  assumes "is_int_pm t" and "\<And>x. x \<in> keys t \<Longrightarrow> 0 \<le> lookup t x"
+  assumes "is_int_pm t" and "\<And>x. x \<in> keys t \<Longrightarrow> (0::_::linordered_idom) \<le> lookup t x"
   shows "is_nat_pm t"
-  unfolding is_nat_pm_def is_nat_fun_def
-proof
+  unfolding is_nat_pm_def
+proof (rule is_nat_funI)
   fix x
-  show "is_nat (lookup t x)"
+  show "lookup t x \<in> \<nat>"
   proof (cases "x \<in> keys t")
     case True
-    from assms(1) have "is_int (lookup t x)" unfolding is_int_pm_def is_int_fun_def ..
+    from assms(1) have "lookup t x \<in> \<int>" by (rule is_int_pmD)
     moreover from True have "0 \<le> lookup t x" by (rule assms(2))
-    ultimately show ?thesis by (rule int_is_nat)
+    ultimately show ?thesis by (rule Ints_imp_Nats)
   next
     case False
-    hence "lookup t x = 0" by simp
-    thus ?thesis by (simp add: zero_is_nat)
+    thus ?thesis by simp
   qed
 qed
 
 lemma int_pm_is_nat_pmI:
-  assumes "is_int_pm f" and "is_nat_pm g" and "g \<unlhd> (f::_ \<Rightarrow>\<^sub>0 _::preorder)"
+  assumes "is_int_pm f" and "is_nat_pm g" and "g \<unlhd> (f::_ \<Rightarrow>\<^sub>0 _::linordered_idom)"
   shows "is_nat_pm f"
   using assms(1)
 proof (rule int_pm_is_nat_pm)
   fix x
-  from assms(2) have "is_nat (lookup g x)" by (rule is_nat_pmD)
-  hence "0 \<le> lookup g x" by (rule is_nat_geq_zero)
+  from assms(2) have "lookup g x \<in> \<nat>" by (rule is_nat_pmD)
+  hence "0 \<le> lookup g x" by (rule Nats_ge_0)
   also from assms(3) have "\<dots> \<le> lookup f x" by (rule le_pmD)
   finally show "0 \<le> lookup f x" .
 qed
 
 lemma of_nat_pm_is_nat_pm: "is_nat_pm (of_nat_pm f)"
-  by (simp add: is_nat_pm_def is_nat_fun_def lookup_of_nat_pm of_nat_is_nat)
+  unfolding is_nat_pm_def by (rule is_nat_funI) (simp add: lookup_of_nat_pm)
 
 lemma of_int_pm_is_int_pm: "is_int_pm (of_int_pm f)"
-  by (simp add: is_int_pm_def is_int_fun_def lookup_of_int_pm of_int_is_int)
+  unfolding is_int_pm_def by (rule is_int_funI) (simp add: lookup_of_int_pm)
 
 lemma lcs_of_nat_pm:
   assumes "\<And>m n::nat. of_nat m \<le> ((of_nat n)::'b::{semiring_1, add_linorder}) \<longleftrightarrow> m \<le> n"
@@ -214,22 +211,23 @@ lemmas lcs_of_nat_pm_linordered_semidom = lcs_of_nat_pm[OF Nat.linordered_nonzer
 lemmas gcs_of_nat_pm_linordered_semidom = gcs_of_nat_pm[OF Nat.linordered_nonzero_semiring_class.of_nat_le_iff]
   
 lemma lcs_is_nat_pm: "is_nat_pm f \<Longrightarrow> is_nat_pm g \<Longrightarrow> is_nat_pm (lcs f g)"
-  by (simp add: is_nat_pm_def lookup_lcs_fun lcs_fun_def is_nat_fun_def max_is_nat)
+  by (auto simp: is_nat_pm_def lookup_lcs_fun lcs_fun_def intro: is_nat_funI Nats_max is_nat_funD)
     
-lemma lcs_is_nat_pm': "is_nat_pm f \<Longrightarrow> is_int_pm g \<Longrightarrow> is_nat_pm (lcs f g)"
-  by (simp add: is_nat_pm_def is_int_pm_def lookup_lcs_fun lcs_fun_def is_nat_fun_def is_int_fun_def max_is_nat')
+lemma lcs_is_nat_pm': "is_nat_pm f \<Longrightarrow> is_int_pm g \<Longrightarrow> is_nat_pm (lcs f (g::_ \<Rightarrow>\<^sub>0 _::linordered_idom))"
+  by (auto simp: is_nat_pm_def is_int_pm_def lookup_lcs_fun lcs_fun_def
+          intro: is_nat_funI Nats_max' is_nat_funD is_int_funD)
 
 lemma lcs_is_int_pm: "is_int_pm f \<Longrightarrow> is_int_pm g \<Longrightarrow> is_int_pm (lcs f g)"
-  by (simp add: is_int_pm_def lookup_lcs_fun lcs_fun_def is_int_fun_def max_is_int)
+  by (auto simp: is_int_pm_def lookup_lcs_fun lcs_fun_def intro: is_int_funI Ints_max is_int_funD)
 
 lemma gcs_is_nat_pm: "is_nat_pm f \<Longrightarrow> is_nat_pm g \<Longrightarrow> is_nat_pm (gcs f g)"
-  by (simp add: is_nat_pm_def lookup_gcs_fun gcs_fun is_nat_fun_def min_is_nat)
+  by (auto simp: is_nat_pm_def lookup_gcs_fun gcs_fun intro: is_nat_funI Nats_min is_nat_funD)
 
 lemma gcs_is_int_pm: "is_int_pm f \<Longrightarrow> is_int_pm g \<Longrightarrow> is_int_pm (gcs f g)"
-  by (simp add: is_int_pm_def lookup_gcs_fun gcs_fun is_int_fun_def min_is_int)
+  by (auto simp: is_int_pm_def lookup_gcs_fun gcs_fun intro: is_int_funI Ints_min is_int_funD)
   
 lemma zero_is_nat_pm [simp]: "is_nat_pm 0"
-  by (simp add: is_nat_pm_def is_nat_fun_def zero_is_nat)
+  unfolding is_nat_pm_def by (rule is_nat_funI) simp
 
 lemma of_nat_pm_zero [simp]: "of_nat_pm 0 = 0"
   by (rule poly_mapping_eqI, simp add: lookup_of_nat_pm)
@@ -241,45 +239,45 @@ lemma of_nat_pm_single: "of_nat_pm (Poly_Mapping.single x e) = Poly_Mapping.sing
   by (rule poly_mapping_eqI) (simp add: lookup_of_nat_pm lookup_single when_distrib)
   
 lemma plus_is_nat_pm: "is_nat_pm f \<Longrightarrow> is_nat_pm g \<Longrightarrow> is_nat_pm (f + g)"
-  by (simp add: is_nat_pm_def plus_poly_mapping.rep_eq plus_fun_def is_nat_fun_def plus_is_nat)
+  by (simp add: is_nat_pm_def plus_poly_mapping.rep_eq plus_fun_def is_nat_fun_alt)
 
 lemma minus_is_nat_pm:
   assumes "is_int_pm f" and "is_int_pm g"
-  shows "is_nat_pm (f - g) \<longleftrightarrow> lookup g \<le> lookup f"
+  shows "is_nat_pm (f - g) \<longleftrightarrow> lookup g \<le> lookup (f::_ \<Rightarrow>\<^sub>0 _::floor_ceiling)"
 proof -
-  from assms have a2: "is_int (lookup f x)" and a3: "is_int (lookup g x)" for x
-    by (simp_all add: is_int_pm_def is_int_fun_def)
+  from assms have a2: "lookup f x \<in> \<int>" and a3: "lookup g x \<in> \<int>" for x
+    by (simp_all add: is_int_pm_def is_int_fun_alt)
   show ?thesis
   proof
     assume "is_nat_pm (f - g)"
-    hence a1: "is_nat (lookup (f - g) x)" for x unfolding is_nat_pm_def is_nat_fun_def ..
+    hence a1: "lookup (f - g) x \<in> \<nat>" for x by (rule is_nat_pmD)
     
     show "lookup g \<le> lookup f" unfolding le_fun_def
     proof
       fix x
-      from a1 have "is_nat ((lookup f x) - (lookup g x))" by (simp only: lookup_minus)
-      thus "lookup g x \<le> lookup f x" unfolding minus_is_nat[OF a2 a3] .
+      from a1 have "(lookup f x) - (lookup g x) \<in> \<nat>" by (simp only: lookup_minus)
+      thus "lookup g x \<le> lookup f x" unfolding Nats_minus[OF a2 a3] .
     qed
   next
     assume "lookup g \<le> lookup f"
-    show "is_nat_pm (f - g)" unfolding is_nat_pm_def is_nat_fun_def
-    proof
+    show "is_nat_pm (f - g)"
+    proof (rule is_nat_pmI)
       fix x
       from \<open>lookup g \<le> lookup f\<close> have "lookup g x \<le> lookup f x" unfolding le_fun_def ..
-      hence "is_nat ((lookup f x) - (lookup g x))" unfolding minus_is_nat[OF a2 a3] .
-      thus "is_nat (lookup (f - g) x)" by (simp only: lookup_minus)
+      hence "(lookup f x) - (lookup g x) \<in> \<nat>" unfolding Nats_minus[OF a2 a3] .
+      thus "lookup (f - g) x \<in> \<nat>" by (simp only: lookup_minus)
     qed
   qed
 qed
 
 lemma plus_is_int_pm: "is_int_pm f \<Longrightarrow> is_int_pm g \<Longrightarrow> is_int_pm (f + g)"
-  by (simp add: is_int_pm_def plus_poly_mapping.rep_eq plus_fun_def is_int_fun_def plus_is_int)
+  by (simp add: is_int_pm_def plus_poly_mapping.rep_eq plus_fun_def is_int_fun_alt)
 
 lemma minus_is_int_pm: "is_int_pm f \<Longrightarrow> is_int_pm g \<Longrightarrow> is_int_pm (f - g)"
-  by (simp add: is_int_pm_def lookup_minus is_int_fun_def minus_is_int)
+  by (simp add: is_int_pm_def lookup_minus is_int_fun_alt)
 
 lemma uminus_is_int_pm: "is_int_pm f \<Longrightarrow> is_int_pm (- f)"
-  by (simp add: is_int_pm_def is_int_fun_def uminus_is_int)
+  by (simp add: is_int_pm_def is_int_fun_alt)
 
 lemma of_nat_pm_plus: "of_nat_pm (f + g) = of_nat_pm f + of_nat_pm g"
   by (rule poly_mapping_eqI, simp add: lookup_of_nat_pm lookup_add)
@@ -290,17 +288,17 @@ lemma of_nat_pm_minus: "g adds f \<Longrightarrow> of_nat_pm (f - g) = of_nat_pm
 lemma of_int_pm_plus: "of_int_pm (f + g) = of_int_pm f + of_int_pm g"
   by (rule poly_mapping_eqI, simp add: lookup_of_int_pm lookup_add)
 
-lemma deg_is_nat: "is_nat_pm t \<Longrightarrow> is_nat (deg_pm t)"
-  by (auto simp: deg_pm_superset[OF subset_refl finite_keys] intro: sum_is_nat dest: is_nat_pmD)
+lemma Nats_deg: "is_nat_pm t \<Longrightarrow> deg_pm t \<in> \<nat>"
+  by (auto simp: deg_pm_superset[OF subset_refl finite_keys] intro: Nats_sum dest: is_nat_pmD)
 
-lemma deg_is_int: "is_int_pm t \<Longrightarrow> is_int (deg_pm t)"
-  by (auto simp: deg_pm_superset[OF subset_refl finite_keys] intro: sum_is_int dest: is_int_pmD)
+lemma Ints_deg: "is_int_pm t \<Longrightarrow> deg_pm t \<in> \<int>"
+  by (auto simp: deg_pm_superset[OF subset_refl finite_keys] intro: Ints_sum dest: is_int_pmD)
 
-lemma map_scale_is_nat_pm: "is_nat c \<Longrightarrow> is_nat_pm t \<Longrightarrow> is_nat_pm (c \<cdot> t)"
-  unfolding is_nat_pm_def is_nat_fun_def using times_is_nat by auto
+lemma map_scale_is_nat_pm: "c \<in> \<nat> \<Longrightarrow> is_nat_pm t \<Longrightarrow> is_nat_pm (c \<cdot> t)"
+  by (auto simp: is_nat_pm_def is_nat_fun_alt)
 
-lemma map_scale_is_int_pm: "is_int c \<Longrightarrow> is_int_pm t \<Longrightarrow> is_int_pm (c \<cdot> t)"
-  unfolding is_int_pm_def is_int_fun_def using times_is_int by auto
+lemma map_scale_is_int_pm: "c \<in> \<int> \<Longrightarrow> is_int_pm t \<Longrightarrow> is_int_pm (c \<cdot> t)"
+  by (auto simp: is_int_pm_def is_int_fun_alt)
 
 lemma of_nat_pm_map_scale: "of_nat_pm (c \<cdot> t) = of_nat c \<cdot> of_nat_pm t"
   by (rule poly_mapping_eqI) (simp add: lookup_of_nat_pm)

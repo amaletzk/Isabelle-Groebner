@@ -1113,13 +1113,13 @@ proof -
   thus ?thesis by (simp only: eq)
 qed
 
-lemma deg_vpc_is_nat:
+lemma Nats_deg_vpc:
   assumes "is_vpc zs"
-  shows "is_nat (deg_vpc zs)"
+  shows "deg_vpc zs \<in> \<nat>"
 proof -
   from assms obtain p where "p \<in> set_of_vpc zs" and eq: "deg_vpc zs = deg_pm p" by (rule deg_vpcE)
   from assms this(1) have "is_nat_pm p" by (rule vpc_is_nat_pm)
-  thus ?thesis by (simp only: eq deg_is_nat)
+  thus ?thesis by (simp only: eq Nats_deg)
 qed
 
 lemma deg_vpc_Cons: "zs \<noteq> [] \<Longrightarrow> deg_vpc (z # zs) = max (deg_vpc [z]) (deg_vpc zs)"
@@ -1526,9 +1526,9 @@ proof -
     hence "(zs0, zs') \<notin> ?rel" using min by blast
     moreover have "deg_vpc zs' \<le> deg_vpc zs0" if "to_nat (deg_vpc zs') \<le> to_nat (deg_vpc zs0)"
     proof -
-      from \<open>is_vpc zs'\<close> have "is_nat (deg_vpc zs')" by (rule deg_vpc_is_nat)
-      moreover from \<open>is_vpc zs0\<close> have "is_nat (deg_vpc zs0)" by (rule deg_vpc_is_nat)
-      ultimately show ?thesis using that by (simp add: is_nat_def)
+      from \<open>is_vpc zs'\<close> have "deg_vpc zs' \<in> \<nat>" by (rule Nats_deg_vpc)
+      moreover from \<open>is_vpc zs0\<close> have "deg_vpc zs0 \<in> \<nat>" by (rule Nats_deg_vpc)
+      ultimately show ?thesis using that by (simp add: Nats_alt)
     qed
     ultimately show "length zs' < length zs0 \<or> length zs' = length zs0 \<and> deg_vpc zs' \<le> deg_vpc zs0"
       by (auto simp: mlex_iff)
@@ -1759,7 +1759,7 @@ qed
 corollary vpc_Nshifts_conv_vect:
   assumes "min_length_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)" and "i \<le> j" and "j < length zs"
     and "\<And>k. i \<le> k \<Longrightarrow> k \<le> j \<Longrightarrow> zs ! k \<in> Nshifts {f}"
-  obtains l where "is_int l" and "abs l = rat (Suc j - i)" and "snd (zs ! j) = fst (zs ! i) + l \<cdot> vect f"
+  obtains l where "l \<in> \<int>" and "abs l = rat (Suc j - i)" and "snd (zs ! j) = fst (zs ! i) + l \<cdot> vect f"
   using assms
 proof (rule lem_3_3_19')
   let ?l = "rat (Suc j - i)"
@@ -1770,10 +1770,7 @@ proof (rule lem_3_3_19')
     by (rule vpc_pos_Nshifts_conv_vect)
   with assms(3) have eq: "snd (zs ! j) = fst (zs ! i) + ?l \<cdot> vect f"
     by (simp add: of_nat_diff algebra_simps)
-  show ?thesis
-  proof
-    show "is_int ?l" by (intro nat_is_int of_nat_is_nat)
-  qed (simp_all add: eq)
+  from Ints_of_nat show ?thesis by (rule that) (simp_all add: eq)
 next
   let ?l = "- rat (Suc j - i)"
   from assms(1) have "is_vpc zs" by (rule min_length_vpcD)
@@ -1785,7 +1782,7 @@ next
     by (simp add: of_nat_diff algebra_simps)
   show ?thesis
   proof
-    show "is_int ?l" by (intro uminus_is_int nat_is_int of_nat_is_nat)
+    show "?l \<in> \<int>" by (intro Ints_minus Ints_of_nat)
   qed (simp_all add: eq)
 qed
 
@@ -2029,17 +2026,17 @@ qed
 
 lemma lem_3_3_21:
   assumes "overlap \<unlhd> p" and "overlap \<unlhd> p + l \<cdot> vect f" and "is_int_pm p" and "f \<in> {f1, f2}"
-    and "is_int l" and "l \<noteq> 0"
+    and "l \<in> \<int>" and "l \<noteq> 0"
   obtains zs where "is_vpc zs" and "rat (length zs) = abs l"
     and "fst (hd zs) = p" and "snd (last zs) = p + l \<cdot> vect f"
     and "l < 0 \<Longrightarrow> set zs \<subseteq> neg_Nshifts {f}" and "0 < l \<Longrightarrow> set zs \<subseteq> pos_Nshifts {f}"
 proof (rule linorder_cases)
   assume "l < 0"
-  from assms(5) have "is_int (- l)" by (rule uminus_is_int)
+  from assms(5) have "- l \<in> \<int>" by (rule Ints_minus)
   moreover from \<open>l < 0\<close> have "0 \<le> - l" by simp
-  ultimately have "is_nat (- l)" by (rule int_is_nat)
+  ultimately have "- l \<in> \<nat>" by (rule Ints_imp_Nats)
   moreover define k0 where "k0 = to_nat (- l)"
-  ultimately have l': "l = - rat k0" by (simp only: is_nat_def)
+  ultimately have l': "l = - rat k0" by (simp only: Nats_alt)
   with \<open>l < 0\<close> have "0 < k0" by simp
   then obtain k where "k0 = Suc k" using gr0_conv_Suc by blast
   hence l: "l = - rat (Suc k)" by (simp only: l')
@@ -2079,9 +2076,9 @@ proof (rule linorder_cases)
 next
   assume "0 < l"
   hence "0 \<le> l" by simp
-  with assms(5) have "is_nat l" by (rule int_is_nat)
+  with assms(5) have "l \<in> \<nat>" by (rule Ints_imp_Nats)
   moreover define k0 where "k0 = to_nat l"
-  ultimately have l': "l = rat k0" by (simp only: is_nat_def)
+  ultimately have l': "l = rat k0" by (simp only: Nats_alt)
   with \<open>0 < l\<close> have "0 < k0" by simp
   then obtain k where "k0 = Suc k" using gr0_conv_Suc by blast
   hence l: "l = rat (Suc k)" by (simp only: l')
@@ -2210,7 +2207,7 @@ next
       qed
     qed
     from assms(1) have "is_vpc zs" by (rule min_length_vpcD)
-    obtain m1 m2 f' l where "Suc m1 < m2" and "m2 < length zs" and "f' \<in> {f1, f2}" and "is_int l"
+    obtain m1 m2 f' l where "Suc m1 < m2" and "m2 < length zs" and "f' \<in> {f1, f2}" and "l \<in> \<int>"
       and abs_l: "\<bar>l\<bar> = rat (m2 - Suc m1)" and snd_m2: "snd (zs ! m2) = fst (zs ! m1) + l \<cdot> vect f'"
     proof (rule linorder_cases)
       \<comment>\<open>Case 1: First a negative shift of \<open>f\<close>, then a positive one.\<close>
@@ -2271,7 +2268,7 @@ next
         by (auto elim: NshiftsE_poly)
       have "zs ! a \<in> Nshifts {f'}" if "Suc k \<le> a" and "a \<le> j - 1" for a
         using that assms(5) \<open>f' \<in> {f1, f2}\<close> \<open>f' \<noteq> f\<close> by (auto simp only: dest: 1 elim: NshiftsE_poly)
-      with assms(1, 2) \<open>Suc k \<le> j - 1\<close> \<open>j - 1 < length zs\<close> obtain l where "is_int l"
+      with assms(1, 2) \<open>Suc k \<le> j - 1\<close> \<open>j - 1 < length zs\<close> obtain l where "l \<in> \<int>"
         and abs_l: "\<bar>l\<bar> = rat (Suc (j - 1) - Suc k)"
         and eq: "snd (zs ! (j - 1)) = fst (zs ! Suc k) + l \<cdot> vect f'" by (rule vpc_Nshifts_conv_vect)
       from j_pos have "snd (zs ! j) = fst (zs ! j) + vect f" by (rule pos_Nshifts_conv_vect)
@@ -2283,7 +2280,7 @@ next
         by (rule is_vpcD(2)[symmetric]) (rule le_less_trans, fact+)
       also from k_neg have "\<dots> = fst (zs ! k) - vect f" by (rule neg_Nshifts_conv_vect)
       finally have "snd (zs ! j) = fst (zs ! k) + l \<cdot> vect f'" by simp
-      with _ \<open>j < length zs\<close> \<open>f' \<in> {f1, f2}\<close> \<open>is_int l\<close> _ show ?thesis
+      with _ \<open>j < length zs\<close> \<open>f' \<in> {f1, f2}\<close> \<open>l \<in> \<int>\<close> _ show ?thesis
       proof (rule that)
         from \<open>Suc k \<le> j - 1\<close> show "Suc k < j" by simp
       next
@@ -2348,7 +2345,7 @@ next
         by (auto elim: NshiftsE_poly)
       have "zs ! a \<in> Nshifts {f'}" if "Suc k \<le> a" and "a \<le> i - 1" for a
         using that assms(5) \<open>f' \<in> {f1, f2}\<close> \<open>f' \<noteq> f\<close> by (auto simp only: dest: 1 elim: NshiftsE_poly)
-      with assms(1, 2) \<open>Suc k \<le> i - 1\<close> \<open>i - 1 < length zs\<close> obtain l where "is_int l"
+      with assms(1, 2) \<open>Suc k \<le> i - 1\<close> \<open>i - 1 < length zs\<close> obtain l where "l \<in> \<int>"
         and abs_l: "\<bar>l\<bar> = rat (Suc (i - 1) - Suc k)"
         and eq: "snd (zs ! (i - 1)) = fst (zs ! Suc k) + l \<cdot> vect f'" by (rule vpc_Nshifts_conv_vect)
       from i_neg have "snd (zs ! i) = fst (zs ! i) - vect f" by (rule neg_Nshifts_conv_vect)
@@ -2360,7 +2357,7 @@ next
         by (rule is_vpcD(2)[symmetric]) (rule le_less_trans, fact+)
       also from k_pos have "\<dots> = fst (zs ! k) + vect f" by (rule pos_Nshifts_conv_vect)
       finally have "snd (zs ! i) = fst (zs ! k) + l \<cdot> vect f'" by simp
-      with _ \<open>i < length zs\<close> \<open>f' \<in> {f1, f2}\<close> \<open>is_int l\<close> _ show ?thesis
+      with _ \<open>i < length zs\<close> \<open>f' \<in> {f1, f2}\<close> \<open>l \<in> \<int>\<close> _ show ?thesis
       proof (rule that)
         from \<open>Suc k \<le> i - 1\<close> show "Suc k < i" by simp
       next
@@ -2377,7 +2374,7 @@ next
       by (rule thm_3_3_20) (simp add: set_of_vpc_def \<open>m2 < length zs\<close>)
     moreover from \<open>is_vpc zs\<close> m1_in have "is_int_pm (fst (zs ! m1))"
       by (intro nat_pm_is_int_pm vpc_is_nat_pm)
-    moreover note \<open>f' \<in> {f1, f2}\<close> \<open>is_int l\<close>
+    moreover note \<open>f' \<in> {f1, f2}\<close> \<open>l \<in> \<int>\<close>
     moreover from \<open>Suc m1 < m2\<close> abs_l have "l \<noteq> 0" by simp
     ultimately obtain zs2 where "is_vpc zs2" and len_zs2': "rat (length zs2) = \<bar>l\<bar>"
       and hd_zs2: "fst (hd zs2) = fst (zs ! m1)" and "snd (last zs2) = fst (zs ! m1) + l \<cdot> vect f'"
@@ -3018,10 +3015,10 @@ proof -
     by (rule is_peakD)+
   from this(1) have "zs ! i \<in> set zs" by simp
   with assms(1) have "is_nat_pm_pair (zs ! i)" by (rule vpc_is_nat_pm_pair)
-  hence "is_nat ?a" and "is_nat ?b" by (simp_all add: is_nat_pm_pair_def deg_is_nat)
-  from this(1) have "rat (to_nat ?a) = ?a" by (simp only: is_nat_def)
+  hence "?a \<in> \<nat>" and "?b \<in> \<nat>" by (simp_all add: is_nat_pm_pair_def Nats_deg)
+  from this(1) have "rat (to_nat ?a) = ?a" by (simp only: Nats_alt)
   also have "\<dots> < ?b" by fact
-  also from \<open>is_nat ?b\<close> have "\<dots> = rat (to_nat ?b)" by (simp only: is_nat_def)
+  also from \<open>?b \<in> \<nat>\<close> have "\<dots> = rat (to_nat ?b)" by (simp only: Nats_alt)
   finally have "to_nat ?a < to_nat ?b" by (simp only: of_nat_less_iff)
   with le0 show ?thesis by (rule le_less_trans)
 qed
@@ -3189,8 +3186,8 @@ proof -
   from assms(2) have "i < length zs" by (rule repl_peaksD)
   hence "snd (zs ! i) \<in> set_of_vpc zs" by (simp add: set_of_vpc_def)
   with assms(1) have "is_nat_pm (snd (zs ! i))" by (rule vpc_is_nat_pm)
-  hence "is_nat (deg_pm (snd (zs ! i)))" (is "is_nat ?d") by (rule deg_is_nat)
-  hence eq: "rat (to_nat ?d) = ?d" by (simp only: is_nat_def)
+  hence "deg_pm (snd (zs ! i)) \<in> \<nat>" (is "?d \<in> \<nat>") by (rule Nats_deg)
+  hence eq: "rat (to_nat ?d) = ?d" by (simp only: Nats_alt)
   from finite_repl_peaks have "finite (deg_pm ` snd ` (!) zs ` repl_peaks zs)" by (intro finite_imageI)
   moreover from assms(2) have "?d \<in> deg_pm ` snd ` (!) zs ` repl_peaks zs" by (intro imageI)
   ultimately have "?d \<le> Max (deg_pm ` snd ` (!) zs ` repl_peaks zs)" by (rule Max_ge)
@@ -3214,8 +3211,8 @@ proof -
   from \<open>i \<in> repl_peaks zs\<close> have "i < length zs" by (rule repl_peaksD)
   hence "snd (zs ! i) \<in> set_of_vpc zs" by (simp add: set_of_vpc_def)
   with assms(1) have "is_nat_pm (snd (zs ! i))" by (rule vpc_is_nat_pm)
-  hence "is_nat (deg_pm (snd (zs ! i)))" (is "is_nat ?d") by (rule deg_is_nat)
-  hence "?d = rat (maxdeg_repl_peaks zs)" by (simp only: eq is_nat_def)
+  hence "deg_pm (snd (zs ! i)) \<in> \<nat>" (is "?d \<in> \<nat>") by (rule Nats_deg)
+  hence "?d = rat (maxdeg_repl_peaks zs)" by (simp only: eq Nats_alt)
   with \<open>i \<in> repl_peaks zs\<close> show ?thesis ..
 qed
 
@@ -4227,8 +4224,8 @@ proof -
     case False
     with not_less_eq have hd2: "hd zs2 = zs0 ! step A" and last2: "last zs2 = zs0 ! ?j"
       by (simp_all add: zs0 nth_append l1 hd_conv_nth l3 last_conv_nth) fastforce
-    have n: "is_nat (\<bar>deg_pm (vect f1)\<bar> + \<bar>deg_pm (vect f2)\<bar>)"
-      by (simp add: int_is_nat plus_is_int abs_is_int deg_is_int vect_is_int_pm)
+    have n: "\<bar>deg_pm (vect f1)\<bar> + \<bar>deg_pm (vect f2)\<bar> \<in> \<nat>"
+      by (simp add: Ints_imp_Nats Ints_deg vect_is_int_pm)
     from False have *: "step A + step B < length zs0" by (simp add: zs2_def)
     hence "step A < length zs0" and "step A \<le> ?j" by simp_all
     from \<open>is_vpc zs0\<close> this(1) have "is_vpc (drop (step A) zs0)" by (rule is_vpc_dropI)
@@ -4269,7 +4266,7 @@ proof -
       from B3 show "overlap \<unlhd> snd (last zs2')" by (simp only: last2 last2')
     qed
     also from n have "\<dots> = rat ?m"
-      by (simp add: of_nat_max is_nat_def A4 B4 hd2 last2 hd2' last2' flip: deg_of_nat_pm)
+      by (simp add: of_nat_max Nats_alt A4 B4 hd2 last2 hd2' last2' flip: deg_of_nat_pm)
     finally have deg2: "deg_vpc zs2' \<le> rat ?m" .
 
     from \<open>is_vpc zs0\<close> \<open>step A \<le> ?j\<close> \<open>?j < length zs0\<close> obtain zs' where "is_vpc zs'"

@@ -1451,10 +1451,10 @@ proof -
       proof (rule ccontr)
         assume "\<not> rat (poly_deg (q1 * f1)) \<le> ?b"
         hence "?b < rat (poly_deg (q1 * f1))" by simp
-        moreover have "is_int ?b"
-          by (intro minus_is_int one_is_int deg_is_int plus_is_int_pm vect_is_int_pm map_scale_is_int_pm plus_is_int)
-             (intro nat_pm_is_int_pm of_nat_pm_is_nat_pm nat_is_int of_nat_is_nat)+
-        moreover have "is_int (rat (poly_deg (q1 * f1)))" by (intro nat_is_int of_nat_is_nat)
+        moreover have "?b \<in> \<int>"
+          by (intro Ints_diff Ints_1 Ints_deg plus_is_int_pm vect_is_int_pm map_scale_is_int_pm Ints_add)
+             (intro nat_pm_is_int_pm of_nat_pm_is_nat_pm Ints_of_nat)+
+        moreover have "rat (poly_deg (q1 * f1)) \<in> \<int>" by (fact Ints_of_nat)
         ultimately have "?b + 1 \<le> deg_pm (of_nat_pm (lp q1 + lp f1))"
           by (simp add: is_int_less_iff 5 deg_of_nat_pm lp_q1_f1)
         also have "\<dots> = deg_pm (of_nat_pm (lp g) + l' \<cdot> vect f1)" by (simp only: eq2)
