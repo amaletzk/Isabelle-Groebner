@@ -43,28 +43,6 @@ proof -
 qed
   
 text \<open>The following two lemmas are contained in Remark 3.1.4. of @{cite WW2015}.\<close>
-  
-lemma rem_3_1_4_1:
-  assumes "finite F" and "g \<in> punit.reduced_GB F" and "lp g \<notin> lp_set F"
-  shows "\<not> punit.is_red F g"
-proof
-  let ?G = "punit.reduced_GB F"
-  assume "punit.is_red F g"
-  then obtain f t where "f \<in> F" and "t \<in> keys g" and "f \<noteq> 0" and lpf: "lp f adds t"
-    by (rule punit.is_red_addsE[simplified])
-  have "f \<in> ideal ?G" unfolding punit.reduced_GB_pmdl_finite[OF assms(1), simplified]
-    by (rule, fact \<open>f \<in> F\<close>, rule ideal.span_superset)
-  from punit.reduced_GB_is_GB_finite[OF assms(1)] this \<open>f \<noteq> 0\<close> obtain g'
-    where "g' \<in> ?G" and "g' \<noteq> 0" and lpg': "lp g' adds lp f" by (rule punit.GB_adds_lt[simplified])
-  from lpg' lpf have lpg'': "lp g' adds t" by (rule adds_trans)
-  from _ \<open>g' \<noteq> 0\<close> \<open>t \<in> keys g\<close> this have red: "punit.is_red {g'} g"
-    by (rule punit.is_red_addsI[simplified], simp)
-  from assms(1) \<open>g \<in> ?G\<close> \<open>g' \<in> ?G\<close> \<open>t \<in> keys g\<close> lpg'' have "g' = g" and "t = lp g"
-    by (rule rem_3_1_4_aux_1, rule rem_3_1_4_aux_2)
-  from lpg' lpf have "lp g = lp f" unfolding \<open>t = lp g\<close> \<open>g' = g\<close> by (rule adds_antisym)
-  from \<open>f \<in> F\<close> \<open>f \<noteq> 0\<close> have "lp g \<in> lp_set F" unfolding \<open>lp g = lp f\<close> by (rule punit.lt_setI)
-  with assms(3) show False ..
-qed
 
 lemma rem_3_1_4_2:
   assumes "finite F" and "g \<in> punit.reduced_GB F" and "is_proper_binomial g"
@@ -627,13 +605,99 @@ subsection \<open>Degree Bounds on the Shifts for Generating a Monomial\<close>
 context two_polys
 begin
 
+lemma binomial_ideal_irredE_assoc:
+  assumes "is_binomial f1" and "is_binomial f2"
+  assumes "g \<in> ideal {f1, f2}" and "\<not> punit.is_red {f1, f2} g" and "t \<in> keys g"
+  obtains f k u where "f \<in> {f1, f2}" and "is_proper_binomial f" and "tp f adds t" and "lp f adds u"
+    and "overlap \<unlhd> of_nat_pm u" and "associated f u t k" and "0 < k"
+proof -
+  obtain f f' q q' where eq: "{f1, f2} = {f, f'}" and g: "g = q * f + q' * f'"
+    and t_in: "t \<in> keys (q * f)"
+  proof -
+    from assms(3) obtain q1 q2 where g: "g = q1 * f1 + q2 * f2" by (rule idealE_2)
+    hence "keys g \<subseteq> keys (q1 * f1) \<union> keys (q2 * f2)" by (simp only: keys_add_subset)
+    with assms(5) have "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)" ..
+    thus ?thesis
+    proof
+      assume "t \<in> keys (q1 * f1)"
+      with refl g show ?thesis ..
+    next
+      have "{f1, f2} = {f2, f1}" by (simp only: insert_commute)
+      moreover have "g = q2 * f2 + q1 * f1" by (simp only: g add.commute)
+      moreover assume "t \<in> keys (q2 * f2)"
+      ultimately show ?thesis ..
+    qed
+  qed
+  have f_in: "f \<in> {f1, f2}" by (simp add: eq)
+  with assms(1, 2) have "is_binomial f" by blast
+  have rl: "\<not> lp f adds s" if "s \<in> keys g" for s
+  proof
+    note f_in
+    moreover from this assms(1, 2) have "f \<noteq> 0" by (auto dest: binomial_not_0)
+    moreover note that
+    moreover assume "lp f adds s"
+    ultimately have "punit.is_red {f1, f2} g" by (rule punit.is_red_addsI[simplified])
+    with assms(4) show False ..
+  qed
+  from assms(5) have nadds: "\<not> lp f adds t" by (rule rl)
+  from t_in obtain v s where "v \<in> keys q" and "s \<in> keys f" and t: "t = v + s" by (rule in_keys_timesE)
+  from \<open>is_binomial f\<close> this(2) have "s = lp f \<or> s = tp f" by (simp add: punit.keys_binomial)
+  hence s: "s = tp f"
+  proof
+    assume "s = lp f"
+    hence "lp f adds t" by (simp add: t)
+    with nadds show ?thesis ..
+  qed
+  with nadds have "lp f \<noteq> tp f" by (auto simp: t)
+  with \<open>is_binomial f\<close> have "is_proper_binomial f"
+  by (simp add: punit.lt_eq_tt_iff has_bounded_keys_def is_binomial_def is_proper_binomial_def)
+  moreover note \<open>v \<in> keys q\<close>
+  moreover from t_in have "v + tp f \<in> keys (q * f)" by (simp only: s t)
+  ultimately obtain q'' where "q'' \<noteq> 0" and "q'' \<sqsubseteq> q" and tp_q1': "tp q'' = v"
+    and assoc: "associated_poly f q''" and **: "lp q'' + lp f \<in> keys (q * f)"
+    by (rule binomial_mult_shape_tp')
+
+  define u where "u = lp q''"
+  
+  have "u + lp f \<in> keys (q' * f')"
+  proof (rule ccontr)
+    assume "u + lp f \<notin> keys (q' * f')"
+    with ** have "u + lp f \<in> keys g" unfolding g u_def by (rule in_keys_plusI1)
+    hence "\<not> lp f adds u + lp f" by (rule rl)
+    thus False by simp
+  qed
+  then obtain w w' where "w' \<in> keys f'" and w: "u + lp f = w + w'" by (rule in_keys_timesE)
+
+  from f_in \<open>is_proper_binomial f\<close> show ?thesis
+  proof
+    show "tp f adds t" by (simp add: s t)
+  next
+    from \<open>q'' \<noteq> 0\<close> show "0 < card (keys q'')" by (simp add: card_gt_0_iff)
+  next
+    from \<open>q'' \<noteq> 0\<close> assoc show "associated f (u + lp f) t (card (keys q''))"
+      unfolding t s tp_q1'[symmetric] u_def by (rule associated_poly_times_binomial_associated)
+  next
+    have "f' \<in> {f1, f2}" by (simp add: eq)
+    with assms(1, 2) have "is_binomial f'" by blast
+    hence "keys f' = {lp f', tp f'}" by (rule punit.keys_binomial)
+    with \<open>w' \<in> keys f'\<close> have "w' = lp f' \<or> w' = tp f'" by simp
+    hence "gcs (lp f') (tp f') \<unlhd> u + lp f"
+      by (auto simp: w simp flip: adds_pm intro: adds_trans gcs_adds gcs_adds_2)
+    moreover from gcs_le_pm(1) have "gcs (lp f) (tp f) \<unlhd> u + lp f"
+      by (rule le_pm_trans) (simp flip: adds_pm)
+    ultimately have "lcs (gcs (lp f') (tp f')) (gcs (lp f) (tp f)) \<unlhd> u + lp f" by (rule lcs_le_pm)
+    also have "lcs (gcs (lp f') (tp f')) (gcs (lp f) (tp f)) = lcs (gcs (lp f1) (tp f1)) (gcs (lp f2) (tp f2))"
+      using eq by (auto simp: doubleton_eq_iff lcs_comm)
+    finally show "overlap \<unlhd> of_nat_pm (u + lp f)" by (simp only: overlap_alt' le_of_nat_pm)
+  qed simp
+qed
+
 lemma thm_3_2_aux_0:
-  assumes "is_binomial f2" and "membership_problem_assms f1 f2 g"
-    and "\<And>t. t \<in> keys g \<Longrightarrow> \<not> tp f2 adds t"
+  assumes "membership_problem_assms f1 f2 g" and "\<And>t. t \<in> keys g \<Longrightarrow> \<not> tp f2 adds t"
   obtains q1 q2 where "g = q1 * f1 + q2 * f2" and "keys g \<subseteq> keys (q1 * f1)"
     and "keys g \<inter> keys (q2 * f2) = {}" and "\<And>t. t \<in> keys g \<Longrightarrow> \<exists>v\<in>keys q1. t = v + tp f1"
 proof -
-  from assms(2) have "g \<in> ideal {f1, f2}" by (rule membership_problem_assmsD)
+  from assms(1) have "g \<in> ideal {f1, f2}" by (rule membership_problem_assmsD)
   then obtain q1 q2 where g_eq: "g = q1 * f1 + q2 * f2" by (rule idealE_2)
   
   have 1: "keys g \<inter> keys (q2 * f2) = {}"
@@ -642,17 +706,18 @@ proof -
     assume "t \<in> keys g" and "t \<in> keys (q2 * f2)"
     from this(2) obtain x y where "x \<in> keys q2" and "y \<in> keys f2" and "t = x + y"
       by (rule in_keys_timesE)
-    from assms(1) have "keys f2 = {lp f2, tp f2}" by (rule punit.keys_binomial)
+    from assms(1) have "is_binomial f2" by (rule membership_problem_assmsD)
+    hence "keys f2 = {lp f2, tp f2}" by (rule punit.keys_binomial)
     with \<open>y \<in> keys f2\<close> have "y = lp f2 \<or> y = tp f2" by simp
     thus False
     proof
       assume "y = lp f2"
-      from assms(2) \<open>t \<in> keys g\<close> have "\<not> lp f2 adds t" by (rule membership_problem_assms_lp_f2_nadds)
+      from assms(1) \<open>t \<in> keys g\<close> have "\<not> lp f2 adds t" by (rule membership_problem_assms_lp_f2_nadds)
       moreover have "lp f2 adds t" unfolding adds_def \<open>y = lp f2\<close> \<open>t = x + y\<close> by (simp add: add.commute)
       ultimately show False ..
     next
       assume "y = tp f2"
-      from \<open>t \<in> keys g\<close> have "\<not> tp f2 adds t" by (rule assms(3))
+      from \<open>t \<in> keys g\<close> have "\<not> tp f2 adds t" by (rule assms(2))
       moreover have "tp f2 adds t" unfolding adds_def \<open>y = tp f2\<close> \<open>t = x + y\<close> by (simp add: add.commute)
       ultimately show False ..
     qed
@@ -672,7 +737,7 @@ proof -
     from \<open>y \<in> keys f1\<close> have "y = tp f1" unfolding keys_f1
     proof
       assume "y = lp f1"
-      from assms(2) \<open>t \<in> keys g\<close> have "\<not> lp f1 adds t" by (rule membership_problem_assms_lp_f1_nadds)
+      from assms(1) \<open>t \<in> keys g\<close> have "\<not> lp f1 adds t" by (rule membership_problem_assms_lp_f1_nadds)
       moreover have "lp f1 adds t" unfolding adds_def \<open>y = lp f1\<close> \<open>t = x + y\<close> by (simp add: add.commute)
       ultimately show ?thesis ..
     next
@@ -764,12 +829,10 @@ lemma thm_3_2_1_aux_2:
   obtains q1 q2 where "g = q1 * f1 + q2 * f2" and "keys g \<subseteq> keys (q1 * f1)"
     and "\<And>t. t \<in> keys g \<Longrightarrow> \<exists>v\<in>keys q1. t = v + tp f1"
 proof -
-  from f2_monomial have "is_binomial f2" by (rule monomial_imp_binomial)
-  moreover note mpa
-  moreover have "\<not> tp f2 adds t" if "t \<in> keys g" for t
+  have "\<not> tp f2 adds t" if "t \<in> keys g" for t
     unfolding punit.lt_eq_tt_monomial[OF f2_monomial, symmetric]
     using mpa that by (rule membership_problem_assms_lp_f2_nadds)
-  ultimately obtain q1 q2 where "g = q1 * f1 + q2 * f2" and "keys g \<subseteq> keys (q1 * f1)"
+  with mpa obtain q1 q2 where "g = q1 * f1 + q2 * f2" and "keys g \<subseteq> keys (q1 * f1)"
     and "\<And>t. t \<in> keys g \<Longrightarrow> \<exists>v\<in>keys q1. t = v + tp f1"
     by (rule thm_3_2_aux_0) blast+
   thus ?thesis ..
@@ -848,45 +911,21 @@ qed
 lemma thm_3_2_1_aux_4:
   obtains k u where "k \<noteq> 0" and "lp f1 adds u" and "lp f2 adds u" and "associated f1 u (lp g) k"
 proof -
-  obtain q1 q2 where g_eq: "g = q1 * f1 + q2 * f2" and g_keys_sub: "keys g \<subseteq> keys (q1 * f1)"
-    and rl: "\<And>t. t \<in> keys g \<Longrightarrow> \<exists>v\<in>(keys q1). t = v + tp f1" by (rule thm_3_2_1_aux_2) blast
-  have "g \<noteq> 0" by (rule binomial_not_0, rule membership_problem_assmsD, fact)
-  hence "lp g \<in> keys g" by (rule punit.lt_in_keys)
-  hence "\<exists>v\<in>(keys q1). lp g = v + tp f1" by (rule rl)
-  then obtain v where "v \<in> keys q1" and v: "lp g = v + tp f1" ..
-  from \<open>lp g \<in> keys g\<close> g_keys_sub have "v + tp f1 \<in> keys (q1 * f1)" unfolding v ..
-  
-  (* Note: the "q" in MWW's thesis is the sub-polynomial of "q1'" that lacks all power-products that are
-    strictly greater than the minimal "t \<in> keys q1'" such that "t * lp f1" is divisible by "lp f2". *)
-  
-  from \<open>is_proper_binomial f1\<close> \<open>v \<in> keys q1\<close> this obtain q1' where "q1' \<noteq> 0" and "q1' \<sqsubseteq> q1"
-    and tp_q1': "tp q1' = v" and assoc: "associated_poly f1 q1'"
-    and **: "lp q1' + lp f1 \<in> keys (q1 * f1)" by (rule binomial_mult_shape_tp')
-  
-  define u where "u = lp q1'"
-  
-  have "u + lp f1 \<in> keys (q2 * f2)"
-  proof (rule ccontr)
-    assume "u + lp f1 \<notin> keys (q2 * f2)"
-    with ** have "u + lp f1 \<in> keys g" unfolding g_eq u_def by (rule in_keys_plusI1)
-    with mpa have "\<not> lp f1 adds u + lp f1" by (rule membership_problem_assms_lp_f1_nadds)
-    thus False by simp
-  qed
-  then obtain w w' where "w' \<in> keys f2" and w0: "u + lp f1 = w + w'" by (rule in_keys_timesE)
-  from \<open>is_monomial f2\<close> have "keys f2 = {lp f2}" by (rule punit.keys_monomial)
-  with \<open>w' \<in> keys f2\<close> have w': "w' = lp f2" by simp
-  with w0 have w: "u + lp f1 = w + lp f2" by simp
-  
-  show ?thesis
-  proof
-    from \<open>q1' \<noteq> 0\<close> have "keys q1' \<noteq> {}" by simp
-    with finite_keys[of q1'] show "card (keys q1') \<noteq> 0" by auto
-  next
-    from \<open>q1' \<noteq> 0\<close> assoc show "associated f1 (w + lp f2) (lp g) (card (keys q1'))"
-      unfolding v tp_q1'[symmetric] w[symmetric] u_def by (rule associated_poly_times_binomial_associated)
-  next
-    show "lp f1 adds w + lp f2" by (simp add: w[symmetric])
-  qed simp
+  have "is_binomial f1" and "is_binomial f2" and "g \<in> ideal {f1, f2}" and "\<not> punit.is_red {f1, f2} g"
+    using mpa by (rule membership_problem_assmsD)+
+  moreover from mpa have "lp g \<in> keys g"
+    by (intro punit.lt_in_keys binomial_not_0 membership_problem_assmsD(3))
+  ultimately obtain f k u where "f \<in> {f1, f2}" and "is_proper_binomial f" and "lp f adds u"
+    and assoc: "associated f u (lp g) k" and "0 < k" and o: "overlap \<unlhd> of_nat_pm u"
+    by (rule binomial_ideal_irredE_assoc)
+  from this(1, 2) f2_monomial have "f = f1" by (auto simp: is_proper_binomial_def is_monomial_def)
+  from \<open>0 < k\<close> have "k \<noteq> 0" by simp
+  have "of_nat_pm (gcs (lp f2) (tp f2)) \<unlhd> overlap" by (simp only: overlap_alt' le_of_nat_pm lcs_ge_pm)
+  also have "\<dots> \<unlhd> of_nat_pm u" by fact
+  finally have "gcs (lp f2) (tp f2) adds u" by (simp only: le_of_nat_pm adds_pm)
+  moreover from f2_monomial have "lp f2 = tp f2" by (rule punit.lt_eq_tt_monomial)
+  ultimately have "lp f2 adds u" by simp
+  with \<open>k \<noteq> 0\<close> \<open>lp f adds u\<close> show ?thesis using assoc unfolding \<open>f = f1\<close> ..
 qed
 
 lemma thm_3_2_1_aux_5:
@@ -996,29 +1035,6 @@ context
   assumes mpa: "membership_problem_assms f1 f2 g"
 begin
 
-lemma thm_3_2_2_aux_1:
-  assumes "\<not> tp f2 adds lp g"
-  obtains q1 q2 v where "g = q1 * f1 + q2 * f2" and "keys g \<subseteq> keys (q1 * f1)" and "v \<in> keys q1"
-    and "lp g = v + tp f1"
-proof -
-  from parallel have "is_proper_binomial f2" by (rule parallel_binomialsD)
-  hence "is_binomial f2" by (rule proper_binomial_imp_binomial)
-  moreover note mpa
-  moreover have "\<not> tp f2 adds t" if "t \<in> keys g" for t
-  proof -
-    from g_monomial have "keys g = {lp g}" by (rule punit.keys_monomial)
-    with that assms show ?thesis by simp
-  qed
-  ultimately obtain q1 q2 where 1: "g = q1 * f1 + q2 * f2" and 2: "keys g \<subseteq> keys (q1 * f1)"
-    and rl: "\<And>t. t \<in> keys g \<Longrightarrow> \<exists>v\<in>keys q1. t = v + tp f1"
-    by (rule thm_3_2_aux_0) blast+
-  from g_monomial have "g \<noteq> 0" by (rule monomial_not_0)
-  hence "lp g \<in> keys g" by (rule punit.lt_in_keys)
-  hence "\<exists>v\<in>keys q1. lp g = v + tp f1" by (rule rl)
-  then obtain v where "v \<in> keys q1" and "lp g = v + tp f1" ..
-  with 1 2 show ?thesis ..
-qed
-
 lemma thm_3_2_2_aux_2:
   obtains k u where "associated f1 u (lp g) k" and "overlap \<unlhd> of_nat_pm u"
 proof (cases "tp f2 adds lp g")
@@ -1034,42 +1050,15 @@ proof (cases "tp f2 adds lp g")
   qed
 next
   case False
-  then obtain q1 q2 v where g_eq: "g = q1 * f1 + q2 * f2" and g_keys_sub: "keys g \<subseteq> keys (q1 * f1)"
-    and "v \<in> keys q1" and v: "lp g = v + tp f1" by (rule thm_3_2_2_aux_1) blast
-  from parallel have "is_proper_binomial f1" by (rule parallel_binomialsD)
-  from g_monomial have "g \<noteq> 0" by (rule monomial_not_0)
-  hence "lp g \<in> keys g" by (rule punit.lt_in_keys)
-  hence "v + tp f1 \<in> keys (q1 * f1)" using g_keys_sub unfolding v ..
-  with \<open>is_proper_binomial f1\<close> \<open>v \<in> keys q1\<close> obtain q1' where "q1' \<noteq> 0" and "q1' \<sqsubseteq> q1"
-    and tp_q1': "tp q1' = v" and assoc: "associated_poly f1 q1'"
-    and **: "lp q1' + lp f1 \<in> keys (q1 * f1)" by (rule binomial_mult_shape_tp')
-  
-  define u where "u = lp q1'"
-  
-  have "u + lp f1 \<in> keys (q2 * f2)"
-  proof (rule ccontr)
-    assume "u + lp f1 \<notin> keys (q2 * f2)"
-    with ** have "u + lp f1 \<in> keys g" unfolding g_eq u_def by (rule in_keys_plusI1)
-    with mpa have "\<not> lp f1 adds u + lp f1" by (rule membership_problem_assms_lp_f1_nadds)
-    thus False by simp
-  qed
-  then obtain w w' where "w' \<in> keys f2" and w0: "u + lp f1 = w + w'" by (rule in_keys_timesE)
-  
-  show ?thesis
-  proof
-    from \<open>q1' \<noteq> 0\<close> assoc show "associated f1 (u + lp f1) (lp g) (card (keys q1'))"
-      unfolding v tp_q1'[symmetric] u_def by (rule associated_poly_times_binomial_associated)
-  next
-    have "gcs (lp f1) (tp f1) adds u + lp f1" by (simp add: gcs_adds)
-    from parallel have "is_proper_binomial f2" by (rule parallel_binomialsD)
-    hence "keys f2 = {lp f2, tp f2}" by (rule punit.keys_proper_binomial)
-    with \<open>w' \<in> keys f2\<close> have "w' = lp f2 \<or> w' = tp f2" by simp
-    hence "lp f2 adds u + lp f1 \<or> tp f2 adds u + lp f1" by (auto simp: w0)
-    hence "gcs (lp f2) (tp f2) adds u + lp f1" by (auto intro: gcs_adds gcs_adds_2 adds_trans)
-    with \<open>gcs (lp f1) (tp f1) adds u + lp f1\<close> have "lcs (gcs (lp f1) (tp f1)) (gcs (lp f2) (tp f2)) adds u + lp f1"
-      by (rule lcs_adds)
-    thus "overlap \<unlhd> of_nat_pm (u + lp f1)" by (simp add: overlap_alt' adds_pm le_of_nat_pm)
-  qed
+  have "is_binomial f1" and "is_binomial f2" and "g \<in> ideal {f1, f2}" and "\<not> punit.is_red {f1, f2} g"
+    using mpa by (rule membership_problem_assmsD)+
+  moreover from mpa have "lp g \<in> keys g"
+    by (intro punit.lt_in_keys binomial_not_0 membership_problem_assmsD(3))
+  ultimately obtain f k u where "f \<in> {f1, f2}" and "is_proper_binomial f" and "tp f adds lp g"
+    and "lp f adds u" and assoc: "associated f u (lp g) k" and o: "overlap \<unlhd> of_nat_pm u"
+    by (rule binomial_ideal_irredE_assoc)
+  from this(1, 3) False have "f = f1" by auto
+  from assoc o show ?thesis unfolding \<open>f = f1\<close> ..
 qed
 
 lemma thm_3_2_2_aux_3':
