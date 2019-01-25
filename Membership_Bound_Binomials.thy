@@ -229,6 +229,8 @@ qed
 lemma membership_problem_assms_rep:
   assumes "membership_problem_assms f1 f2 g" and "g = q1 * f1 + q2 * f2"
   shows "q1 * f1 \<noteq> 0" and "q2 * f2 \<noteq> 0" and "lp (q1 * f1) = lp (q2 * f2)" and "lc (q1 * f1) = - lc (q2 * f2)"
+    and "(tp (q1 * f1) = tp (q2 * f2) \<Longrightarrow> thesis) \<Longrightarrow>
+          (tp g \<preceq> tp (q1 * f1) \<Longrightarrow> tp g \<preceq> tp (q2 * f2) \<Longrightarrow> thesis) \<Longrightarrow> thesis"
 proof -
   from assms(1) have "is_binomial f1" by (rule membership_problem_assmsD)
   hence "f1 \<noteq> 0" by (rule binomial_not_0)
@@ -297,12 +299,36 @@ proof -
     by (simp only: 3)
   also have "\<dots> = lc (q1 * f1) + lc (q2 * f2)" by (simp only: punit.lc_def)
   finally show "lc (q1 * f1) = - lc (q2 * f2)" by (simp add: eq_neg_iff_add_eq_0)
+
+  assume 4: "tp (q1 * f1) = tp (q2 * f2) \<Longrightarrow> thesis"
+    and 5: "tp g \<preceq> tp (q1 * f1) \<Longrightarrow> tp g \<preceq> tp (q2 * f2) \<Longrightarrow> thesis"
+  show thesis
+  proof (rule ordered_powerprod_lin.linorder_cases)
+    assume *: "tp (q1 * f1) \<prec> tp (q2 * f2)"
+    from \<open>q1 * f1 \<noteq> 0\<close> have "tp (q1 * f1) \<in> keys (q1 * f1)" by (rule punit.tt_in_keys)
+    moreover from * have "tp (q1 * f1) \<notin> keys (q2 * f2)" by (auto dest: punit.tt_min_keys simp only:)
+    ultimately have "tp (q1 * f1) \<in> keys g" unfolding assms(2) by (rule in_keys_plusI1)
+    hence "tp g \<preceq> tp (q1 * f1)" by (rule punit.tt_min_keys)
+    moreover from this * have "tp g \<preceq> tp (q2 * f2)" by simp
+    ultimately show ?thesis by (rule 5)
+  next
+    assume *: "tp (q2 * f2) \<prec> tp (q1 * f1)"
+    from \<open>q2 * f2 \<noteq> 0\<close> have "tp (q2 * f2) \<in> keys (q2 * f2)" by (rule punit.tt_in_keys)
+    moreover from * have "tp (q2 * f2) \<notin> keys (q1 * f1)" by (auto dest: punit.tt_min_keys simp only:)
+    ultimately have "tp (q2 * f2) \<in> keys g" unfolding assms(2) by (rule in_keys_plusI2)
+    hence **: "tp g \<preceq> tp (q2 * f2)" by (rule punit.tt_min_keys)
+    from this * have "tp g \<preceq> tp (q1 * f1)" by simp
+    thus ?thesis using ** by (rule 5)
+  next
+    assume "tp (q1 * f1) = tp (q2 * f2)"
+    thus ?thesis by (rule 4)
+  qed
 qed
 
 (* TODO: Maybe it's better to extend (\<preceq>) canonically to an ordering (\<preceq>\<^sub>Q) for rational exponents?
   (\<preceq>\<^sub>Q) is no admissible ordering, because 0 is not the smallest element, but nevertheless it
   shares *a lot* of properties with (\<preceq>). *)
-lemma ord_rat:
+lemma ord_rat_strict:
   assumes "s \<prec> t" and "of_nat_pm s = p + l \<cdot> vect f" and "of_nat_pm t = p + l' \<cdot> vect f"
   shows "l < l'"
 proof -
@@ -336,6 +362,24 @@ proof -
   qed
   ultimately have "0 < l' - l" by (simp add: zero_less_Fract_iff)
   thus "l < l'" by simp
+qed
+
+corollary ord_rat:
+  assumes "s \<preceq> t" and "of_nat_pm s = p + l \<cdot> vect f" and "of_nat_pm t = p + l' \<cdot> vect f"
+    and "vect f \<noteq> 0"
+  shows "l \<le> l'"
+proof -
+  from assms(1) have "s \<prec> t \<or> s = t" by auto
+  thus ?thesis
+  proof
+    assume "s \<prec> t"
+    hence "l < l'" using assms(2, 3) by (rule ord_rat_strict)
+    thus ?thesis by simp
+  next
+    assume "s = t"
+    with assms(2, 3) have "(l - l') \<cdot> vect f = 0" by (simp add: algebra_simps)
+    with assms(4) show ?thesis by (simp add: map_scale_eq_0_iff)
+  qed
 qed
 
 subsubsection \<open>Parallel Binomials\<close>
@@ -376,7 +420,7 @@ proof (intro conjI)
   moreover have "of_nat_pm (tp f1) = of_nat_pm (tp f1) + 0 \<cdot> vect f2" by simp
   moreover have "of_nat_pm (lp f1) = of_nat_pm (tp f1) + m \<cdot> vect f2"
     by (simp flip: assms(3)) (simp add: vect_alt)
-  ultimately have "0 < m" by (rule ord_rat)
+  ultimately have "0 < m" by (rule ord_rat_strict)
   obtain m2 m1 where "0 < m1" and m: "m = Fract m2 m1" by (rule Rat_cases)
   with \<open>0 < m\<close> have "0 < m2" by (simp only: zero_less_Fract_iff)
   from \<open>0 < m1\<close> have m1: "rat (nat m1) = rat_of_int m1" by auto
@@ -1184,7 +1228,7 @@ proof -
     qed
   next
     fix s t
-    assume "s \<in> keys q1 \<and> t \<in> keys f1 \<or> s \<in> keys q2 \<and> t \<in> keys f2"
+    assume "(s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2)"
     thus "\<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
     proof
       assume "s \<in> keys q1 \<and> t \<in> keys f1"
@@ -1202,50 +1246,240 @@ qed
 
 lemma thm_3_2_2_aux_3:
   obtains q1 q2 where "g = q1 * f1 + q2 * f2"
-    and "\<And>s t. (s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2) \<Longrightarrow>
-            \<exists>l\<ge>0. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
+    and "\<And>f t. f \<in> {f1, f2} \<Longrightarrow> t \<in> keys (q1 * f1) \<union> keys (q2 * f2) \<Longrightarrow>
+            \<exists>l>- 1. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f"
 proof -
-  (* Note: We only need "0 \<le> l" for those "s + t" that are contained in "keys (q1 * f1) \<union> keys (q2 * f2)".
-      For the other power-products the sign of "l" is irrelevant. *)
-  (* Note: No "s + t" appearing 'below' "lp g" (i.e. with negative "l") can be divisible by "lp f1"
-      or "lp f2", because then "lp g" would be divisible by that leading power-product, too.
-      This follows from the fact that multiples of both "lp f1" and "lp f2" must appear 'above'
-      "lp g" (i.e. with non-negative "l"), and if "lp f1" divides a power-product below and above
-      "lp g", it also divides "lp g". *)
-  obtain q1' q2' where "g = q1' * f1 + q2' * f2"
-    and "\<And>s t. (s \<in> keys q1' \<and> t \<in> keys f1) \<or> (s \<in> keys q2' \<and> t \<in> keys f2) \<Longrightarrow>
-            \<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
+  from parallel have f1_pbinomial: "is_proper_binomial f1" and f2_pbinomial: "is_proper_binomial f2"
+    by (rule parallel_binomialsD)+
+  from f1_pbinomial have "vect f1 \<noteq> 0" by (auto simp: vect_alt dest: punit.lt_gr_tt_binomial)
+  from f2_pbinomial have "vect f2 \<noteq> 0" by (auto simp: vect_alt dest: punit.lt_gr_tt_binomial)
+  from g_monomial have "g \<noteq> 0" by (rule monomial_not_0)
+  hence "lp g \<in> keys g" by (rule punit.lt_in_keys)
+  with mpa have nadds1: "\<not> lp f1 adds lp g" and nadds2: "\<not> lp f2 adds lp g"
+    by (rule membership_problem_assms_lp_f1_nadds, rule membership_problem_assms_lp_f2_nadds)
+
+  obtain q1 q2 where g: "g = q1 * f1 + q2 * f2"
+    and 1: "\<And>s t. (s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2) \<Longrightarrow>
+                    \<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
     by (rule thm_3_2_2_aux_3') blast
-  (* Proof strategy?
-      - First prove that q1' and q2' exist such that all pps lie on the main diagonal (see above).
-      - Among all such q1', q2', pick some q1, q2 where the number of pps below "lp g" is minimal.
-      - If there are no pps below "lp g", we are done; otherwise, let t be the pp with smallest l.
-      - Because of the observation above, there exist "s1 \<in> keys q1" and "s2 \<in> keys q2" with
-        "t = s1 + tp f1 = s2 + tp f2" and "lookup q1 s1 * tc f1 = - lookup q2 s2 * tc f2";
-        actually, "s1 = tp q1" and "s2 = tp q2".
-      ? Show that "except q1 {s1} + ..." and "except q2 {s2} + ..." generate g but have one
-        pp less below "lp g", contradicting the minimality of q1 and q2. *)
-  show ?thesis sorry
+
+  have 2: P if "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)"
+            and "\<And>l. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1 \<Longrightarrow> P" for t P
+    using that(1)
+  proof
+    assume "t \<in> keys (q1 * f1)"
+    then obtain t1 t2 where "t1 \<in> keys q1" and "t2 \<in> keys f1" and t: "t = t1 + t2"
+      by (rule in_keys_timesE)
+    from this(1, 2) have "(t1 \<in> keys q1 \<and> t2 \<in> keys f1) \<or> (t1 \<in> keys q2 \<and> t2 \<in> keys f2)" by simp
+    hence "\<exists>l. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1" unfolding t by (rule 1)
+    then obtain l where "of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1" ..
+    thus ?thesis by (rule that)
+  next
+    assume "t \<in> keys (q2 * f2)"
+    then obtain t1 t2 where "t1 \<in> keys q2" and "t2 \<in> keys f2" and t: "t = t1 + t2"
+      by (rule in_keys_timesE)
+    from this(1, 2) have "(t1 \<in> keys q1 \<and> t2 \<in> keys f1) \<or> (t1 \<in> keys q2 \<and> t2 \<in> keys f2)" by simp
+    hence "\<exists>l. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1" unfolding t by (rule 1)
+    then obtain l where "of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1" ..
+    thus ?thesis by (rule that)
+  qed
+  have 3: P if "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)"
+            and "\<And>l. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f2 \<Longrightarrow> P" for t P
+  proof -
+    from that(1) obtain l' where "of_nat_pm t = of_nat_pm (lp g) + l' \<cdot> vect f1" by (rule 2)
+    also from parallel obtain m where "vect f1 = m \<cdot> vect f2" by (rule parallel_binomialsE_vect)
+    finally have "of_nat_pm t = of_nat_pm (lp g) + (l' * m) \<cdot> vect f2" by (simp only: map_scale_assoc)
+    thus ?thesis by (rule that)
+  qed
+
+  from mpa g have "q1 * f1 \<noteq> 0" and "q2 * f2 \<noteq> 0" and eq0: "lp (q1 * f1) = lp (q2 * f2)"
+    by (rule membership_problem_assms_rep)+
+  from this(1, 2) have "q1 \<noteq> 0" and "f1 \<noteq> 0" and "q2 \<noteq> 0" and "f2 \<noteq> 0" by simp_all
+
+  from tp_adds_lp have "of_nat_pm (tp f1) \<unlhd> (of_nat_pm (lp g) :: _ \<Rightarrow>\<^sub>0 rat)"
+    by (simp only: le_of_nat_pm adds_pm)
+  hence "of_nat_pm (tp f1) + 1 \<cdot> vect f1 \<unlhd> of_nat_pm (lp g) + 1 \<cdot> vect f1"
+    by (rule le_pm_mono_plus_right)
+  hence lp1: "of_nat_pm (lp f1) \<unlhd> of_nat_pm (lp g) + 1 \<cdot> vect f1" by (simp add: vect_alt)
+
+  note \<open>lp g \<in> keys g\<close>
+  also have "keys g \<subseteq> keys (q1 * f1) \<union> keys (q2 * f2)" (is "_ \<subseteq> ?A")
+    unfolding g by (rule keys_add_subset)
+  finally have "lp g \<preceq> lp (q2 * f2)" by (auto dest: punit.lt_max_keys simp only: eq0)
+  moreover have "of_nat_pm (lp g) = of_nat_pm (lp g) + 0 \<cdot> vect f2" by simp
+  moreover obtain k2 where eq: "of_nat_pm (lp (q2 * f2)) = of_nat_pm (lp g) + k2 \<cdot> vect f2"
+  proof (rule 3)
+    from \<open>q2 * f2 \<noteq> 0\<close> have "lp (q2 * f2) \<in> keys (q2 * f2)" by (rule punit.lt_in_keys)
+    thus "lp (q2 * f2) \<in> keys (q1 * f1) \<union> keys (q2 * f2)" ..
+  qed
+  ultimately have "0 \<le> k2" using \<open>vect f2 \<noteq> 0\<close> by (rule ord_rat)
+  from \<open>q2 \<noteq> 0\<close> \<open>f2 \<noteq> 0\<close> have lp2: "of_nat_pm (lp f2) \<unlhd> of_nat_pm (lp g) + k2 \<cdot> vect f2"
+    by (simp add: le_of_nat_pm lp_times flip: eq adds_pm)
+
+  from g show ?thesis
+  proof
+    fix f t
+    assume "f \<in> {f1, f2}"
+    hence disj: "f = f1 \<or> f = f2" by simp
+    assume "t \<in> ?A"
+    then obtain m1 where eq1: "of_nat_pm t = of_nat_pm (lp g) + m1 \<cdot> vect f1" by (rule 2)
+    from \<open>t \<in> ?A\<close> obtain m2 where eq2: "of_nat_pm t = of_nat_pm (lp g) + m2 \<cdot> vect f2" by (rule 3)
+    from mpa g show "\<exists>l>- 1. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f"
+    proof (rule membership_problem_assms_rep)
+      assume eq: "tp (q1 * f1) = tp (q2 * f2)"
+      with \<open>t \<in> ?A\<close> have "tp (q2 * f2) \<preceq> t" by (auto dest: punit.tt_min_keys simp only:)
+      from disj show ?thesis
+      proof
+        assume f: "f = f1"
+        from \<open>q1 * f1 \<noteq> 0\<close> have "tp (q1 * f1) \<in> keys (q1 * f1)" by (rule punit.tt_in_keys)
+        hence "tp (q1 * f1) \<in> keys (q1 * f1) \<union> keys (q2 * f2)" ..
+        then obtain m where eq3: "of_nat_pm (tp (q1 * f1)) = of_nat_pm (lp g) + m \<cdot> vect f1"
+          by (rule 2)
+        have "- 1 < m"
+        proof (rule ccontr)
+          assume "\<not> - 1 < m"
+          hence "m + 1 \<le> 0" by simp
+          have "of_nat_pm (tp (q1 * f1)) + vect f1 = of_nat_pm (lp g) + (m + 1) \<cdot> vect f1"
+            by (simp add: eq3 map_scale_distrib_right)
+          with \<open>q1 \<noteq> 0\<close> \<open>f1 \<noteq> 0\<close> have "of_nat_pm (tp q1 + lp f1) = of_nat_pm (lp g) + (m + 1) \<cdot> vect f1"
+            by (simp add: vect_alt tp_times of_nat_pm_plus)
+          moreover have "of_nat_pm (lp f1) \<unlhd> (of_nat_pm (tp q1 + lp f1) :: _ \<Rightarrow>\<^sub>0 rat)"
+            by (simp add: le_of_nat_pm flip: adds_pm)
+          ultimately have "of_nat_pm (lp f1) \<unlhd> of_nat_pm (lp g) + (m + 1) \<cdot> vect f1" by (simp only:)
+          hence "of_nat_pm (lp f1) \<unlhd> of_nat_pm (lp g) + 0 \<cdot> vect f1" using lp1 \<open>m + 1 \<le> 0\<close>
+            by (rule map_scale_le_interval) simp
+          hence "lp f1 adds lp g" by (simp add: adds_pm le_of_nat_pm)
+          with nadds1 show False ..
+        qed
+        also from \<open>tp (q2 * f2) \<preceq> t\<close> eq3 eq1 \<open>vect f1 \<noteq> 0\<close> have "m \<le> m1" unfolding eq by (rule ord_rat)
+        finally show ?thesis using eq1 unfolding f by (intro exI conjI)
+      next
+        assume f: "f = f2"
+        from \<open>q2 * f2 \<noteq> 0\<close> have "tp (q2 * f2) \<in> keys (q2 * f2)" by (rule punit.tt_in_keys)
+        hence "tp (q2 * f2) \<in> keys (q1 * f1) \<union> keys (q2 * f2)" ..
+        then obtain m where eq3: "of_nat_pm (tp (q2 * f2)) = of_nat_pm (lp g) + m \<cdot> vect f2"
+          by (rule 3)
+        have "- 1 < m"
+        proof (rule ccontr)
+          assume "\<not> - 1 < m"
+          hence "m + 1 \<le> 0" by simp
+          have "of_nat_pm (tp (q2 * f2)) + vect f2 = of_nat_pm (lp g) + (m + 1) \<cdot> vect f2"
+            by (simp add: eq3 map_scale_distrib_right)
+          with \<open>q2 \<noteq> 0\<close> \<open>f2 \<noteq> 0\<close> have "of_nat_pm (tp q2 + lp f2) = of_nat_pm (lp g) + (m + 1) \<cdot> vect f2"
+            by (simp add: vect_alt tp_times of_nat_pm_plus)
+          moreover have "of_nat_pm (lp f2) \<unlhd> (of_nat_pm (tp q2 + lp f2) :: _ \<Rightarrow>\<^sub>0 rat)"
+            by (simp add: le_of_nat_pm flip: adds_pm)
+          ultimately have "of_nat_pm (lp f2) \<unlhd> of_nat_pm (lp g) + (m + 1) \<cdot> vect f2" by (simp only:)
+          hence "of_nat_pm (lp f2) \<unlhd> of_nat_pm (lp g) + 0 \<cdot> vect f2" using lp2 \<open>m + 1 \<le> 0\<close> \<open>0 \<le> k2\<close>
+            by (rule map_scale_le_interval)
+          hence "lp f2 adds lp g" by (simp add: adds_pm le_of_nat_pm)
+          with nadds2 show False ..
+        qed
+        also from \<open>tp (q2 * f2) \<preceq> t\<close> eq3 eq2 \<open>vect f2 \<noteq> 0\<close> have "m \<le> m2" by (rule ord_rat)
+        finally show ?thesis using eq2 unfolding f by (intro exI conjI)
+      qed
+    next
+      from g_monomial have "lp g = tp g" by (rule punit.lt_eq_tt_monomial)
+      moreover assume "tp g \<preceq> tp (q1 * f1)" and "tp g \<preceq> tp (q2 * f2)"
+      ultimately have "lp g \<preceq> tp (q1 * f1)" and "lp g \<preceq> tp (q2 * f2)" by simp_all
+      with \<open>t \<in> ?A\<close> have "lp g \<preceq> t" by (auto dest: punit.tt_min_keys simp only:)
+      from disj show ?thesis
+      proof
+        assume f: "f = f1"
+        have "of_nat_pm (lp g) = of_nat_pm (lp g) + 0 \<cdot> vect f1" by simp
+        with \<open>lp g \<preceq> t\<close> have "0 \<le> m1" using eq1 \<open>vect f1 \<noteq> 0\<close> by (rule ord_rat)
+        hence "- 1 < m1" by simp
+        with eq1 show ?thesis unfolding f by (intro exI conjI)
+      next
+        assume f: "f = f2"
+        have "of_nat_pm (lp g) = of_nat_pm (lp g) + 0 \<cdot> vect f2" by simp
+        with \<open>lp g \<preceq> t\<close> have "0 \<le> m2" using eq2 \<open>vect f2 \<noteq> 0\<close> by (rule ord_rat)
+        hence "- 1 < m2" by simp
+        with eq2 show ?thesis unfolding f by (intro exI conjI)
+      qed
+    qed
+  qed
 qed
 
-text \<open>I do not know whether the above lemma really holds. Intuitively, it seems reasonable, but I have
-  no idea how to prove it rigorously, and MWW's thesis does not say anything about it either (it
-  even wrongly claims that such non-negative \<open>l\<close> exist for \<^emph>\<open>all\<close> cofactors \<open>q1\<close> and \<open>q2\<close>, although
-  one can easily construct counterexamples using syzygies).
+text \<open>Theorem 3.2.2. in @{cite MWW} is wrong if the degree of the leading power-product of \<open>f1\<close> is
+  less than the degree of its trailing power-product (see below). Therefore, we have to distinguish
+  two cases and provide a different bound if @{prop "deg_pm (lp f1) \<le> deg_pm (tp f1)"}.
 
-  In any case, an alternative overall strategy would be to homogenize the input, and then infer
-  cofactor bounds for the elements in the homogeneous Gr\"obner basis \<open>G\<^sup>*\<close> by virtue of MWW's thesis.
-  Homogenizing parallel binomials yields again parallel binomials, see lemma
-  "parallel_binomials_homogenizeI". Only be aware that
-  \<^item> \<open>(G\<^sup>*)\<^sub>*\<close> is not necessarily a \<^emph>\<open>reduced\<close> Gr\"obner basis, and
-  \<^item> \<open>(G\<^sup>*)\<^sub>*\<close> might contain monomials that stem from proper binomials in \<open>G\<^sup>*\<close>.
-  So, this proposal must be understood as an overall strategy for obtaining \<^emph>\<open>cofactor\<close> bounds for
-  \<^emph>\<open>some\<close> Gr\"obner basis of \<open>f1\<close> and \<open>f2\<close> (if \<open>f1\<close> and \<open>f2\<close> are parallel binomials, but also in
-  general); it cannot be used, however, to only circumvent the single theorem below.\<close>
+  Counterexample to Theorem 3.2.2., for lexicographic ordering with @{prop "x \<prec> y"}:
+  \<^item> @{prop "f1 = x\<^sup>2 * y^3 + x^8"},
+  \<^item> @{prop "f2 = y^3 + x^4 * y"},
+  \<^item> @{prop "g = 2 * x^8 * y\<^sup>2"},
+  \<^item> @{prop "q1 = y\<^sup>2 - x\<^sup>2 * y"},
+  \<^item> @{prop "q2 = - y\<^sup>2 * x\<^sup>2 + x^4 * y + x^6"}.
+  Here, the degree bound according to Theorem 3.2.2. is \<open>10\<close>, but @{prop "poly_deg (q1 * f1) = 11"}
+  (due to @{term "x^10 * y"} appearing in this polynomial).
+  One can prove that the syzygy module of @{term "{f1, f2}"} is generated by the single element
+  @{term "(f2, - f1)"}, meaning that @{term "x^10 * y"} appears in \<^emph>\<open>every\<close> representation of \<open>g\<close>,
+  and therefore that every representation of \<open>g\<close> has at least degree \<open>11\<close>.\<close>
 
-theorem thm_3_2_2:
-  "membership_problem_concl f1 f2 g
-          (to_nat (max (rat (deg_pm (lp g))) (deg_pm (of_nat_pm (lp g) + (rat (step (lp g)) + 1) \<cdot> vect f1 + vect f2) - 1)))"
+theorem thm_3_2_2_1:
+  assumes "deg_pm (lp f1) \<le> deg_pm (tp f1)"
+  shows "membership_problem_concl f1 f2 g
+          (deg_pm (lp g) + min (deg_pm (tp f1) - deg_pm (lp f1)) (deg_pm (tp f2) - deg_pm (lp f2)))"
+proof -
+  from assms have eq1: "deg_pm (of_nat_pm (lp g)) - deg_pm (vect f1) =
+                          rat (deg_pm (lp g) + (deg_pm (tp f1) - deg_pm (lp f1)))"
+    by (simp add: vect_alt deg_pm_minus_group deg_of_nat_pm)
+  from parallel obtain m where "0 < m" and "vect f1 = m \<cdot> vect f2" by (rule parallel_binomialsE_vect)
+  moreover from assms have "deg_pm (vect f1) \<le> 0" by (simp add: vect_alt deg_pm_minus deg_of_nat_pm)
+  ultimately have "deg_pm (vect f2) \<le> 0" by (simp add: deg_pm_map_scale mult_le_0_iff)
+  hence "deg_pm (lp f2) \<le> deg_pm (tp f2)" by (simp add: vect_alt deg_pm_minus_group deg_of_nat_pm)
+  hence eq2: "deg_pm (of_nat_pm (lp g)) - deg_pm (vect f2) =
+                          rat (deg_pm (lp g) + (deg_pm (tp f2) - deg_pm (lp f2)))"
+    by (simp add: vect_alt deg_pm_minus_group deg_of_nat_pm)
+  let ?a = "deg_pm (tp f1) - deg_pm (lp f1)"
+  let ?b = "deg_pm (tp f2) - deg_pm (lp f2)"
+  obtain q1 q2 where "g = q1 * f1 + q2 * f2"
+    and 1: "\<And>f t. f \<in> {f1, f2} \<Longrightarrow> t \<in> keys (q1 * f1) \<union> keys (q2 * f2) \<Longrightarrow>
+                \<exists>l>- 1. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f" by (rule thm_3_2_2_aux_3) blast
+  have 2: "deg_pm t \<le> deg_pm (lp g) + min ?a ?b" if "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)" for t
+  proof -
+    have "rat (deg_pm t) = deg_pm (of_nat_pm t)" by (simp only: deg_of_nat_pm)
+    also have "\<dots> \<le> min (deg_pm (of_nat_pm (lp g)) - deg_pm (vect f1))
+                         (deg_pm (of_nat_pm (lp g)) - deg_pm (vect f2))"
+    proof (rule min.boundedI)
+      from _ that have "\<exists>l>- 1. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1" by (rule 1) simp
+      then obtain l where "- 1 < l" and "of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1" by blast
+      from this(2) have "deg_pm (of_nat_pm t) = deg_pm (of_nat_pm (lp g)) + l * deg_pm (vect f1)"
+        by (simp add: deg_pm_plus deg_pm_map_scale)
+      also from \<open>- 1 < l\<close> \<open>deg_pm (vect f1) \<le> 0\<close> have "\<dots> \<le> deg_pm (of_nat_pm (lp g)) - deg_pm (vect f1)"
+        by simp (metis less_eq_rat_def mult_minus1 mult_right_mono_neg)
+      finally show "deg_pm (of_nat_pm t) \<le> deg_pm (of_nat_pm (lp g)) - deg_pm (vect f1)" .
+    next
+      from _ that have "\<exists>l>- 1. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f2" by (rule 1) simp
+      then obtain l where "- 1 < l" and "of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f2" by blast
+      from this(2) have "deg_pm (of_nat_pm t) = deg_pm (of_nat_pm (lp g)) + l * deg_pm (vect f2)"
+        by (simp add: deg_pm_plus deg_pm_map_scale)
+      also from \<open>- 1 < l\<close> \<open>deg_pm (vect f2) \<le> 0\<close> have "\<dots> \<le> deg_pm (of_nat_pm (lp g)) - deg_pm (vect f2)"
+        by simp (metis less_eq_rat_def mult_minus1 mult_right_mono_neg)
+      finally show "deg_pm (of_nat_pm t) \<le> deg_pm (of_nat_pm (lp g)) - deg_pm (vect f2)" .
+    qed
+    also have "\<dots> = rat (deg_pm (lp g) + min ?a ?b)" by (simp add: eq1 eq2)
+    finally show "deg_pm t \<le> deg_pm (lp g) + min ?a ?b" by (simp only: of_nat_le_iff)
+  qed
+  show ?thesis unfolding membership_problem_concl_def
+  proof (intro exI conjI poly_deg_leI)
+    fix t
+    assume "t \<in> keys (q1 * f1)"
+    hence "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)" ..
+    thus "deg_pm t \<le> deg_pm (lp g) + min ?a ?b" by (rule 2)
+  next
+    fix t
+    assume "t \<in> keys (q2 * f2)"
+    hence "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)" ..
+    thus "deg_pm t \<le> deg_pm (lp g) + min ?a ?b" by (rule 2)
+  qed fact
+qed
+
+theorem thm_3_2_2_2:
+  assumes "deg_pm (tp f1) < deg_pm (lp f1)"
+  shows "membership_problem_concl f1 f2 g
+                (deg_pm (lp g) + to_nat (deg_pm ((rat (step (lp g)) + 1) \<cdot> vect f1 + vect f2) - 1))"
 proof -
   define k where "k = step (lp g)"
   from parallel have "is_proper_binomial f2" by (rule parallel_binomialsD)
@@ -1259,466 +1493,416 @@ proof -
     by (rule overlapshift_is_above_overlap, rule of_nat_pm_overlapshift', rule step_min)
   hence overlap_le: "overlap \<unlhd> of_nat_pm (lp g) + rat k \<cdot> vect f1" by (simp only: k_def)
 
-  let ?a = "rat (deg_pm (lp g))"
-  let ?b = "deg_pm (of_nat_pm (lp g) + (rat (step (lp g)) + 1) \<cdot> vect f1 + vect f2) - 1"
+  let ?d = "deg_pm (of_nat_pm (lp g) + (rat (step (lp g)) + 1) \<cdot> vect f1 + vect f2) - 1"
 
-  show ?thesis
-  proof (cases "deg_pm (lp f1) \<le> deg_pm (tp f1)")
-    case True
+  from assms have "0 < deg_pm (vect f1)" by (simp add: vect_alt deg_pm_minus deg_of_nat_pm)
+  moreover obtain m::rat where "0 < m" and "vect f2 = m \<cdot> vect f1"
+    using parallel_binomials_sym[OF parallel] by (rule parallel_binomialsE_vect)
+  ultimately have "0 < deg_pm (vect f2)" by (simp add: deg_pm_map_scale)
+  hence 0: "deg_pm (tp f2) < deg_pm (lp f2)" by (simp add: vect_alt deg_pm_minus deg_of_nat_pm)
+
+  define A where "A = {Q. g = fst Q * f1 + snd Q * f2 \<and>
+                        (\<forall>s t. (s \<in> keys (fst Q) \<and> t \<in> keys f1) \<or> (s \<in> keys (snd Q) \<and> t \<in> keys f2) \<longrightarrow>
+                          (\<exists>l::rat. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1))}"
+  have "A \<noteq> {}"
+  proof -
     obtain q1 q2 where "g = q1 * f1 + q2 * f2"
-      and 1: "\<And>s t. s \<in> keys q1 \<and> t \<in> keys f1 \<or> s \<in> keys q2 \<and> t \<in> keys f2 \<Longrightarrow>
-              \<exists>l\<ge>0. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
-      by (rule thm_3_2_2_aux_3) blast
-    have 2: "deg_pm t \<le> deg_pm (lp g)" if "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)" for t
-    proof -
-      from that obtain t1 t2 where "(t1 \<in> keys q1 \<and> t2 \<in> keys f1) \<or> (t1 \<in> keys q2 \<and> t2 \<in> keys f2)"
-        and t: "t = t1 + t2" by (auto elim!: in_keys_timesE)
-      from this(1) have "\<exists>l\<ge>0. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1"
-        unfolding t by (rule 1)
-      then obtain l::rat where "0 \<le> l" and eq: "of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1" by blast
-      have "rat (deg_pm t) = deg_pm (of_nat_pm t)" by (simp only: deg_of_nat_pm)
-      also have "\<dots> = deg_pm (of_nat_pm (lp g)) + l * deg_pm (vect f1)"
-        by (simp add: eq deg_pm_plus deg_pm_map_scale)
-      also from \<open>0 \<le> l\<close> have "\<dots> \<le> deg_pm (of_nat_pm (lp g))" unfolding add_le_same_cancel1
-      proof (rule mult_nonneg_nonpos)
-        from True show "deg_pm (vect f1) \<le> 0" by (simp add: vect_alt deg_pm_minus deg_of_nat_pm)
-      qed
-      also have "\<dots> = rat (deg_pm (lp g))" by (simp only: deg_of_nat_pm)
-      finally show ?thesis by simp
-    qed
-    show ?thesis unfolding membership_problem_concl_def
-    proof (intro exI conjI)
-      have "poly_deg (q1 * f1) \<le> deg_pm (lp g)"
-      proof (rule poly_deg_leI)
-        fix t
-        assume "t \<in> keys (q1 * f1)"
-        hence "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)" by simp
-        thus "deg_pm t \<le> deg_pm (lp g)" by (rule 2)
-      qed
-      hence "rat (poly_deg (q1 * f1)) \<le> ?a" by simp
-      also have "\<dots> \<le> max ?a ?b" by (rule max.cobounded1)
-      finally have "to_nat (rat (poly_deg (q1 * f1))) \<le> to_nat (max ?a ?b)" by (rule to_nat_mono)
-      thus "poly_deg (q1 * f1) \<le> to_nat (max ?a ?b)" by (simp only: to_nat_of_nat)
+      and "\<And>s t. (s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2) \<Longrightarrow>
+                \<exists>l::rat. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
+      by (rule thm_3_2_2_aux_3') blast
+    hence "(q1, q2) \<in> A" by (simp add: A_def)
+    thus ?thesis by blast
+  qed
+  obtain q1 q2 where "(q1, q2) \<in> A" and Q_min: "\<And>q1' q2'. (q1', q2') \<in> A \<Longrightarrow> poly_deg q1 \<le> poly_deg q1'"
+  proof -
+    define l where "l = (LEAST x. x \<in> poly_deg ` fst ` A)"
+    from \<open>A \<noteq> {}\<close> have "\<exists>x. x \<in> poly_deg ` fst ` A" by blast
+    hence "l \<in> poly_deg ` fst ` A" unfolding l_def by (rule LeastI_ex)
+    then obtain Q where "Q \<in> A" and l: "l = poly_deg (fst Q)" by blast
+    obtain q1 q2 where Q: "Q = (q1, q2)" using prod.exhaust by blast
+    show ?thesis
+    proof
+      from \<open>Q \<in> A\<close> show "(q1, q2) \<in> A" by (simp only: Q)
     next
-      have "poly_deg (q2 * f2) \<le> deg_pm (lp g)"
-      proof (rule poly_deg_leI)
+      fix q1' q2'
+      assume "(q1', q2') \<in> A"
+      hence "poly_deg (fst (q1', q2')) \<in> poly_deg ` fst ` A" by (intro imageI)
+      hence "poly_deg (fst Q) \<le> poly_deg (fst (q1', q2'))"
+        unfolding l[symmetric] l_def by (rule Least_le)
+      thus "poly_deg q1 \<le> poly_deg q1'" by (simp only: Q fst_conv)
+    qed
+  qed
+  from this(1) have g: "g = q1 * f1 + q2 * f2"
+    and 1: "\<And>s t thesis. (s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2) \<Longrightarrow>
+              (\<And>l::rat. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1 \<Longrightarrow> thesis) \<Longrightarrow> thesis"
+    by (auto simp: A_def)
+
+  from mpa g have "q1 * f1 \<noteq> 0" and "q2 * f2 \<noteq> 0" and lp_eq: "lp (q1 * f1) = lp (q2 * f2)"
+    and lc_eq: "lc (q1 * f1) = - lc (q2 * f2)"
+    by (rule membership_problem_assms_rep)+
+  from this(1, 2) have "q1 \<noteq> 0" and "f1 \<noteq> 0" and "q2 \<noteq> 0" and "f2 \<noteq> 0" by auto
+  from this(1, 2) have lp_q1_f1: "lp (q1 * f1) = lp q1 + lp f1" by (rule lp_times)
+  from \<open>q2 \<noteq> 0\<close> \<open>f2 \<noteq> 0\<close> have lp_q2_f2: "lp (q2 * f2) = lp q2 + lp f2" by (rule lp_times)
+  have lp_eq2: "lp q1 + lp f1 = lp q2 + lp f2" by (simp only: lp_eq lp_q2_f2 flip: lp_q1_f1)
+  from \<open>q1 \<noteq> 0\<close> have "lp q1 \<in> keys q1" by (rule punit.lt_in_keys)
+  moreover from \<open>f1 \<noteq> 0\<close> have "lp f1 \<in> keys f1" by (rule punit.lt_in_keys)
+  ultimately have "(lp q1 \<in> keys q1 \<and> lp f1 \<in> keys f1) \<or> (lp q1 \<in> keys q2 \<and> lp f1 \<in> keys f2)"
+    by simp
+  then obtain l' where eq2: "of_nat_pm (lp q1 + lp f1) = of_nat_pm (lp g) + l' \<cdot> vect f1" by (rule 1)
+  have 3: "deg_pm (s + t) < deg_pm (lp q1 + lp f1)"
+    if "(s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2)" and "s + t \<noteq> lp q1 + lp f1" for s t
+  proof -
+    from that(1) have "s + t \<prec> lp q1 + lp f1"
+    proof
+      assume "s \<in> keys q1 \<and> t \<in> keys f1"
+      hence "s \<preceq> lp q1" and "t \<preceq> lp f1" by (simp_all add: punit.lt_max_keys)
+      from this(1) have "s + t \<preceq> lp q1 + t" by (rule plus_monotone)
+      also from \<open>t \<preceq> lp f1\<close> have "\<dots> \<preceq> lp q1 + lp f1" by (rule plus_monotone_left)
+      finally have "s + t \<preceq> lp q1 + lp f1" .
+      with that(2) show ?thesis by simp
+    next
+      assume "s \<in> keys q2 \<and> t \<in> keys f2"
+      hence "s \<preceq> lp q2" and "t \<preceq> lp f2" by (simp_all add: punit.lt_max_keys)
+      from this(1) have "s + t \<preceq> lp q2 + t" by (rule plus_monotone)
+      also from \<open>t \<preceq> lp f2\<close> have "\<dots> \<preceq> lp q2 + lp f2" by (rule plus_monotone_left)
+      finally have "s + t \<preceq> lp q2 + lp f2" .
+      with that(2) show ?thesis by (simp only: lp_eq2)
+    qed
+    moreover from that(1) obtain l where eq1: "of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
+      by (rule 1)
+    ultimately have "l < l'" using eq2 by (rule ord_rat_strict)
+    have "rat (deg_pm (s + t)) = deg_pm (of_nat_pm (s + t))" by (simp only: deg_of_nat_pm)
+    also have "\<dots> = deg_pm (of_nat_pm (lp g)) + l * deg_pm (vect f1)"
+      by (simp add: eq1 deg_pm_plus deg_pm_map_scale)
+    also have "\<dots> < deg_pm (of_nat_pm (lp g)) + l' * deg_pm (vect f1)"
+      using \<open>0 < deg_pm (vect f1)\<close> \<open>l < l'\<close> by simp
+    also have "\<dots> = deg_pm (of_nat_pm (lp q1 + lp f1))" by (simp add: eq2 deg_pm_plus deg_pm_map_scale)
+    also have "\<dots> = rat (deg_pm (lp q1 + lp f1))" by (simp only: deg_of_nat_pm)
+    finally show ?thesis by simp
+  qed
+  have 4: "deg_pm t < deg_pm (lp q1)" if "t \<in> keys q1" and "t \<noteq> lp q1" for t
+  proof -
+    from \<open>f1 \<noteq> 0\<close> have "lp f1 \<in> keys f1" by (rule punit.lt_in_keys)
+    with that(1) have "(t \<in> keys q1 \<and> lp f1 \<in> keys f1) \<or> (t \<in> keys q2 \<and> lp f1 \<in> keys f2)" by simp
+    moreover from that(2) have "t + lp f1 \<noteq> lp q1 + lp f1" by simp
+    ultimately have "deg_pm (t + lp f1) < deg_pm (lp q1 + lp f1)" by (rule 3)
+    thus "deg_pm t < deg_pm (lp q1)" by (simp only: deg_pm_plus)
+  qed
+
+  have 5: "poly_deg (q1 * f1) = deg_pm (lp (q1 * f1))"
+  proof (intro antisym poly_deg_leI poly_deg_max_keys punit.lt_in_keys)
+    fix t
+    assume "t \<in> keys (q1 * f1)"
+    show "deg_pm t \<le> deg_pm (lp (q1 * f1))"
+    proof (cases "t = lp q1 + lp f1")
+      case True
+      thus ?thesis by (simp add: lp_q1_f1)
+    next
+      case False
+      from \<open>t \<in> keys (q1 * f1)\<close> obtain t1 t2 where "t1 \<in> keys q1" and "t2 \<in> keys f1" and t: "t = t1 + t2"
+        by (rule in_keys_timesE)
+      from this(1, 2) have "(t1 \<in> keys q1 \<and> t2 \<in> keys f1) \<or> (t1 \<in> keys q2 \<and> t2 \<in> keys f2)" by simp
+      hence "deg_pm t < deg_pm (lp q1 + lp f1)" using False unfolding t by (rule 3)
+      thus ?thesis by (simp add: lp_q1_f1)
+    qed
+  qed fact
+  also have "\<dots> = deg_pm (lp (q2 * f2))" by (simp only: lp_eq)
+  also have "\<dots> = poly_deg (q2 * f2)"
+  proof (rule sym, intro antisym poly_deg_leI poly_deg_max_keys punit.lt_in_keys)
+    fix t
+    assume "t \<in> keys (q2 * f2)"
+    show "deg_pm t \<le> deg_pm (lp (q2 * f2))"
+    proof (cases "t = lp q1 + lp f1")
+      case True
+      thus ?thesis by (simp add: lp_q2_f2 lp_eq2)
+    next
+      case False
+      from \<open>t \<in> keys (q2 * f2)\<close> obtain t1 t2 where "t1 \<in> keys q2" and "t2 \<in> keys f2" and t: "t = t1 + t2"
+        by (rule in_keys_timesE)
+      from this(1, 2) have "(t1 \<in> keys q1 \<and> t2 \<in> keys f1) \<or> (t1 \<in> keys q2 \<and> t2 \<in> keys f2)" by simp
+      hence "deg_pm t < deg_pm (lp q1 + lp f1)" using False unfolding t by (rule 3)
+      thus ?thesis by (simp add: lp_q2_f2 lp_eq2)
+    qed
+  qed fact
+  finally have deg_q1_f1: "poly_deg (q1 * f1) = poly_deg (q2 * f2)" .
+  show ?thesis unfolding membership_problem_concl_def
+  proof (intro exI conjI)
+    have "rat (poly_deg (q1 * f1)) \<le> ?d"
+    proof (rule ccontr)
+      assume "\<not> rat (poly_deg (q1 * f1)) \<le> ?d"
+      hence "?d < rat (poly_deg (q1 * f1))" by simp
+      moreover have "?d \<in> \<int>"
+        by (intro Ints_diff Ints_1 Ints_deg plus_is_int_pm vect_is_int_pm map_scale_is_int_pm Ints_add)
+           (intro nat_pm_is_int_pm of_nat_pm_is_nat_pm Ints_of_nat)+
+      moreover have "rat (poly_deg (q1 * f1)) \<in> \<int>" by (fact Ints_of_nat)
+      ultimately have "?d + 1 \<le> deg_pm (of_nat_pm (lp q1 + lp f1))"
+        by (simp add: is_int_less_iff 5 deg_of_nat_pm lp_q1_f1)
+      also have "\<dots> = deg_pm (of_nat_pm (lp g) + l' \<cdot> vect f1)" by (simp only: eq2)
+      finally have "(rat k + m + 1) * deg_pm (vect f1) \<le> l' * deg_pm (vect f1)"
+        by (simp add: \<open>vect f2 = m \<cdot> vect f1\<close> k_def algebra_simps deg_pm_plus deg_pm_map_scale)
+      with \<open>0 < deg_pm (vect f1)\<close> have "rat k + m + 1 \<le> l'" by simp
+      hence "rat k + 1 \<le> l' - m" and "l' - m \<le> l'" and "rat k + m \<le> l' - 1" and "l' - 1 \<le> l'"
+        using \<open>0 < m\<close> by simp_all
+      from this(1) have "1 \<le> l' - m" by simp
+      have "of_nat_pm (lp g) + (l' - m) \<cdot> vect f1 = of_nat_pm (lp q1 + lp f1) - m \<cdot> vect f1"
+        by (simp add: map_scale_minus_distrib_right eq2)
+      also have "\<dots> = of_nat_pm (lp q2 + lp f2) - vect f2" by (simp only: lp_eq2 \<open>vect f2 = m \<cdot> vect f1\<close>)
+      also have "\<dots> = of_nat_pm (lp q2 + tp f2)" by (simp add: of_nat_pm_plus vect_alt)
+      finally have eq3: "of_nat_pm (lp g) + (l' - m) \<cdot> vect f1 = of_nat_pm (lp q2 + tp f2)" .
+      from tp_adds_lp have "lp f1 + tp f1 adds lp f1 + lp g" by (simp only: adds_canc_2)
+      hence "of_nat_pm (lp f1 + tp f1) \<unlhd> (of_nat_pm (lp g + lp f1) :: _ \<Rightarrow>\<^sub>0 rat)"
+        by (simp add: le_of_nat_pm adds_pm ac_simps)
+      hence "of_nat_pm (lp f1 + tp f1) - of_nat_pm (tp f1) \<unlhd>
+              (of_nat_pm (lp g + lp f1) :: _ \<Rightarrow>\<^sub>0 rat) - of_nat_pm (tp f1)"
+        by (rule le_pm_mono_minus)
+      hence "of_nat_pm (lp f1) \<unlhd> of_nat_pm (lp g) + 1 \<cdot> vect f1"
+        by (simp add: of_nat_pm_plus vect_alt add_diff_eq)
+      moreover have "of_nat_pm (lp f1) \<unlhd> of_nat_pm (lp g) + l' \<cdot> vect f1"
+        by (simp add: le_of_nat_pm flip: eq2 adds_pm)
+      ultimately have "of_nat_pm (lp f1) \<unlhd> of_nat_pm (lp g) + (l' - m) \<cdot> vect f1"
+        using \<open>1 \<le> l' - m\<close> \<open>l' - m \<le> l'\<close> by (rule map_scale_le_interval)
+      hence adds1: "lp f1 adds lp q2 + tp f2" by (simp only: adds_pm eq3 le_of_nat_pm)
+
+      have "of_nat_pm (lp g) + (l' - 1) \<cdot> vect f1 = of_nat_pm (lp q1 + lp f1) - vect f1"
+        by (simp add: map_scale_minus_distrib_right eq2)
+      also have "\<dots> = of_nat_pm (lp q1 + tp f1)" by (simp add: of_nat_pm_plus vect_alt)
+      finally have eq4: "of_nat_pm (lp g) + (l' - 1) \<cdot> vect f1 = of_nat_pm (lp q1 + tp f1)" .
+      have "of_nat_pm (lp f2) \<unlhd> of_nat_pm (lp g) + (l' - 1) \<cdot> vect f1"
+      proof (rule le_pmI)
+        fix x::'x
+        have "of_nat_pm (lp f2) \<unlhd> of_nat_pm (lp g) + l' \<cdot> vect f1"
+          by (simp add: le_of_nat_pm lp_eq2 flip: eq2 adds_pm)
+        hence "lookup (of_nat_pm (lp f2)) x \<le> lookup (of_nat_pm (lp g) + l' \<cdot> vect f1) x"
+          by (rule le_pmD)
+        hence l': "rat (lookup (lp f2) x) \<le> rat (lookup (lp g) x) + l' * lookup (vect f1) x"
+          by (simp add: lookup_of_nat_pm lookup_add)
+        have "of_nat_pm (gcs (lp f2) (tp f2)) \<unlhd> overlap" by (fact gcs_le_overlap')
+        also note overlap_le
+        finally have "lookup (of_nat_pm (gcs (lp f2) (tp f2))) x \<le>
+                        lookup (of_nat_pm (lp g) + rat k \<cdot> vect f1) x"
+          by (rule le_pmD)
+        hence "min (rat (lookup (lp f2) x)) (rat (lookup (tp f2) x)) \<le>
+                rat (lookup (lp g) x) + rat k * lookup (vect f1) x"
+          by (simp add: lookup_of_nat_pm lookup_add lookup_gcs_fun gcs_fun)
+        hence "rat (lookup (lp f2) x) \<le> rat (lookup (lp g) x) + (l' - 1) * lookup (vect f1) x"
+        proof (simp only: min_def split: if_split_asm)
+          assume "rat (lookup (lp f2) x) \<le> rat (lookup (lp g) x) + rat k * lookup (vect f1) x"
+          moreover note l'
+          moreover from \<open>rat k + m \<le> l' - 1\<close> \<open>0 < m\<close> have "rat k \<le> l' - 1" by simp
+          ultimately show ?thesis using \<open>l' - 1 \<le> l'\<close> by (rule times_le_interval)
+        next
+          assume "rat (lookup (tp f2) x) \<le> rat (lookup (lp g) x) + rat k * lookup (vect f1) x"
+          hence "rat (lookup (tp f2) x) + lookup (vect f2) x \<le>
+                  rat (lookup (lp g) x) + rat k * lookup (vect f1) x + lookup (vect f2) x"
+            by (rule add_right_mono)
+          hence "rat (lookup (lp f2) x) \<le>
+                  rat (lookup (lp g) x) + rat k * lookup (vect f1) x + lookup (vect f2) x"
+            by (simp only: vect_alt lookup_minus lookup_add lookup_of_nat_pm)
+          hence "rat (lookup (lp f2) x) \<le> rat (lookup (lp g) x) + (rat k + m) * lookup (vect f1) x"
+            by (simp add: \<open>vect f2 = m \<cdot> vect f1\<close> algebra_simps)
+          moreover note l'
+          ultimately show ?thesis using \<open>rat k + m \<le> l' - 1\<close> \<open>l' - 1 \<le> l'\<close> by (rule times_le_interval)
+        qed
+        thus "lookup (of_nat_pm (lp f2)) x \<le> lookup (of_nat_pm (lp g) + (l' - 1) \<cdot> vect f1) x"
+          by (simp add: lookup_add lookup_of_nat_pm)
+      qed
+      hence adds2: "lp f2 adds lp q1 + tp f1" by (simp only: adds_pm eq4 le_of_nat_pm)
+
+      let ?c1 = "lc q2 * tc f2 / lc f1"
+      let ?c2 = "lc q1 * tc f1 / lc f2"
+      let ?t1 = "lp q2 + tp f2 - lp f1"
+      let ?t2 = "lp q1 + tp f1 - lp f2"
+      define q1' where "q1' = punit.tail q1 + monomial ?c1 ?t1"
+      define q2' where "q2' = punit.tail q2 + monomial ?c2 ?t2"
+      have keys_q1': "keys q1' \<subseteq> insert ?t1 (keys q1 - {lp q1})"
+      proof
         fix t
-        assume "t \<in> keys (q2 * f2)"
-        hence "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)" by simp
-        thus "deg_pm t \<le> deg_pm (lp g)" by (rule 2)
-      qed
-      hence "rat (poly_deg (q2 * f2)) \<le> ?a" by simp
-      also have "\<dots> \<le> max ?a ?b" by (rule max.cobounded1)
-      finally have "to_nat (rat (poly_deg (q2 * f2))) \<le> to_nat (max ?a ?b)" by (rule to_nat_mono)
-      thus "poly_deg (q2 * f2) \<le> to_nat (max ?a ?b)" by (simp only: to_nat_of_nat)
-    qed fact
-  next
-    case False
-    hence "deg_pm (tp f1) < deg_pm (lp f1)" by simp
-    hence "0 < deg_pm (vect f1)" by (simp add: vect_alt deg_pm_minus deg_of_nat_pm)
-    moreover obtain m::rat where "0 < m" and "vect f2 = m \<cdot> vect f1"
-      using parallel_binomials_sym[OF parallel] by (rule parallel_binomialsE_vect)
-    ultimately have "0 < deg_pm (vect f2)" by (simp add: deg_pm_map_scale)
-    hence 0: "deg_pm (tp f2) < deg_pm (lp f2)" by (simp add: vect_alt deg_pm_minus deg_of_nat_pm)
-
-    define A where "A = {Q. g = fst Q * f1 + snd Q * f2 \<and>
-                          (\<forall>s t. ((s \<in> keys (fst Q) \<and> t \<in> keys f1) \<or> (s \<in> keys (snd Q) \<and> t \<in> keys f2)) \<longrightarrow>
-                            (\<exists>l::rat. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1))}"
-    have "A \<noteq> {}"
-    proof -
-      obtain q1 q2 where "g = q1 * f1 + q2 * f2"
-        and "\<And>s t. (s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2) \<Longrightarrow>
-                  \<exists>l::rat. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
-        by (rule thm_3_2_2_aux_3) blast
-      hence "(q1, q2) \<in> A" by (simp add: A_def)
-      thus ?thesis by blast
-    qed
-    obtain q1 q2 where "(q1, q2) \<in> A" and Q_min: "\<And>q1' q2'. (q1', q2') \<in> A \<Longrightarrow> poly_deg q1 \<le> poly_deg q1'"
-    proof -
-      define l where "l = (LEAST x. x \<in> poly_deg ` fst ` A)"
-      from \<open>A \<noteq> {}\<close> have "\<exists>x. x \<in> poly_deg ` fst ` A" by blast
-      hence "l \<in> poly_deg ` fst ` A" unfolding l_def by (rule LeastI_ex)
-      then obtain Q where "Q \<in> A" and l: "l = poly_deg (fst Q)" by blast
-      obtain q1 q2 where Q: "Q = (q1, q2)" using prod.exhaust by blast
-      show ?thesis
-      proof
-        from \<open>Q \<in> A\<close> show "(q1, q2) \<in> A" by (simp only: Q)
-      next
-        fix q1' q2'
-        assume "(q1', q2') \<in> A"
-        hence "poly_deg (fst (q1', q2')) \<in> poly_deg ` fst ` A" by (intro imageI)
-        hence "poly_deg (fst Q) \<le> poly_deg (fst (q1', q2'))"
-          unfolding l[symmetric] l_def by (rule Least_le)
-        thus "poly_deg q1 \<le> poly_deg q1'" by (simp only: Q fst_conv)
-      qed
-    qed
-    from this(1) have g: "g = q1 * f1 + q2 * f2"
-      and 1: "\<And>s t thesis. (s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2) \<Longrightarrow>
-                (\<And>l::rat. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1 \<Longrightarrow> thesis) \<Longrightarrow> thesis"
-      by (auto simp: A_def)
-
-    from mpa g have "q1 * f1 \<noteq> 0" and "q2 * f2 \<noteq> 0" and lp_eq: "lp (q1 * f1) = lp (q2 * f2)"
-      and lc_eq: "lc (q1 * f1) = - lc (q2 * f2)"
-      by (rule membership_problem_assms_rep)+
-    from this(1, 2) have "q1 \<noteq> 0" and "f1 \<noteq> 0" and "q2 \<noteq> 0" and "f2 \<noteq> 0" by auto
-    from this(1, 2) have lp_q1_f1: "lp (q1 * f1) = lp q1 + lp f1" by (rule lp_times)
-    from \<open>q2 \<noteq> 0\<close> \<open>f2 \<noteq> 0\<close> have lp_q2_f2: "lp (q2 * f2) = lp q2 + lp f2" by (rule lp_times)
-    have lp_eq2: "lp q1 + lp f1 = lp q2 + lp f2" by (simp only: lp_eq lp_q2_f2 flip: lp_q1_f1)
-    from \<open>q1 \<noteq> 0\<close> have "lp q1 \<in> keys q1" by (rule punit.lt_in_keys)
-    moreover from \<open>f1 \<noteq> 0\<close> have "lp f1 \<in> keys f1" by (rule punit.lt_in_keys)
-    ultimately have "(lp q1 \<in> keys q1 \<and> lp f1 \<in> keys f1) \<or> (lp q1 \<in> keys q2 \<and> lp f1 \<in> keys f2)"
-      by simp
-    then obtain l' where eq2: "of_nat_pm (lp q1 + lp f1) = of_nat_pm (lp g) + l' \<cdot> vect f1" by (rule 1)
-    have 3: "deg_pm (s + t) < deg_pm (lp q1 + lp f1)"
-      if "(s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2)" and "s + t \<noteq> lp q1 + lp f1" for s t
-    proof -
-      from that(1) have "s + t \<prec> lp q1 + lp f1"
-      proof
-        assume "s \<in> keys q1 \<and> t \<in> keys f1"
-        hence "s \<preceq> lp q1" and "t \<preceq> lp f1" by (simp_all add: punit.lt_max_keys)
-        from this(1) have "s + t \<preceq> lp q1 + t" by (rule plus_monotone)
-        also from \<open>t \<preceq> lp f1\<close> have "\<dots> \<preceq> lp q1 + lp f1" by (rule plus_monotone_left)
-        finally have "s + t \<preceq> lp q1 + lp f1" .
-        with that(2) show ?thesis by simp
-      next
-        assume "s \<in> keys q2 \<and> t \<in> keys f2"
-        hence "s \<preceq> lp q2" and "t \<preceq> lp f2" by (simp_all add: punit.lt_max_keys)
-        from this(1) have "s + t \<preceq> lp q2 + t" by (rule plus_monotone)
-        also from \<open>t \<preceq> lp f2\<close> have "\<dots> \<preceq> lp q2 + lp f2" by (rule plus_monotone_left)
-        finally have "s + t \<preceq> lp q2 + lp f2" .
-        with that(2) show ?thesis by (simp only: lp_eq2)
-      qed
-      moreover from that(1) obtain l where eq1: "of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
-        by (rule 1)
-      ultimately have "l < l'" using eq2 by (rule ord_rat)
-      have "rat (deg_pm (s + t)) = deg_pm (of_nat_pm (s + t))" by (simp only: deg_of_nat_pm)
-      also have "\<dots> = deg_pm (of_nat_pm (lp g)) + l * deg_pm (vect f1)"
-        by (simp add: eq1 deg_pm_plus deg_pm_map_scale)
-      also have "\<dots> < deg_pm (of_nat_pm (lp g)) + l' * deg_pm (vect f1)"
-        using \<open>0 < deg_pm (vect f1)\<close> \<open>l < l'\<close> by simp
-      also have "\<dots> = deg_pm (of_nat_pm (lp q1 + lp f1))" by (simp add: eq2 deg_pm_plus deg_pm_map_scale)
-      also have "\<dots> = rat (deg_pm (lp q1 + lp f1))" by (simp only: deg_of_nat_pm)
-      finally show ?thesis by simp
-    qed
-    have 4: "deg_pm t < deg_pm (lp q1)" if "t \<in> keys q1" and "t \<noteq> lp q1" for t
-    proof -
-      from \<open>f1 \<noteq> 0\<close> have "lp f1 \<in> keys f1" by (rule punit.lt_in_keys)
-      with that(1) have "(t \<in> keys q1 \<and> lp f1 \<in> keys f1) \<or> (t \<in> keys q2 \<and> lp f1 \<in> keys f2)" by simp
-      moreover from that(2) have "t + lp f1 \<noteq> lp q1 + lp f1" by simp
-      ultimately have "deg_pm (t + lp f1) < deg_pm (lp q1 + lp f1)" by (rule 3)
-      thus "deg_pm t < deg_pm (lp q1)" by (simp only: deg_pm_plus)
-    qed
-
-    have 5: "poly_deg (q1 * f1) = deg_pm (lp (q1 * f1))"
-    proof (intro antisym poly_deg_leI poly_deg_max_keys punit.lt_in_keys)
-      fix t
-      assume "t \<in> keys (q1 * f1)"
-      show "deg_pm t \<le> deg_pm (lp (q1 * f1))"
-      proof (cases "t = lp q1 + lp f1")
-        case True
-        thus ?thesis by (simp add: lp_q1_f1)
-      next
-        case False
-        from \<open>t \<in> keys (q1 * f1)\<close> obtain t1 t2 where "t1 \<in> keys q1" and "t2 \<in> keys f1" and t: "t = t1 + t2"
-          by (rule in_keys_timesE)
-        from this(1, 2) have "(t1 \<in> keys q1 \<and> t2 \<in> keys f1) \<or> (t1 \<in> keys q2 \<and> t2 \<in> keys f2)" by simp
-        hence "deg_pm t < deg_pm (lp q1 + lp f1)" using False unfolding t by (rule 3)
-        thus ?thesis by (simp add: lp_q1_f1)
-      qed
-    qed fact
-    also have "\<dots> = deg_pm (lp (q2 * f2))" by (simp only: lp_eq)
-    also have "\<dots> = poly_deg (q2 * f2)"
-    proof (rule sym, intro antisym poly_deg_leI poly_deg_max_keys punit.lt_in_keys)
-      fix t
-      assume "t \<in> keys (q2 * f2)"
-      show "deg_pm t \<le> deg_pm (lp (q2 * f2))"
-      proof (cases "t = lp q1 + lp f1")
-        case True
-        thus ?thesis by (simp add: lp_q2_f2 lp_eq2)
-      next
-        case False
-        from \<open>t \<in> keys (q2 * f2)\<close> obtain t1 t2 where "t1 \<in> keys q2" and "t2 \<in> keys f2" and t: "t = t1 + t2"
-          by (rule in_keys_timesE)
-        from this(1, 2) have "(t1 \<in> keys q1 \<and> t2 \<in> keys f1) \<or> (t1 \<in> keys q2 \<and> t2 \<in> keys f2)" by simp
-        hence "deg_pm t < deg_pm (lp q1 + lp f1)" using False unfolding t by (rule 3)
-        thus ?thesis by (simp add: lp_q2_f2 lp_eq2)
-      qed
-    qed fact
-    finally have deg_q1_f1: "poly_deg (q1 * f1) = poly_deg (q2 * f2)" .
-    show ?thesis unfolding membership_problem_concl_def
-    proof (intro exI conjI)
-      have "rat (poly_deg (q1 * f1)) \<le> ?b"
-      proof (rule ccontr)
-        assume "\<not> rat (poly_deg (q1 * f1)) \<le> ?b"
-        hence "?b < rat (poly_deg (q1 * f1))" by simp
-        moreover have "?b \<in> \<int>"
-          by (intro Ints_diff Ints_1 Ints_deg plus_is_int_pm vect_is_int_pm map_scale_is_int_pm Ints_add)
-             (intro nat_pm_is_int_pm of_nat_pm_is_nat_pm Ints_of_nat)+
-        moreover have "rat (poly_deg (q1 * f1)) \<in> \<int>" by (fact Ints_of_nat)
-        ultimately have "?b + 1 \<le> deg_pm (of_nat_pm (lp q1 + lp f1))"
-          by (simp add: is_int_less_iff 5 deg_of_nat_pm lp_q1_f1)
-        also have "\<dots> = deg_pm (of_nat_pm (lp g) + l' \<cdot> vect f1)" by (simp only: eq2)
-        finally have "(rat k + m + 1) * deg_pm (vect f1) \<le> l' * deg_pm (vect f1)"
-          by (simp add: \<open>vect f2 = m \<cdot> vect f1\<close> k_def algebra_simps deg_pm_plus deg_pm_map_scale)
-        with \<open>0 < deg_pm (vect f1)\<close> have "rat k + m + 1 \<le> l'" by simp
-        hence "rat k + 1 \<le> l' - m" and "l' - m \<le> l'" and "rat k + m \<le> l' - 1" and "l' - 1 \<le> l'"
-          using \<open>0 < m\<close> by simp_all
-        from this(1) have "1 \<le> l' - m" by simp
-        have "of_nat_pm (lp g) + (l' - m) \<cdot> vect f1 = of_nat_pm (lp q1 + lp f1) - m \<cdot> vect f1"
-          by (simp add: map_scale_minus_distrib_right eq2)
-        also have "\<dots> = of_nat_pm (lp q2 + lp f2) - vect f2" by (simp only: lp_eq2 \<open>vect f2 = m \<cdot> vect f1\<close>)
-        also have "\<dots> = of_nat_pm (lp q2 + tp f2)" by (simp add: of_nat_pm_plus vect_alt)
-        finally have eq3: "of_nat_pm (lp g) + (l' - m) \<cdot> vect f1 = of_nat_pm (lp q2 + tp f2)" .
-        from tp_adds_lp have "lp f1 + tp f1 adds lp f1 + lp g" by (simp only: adds_canc_2)
-        hence "of_nat_pm (lp f1 + tp f1) \<unlhd> (of_nat_pm (lp g + lp f1) :: _ \<Rightarrow>\<^sub>0 rat)"
-          by (simp add: le_of_nat_pm adds_pm ac_simps)
-        hence "of_nat_pm (lp f1 + tp f1) - of_nat_pm (tp f1) \<unlhd>
-                (of_nat_pm (lp g + lp f1) :: _ \<Rightarrow>\<^sub>0 rat) - of_nat_pm (tp f1)"
-          by (rule le_pm_mono_minus)
-        hence "of_nat_pm (lp f1) \<unlhd> of_nat_pm (lp g) + 1 \<cdot> vect f1"
-          by (simp add: of_nat_pm_plus vect_alt add_diff_eq)
-        moreover have "of_nat_pm (lp f1) \<unlhd> of_nat_pm (lp g) + l' \<cdot> vect f1"
-          by (simp add: le_of_nat_pm flip: eq2 adds_pm)
-        ultimately have "of_nat_pm (lp f1) \<unlhd> of_nat_pm (lp g) + (l' - m) \<cdot> vect f1"
-          using \<open>1 \<le> l' - m\<close> \<open>l' - m \<le> l'\<close> by (rule map_scale_le_interval)
-        hence adds1: "lp f1 adds lp q2 + tp f2" by (simp only: adds_pm eq3 le_of_nat_pm)
-
-        have "of_nat_pm (lp g) + (l' - 1) \<cdot> vect f1 = of_nat_pm (lp q1 + lp f1) - vect f1"
-          by (simp add: map_scale_minus_distrib_right eq2)
-        also have "\<dots> = of_nat_pm (lp q1 + tp f1)" by (simp add: of_nat_pm_plus vect_alt)
-        finally have eq4: "of_nat_pm (lp g) + (l' - 1) \<cdot> vect f1 = of_nat_pm (lp q1 + tp f1)" .
-        have "of_nat_pm (lp f2) \<unlhd> of_nat_pm (lp g) + (l' - 1) \<cdot> vect f1"
-        proof (rule le_pmI)
-          fix x::'x
-          have "of_nat_pm (lp f2) \<unlhd> of_nat_pm (lp g) + l' \<cdot> vect f1"
-            by (simp add: le_of_nat_pm lp_eq2 flip: eq2 adds_pm)
-          hence "lookup (of_nat_pm (lp f2)) x \<le> lookup (of_nat_pm (lp g) + l' \<cdot> vect f1) x"
-            by (rule le_pmD)
-          hence l': "rat (lookup (lp f2) x) \<le> rat (lookup (lp g) x) + l' * lookup (vect f1) x"
-            by (simp add: lookup_of_nat_pm lookup_add)
-          have "of_nat_pm (gcs (lp f2) (tp f2)) \<unlhd> overlap" by (fact gcs_le_overlap')
-          also note overlap_le
-          finally have "lookup (of_nat_pm (gcs (lp f2) (tp f2))) x \<le>
-                          lookup (of_nat_pm (lp g) + rat k \<cdot> vect f1) x"
-            by (rule le_pmD)
-          hence "min (rat (lookup (lp f2) x)) (rat (lookup (tp f2) x)) \<le>
-                  rat (lookup (lp g) x) + rat k * lookup (vect f1) x"
-            by (simp add: lookup_of_nat_pm lookup_add lookup_gcs_fun gcs_fun)
-          hence "rat (lookup (lp f2) x) \<le> rat (lookup (lp g) x) + (l' - 1) * lookup (vect f1) x"
-          proof (simp only: min_def split: if_split_asm)
-            assume "rat (lookup (lp f2) x) \<le> rat (lookup (lp g) x) + rat k * lookup (vect f1) x"
-            moreover note l'
-            moreover from \<open>rat k + m \<le> l' - 1\<close> \<open>0 < m\<close> have "rat k \<le> l' - 1" by simp
-            ultimately show ?thesis using \<open>l' - 1 \<le> l'\<close> by (rule times_le_interval)
-          next
-            assume "rat (lookup (tp f2) x) \<le> rat (lookup (lp g) x) + rat k * lookup (vect f1) x"
-            hence "rat (lookup (tp f2) x) + lookup (vect f2) x \<le>
-                    rat (lookup (lp g) x) + rat k * lookup (vect f1) x + lookup (vect f2) x"
-              by (rule add_right_mono)
-            hence "rat (lookup (lp f2) x) \<le>
-                    rat (lookup (lp g) x) + rat k * lookup (vect f1) x + lookup (vect f2) x"
-              by (simp only: vect_alt lookup_minus lookup_add lookup_of_nat_pm)
-            hence "rat (lookup (lp f2) x) \<le> rat (lookup (lp g) x) + (rat k + m) * lookup (vect f1) x"
-              by (simp add: \<open>vect f2 = m \<cdot> vect f1\<close> algebra_simps)
-            moreover note l'
-            ultimately show ?thesis using \<open>rat k + m \<le> l' - 1\<close> \<open>l' - 1 \<le> l'\<close> by (rule times_le_interval)
-          qed
-          thus "lookup (of_nat_pm (lp f2)) x \<le> lookup (of_nat_pm (lp g) + (l' - 1) \<cdot> vect f1) x"
-            by (simp add: lookup_add lookup_of_nat_pm)
-        qed
-        hence adds2: "lp f2 adds lp q1 + tp f1" by (simp only: adds_pm eq4 le_of_nat_pm)
-
-        let ?c1 = "lc q2 * tc f2 / lc f1"
-        let ?c2 = "lc q1 * tc f1 / lc f2"
-        let ?t1 = "lp q2 + tp f2 - lp f1"
-        let ?t2 = "lp q1 + tp f1 - lp f2"
-        define q1' where "q1' = punit.tail q1 + monomial ?c1 ?t1"
-        define q2' where "q2' = punit.tail q2 + monomial ?c2 ?t2"
-        have keys_q1': "keys q1' \<subseteq> insert ?t1 (keys q1 - {lp q1})"
+        assume "t \<in> keys q1'"
+        also have "\<dots> \<subseteq> keys (punit.tail q1) \<union> keys (monomial ?c1 ?t1)"
+          unfolding q1'_def by (rule keys_add_subset)
+        finally show "t \<in> insert ?t1 (keys q1 - {lp q1})"
         proof
-          fix t
-          assume "t \<in> keys q1'"
-          also have "\<dots> \<subseteq> keys (punit.tail q1) \<union> keys (monomial ?c1 ?t1)"
-            unfolding q1'_def by (rule keys_add_subset)
-          finally show "t \<in> insert ?t1 (keys q1 - {lp q1})"
-          proof
-            assume "t \<in> keys (punit.tail q1)"
-            thus ?thesis by (simp add: punit.keys_tail)
-          next
-            assume "t \<in> keys (monomial ?c1 ?t1)"
-            thus ?thesis by (simp split: if_split_asm)
-          qed
+          assume "t \<in> keys (punit.tail q1)"
+          thus ?thesis by (simp add: punit.keys_tail)
+        next
+          assume "t \<in> keys (monomial ?c1 ?t1)"
+          thus ?thesis by (simp split: if_split_asm)
         qed
-        have keys_q2': "keys q2' \<subseteq> insert ?t2 (keys q2 - {lp q2})"
+      qed
+      have keys_q2': "keys q2' \<subseteq> insert ?t2 (keys q2 - {lp q2})"
+      proof
+        fix t
+        assume "t \<in> keys q2'"
+        also have "\<dots> \<subseteq> keys (punit.tail q2) \<union> keys (monomial ?c2 ?t2)"
+          unfolding q2'_def by (rule keys_add_subset)
+        finally show "t \<in> insert ?t2 (keys q2 - {lp q2})"
         proof
-          fix t
-          assume "t \<in> keys q2'"
-          also have "\<dots> \<subseteq> keys (punit.tail q2) \<union> keys (monomial ?c2 ?t2)"
-            unfolding q2'_def by (rule keys_add_subset)
-          finally show "t \<in> insert ?t2 (keys q2 - {lp q2})"
-          proof
-            assume "t \<in> keys (punit.tail q2)"
-            thus ?thesis by (simp add: punit.keys_tail)
-          next
-            assume "t \<in> keys (monomial ?c2 ?t2)"
-            thus ?thesis by (simp split: if_split_asm)
-          qed
+          assume "t \<in> keys (punit.tail q2)"
+          thus ?thesis by (simp add: punit.keys_tail)
+        next
+          assume "t \<in> keys (monomial ?c2 ?t2)"
+          thus ?thesis by (simp split: if_split_asm)
         qed
+      qed
 
-        from \<open>f1 \<noteq> 0\<close> have "lc f1 \<noteq> 0" by (rule punit.lc_not_0)
-        from \<open>f2 \<noteq> 0\<close> have "lc f2 \<noteq> 0" by (rule punit.lc_not_0)
-        have "f1 * monomial (lc q1) (lp q1) + f2 * monomial (lc q2) (lp q2) =
-                binomial (lc f1) (lp f1) (tc f1) (tp f1) * monomial (lc q1) (lp q1) +
-                binomial (lc f2) (lp f2) (tc f2) (tp f2) * monomial (lc q2) (lp q2)"
-          using \<open>is_proper_binomial f1\<close> \<open>is_proper_binomial f2\<close>
-          by (simp only: punit.binomial_eq_itself)
-        also have "\<dots> = monomial (lc (q1 * f1)) (lp (q1 * f1)) + monomial (lc (q2 * f2)) (lp (q2 * f2)) +
-                        monomial (lc q2 * tc f2) (lp q2 + tp f2) + monomial (lc q1 * tc f1) (lp q1 + tp f1)"
-          by (simp only: binomial_def lc_times lp_q1_f1 lp_q2_f2)
-             (simp only: times_monomial_monomial algebra_simps)
-        also have "\<dots> = monomial (lc q2 * tc f2) (lp q2 + tp f2) + monomial (lc q1 * tc f1) (lp q1 + tp f1)"
-          by (simp add: lp_eq lc_eq flip: single_add)
-        finally have eq6: "f1 * monomial (lc q1) (lp q1) + f2 * monomial (lc q2) (lp q2) =
-                      monomial (lc q2 * tc f2) (lp q2 + tp f2) + monomial (lc q1 * tc f1) (lp q1 + tp f1)" .
-        have "f1 * monomial ?c1 ?t1 + f2 * monomial ?c2 ?t2 =
-                binomial (lc f1) (lp f1) (tc f1) (tp f1) * monomial ?c1 ?t1 +
-                binomial (lc f2) (lp f2) (tc f2) (tp f2) * monomial ?c2 ?t2"
-          using \<open>is_proper_binomial f1\<close> \<open>is_proper_binomial f2\<close>
-          by (simp only: punit.binomial_eq_itself)
-        also have "\<dots> = monomial (lc q2 * tc f2) (lp q2 + tp f2) + monomial (lc q1 * tc f1) (lp q1 + tp f1) +
-                        (monomial (?c1 * tc f1) (tp f1 + ?t1) + monomial (?c2 * tc f2) (tp f2 + ?t2))"
-          using adds1 adds2 \<open>lc f1 \<noteq> 0\<close> \<open>lc f2 \<noteq> 0\<close>
-          by (simp only: binomial_def times_monomial_monomial distrib_right adds_minus
-                  add.commute[of "lp f1"] add.commute[of "lp f2"])
-             (simp add: field_simps)
-        also have "\<dots> = f1 * monomial (lc q1) (lp q1) + f2 * monomial (lc q2) (lp q2) +
-                        (monomial (?c1 * tc f1) (tp f1 + ?t1) + monomial (?c2 * tc f2) (tp f2 + ?t2))"
-          by (simp only: eq6)
-        also have "monomial (?c1 * tc f1) (tp f1 + ?t1) + monomial (?c2 * tc f2) (tp f2 + ?t2) = 0"
-          (is "?m = 0")
-        proof -
-          have "punit.monom_mult (lc f1 * lc f2) (lp f1 + lp f2) ?m =
-                punit.monom_mult (tc f1 * tc f2) 0
-                  (monomial (lc (q1 * f1)) (lp f1 + tp f2 + ((lp q1 + tp f1 - lp f2) + lp f2)) +
-                   monomial (lc (q2 * f2)) (lp f2 + tp f1 + ((lp q2 + tp f2 - lp f1) + lp f1)))"
-            using \<open>lc f1 \<noteq> 0\<close> \<open>lc f2 \<noteq> 0\<close>
-            by (simp add: punit.monom_mult_dist_right punit.monom_mult_monomial lc_times algebra_simps)
-          also have "\<dots> = punit.monom_mult (tc f1 * tc f2) (tp f1 + tp f2)
-                    (monomial (lc (q1 * f1)) (lp (q1 * f1)) + monomial (lc (q2 * f2)) (lp (q2 * f2)))"
-            using adds1 adds2
-            by (simp only: adds_minus lp_q1_f1 lp_q2_f2)
-               (simp add: punit.monom_mult_dist_right punit.monom_mult_monomial algebra_simps)
-          also have "\<dots> = 0" by (simp add: lp_eq lc_eq flip: single_add)
-          finally show ?thesis using \<open>lc f1 \<noteq> 0\<close> \<open>lc f2 \<noteq> 0\<close> by (simp add: punit.monom_mult_eq_zero_iff)
-        qed
-        finally have "g = q1' * f1 + q2' * f2"
-          by (simp add: q1'_def q2'_def punit.tail_alt_2 g algebra_simps)
-        with mpa have "q1' * f1 \<noteq> 0" by (rule membership_problem_assms_rep)
-        hence "q1' \<noteq> 0" by auto
+      from \<open>f1 \<noteq> 0\<close> have "lc f1 \<noteq> 0" by (rule punit.lc_not_0)
+      from \<open>f2 \<noteq> 0\<close> have "lc f2 \<noteq> 0" by (rule punit.lc_not_0)
+      have "f1 * monomial (lc q1) (lp q1) + f2 * monomial (lc q2) (lp q2) =
+              binomial (lc f1) (lp f1) (tc f1) (tp f1) * monomial (lc q1) (lp q1) +
+              binomial (lc f2) (lp f2) (tc f2) (tp f2) * monomial (lc q2) (lp q2)"
+        using \<open>is_proper_binomial f1\<close> \<open>is_proper_binomial f2\<close>
+        by (simp only: punit.binomial_eq_itself)
+      also have "\<dots> = monomial (lc (q1 * f1)) (lp (q1 * f1)) + monomial (lc (q2 * f2)) (lp (q2 * f2)) +
+                      monomial (lc q2 * tc f2) (lp q2 + tp f2) + monomial (lc q1 * tc f1) (lp q1 + tp f1)"
+        by (simp only: binomial_def lc_times lp_q1_f1 lp_q2_f2)
+           (simp only: times_monomial_monomial algebra_simps)
+      also have "\<dots> = monomial (lc q2 * tc f2) (lp q2 + tp f2) + monomial (lc q1 * tc f1) (lp q1 + tp f1)"
+        by (simp add: lp_eq lc_eq flip: single_add)
+      finally have eq6: "f1 * monomial (lc q1) (lp q1) + f2 * monomial (lc q2) (lp q2) =
+                    monomial (lc q2 * tc f2) (lp q2 + tp f2) + monomial (lc q1 * tc f1) (lp q1 + tp f1)" .
+      have "f1 * monomial ?c1 ?t1 + f2 * monomial ?c2 ?t2 =
+              binomial (lc f1) (lp f1) (tc f1) (tp f1) * monomial ?c1 ?t1 +
+              binomial (lc f2) (lp f2) (tc f2) (tp f2) * monomial ?c2 ?t2"
+        using \<open>is_proper_binomial f1\<close> \<open>is_proper_binomial f2\<close>
+        by (simp only: punit.binomial_eq_itself)
+      also have "\<dots> = monomial (lc q2 * tc f2) (lp q2 + tp f2) + monomial (lc q1 * tc f1) (lp q1 + tp f1) +
+                      (monomial (?c1 * tc f1) (tp f1 + ?t1) + monomial (?c2 * tc f2) (tp f2 + ?t2))"
+        using adds1 adds2 \<open>lc f1 \<noteq> 0\<close> \<open>lc f2 \<noteq> 0\<close>
+        by (simp only: binomial_def times_monomial_monomial distrib_right adds_minus
+                add.commute[of "lp f1"] add.commute[of "lp f2"])
+           (simp add: field_simps)
+      also have "\<dots> = f1 * monomial (lc q1) (lp q1) + f2 * monomial (lc q2) (lp q2) +
+                      (monomial (?c1 * tc f1) (tp f1 + ?t1) + monomial (?c2 * tc f2) (tp f2 + ?t2))"
+        by (simp only: eq6)
+      also have "monomial (?c1 * tc f1) (tp f1 + ?t1) + monomial (?c2 * tc f2) (tp f2 + ?t2) = 0"
+        (is "?m = 0")
+      proof -
+        have "punit.monom_mult (lc f1 * lc f2) (lp f1 + lp f2) ?m =
+              punit.monom_mult (tc f1 * tc f2) 0
+                (monomial (lc (q1 * f1)) (lp f1 + tp f2 + ((lp q1 + tp f1 - lp f2) + lp f2)) +
+                 monomial (lc (q2 * f2)) (lp f2 + tp f1 + ((lp q2 + tp f2 - lp f1) + lp f1)))"
+          using \<open>lc f1 \<noteq> 0\<close> \<open>lc f2 \<noteq> 0\<close>
+          by (simp add: punit.monom_mult_dist_right punit.monom_mult_monomial lc_times algebra_simps)
+        also have "\<dots> = punit.monom_mult (tc f1 * tc f2) (tp f1 + tp f2)
+                  (monomial (lc (q1 * f1)) (lp (q1 * f1)) + monomial (lc (q2 * f2)) (lp (q2 * f2)))"
+          using adds1 adds2
+          by (simp only: adds_minus lp_q1_f1 lp_q2_f2)
+             (simp add: punit.monom_mult_dist_right punit.monom_mult_monomial algebra_simps)
+        also have "\<dots> = 0" by (simp add: lp_eq lc_eq flip: single_add)
+        finally show ?thesis using \<open>lc f1 \<noteq> 0\<close> \<open>lc f2 \<noteq> 0\<close> by (simp add: punit.monom_mult_eq_zero_iff)
+      qed
+      finally have "g = q1' * f1 + q2' * f2"
+        by (simp add: q1'_def q2'_def punit.tail_alt_2 g algebra_simps)
+      with mpa have "q1' * f1 \<noteq> 0" by (rule membership_problem_assms_rep)
+      hence "q1' \<noteq> 0" by auto
 
-        have "(q1', q2') \<in> A"
-        proof (simp add: A_def, intro conjI allI impI)
-          fix s t
-          assume "s \<in> keys q1' \<and> t \<in> keys f1"
-          hence "s \<in> keys q1'" and "t \<in> keys f1" by simp_all
-          from this(1) keys_q1' have "s \<in> insert ?t1 (keys q1 - {lp q1})" ..
-          thus "\<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
+      have "(q1', q2') \<in> A"
+      proof (simp add: A_def, intro conjI allI impI)
+        fix s t
+        assume "s \<in> keys q1' \<and> t \<in> keys f1"
+        hence "s \<in> keys q1'" and "t \<in> keys f1" by simp_all
+        from this(1) keys_q1' have "s \<in> insert ?t1 (keys q1 - {lp q1})" ..
+        thus "\<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
+        proof
+          assume s: "s = ?t1"
+          from \<open>q2 \<noteq> 0\<close> have "lp q2 \<in> keys q2" by (rule punit.lt_in_keys)
+          moreover from \<open>f2 \<noteq> 0\<close> have "tp f2 \<in> keys f2" by (rule punit.tt_in_keys)
+          ultimately have "lp q2 \<in> keys q1 \<and> tp f2 \<in> keys f1 \<or> lp q2 \<in> keys q2 \<and> tp f2 \<in> keys f2"
+            by simp
+          then obtain l'' where l'': "of_nat_pm (lp q2 + tp f2) = of_nat_pm (lp g) + l'' \<cdot> vect f1"
+            by (rule 1)
+          from \<open>is_proper_binomial f1\<close> have "keys f1 = {lp f1, tp f1}"
+            by (rule punit.keys_proper_binomial)
+          with \<open>t \<in> keys f1\<close> have "t = lp f1 \<or> t = tp f1" by simp
+          thus ?thesis
           proof
-            assume s: "s = ?t1"
-            from \<open>q2 \<noteq> 0\<close> have "lp q2 \<in> keys q2" by (rule punit.lt_in_keys)
-            moreover from \<open>f2 \<noteq> 0\<close> have "tp f2 \<in> keys f2" by (rule punit.tt_in_keys)
-            ultimately have "lp q2 \<in> keys q1 \<and> tp f2 \<in> keys f1 \<or> lp q2 \<in> keys q2 \<and> tp f2 \<in> keys f2"
-              by simp
-            then obtain l'' where l'': "of_nat_pm (lp q2 + tp f2) = of_nat_pm (lp g) + l'' \<cdot> vect f1"
-              by (rule 1)
-            from \<open>is_proper_binomial f1\<close> have "keys f1 = {lp f1, tp f1}"
-              by (rule punit.keys_proper_binomial)
-            with \<open>t \<in> keys f1\<close> have "t = lp f1 \<or> t = tp f1" by simp
-            thus ?thesis
-            proof
-              assume "t = lp f1"
-              with adds1 have eq5: "s + t = lp q2 + tp f2" by (simp only: s adds_minus)
-              from l'' show ?thesis unfolding eq5 ..
-            next
-              assume "t = tp f1"
-              with adds1 have "of_nat_pm (s + t) = of_nat_pm (lp q2 + tp f2) - vect f1"
-                by (simp add: s vect_alt of_nat_pm_plus of_nat_pm_minus)
-              also have "\<dots> = of_nat_pm (lp g) + (l'' - 1) \<cdot> vect f1"
-                by (simp add: l'' map_scale_minus_distrib_right)
-              finally show ?thesis ..
-            qed
+            assume "t = lp f1"
+            with adds1 have eq5: "s + t = lp q2 + tp f2" by (simp only: s adds_minus)
+            from l'' show ?thesis unfolding eq5 ..
           next
-            assume "s \<in> keys q1 - {lp q1}"
-            with \<open>t \<in> keys f1\<close> have "s \<in> keys q1 \<and> t \<in> keys f1 \<or> s \<in> keys q2 \<and> t \<in> keys f2" by simp
-            then obtain l where "of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1" by (rule 1)
-            thus ?thesis ..
+            assume "t = tp f1"
+            with adds1 have "of_nat_pm (s + t) = of_nat_pm (lp q2 + tp f2) - vect f1"
+              by (simp add: s vect_alt of_nat_pm_plus of_nat_pm_minus)
+            also have "\<dots> = of_nat_pm (lp g) + (l'' - 1) \<cdot> vect f1"
+              by (simp add: l'' map_scale_minus_distrib_right)
+            finally show ?thesis ..
           qed
         next
-          fix s t
-          assume "s \<in> keys q2' \<and> t \<in> keys f2"
-          hence "s \<in> keys q2'" and "t \<in> keys f2" by simp_all
-          from this(1) keys_q2' have "s \<in> insert ?t2 (keys q2 - {lp q2})" ..
-          thus "\<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
-          proof
-            assume s: "s = lp q1 + tp f1 - lp f2"
-            from \<open>f1 \<noteq> 0\<close> have "tp f1 \<in> keys f1" by (rule punit.tt_in_keys)
-            with \<open>lp q1 \<in> keys q1\<close> have "lp q1 \<in> keys q1 \<and> tp f1 \<in> keys f1 \<or> lp q1 \<in> keys q2 \<and> tp f1 \<in> keys f2"
-              by simp
-            then obtain l'' where l'': "of_nat_pm (lp q1 + tp f1) = of_nat_pm (lp g) + l'' \<cdot> vect f1"
-              by (rule 1)
-            from \<open>is_proper_binomial f2\<close> have "keys f2 = {lp f2, tp f2}"
-              by (rule punit.keys_proper_binomial)
-            with \<open>t \<in> keys f2\<close> have "t = lp f2 \<or> t = tp f2" by simp
-            thus ?thesis
-            proof
-              assume "t = lp f2"
-              with adds2 have eq5: "s + t = lp q1 + tp f1" by (simp only: s adds_minus)
-              from l'' show ?thesis unfolding eq5 ..
-            next
-              assume "t = tp f2"
-              with adds2 have "of_nat_pm (s + t) = of_nat_pm (lp q1 + tp f1) - vect f2"
-                by (simp add: s vect_alt of_nat_pm_plus of_nat_pm_minus)
-              also have "\<dots> = of_nat_pm (lp g) + (l'' - m) \<cdot> vect f1"
-                by (simp add: l'' \<open>vect f2 = m \<cdot> vect f1\<close> map_scale_minus_distrib_right)
-              finally show ?thesis ..
-            qed
-          next
-            assume "s \<in> keys q2 - {lp q2}"
-            with \<open>t \<in> keys f2\<close> have "s \<in> keys q1 \<and> t \<in> keys f1 \<or> s \<in> keys q2 \<and> t \<in> keys f2" by simp
-            then obtain l where "of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1" by (rule 1)
-            thus ?thesis ..
-          qed
-        qed fact
-        hence "poly_deg q1 \<le> poly_deg q1'" by (rule Q_min)
-        also from \<open>q1' \<noteq> 0\<close> have "poly_deg q1' < deg_pm (lp q1)"
-        proof (rule poly_deg_lessI)
-          fix t
-          assume "t \<in> keys q1'"
-          hence "t \<in> insert ?t1 (keys q1 - {lp q1})" using keys_q1' ..
-          thus "deg_pm t < deg_pm (lp q1)"
-          proof
-            from adds1 have *: "deg_pm (lp f1) \<le> deg_pm (lp q2 + tp f2)" by (rule deg_pm_mono)
-            assume "t = ?t1"
-            with adds1 have "deg_pm t = deg_pm (lp q2 + tp f2) - deg_pm (lp f1)"
-              by (simp only: deg_pm_minus)
-            also from * have "\<dots> < deg_pm (lp q1)"
-              by (simp only: less_diff_conv2 lp_eq2 flip: deg_pm_plus) (simp add: deg_pm_plus 0)
-            finally show ?thesis .
-          next
-            assume "t \<in> keys q1 - {lp q1}"
-            hence "t \<in> keys q1" and "t \<noteq> lp q1" by simp_all
-            thus "deg_pm t < deg_pm (lp q1)" by (rule 4)
-          qed
+          assume "s \<in> keys q1 - {lp q1}"
+          with \<open>t \<in> keys f1\<close> have "s \<in> keys q1 \<and> t \<in> keys f1 \<or> s \<in> keys q2 \<and> t \<in> keys f2" by simp
+          then obtain l where "of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1" by (rule 1)
+          thus ?thesis ..
         qed
-        also from \<open>lp q1 \<in> keys q1\<close> have "\<dots> \<le> poly_deg q1" by (rule poly_deg_max_keys)
-        finally show False ..
+      next
+        fix s t
+        assume "s \<in> keys q2' \<and> t \<in> keys f2"
+        hence "s \<in> keys q2'" and "t \<in> keys f2" by simp_all
+        from this(1) keys_q2' have "s \<in> insert ?t2 (keys q2 - {lp q2})" ..
+        thus "\<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
+        proof
+          assume s: "s = lp q1 + tp f1 - lp f2"
+          from \<open>f1 \<noteq> 0\<close> have "tp f1 \<in> keys f1" by (rule punit.tt_in_keys)
+          with \<open>lp q1 \<in> keys q1\<close> have "lp q1 \<in> keys q1 \<and> tp f1 \<in> keys f1 \<or> lp q1 \<in> keys q2 \<and> tp f1 \<in> keys f2"
+            by simp
+          then obtain l'' where l'': "of_nat_pm (lp q1 + tp f1) = of_nat_pm (lp g) + l'' \<cdot> vect f1"
+            by (rule 1)
+          from \<open>is_proper_binomial f2\<close> have "keys f2 = {lp f2, tp f2}"
+            by (rule punit.keys_proper_binomial)
+          with \<open>t \<in> keys f2\<close> have "t = lp f2 \<or> t = tp f2" by simp
+          thus ?thesis
+          proof
+            assume "t = lp f2"
+            with adds2 have eq5: "s + t = lp q1 + tp f1" by (simp only: s adds_minus)
+            from l'' show ?thesis unfolding eq5 ..
+          next
+            assume "t = tp f2"
+            with adds2 have "of_nat_pm (s + t) = of_nat_pm (lp q1 + tp f1) - vect f2"
+              by (simp add: s vect_alt of_nat_pm_plus of_nat_pm_minus)
+            also have "\<dots> = of_nat_pm (lp g) + (l'' - m) \<cdot> vect f1"
+              by (simp add: l'' \<open>vect f2 = m \<cdot> vect f1\<close> map_scale_minus_distrib_right)
+            finally show ?thesis ..
+          qed
+        next
+          assume "s \<in> keys q2 - {lp q2}"
+          with \<open>t \<in> keys f2\<close> have "s \<in> keys q1 \<and> t \<in> keys f1 \<or> s \<in> keys q2 \<and> t \<in> keys f2" by simp
+          then obtain l where "of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1" by (rule 1)
+          thus ?thesis ..
+        qed
+      qed fact
+      hence "poly_deg q1 \<le> poly_deg q1'" by (rule Q_min)
+      also from \<open>q1' \<noteq> 0\<close> have "poly_deg q1' < deg_pm (lp q1)"
+      proof (rule poly_deg_lessI)
+        fix t
+        assume "t \<in> keys q1'"
+        hence "t \<in> insert ?t1 (keys q1 - {lp q1})" using keys_q1' ..
+        thus "deg_pm t < deg_pm (lp q1)"
+        proof
+          from adds1 have *: "deg_pm (lp f1) \<le> deg_pm (lp q2 + tp f2)" by (rule deg_pm_mono)
+          assume "t = ?t1"
+          with adds1 have "deg_pm t = deg_pm (lp q2 + tp f2) - deg_pm (lp f1)"
+            by (simp only: deg_pm_minus)
+          also from * have "\<dots> < deg_pm (lp q1)"
+            by (simp only: less_diff_conv2 lp_eq2 flip: deg_pm_plus) (simp add: deg_pm_plus 0)
+          finally show ?thesis .
+        next
+          assume "t \<in> keys q1 - {lp q1}"
+          hence "t \<in> keys q1" and "t \<noteq> lp q1" by simp_all
+          thus "deg_pm t < deg_pm (lp q1)" by (rule 4)
+        qed
       qed
-      hence "rat (poly_deg (q1 * f1)) \<le> max ?a ?b" by (rule max.coboundedI2)
-      hence "to_nat (rat (poly_deg (q1 * f1))) \<le> to_nat (max ?a ?b)" by (rule to_nat_mono)
-      thus "poly_deg (q1 * f1) \<le> to_nat (max ?a ?b)" by (simp only: to_nat_of_nat)
-      thus "poly_deg (q2 * f2) \<le> to_nat (max ?a ?b)" by (simp only: deg_q1_f1)
-    qed fact
-  qed
+      also from \<open>lp q1 \<in> keys q1\<close> have "\<dots> \<le> poly_deg q1" by (rule poly_deg_max_keys)
+      finally show False ..
+    qed
+    hence "rat (poly_deg (q1 * f1)) \<le> rat (deg_pm (lp g)) +
+                                        (deg_pm ((rat (step (lp g)) + 1) \<cdot> vect f1 + vect f2) - 1)"
+      (is "_ \<le> _ + ?a") by (simp only: deg_pm_plus deg_of_nat_pm)
+    hence "to_nat (rat (poly_deg (q1 * f1))) \<le> to_nat (rat (deg_pm (lp g)) + ?a)" by (rule to_nat_mono)
+    also from Ints_of_nat have "\<dots> \<le> to_nat (rat (deg_pm (lp g))) + to_nat ?a"
+      by (rule to_nat_plus_le) (intro Ints_diff Ints_1 Ints_deg plus_is_int_pm map_scale_is_int_pm
+                                      Ints_add Ints_of_nat vect_is_int_pm)
+    finally show "poly_deg (q1 * f1) \<le> deg_pm (lp g) + to_nat ?a" by (simp only: to_nat_of_nat)
+    thus "poly_deg (q2 * f2) \<le> deg_pm (lp g) + to_nat ?a" by (simp only: deg_q1_f1)
+  qed fact
 qed
 
 end
