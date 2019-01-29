@@ -45,6 +45,146 @@ proof (rule gb_problemI)
   qed
 qed
 
+text \<open>Something similar to the lemma below also holds if \<open>f1\<close> and/or \<open>f2\<close> are no binomials, with
+  @{prop "membership_problem_assms f1 f2 g"} replaced by @{prop "\<not> punit.is_red {f1, f2} g"}.\<close>
+
+lemma gb_problemI_reduced_GB_binomials:
+  assumes "is_binomial f1" and "is_binomial f2" and "poly_deg f1 \<le> d" and "poly_deg f2 \<le> d"
+  assumes "\<And>g. g \<in> punit.reduced_GB {f1, f2} \<Longrightarrow> membership_problem_assms f1 f2 g \<Longrightarrow>
+                \<exists>q1 q2. g = q1 * f1 + q2 * f2 \<and> poly_deg (q1 * f1) \<le> d \<and> poly_deg (q2 * f2) \<le> d"
+  shows "gb_problem d"
+proof -
+  let ?G = "punit.reduced_GB {f1, f2}"
+  have "finite {f1, f2}" by simp
+  hence GB: "punit.is_Groebner_basis ?G" and ideal: "ideal ?G = ideal {f1, f2}" and fin: "finite ?G"
+    and "0 \<notin> ?G" by (rule punit.reduced_GB_is_GB_finite, rule punit.reduced_GB_pmdl_finite[simplified],
+                      rule punit.finite_reduced_GB_finite, rule punit.reduced_GB_nonzero_finite)
+  let ?H = "{g. lp g = lp f1 \<or> lp g = lp f2}"
+  define G where "G = {f1, f2} \<union> (?G - ?H)"
+  have 1: thesis if "g \<in> ?G" and "\<And>g'. g' \<in> G \<Longrightarrow> g' \<noteq> 0 \<Longrightarrow> lp g' = lp g \<Longrightarrow> thesis" for g thesis
+  proof (cases "g \<in> G")
+    case True
+    moreover from that(1) \<open>0 \<notin> ?G\<close> have "g \<noteq> 0" by blast
+    ultimately show ?thesis using refl by (rule that(2))
+  next
+    case False
+    with that(1) have "lp f1 = lp g \<or> lp f2 = lp g" by (auto simp: G_def)
+    thus ?thesis
+    proof (elim disjE)
+      have "f1 \<in> G" by (simp add: G_def)
+      moreover from assms(1) have "f1 \<noteq> 0" by (rule binomial_not_0)
+      moreover assume "lp f1 = lp g"
+      ultimately show ?thesis by (rule that(2))
+    next
+      have "f2 \<in> G" by (simp add: G_def)
+      moreover from assms(2) have "f2 \<noteq> 0" by (rule binomial_not_0)
+      moreover assume "lp f2 = lp g"
+      ultimately show ?thesis by (rule that(2))
+    qed
+  qed
+  from fin have fin_G: "finite G" by (simp add: G_def)
+  hence ideal_G: "ideal G = ideal ?G"
+  proof (rule punit.pmdl_eqI_adds_lt_finite[simplified])
+    show "ideal G \<subseteq> ideal ?G" unfolding G_def
+    proof (intro ideal.span_subset_spanI Un_least)
+      have "{f1, f2} \<subseteq> ideal {f1, f2}" by (rule ideal.span_superset)
+      also have "\<dots> = ideal ?G" by (simp only: ideal)
+      finally show "{f1, f2} \<subseteq> ideal ?G" .
+    next
+      have "?G - ?H \<subseteq> ?G" by (fact Diff_subset)
+      also have "\<dots> \<subseteq> ideal ?G" by (rule ideal.span_superset)
+      finally show "?G - ?H \<subseteq> ideal ?G" .
+    qed
+  next
+    fix f
+    assume "f \<in> ideal ?G" and "f \<noteq> 0"
+    with GB obtain g where "g \<in> ?G" and "lp g adds lp f" by (rule punit.GB_adds_lt[simplified])
+    from this(1) obtain g' where "g' \<in> G" and "g' \<noteq> 0" and "lp g' = lp g" by (rule 1)
+    with \<open>lp g adds lp f\<close> show "\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f" by auto
+  qed
+
+  show ?thesis
+  proof (rule gb_problemI)
+    show "punit.is_Groebner_basis G" unfolding punit.GB_alt_3_finite[simplified, OF fin_G]
+    proof (intro ballI impI)
+      fix f
+      assume "f \<in> ideal G" and "f \<noteq> 0"
+      from this(1) have "f \<in> ideal ?G" by (simp only: ideal_G)
+      with GB obtain g where "g \<in> ?G" and "lp g adds lp f"
+        using \<open>f \<noteq> 0\<close> by (rule punit.GB_adds_lt[simplified])
+      from this(1) obtain g' where "g' \<in> G" and "g' \<noteq> 0" and "lp g' = lp g" by (rule 1)
+      with \<open>lp g adds lp f\<close> show "\<exists>g\<in>G. g \<noteq> 0 \<and> lp g adds lp f" by auto
+    qed
+
+    show "ideal G = ideal {f1, f2}" by (simp only: ideal_G ideal)
+  
+    show "\<Union> (indets ` G) \<subseteq> indets f1 \<union> indets f2" (is "_ \<subseteq> ?X")
+    proof (rule subsetI, elim UN_E)
+      fix x g
+      have "finite ?X" by (simp add: finite_indets)
+      moreover have "{f1, f2} \<subseteq> P[?X]" by (auto intro: PolysI_alt)
+      ultimately have "?G \<subseteq> P[?X]"
+        by (rule punit.reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0,
+                                            simplified dgrad_p_set_varnum_wrt])
+      with Diff_subset have "?G - ?H \<subseteq> P[?X]" by (rule subset_trans)
+      moreover have "{f1, f2} \<subseteq> P[?X]" by (auto intro: PolysI_alt)
+      ultimately have "G \<subseteq> P[?X]" by (simp add: G_def)
+      moreover assume "g \<in> G"
+      ultimately have "g \<in> P[?X]" ..
+      hence "indets g \<subseteq> ?X" by (rule PolysD)
+      moreover assume "x \<in> indets g"
+      ultimately show "x \<in> ?X" ..
+    qed
+
+    fix g
+    assume "g \<in> G"
+    thus "\<exists>q1 q2. g = q1 * f1 + q2 * f2 \<and> poly_deg (q1 * f1) \<le> d \<and> poly_deg (q2 * f2) \<le> d"
+      unfolding G_def
+    proof (elim UnE DiffE)
+      assume "g \<in> {f1, f2}"
+      hence "g = f1 \<or> g = f2" by simp
+      thus ?thesis
+      proof
+        assume g: "g = f1"
+        show ?thesis
+        proof (intro exI conjI)
+          show "g = 1 * f1 + 0 * f2" by (simp add: g)
+        qed (simp_all add: assms(3))
+      next
+        assume g: "g = f2"
+        show ?thesis
+        proof (intro exI conjI)
+          show "g = 0 * f1 + 1 * f2" by (simp add: g)
+        qed (simp_all add: assms(4))
+      qed
+    next
+      assume "g \<in> ?G" and "g \<notin> ?H"
+      from \<open>finite {f1, f2}\<close> this(1) show ?thesis
+      proof (rule punit.reduced_GB_cases_finite)
+        fix f
+        assume "f \<in> {f1, f2}" and "f \<noteq> 0" and "lp g = lp f"
+        hence "g \<in> ?H" by blast
+        with \<open>g \<notin> ?H\<close> show ?thesis ..
+      next
+        assume "\<not> punit.is_red {f1, f2} g"
+        have "membership_problem_assms f1 f2 g" unfolding membership_problem_assms_def
+        proof (intro conjI impI)
+          from assms(1, 2) have "is_binomial_set {f1, f2}" by (simp add: is_binomial_set_def)
+          hence "is_binomial_set ?G" by (rule punit.reduced_GB_is_binomial_set) simp
+          thus "is_binomial g" using \<open>g \<in> ?G\<close> by (rule is_binomial_setD)
+        next
+          from \<open>g \<in> ?G\<close> have "g \<in> ideal ?G" by (rule ideal.span_base)
+          thus "g \<in> ideal {f1, f2}" by (simp only: ideal)
+        next
+          assume "is_proper_binomial g"
+          with _ \<open>g \<in> ?G\<close> show "monomial 1 ` keys g \<inter> ideal {f1, f2} = {}" by (rule rem_3_1_4_2) simp
+        qed fact+
+        with \<open>g \<in> ?G\<close> show ?thesis by (rule assms(5))
+      qed
+    qed
+  qed
+qed
+
 lemma lem_4_2_1:
   assumes "f \<in> {f1, f2}" and "is_proper_binomial f" and "tp f \<unlhd> p"
   shows "step p \<le> step (tp f)"
@@ -82,6 +222,29 @@ proof (rule ccontr)
   finally show False ..
 qed
 
+lemma overlapshift_tp:
+  assumes "f \<in> {f1, f2}" and "is_proper_binomial f"
+  shows "overlapshift (tp f) = to_nat_pm (of_nat_pm (tp f) + rat (step (tp f)) \<cdot> vect f)"
+proof -
+  from assms(1, 2) le_pm_refl have "overlapshift (tp f) = overlapshift' f (tp f)"
+    and eq: "step (tp f) = step' f (tp f)" by (rule overlapshift_alt1, rule step_alt1)
+  note this(1)
+  also have "overlapshift' f (tp f) = to_nat_pm (of_nat_pm (tp f) + rat (step (tp f)) \<cdot> vect f)"
+    by (rule poly_mapping_eqI) (simp add: overlapshift'_alt lookup_to_nat_pm eq)
+  finally show ?thesis .
+qed
+
+corollary overlapshift_tp_ge_pm:
+  assumes "f \<in> {f1, f2}" and "is_proper_binomial f"
+  shows "of_nat_pm (tp f) + rat (step (tp f)) \<cdot> vect f \<unlhd> of_nat_pm (overlapshift (tp f))"
+proof -
+  have "is_int_pm (of_nat_pm (tp f) + rat (step (tp f)) \<cdot> vect f)" (is "is_int_pm ?t")
+    by (intro plus_is_int_pm map_scale_is_int_pm Ints_of_nat vect_is_int_pm of_nat_pm_is_int_pm)
+  hence "?t \<unlhd> of_nat_pm (to_nat_pm ?t)" by (rule of_nat_to_nat_ge_pm)
+  also from assms have "to_nat_pm ?t = overlapshift (tp f)" by (simp only: overlapshift_tp)
+  finally show ?thesis .
+qed
+
 subsection \<open>One Proper Binomial and one Monomial\<close>
 
 text \<open>In @{cite MWW}, the third assumption in the following lemma (@{prop "0 < k"}) is missing.
@@ -104,14 +267,12 @@ proof (rule le_pmI, simp add: lookup_lcs_fun lcs_fun_def lookup_add lookup_of_na
       (is "?a \<le> ?b")
   proof (cases "0 \<le> lookup (vect f) x")
     case True
-    from assms(1, 2) le_pm_refl have eq1: "overlapshift (tp f) = overlapshift' f (tp f)"
-      and eq2: "step (tp f) = step' f (tp f)" by (rule overlapshift_alt1, rule step_alt1)
     from True assms(4) have "?a \<le> rat (lookup (tp f) x) + rat (step (tp f)) * lookup (vect f) x"
       (is "_ \<le> ?c") by (simp add: mult_right_mono)
     also have "\<dots> \<le> rat (to_nat ?c)"
       by (intro of_nat_to_nat_ge Ints_add Ints_mult is_int_pmD vect_is_int_pm) (fact Ints_of_nat)+
-    also have "\<dots> = rat (lookup (overlapshift (tp f)) x)"
-      by (simp add: eq1 eq2 overlapshift'_alt lookup_add lookup_of_nat_pm)
+    also from assms(1, 2) have "\<dots> = rat (lookup (overlapshift (tp f)) x)"
+      by (simp add: overlapshift_tp lookup_to_nat_pm lookup_add lookup_of_nat_pm)
     also have "\<dots> \<le> ?b" by (rule max.cobounded1)
     finally show ?thesis .
   next
@@ -137,71 +298,46 @@ context
   assumes f2_monomial: "is_monomial f2"
 begin
 
-lemma binomial_monomial_reduced_GB_cases:
-  assumes "g \<in> punit.reduced_GB {f1, f2}"
-  assumes "\<And>c. c \<noteq> 0 \<Longrightarrow> g = c \<cdot> f1 \<Longrightarrow> is_proper_binomial g \<Longrightarrow> thesis"
-  assumes "\<And>c. c \<noteq> 0 \<Longrightarrow> g = c \<cdot> f2 \<Longrightarrow> is_monomial g \<Longrightarrow> thesis"
-  assumes "is_monomial g \<Longrightarrow> lp g = lp f1 \<Longrightarrow> lp g \<noteq> lp f2 \<Longrightarrow> thesis"
+lemma thm_4_3_2_aux_1:
+  assumes "g \<in> punit.reduced_GB {f1, f2}" and "\<not> punit.is_red {f1, f2} g"
   assumes "is_monomial g \<Longrightarrow> membership_problem_assms f1 f2 g \<Longrightarrow> tp f1 adds lp g \<Longrightarrow>
             0 < step (lp g) \<Longrightarrow> overlap \<unlhd> of_nat_pm (overlapshift (lp g)) \<Longrightarrow>
             of_nat_pm (overlapshift (lp g)) = of_nat_pm (lp g) + rat (step (lp g)) \<cdot> vect f1 \<Longrightarrow> thesis"
   shows thesis
 proof -
+  let ?G = "punit.reduced_GB {f1, f2}"
   from f1_pbinomial have 1: "is_binomial f1" by (rule proper_binomial_imp_binomial)
   from f2_monomial have 2: "is_monomial_set {f2}" by (simp add: is_monomial_set_def)
-  have ideal: "ideal (punit.reduced_GB {f1, f2}) = ideal {f1, f2}"
-    by (rule punit.reduced_GB_pmdl_finite[simplified]) simp
+  have ideal: "ideal ?G = ideal {f1, f2}" by (rule punit.reduced_GB_pmdl_finite[simplified]) simp
+  have "0 \<notin> ?G" by (rule punit.reduced_GB_nonzero_finite) simp
+  with assms(1) have "g \<noteq> 0" by blast
   have "finite {f1, f2}" by simp
   thus ?thesis using assms(1)
   proof (rule punit.reduced_GB_cases_finite)
     fix f
-    assume "f \<in> {f1, f2}" and lp_g: "lp g = lp f"
-    from this(1) have disj: "f = f1 \<or> f = f2" by simp
-    from 1 2 _ assms(1) show ?thesis
-    proof (rule punit.reduced_GB_binomial_monomial_set_cases)
-      fix c
-      assume "c \<noteq> 0" and "g = c \<cdot> f1" and "is_proper_binomial g"
-      thus ?thesis by (rule assms(2))
-    next
-      assume *: "is_monomial g"
-      show ?thesis
-      proof (cases "lp g = lp f2")
-        case True
-        from f2_monomial have "f2 \<noteq> 0" by (rule monomial_not_0)
-        hence "lc f2 \<noteq> 0" by (rule punit.lc_not_0)
-        moreover from * have "monomial (lc g) (lp g) = g" by (rule punit.monomial_eq_itself)
-        ultimately have "g = (lc g / lc f2) \<cdot> monomial (lc f2) (lp f2)" by (simp add: True)
-        also from f2_monomial have "monomial (lc f2) (lp f2) = f2" by (rule punit.monomial_eq_itself)
-        finally have g: "g = (lc g / lc f2) \<cdot> f2" .
-        from * have "g \<noteq> 0" by (rule monomial_not_0)
-        hence "lc g \<noteq> 0" by (rule punit.lc_not_0)
-        with \<open>lc f2 \<noteq> 0\<close> have "lc g / lc f2 \<noteq> 0" by simp
-        thus ?thesis using g * by (rule assms(3))
-      next
-        case False
-        with disj have "lp g = lp f1" by (auto simp: lp_g)
-        with * show ?thesis using False by (rule assms(4))
-      qed
-    qed simp
+    assume "f \<in> {f1, f2}" and "f \<noteq> 0" and lp_g: "lp g = lp f"
+    note this(1, 2)
+    moreover from \<open>g \<noteq> 0\<close> have "lp g \<in> keys g" by (rule punit.lt_in_keys)
+    moreover have "lp f adds lp g" by (simp add: lp_g)
+    ultimately have "punit.is_red {f1, f2} g" by (rule punit.is_red_addsI[simplified])
+    with assms(2) show ?thesis ..
   next
-    assume irred: "\<not> punit.is_red {f1, f2} g"
     from 1 2 _ assms(1) show ?thesis
     proof (rule punit.reduced_GB_binomial_monomial_set_cases)
       fix c
       assume "c \<noteq> 0" and "g = c \<cdot> f1"
-      with irred have "\<not> punit.is_red {f1, f2} f1" by (simp add: punit.is_red_map_scale_iff)
+      with assms(2) have "\<not> punit.is_red {f1, f2} f1" by (simp add: punit.is_red_map_scale_iff)
       from f1_pbinomial have "f1 \<noteq> 0" by (rule proper_binomial_not_0)
       with punit.red_supsetE punit.red_supset_insertI have "punit.is_red {f1, f2} f1"
         by fastforce
       with \<open>\<not> punit.is_red {f1, f2} f1\<close> show ?thesis ..
     next
       assume "is_monomial g"
-      hence "g \<noteq> 0" by (rule monomial_not_0)
       note 1
       moreover from f2_monomial have 3: "is_binomial f2" by (rule monomial_imp_binomial)
       moreover have g_in: "g \<in> ideal {f1, f2}" unfolding ideal[symmetric] using assms(1)
         by (rule ideal.span_base)
-      moreover note irred
+      moreover note assms(2)
       moreover from \<open>g \<noteq> 0\<close> have "lp g \<in> keys g" by (rule punit.lt_in_keys)
       ultimately obtain f k u where "f \<in> {f1, f2}" and "is_proper_binomial f" and adds: "tp f adds lp g"
         and "associated f u (lp g) k" and "overlap \<unlhd> of_nat_pm u" and "lp f adds u"
@@ -212,10 +348,10 @@ proof -
       from f2_monomial \<open>f \<in> {f1, f2}\<close> \<open>is_proper_binomial f\<close> have f: "f = f1"
         by (auto simp: is_monomial_def is_proper_binomial_def)
       from \<open>is_monomial g\<close> _ adds _ le eq show ?thesis unfolding f
-      proof (rule assms(5))
+      proof (rule assms(3))
         from \<open>is_monomial g\<close> have "is_binomial g" by (rule monomial_imp_binomial)
         moreover from \<open>is_monomial g\<close> proper_binomial_no_monomial have "\<not> is_proper_binomial g" by blast
-        ultimately show "membership_problem_assms f1 f2 g" using 1 3 irred g_in
+        ultimately show "membership_problem_assms f1 f2 g" using 1 3 assms(2) g_in
           by (simp add: membership_problem_assms_def)
       next
         have "step (lp g) \<noteq> 0"
@@ -229,7 +365,7 @@ proof -
           ultimately have "lp f2 adds lp g" by (simp add: adds_pm)
           with _ monomial_not_0 \<open>lp g \<in> keys g\<close> have "punit.is_red {f1, f2} g"
             by (rule punit.is_red_addsI[simplified]) (simp_all add: f2_monomial)
-          with irred show False ..
+          with assms(2) show False ..
         qed
         thus "0 < step (lp g)" by simp
       qed
@@ -246,7 +382,7 @@ text \<open>In @{cite MWW}, Theorem 4.3.2. lacks @{term "deg_pm (lp f1)"} on the
   \<^item> bound without @{term "deg_pm (lp f1)"} is \<open>2\<close>,
   \<^item> actual degree goes up to \<open>6\<close> (@{prop "y^6 = 1 * f1 - x * f2"}, and @{prop "poly_deg (1 * f1) = 6"}).\<close>
 
-lemma thm_4_3_2_aux_1:
+lemma thm_4_3_2_aux_2:
   assumes "P = lcs (of_nat_pm (overlapshift (tp f1))) overlap"
     and "d = max (deg_pm (lp f1)) (to_nat (max (deg_pm P) (deg_pm (P - rat (step (tp f1)) \<cdot> vect f1))))"
   shows "poly_deg f1 \<le> d"
@@ -294,66 +430,46 @@ proof (rule poly_deg_leI)
   qed
 qed
 
-lemma thm_4_3_2_aux_2:
-  assumes "g \<in> punit.reduced_GB {f1, f2}" and "\<not> is_monomial g \<or> lp g \<noteq> lp f1 \<or> lp g = lp f2"
-    and "P = lcs (of_nat_pm (overlapshift (tp f1))) overlap"
+theorem thm_4_3_2:
+  assumes "P = lcs (of_nat_pm (overlapshift (tp f1))) overlap"
     and "d = max (deg_pm (lp f1)) (to_nat (max (deg_pm P) (deg_pm (P - rat (step (tp f1)) \<cdot> vect f1))))"
-  obtains q1 q2 where "g = q1 * f1 + q2 * f2" and "poly_deg (q1 * f1) \<le> d" and "poly_deg (q2 * f2) \<le> d"
-proof -
+  shows "gb_problem d"
+proof (rule gb_problemI_reduced_GB_binomials)
+  from f1_pbinomial show "is_binomial f1" by (rule proper_binomial_imp_binomial)
+next
+  from f2_monomial show "is_binomial f2" by (rule monomial_imp_binomial)
+next
+  from assms show "poly_deg f1 \<le> d" by (rule thm_4_3_2_aux_2)
+next
   let ?d = "max (deg_pm P) (deg_pm (P - rat (step (tp f1)) \<cdot> vect f1))"
-  have "0 \<notin> punit.reduced_GB {f1, f2}" (is "0 \<notin> ?G") by (rule punit.reduced_GB_nonzero_finite) simp
-  with assms(1) have "g \<noteq> 0" by blast
-  hence "lp g \<in> keys g" by (rule punit.lt_in_keys)
+
   from f2_monomial have lp_f2: "lp f2 = tp f2" by (rule punit.lt_eq_tt_monomial)
+  from f2_monomial have "monomial (lc f2) (lp f2) = f2" by (rule punit.monomial_eq_itself)
+  hence "poly_deg f2 = poly_deg (monomial (lc f2) (lp f2))" by simp
+  also have "\<dots> \<le> deg_pm (lp f2)" by (simp add: poly_deg_monomial)
+  also have "\<dots> = deg_pm (gcs (lp f2) (tp f2))" by (simp add: lp_f2)
+  also have "rat \<dots> \<le> deg_pm overlap" unfolding overlap_alt' deg_of_nat_pm
+    by (intro of_nat_mono deg_pm_mono_le lcs_ge_pm)
+  also have "\<dots> \<le> deg_pm P" unfolding assms(1) using lcs_ge_pm(2) by (rule deg_pm_mono_le)
+  finally have "rat (poly_deg f2) \<le> ?d" by simp
+  hence "to_nat (rat (poly_deg f2)) \<le> to_nat ?d" by (rule to_nat_mono)
+  hence "poly_deg f2 \<le> to_nat ?d" by (simp only: to_nat_of_nat)
+  also have "\<dots> \<le> d" unfolding assms(2) by (rule max.cobounded2)
+  finally show "poly_deg f2 \<le> d" .
+
+  fix g
+  assume "g \<in> punit.reduced_GB {f1, f2}" (is "_ \<in> ?G") and mpa: "membership_problem_assms f1 f2 g"
+  have "0 \<notin> ?G" (is "0 \<notin> ?G") by (rule punit.reduced_GB_nonzero_finite) simp
+  with \<open>g \<in> ?G\<close> have "g \<noteq> 0" by blast
+  hence "lp g \<in> keys g" by (rule punit.lt_in_keys)
   have tp1_is_int: "is_int_pm (of_nat_pm (tp f1))" by (intro nat_pm_is_int_pm of_nat_pm_is_nat_pm)
-  from assms(1) show ?thesis
-  proof (rule binomial_monomial_reduced_GB_cases)
-    fix c
-    assume g: "g = c \<cdot> f1"
-    show ?thesis
-    proof
-      show "g = monomial c 0 * f1 + 0 * f2" by (simp add: g map_scale_eq_times)
-    next
-      have "poly_deg (monomial c 0 * f1) \<le> poly_deg f1"
-        by (simp add: poly_deg_map_scale flip: map_scale_eq_times)
-      also from assms(3, 4) have "\<dots> \<le> d" by (rule thm_4_3_2_aux_1)
-      finally show "poly_deg (monomial c 0 * f1) \<le> d" .
-    next
-      show "poly_deg (0 * f2) \<le> d" by simp
-    qed
-  next
-    assume "is_monomial g" and "lp g = lp f1" and "lp g \<noteq> lp f2"
-    with assms(2) show ?thesis by simp
-  next
-    fix c
-    assume g: "g = c \<cdot> f2"
-    show ?thesis
-    proof
-      show "g = 0 * f1 + monomial c 0 * f2" by (simp add: g map_scale_eq_times)
-    next
-      show "poly_deg (0 * f1) \<le> d" by simp
-    next
-      from f2_monomial have "monomial (lc f2) (lp f2) = f2" by (rule punit.monomial_eq_itself)
-      hence "poly_deg (monomial c 0 * f2) \<le> poly_deg (monomial (lc f2) (lp f2))"
-        by (simp add: poly_deg_map_scale flip: map_scale_eq_times)
-      also have "\<dots> \<le> deg_pm (lp f2)" by (simp add: poly_deg_monomial)
-      also have "\<dots> = deg_pm (gcs (lp f2) (tp f2))" by (simp add: lp_f2)
-      also from lcs_ge_pm(2) have "\<dots> \<le> deg_pm (lcs (gcs (lp f1) (tp f1)) (gcs (lp f2) (tp f2)))"
-        by (rule deg_pm_mono_le)
-      also have "rat \<dots> = deg_pm overlap" by (simp add: overlap_alt' deg_of_nat_pm)
-      also from lcs_ge_pm(2) have "\<dots> \<le> deg_pm P" unfolding assms(3) by (rule deg_pm_mono_le)
-      also have "\<dots> \<le> ?d" by (rule max.cobounded1)
-      finally have "rat (poly_deg (monomial c 0 * f2)) \<le> ?d" using of_nat_mono by blast
-      hence "to_nat (rat (poly_deg (monomial c 0 * f2))) \<le> to_nat ?d" by (rule to_nat_mono)
-      hence "poly_deg (monomial c 0 * f2) \<le> to_nat ?d" by (simp only: to_nat_of_nat)
-      also have "\<dots> \<le> d" unfolding assms(4) by (rule max.cobounded2)
-      finally show "poly_deg (monomial c 0 * f2) \<le> d" .
-    qed
-  next
-    assume "is_monomial g" and mpa: "membership_problem_assms f1 f2 g"
-      and "tp f1 adds lp g" and "0 < step (lp g)" and le1: "overlap \<unlhd> of_nat_pm (overlapshift (lp g))"
+  from mpa have irred: "\<not> punit.is_red {f1, f2} g" by (rule membership_problem_assmsD)
+  with \<open>g \<in> ?G\<close> show "\<exists>q1 q2. g = q1 * f1 + q2 * f2 \<and> poly_deg (q1 * f1) \<le> d \<and> poly_deg (q2 * f2) \<le> d"
+  proof (rule thm_4_3_2_aux_1)
+    assume "is_monomial g" and "tp f1 adds lp g" and "0 < step (lp g)"
+      and le1: "overlap \<unlhd> of_nat_pm (overlapshift (lp g))"
       and eq1: "of_nat_pm (overlapshift (lp g)) = of_nat_pm (lp g) + rat (step (lp g)) \<cdot> vect f1"
-    from this(3) have le2: "tp f1 \<unlhd> lp g" by (simp only: adds_pm)
+    from this(2) have le2: "tp f1 \<unlhd> lp g" by (simp only: adds_pm)
     with _ f1_pbinomial have "step (lp g) \<le> step (tp f1)" by (rule lem_4_2_1) simp
     from \<open>0 < step (lp g)\<close> have eq2: "rat (step (lp g) - Suc 0) = rat (step (lp g)) - 1" by simp
 
@@ -478,7 +594,7 @@ proof -
       and deg2: "poly_deg (q2 * f2) \<le> ?a" by (auto simp: membership_problem_concl_def)
 
     have "f1 \<in> {f1, f2}" by simp
-    hence "Q \<unlhd> P" unfolding Q_def assms(3) by (rule lem_4_3_1) fact+
+    hence "Q \<unlhd> P" unfolding Q_def assms(1) by (rule lem_4_3_1) fact+
     hence "deg_pm Q \<le> deg_pm P" by (rule deg_pm_mono_le)
 
     have "rat ?a = max (deg_pm (of_nat_pm (lp g))) (deg_pm (of_nat_pm (overlapshift (lp g))))"
@@ -509,186 +625,15 @@ proof -
     hence "?a \<le> to_nat ?d" by (simp only: to_nat_of_nat)
 
     show ?thesis
-    proof
+    proof (intro exI conjI)
       from deg1 \<open>?a \<le> to_nat ?d\<close> have "poly_deg (q1 * f1) \<le> to_nat ?d" by (rule le_trans)
-      also have "\<dots> \<le> d" unfolding assms(4) by (rule max.cobounded2)
+      also have "\<dots> \<le> d" unfolding assms(2) by (rule max.cobounded2)
       finally show "poly_deg (q1 * f1) \<le> d" .
     next
       from deg2 \<open>?a \<le> to_nat ?d\<close> have "poly_deg (q2 * f2) \<le> to_nat ?d" by (rule le_trans)
-      also have "\<dots> \<le> d" unfolding assms(4) by (rule max.cobounded2)
+      also have "\<dots> \<le> d" unfolding assms(2) by (rule max.cobounded2)
       finally show "poly_deg (q2 * f2) \<le> d" .
     qed fact
-  qed
-qed
-
-theorem thm_4_3_2:
-  assumes "P = lcs (of_nat_pm (overlapshift (tp f1))) overlap"
-    and "d = max (deg_pm (lp f1)) (to_nat (max (deg_pm P) (deg_pm (P - rat (step (tp f1)) \<cdot> vect f1))))"
-  shows "gb_problem d"
-proof (rule gb_problemI_reduced_GB)
-  fix g
-  assume "g \<in> punit.reduced_GB {f1, f2}" (is "g \<in> ?G")
-  moreover have "0 \<notin> ?G" by (rule punit.reduced_GB_nonzero_finite) simp
-  ultimately have "g \<noteq> 0" by blast
-  hence "lp g \<in> keys g" by (rule punit.lt_in_keys)
-  from f2_monomial have lp_f2: "lp f2 = tp f2" by (rule punit.lt_eq_tt_monomial)
-  have GB_G: "punit.is_Groebner_basis ?G" by (rule punit.reduced_GB_is_GB_finite) simp
-  have ideal_G: "ideal ?G = ideal {f1, f2}" by (rule punit.reduced_GB_pmdl_finite[simplified]) simp
-  have lc: "lc h = 1" if "h \<in> ?G" for h using _ that
-  proof (rule punit.is_monic_setD)
-    show "punit.is_monic_set ?G" by (rule punit.reduced_GB_is_monic_set_finite) simp
-  next
-    from that \<open>0 \<notin> ?G\<close> show "h \<noteq> 0" by blast
-  qed
-  from f1_pbinomial have "f1 \<noteq> 0" by (rule proper_binomial_not_0)
-  have tp1_is_int: "is_int_pm (of_nat_pm (tp f1))" by (intro nat_pm_is_int_pm of_nat_pm_is_nat_pm)
-  from \<open>g \<in> ?G\<close> show "\<exists>q1 q2. g = q1 * f1 + q2 * f2 \<and> poly_deg (q1 * f1) \<le> d \<and> poly_deg (q2 * f2) \<le> d"
-  proof (rule binomial_monomial_reduced_GB_cases)
-    assume "is_proper_binomial g"
-    hence "\<not> is_monomial g \<or> lp g \<noteq> lp f1 \<or> lp g = lp f2"
-      by (simp add: is_proper_binomial_def is_monomial_def)
-    with \<open>g \<in> ?G\<close> obtain q1 q2 where "g = q1 * f1 + q2 * f2" and "poly_deg (q1 * f1) \<le> d"
-      and "poly_deg (q2 * f2) \<le> d" using assms by (rule thm_4_3_2_aux_2)
-    thus ?thesis by (intro exI conjI)
-  next
-    assume "is_monomial g"
-    hence "monomial (lc g) (lp g) = g" by (rule punit.monomial_eq_itself)
-    moreover assume "lp g = lp f1"
-    moreover from \<open>g \<in> ?G\<close> have "lc g = 1" by (rule lc)
-    ultimately have g: "g = monomial 1 (lp f1)" by simp
-    from \<open>f1 \<noteq> 0\<close> have "lc f1 \<noteq> 0" and "tc f1 \<noteq> 0" by (rule punit.lc_not_0, rule punit.tc_not_0)
-    let ?m = "monomial (tc f1) (tp f1)"
-    from f1_pbinomial have "binomial (lc f1) (lp f1) (tc f1) (tp f1) = f1"
-      by (rule punit.binomial_eq_itself)
-    hence "?m + monomial (lc f1) 0 * g = f1"
-      by (simp add: g times_monomial_monomial binomial_def add.commute)
-    hence g2: "monomial (lc f1) 0 * g = f1 - ?m" by (metis add_diff_cancel_left')
-    hence "?m = f1 - monomial (lc f1) 0 * g" by simp
-    also have "\<dots> \<in> ideal ?G"
-    proof (rule ideal.span_diff)
-      show "f1 \<in> ideal ?G" unfolding ideal_G by (rule ideal.span_base) simp
-    next
-      from \<open>g \<in> ?G\<close> show "monomial (lc f1) 0 * g \<in> ideal ?G" by (intro ideal.span_scale ideal.span_base)
-    qed
-    finally have "?m \<in> ideal ?G" .
-    with GB_G obtain g' where "g' \<in> ?G" and "g' \<noteq> 0" and "lp g' adds lp ?m"
-    proof (rule punit.GB_adds_lt[simplified])
-      from \<open>tc f1 \<noteq> 0\<close> show "?m \<noteq> 0" by (simp add: monomial_0_iff)
-    qed
-    from \<open>tc f1 \<noteq> 0\<close> this(3) have "lp g' adds tp f1" by (simp add: punit.lt_monomial)
-    hence "lp g' \<preceq> tp f1" by (rule ord_adds)
-    also from f1_pbinomial have "\<dots> \<prec> lp f1" by (rule punit.lt_gr_tt_binomial)
-    finally have neq: "lp g' \<noteq> lp f1" by simp
-    from g2 have "(1 / lc f1) \<cdot> (monomial (lc f1) 0 * g) = (1 / lc f1) \<cdot> (f1 - ?m)" by simp
-    with \<open>lc f1 \<noteq> 0\<close> have g3: "g = (1 / lc f1) \<cdot> f1 - monomial (tc f1 / lc f1) (tp f1)"
-      by (simp flip: map_scale_eq_times add: map_scale_assoc map_scale_minus_distrib_left)
-    from \<open>g' \<in> ?G\<close> show ?thesis
-    proof (rule binomial_monomial_reduced_GB_cases)
-      fix c
-      assume "c \<noteq> 0" and "g' = c \<cdot> f1"
-      hence "lp g' = lp f1" by (simp add: punit.lt_map_scale)
-      with neq show ?thesis ..
-    next
-      fix c
-      assume "c \<noteq> 0" and "g' = c \<cdot> f2"
-      hence "lp g' = lp f2" by (simp add: punit.lt_map_scale)
-      from \<open>lp g' adds tp f1\<close> obtain t where t: "tp f1 = lp f2 + t"
-        unfolding \<open>lp g' = lp f2\<close> by (rule addsE)
-      from f2_monomial have "lc f2 \<noteq> 0" by (intro punit.lc_not_0 monomial_not_0)
-      from f2_monomial have "monomial (lc f2) (lp f2) = f2" by (rule punit.monomial_eq_itself)
-      hence "monomial (- tc f1 / (lc f1 * lc f2)) t * f2 =
-              - monomial (tc f1 / (lc f1 * lc f2)) t * monomial (lc f2) (lp f2)"
-        by (simp add: monomial_uminus)
-      also from \<open>lc f2 \<noteq> 0\<close> t have "\<dots> = - monomial (tc f1 / lc f1) (tp f1)"
-        by (simp add: times_monomial_monomial add.commute)
-      finally have eq: "- monomial (tc f1 / lc f1) (tp f1) = monomial (- tc f1 / (lc f1 * lc f2)) t * f2"
-        by (rule sym)
-      show ?thesis
-      proof (intro exI conjI)
-        show "g = monomial (1 / lc f1) 0 * f1 + monomial (- tc f1 / (lc f1 * lc f2)) t * f2"
-          by (simp add: g3 map_scale_eq_times eq)
-      next
-        have "poly_deg (monomial (1 / lc f1) 0 * f1) \<le> poly_deg f1"
-          by (simp add: poly_deg_map_scale flip: map_scale_eq_times)
-        also from assms have "\<dots> \<le> d" by (rule thm_4_3_2_aux_1)
-        finally show "poly_deg (monomial (1 / lc f1) 0 * f1) \<le> d" .
-      next
-        have "poly_deg (monomial (- tc f1 / (lc f1 * lc f2)) t * f2) =
-                poly_deg (- monomial (tc f1 / lc f1) (tp f1))" by (simp only: eq)
-        also have "\<dots> \<le> deg_pm (tp f1)" by (simp add: poly_deg_monomial)
-        also from \<open>f1 \<noteq> 0\<close> have "\<dots> \<le> poly_deg f1" by (intro poly_deg_max_keys punit.tt_in_keys)
-        also from assms have "\<dots> \<le> d" by (rule thm_4_3_2_aux_1)
-        finally show "poly_deg (monomial (- tc f1 / (lc f1 * lc f2)) t * f2) \<le> d" .
-      qed
-    next
-      assume "lp g' = lp f1"
-      with neq show ?thesis ..
-    next
-      assume "tp f1 adds lp g'"
-      with \<open>lp g' adds tp f1\<close> have "lp g' = tp f1" by (rule adds_antisym)
-      assume "is_monomial g'"
-      hence "monomial (lc g') (lp g') = g'" by (rule punit.monomial_eq_itself)
-      moreover from \<open>g' \<in> ?G\<close> have "lc g' = 1" by (rule lc)
-      ultimately have g': "g' = monomial 1 (tp f1)" by (simp only: \<open>lp g' = tp f1\<close>)
-      have g4: "g = (1 / lc f1) \<cdot> f1 + (- tc f1 / lc f1) \<cdot> g'" by (simp add: g3 g' monomial_uminus)
-      from neq have "\<not> is_monomial g' \<or> lp g' \<noteq> lp f1 \<or> lp g' = lp f2" by simp
-      with \<open>g' \<in> ?G\<close> obtain q1 q2 where g': "g' = q1 * f1 + q2 * f2" and "poly_deg (q1 * f1) \<le> d"
-        and "poly_deg (q2 * f2) \<le> d" using assms by (rule thm_4_3_2_aux_2)
-      show ?thesis
-      proof (intro exI conjI)
-        show "g = (monomial (1 / lc f1) 0 - (tc f1 / lc f1) \<cdot> q1) * f1 + ((- tc f1 / lc f1) \<cdot> q2) * f2"
-          by (simp add: g4 g' map_scale_eq_times algebra_simps flip: monomial_uminus)
-      next
-        have "poly_deg ((monomial (1 / lc f1) 0 - (tc f1 / lc f1) \<cdot> q1) * f1) =
-                poly_deg ((1 / lc f1) \<cdot> f1 - (tc f1 / lc f1) \<cdot> (q1 * f1))"
-          by (simp only: map_scale_eq_times algebra_simps)
-        also have "\<dots> \<le> max (poly_deg ((1 / lc f1) \<cdot> f1)) (poly_deg ((tc f1 / lc f1) \<cdot> (q1 * f1)))"
-          by (fact poly_deg_minus_le)
-        also have "\<dots> \<le> d"
-        proof (rule max.boundedI)
-          have "poly_deg ((1 / lc f1) \<cdot> f1) \<le> poly_deg f1" by (simp add: poly_deg_map_scale)
-          also from assms have "\<dots> \<le> d" by (rule thm_4_3_2_aux_1)
-          finally show "poly_deg ((1 / lc f1) \<cdot> f1) \<le> d" .
-        next
-          have "poly_deg ((tc f1 / lc f1) \<cdot> (q1 * f1)) \<le> poly_deg (q1 * f1)"
-            by (simp add: poly_deg_map_scale)
-          also have "\<dots> \<le> d" by fact
-          finally show "poly_deg ((tc f1 / lc f1) \<cdot> (q1 * f1)) \<le> d" .
-        qed
-        finally show "poly_deg ((monomial (1 / lc f1) 0 - (tc f1 / lc f1) \<cdot> q1) * f1) \<le> d" .
-      next
-        have "poly_deg ((- tc f1 / lc f1) \<cdot> q2 * f2) = poly_deg ((- tc f1 / lc f1) \<cdot> (q2 * f2))"
-          by (simp only: map_scale_eq_times mult.assoc)
-        also have "\<dots> \<le> poly_deg (q2 * f2)" by (simp add: poly_deg_map_scale)
-        also have "\<dots> \<le> d" by fact
-        finally show "poly_deg ((- tc f1 / lc f1) \<cdot> q2 * f2) \<le> d" .
-      qed
-    qed
-  next
-    fix c
-    assume "c \<noteq> 0" and "g = c \<cdot> f2"
-    hence "lp g = lp f2" by (simp add: punit.lt_map_scale)
-    hence "\<not> is_monomial g \<or> lp g \<noteq> lp f1 \<or> lp g = lp f2" by simp
-    with \<open>g \<in> ?G\<close> obtain q1 q2 where "g = q1 * f1 + q2 * f2" and "poly_deg (q1 * f1) \<le> d"
-      and "poly_deg (q2 * f2) \<le> d" using assms by (rule thm_4_3_2_aux_2)
-    thus ?thesis by (intro exI conjI)
-  next
-    assume "membership_problem_assms f1 f2 g"
-    hence "\<not> punit.is_red {f1, f2} g" by (rule membership_problem_assmsD)
-    have "lp g \<noteq> lp f1"
-    proof
-      assume "lp g = lp f1"
-      have "f1 \<in> {f1, f2}" by simp
-      moreover from f1_pbinomial have "f1 \<noteq> 0" by (rule proper_binomial_not_0)
-      moreover note \<open>lp g \<in> keys g\<close>
-      moreover have "lp f1 adds lp g" by (simp add: \<open>lp g = lp f1\<close>)
-      ultimately have "punit.is_red {f1, f2} g" by (rule punit.is_red_addsI[simplified])
-      with \<open>\<not> punit.is_red {f1, f2} g\<close> show False ..
-    qed
-    hence "\<not> is_monomial g \<or> lp g \<noteq> lp f1 \<or> lp g = lp f2" by simp
-    with \<open>g \<in> ?G\<close> obtain q1 q2 where "g = q1 * f1 + q2 * f2" and "poly_deg (q1 * f1) \<le> d"
-      and "poly_deg (q2 * f2) \<le> d" using assms by (rule thm_4_3_2_aux_2)
-    thus ?thesis by (intro exI conjI)
   qed
 qed
 
