@@ -1037,6 +1037,9 @@ lemma Polys_closed_prod: "(\<And>a. a \<in> A \<Longrightarrow> f a \<in> P[X]) 
 lemma Polys_closed_sum_list: "(\<And>x. x \<in> set xs \<Longrightarrow> x \<in> P[X]) \<Longrightarrow> sum_list xs \<in> P[X]"
   by (induct xs) (auto intro: zero_in_Polys Polys_closed_plus)
 
+lemma Polys_closed_except: "p \<in> P[X] \<Longrightarrow> except p T \<in> P[X]"
+  by (auto intro!: PolysI simp: keys_except dest!: PolysD(1))
+
 lemma times_in_PolysD:
   assumes "p * q \<in> P[X]" and "p \<in> P[X]" and "p \<noteq> (0::('x::linorder \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::semiring_no_zero_divisors)"
   shows "q \<in> P[X]"
@@ -3651,8 +3654,24 @@ next
   finally show ?thesis .
 qed
 
+lemma PPs_closed_tp:
+  assumes "p \<in> P[X]"
+  shows "tp p \<in> .[X]"
+proof (cases "p = 0")
+  case True
+  thus ?thesis by (simp add: zero_in_PPs)
+next
+  case False
+  hence "tp p \<in> keys p" by (rule punit.tt_in_keys)
+  also from assms have "\<dots> \<subseteq> .[X]" by (rule PolysD)
+  finally show ?thesis .
+qed
+
 corollary PPs_closed_image_lp: "F \<subseteq> P[X] \<Longrightarrow> lp ` F \<subseteq> .[X]"
   by (auto intro: PPs_closed_lp)
+
+corollary PPs_closed_image_tp: "F \<subseteq> P[X] \<Longrightarrow> tp ` F \<subseteq> .[X]"
+  by (auto intro: PPs_closed_tp)
 
 lemma hom_component_lp:
   assumes "p \<noteq> 0"
