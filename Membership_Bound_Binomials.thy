@@ -1072,46 +1072,18 @@ end
 subsubsection \<open>Two Parallel Proper Binomials\<close>
 
 context
-  fixes g
+  fixes g :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b"
   assumes parallel: "parallel_binomials f1 f2"
   assumes g_monomial: "is_monomial g"
-  assumes tp_adds_lp: "tp f1 adds lp g"
-  assumes mpa: "membership_problem_assms f1 f2 g"
 begin
 
-lemma thm_3_2_2_aux_2:
-  obtains k u where "associated f1 u (lp g) k" and "overlap \<unlhd> of_nat_pm u"
-proof (cases "tp f2 adds lp g")
-  case True
-  show ?thesis
-  proof
-    show "associated f1 (lp g) (lp g) 0" by (simp only: associated_0)
-  next
-    from gcs_adds_2 tp_adds_lp have "gcs (lp f1) (tp f1) adds lp g" by (rule adds_trans)
-    moreover from gcs_adds_2 True have "gcs (lp f2) (tp f2) adds lp g" by (rule adds_trans)
-    ultimately have "lcs (gcs (lp f1) (tp f1)) (gcs (lp f2) (tp f2)) adds lp g" by (rule lcs_adds)
-    thus "overlap \<unlhd> of_nat_pm (lp g)" by (simp add: overlap_alt' adds_pm le_of_nat_pm)
-  qed
-next
-  case False
-  have "is_binomial f1" and "is_binomial f2" and "g \<in> ideal {f1, f2}" and "\<not> punit.is_red {f1, f2} g"
-    using mpa by (rule membership_problem_assmsD)+
-  moreover from mpa have "lp g \<in> keys g"
-    by (intro punit.lt_in_keys binomial_not_0 membership_problem_assmsD(3))
-  ultimately obtain f k u where "f \<in> {f1, f2}" and "is_proper_binomial f" and "tp f adds lp g"
-    and "lp f adds u" and assoc: "associated f u (lp g) k" and o: "overlap \<unlhd> of_nat_pm u"
-    by (rule binomial_ideal_irredE_assoc)
-  from this(1, 3) False have "f = f1" by auto
-  from assoc o show ?thesis unfolding \<open>f = f1\<close> ..
-qed
-
-lemma thm_3_2_2_aux_3':
+lemma thm_3_2_2_aux_1:
+  assumes "g \<in> ideal {f1, f2}"
   obtains q1 q2 where "g = q1 * f1 + q2 * f2"
-    and "\<And>s t. (s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2) \<Longrightarrow>
-            \<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
+    and "\<And>f s t. f \<in> {f1, f2} \<Longrightarrow> (s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2) \<Longrightarrow>
+            \<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f"
 proof -
-  from mpa have "g \<in> ideal {f1, f2}" by (rule membership_problem_assmsD)
-  then obtain q1' q2' where g: "g = q1' * f1 + q2' * f2" by (rule idealE_2)
+  from assms obtain q1' q2' where g: "g = q1' * f1 + q2' * f2" by (rule idealE_2)
   define S1 where "S1 = {t. \<forall>s\<in>keys f1. \<forall>l. of_nat_pm (t + s) \<noteq> of_nat_pm (lp g) + l \<cdot> vect f1}"
   define S2 where "S2 = {t. \<forall>s\<in>keys f2. \<forall>l. of_nat_pm (t + s) \<noteq> of_nat_pm (lp g) + l \<cdot> vect f1}"
   define q1 where "q1 = except q1' S1"
@@ -1227,21 +1199,69 @@ proof -
       qed
     qed
   next
-    fix s t
+    fix f s t
+    assume "f \<in> {f1, f2}"
+    hence disj: "f = f1 \<or> f = f2" by simp
+    from parallel obtain m' where m': "vect f1 = m' \<cdot> vect f2" by (rule parallel_binomialsE_vect)
     assume "(s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2)"
-    thus "\<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
+    thus "\<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f"
     proof
       assume "s \<in> keys q1 \<and> t \<in> keys f1"
       hence "s \<in> keys q1" and "t \<in> keys f1" by simp_all
-      then obtain l where "of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1" by (rule 1)
-      thus ?thesis ..
+      then obtain l where eq: "of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1" by (rule 1)
+      from disj show ?thesis
+      proof
+        assume "f = f1"
+        from eq show ?thesis unfolding \<open>f = f1\<close> ..
+      next
+        assume "f = f2"
+        from eq show ?thesis unfolding \<open>f = f2\<close> m' map_scale_assoc ..
+      qed
     next
       assume "s \<in> keys q2 \<and> t \<in> keys f2"
       hence "s \<in> keys q2" and "t \<in> keys f2" by simp_all
-      then obtain l where "of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1" by (rule 2)
-      thus ?thesis ..
+      then obtain l where eq: "of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1" by (rule 2)
+      from disj show ?thesis
+      proof
+        assume "f = f1"
+        from eq show ?thesis unfolding \<open>f = f1\<close> ..
+      next
+        assume "f = f2"
+        from eq show ?thesis unfolding \<open>f = f2\<close> m' map_scale_assoc ..
+      qed
     qed
   qed
+qed
+
+context
+  assumes tp_adds_lp: "tp f1 adds lp g"
+  assumes mpa: "membership_problem_assms f1 f2 g"
+begin
+
+lemma thm_3_2_2_aux_2:
+  obtains k u where "associated f1 u (lp g) k" and "overlap \<unlhd> of_nat_pm u"
+proof (cases "tp f2 adds lp g")
+  case True
+  show ?thesis
+  proof
+    show "associated f1 (lp g) (lp g) 0" by (simp only: associated_0)
+  next
+    from gcs_adds_2 tp_adds_lp have "gcs (lp f1) (tp f1) adds lp g" by (rule adds_trans)
+    moreover from gcs_adds_2 True have "gcs (lp f2) (tp f2) adds lp g" by (rule adds_trans)
+    ultimately have "lcs (gcs (lp f1) (tp f1)) (gcs (lp f2) (tp f2)) adds lp g" by (rule lcs_adds)
+    thus "overlap \<unlhd> of_nat_pm (lp g)" by (simp add: overlap_alt' adds_pm le_of_nat_pm)
+  qed
+next
+  case False
+  have "is_binomial f1" and "is_binomial f2" and "g \<in> ideal {f1, f2}" and "\<not> punit.is_red {f1, f2} g"
+    using mpa by (rule membership_problem_assmsD)+
+  moreover from mpa have "lp g \<in> keys g"
+    by (intro punit.lt_in_keys binomial_not_0 membership_problem_assmsD(3))
+  ultimately obtain f k u where "f \<in> {f1, f2}" and "is_proper_binomial f" and "tp f adds lp g"
+    and "lp f adds u" and assoc: "associated f u (lp g) k" and o: "overlap \<unlhd> of_nat_pm u"
+    by (rule binomial_ideal_irredE_assoc)
+  from this(1, 3) False have "f = f1" by auto
+  from assoc o show ?thesis unfolding \<open>f = f1\<close> ..
 qed
 
 lemma thm_3_2_2_aux_3:
@@ -1249,6 +1269,7 @@ lemma thm_3_2_2_aux_3:
     and "\<And>f t. f \<in> {f1, f2} \<Longrightarrow> t \<in> keys (q1 * f1) \<union> keys (q2 * f2) \<Longrightarrow>
             \<exists>l>- 1. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f"
 proof -
+  have f1_in: "f1 \<in> {f1, f2}" and f2_in: "f2 \<in> {f1, f2}" by simp_all
   from parallel have f1_pbinomial: "is_proper_binomial f1" and f2_pbinomial: "is_proper_binomial f2"
     by (rule parallel_binomialsD)+
   from f1_pbinomial have "vect f1 \<noteq> 0" by (auto simp: vect_alt dest: punit.lt_gr_tt_binomial)
@@ -1258,37 +1279,30 @@ proof -
   with mpa have nadds1: "\<not> lp f1 adds lp g" and nadds2: "\<not> lp f2 adds lp g"
     by (rule membership_problem_assms_lp_f1_nadds, rule membership_problem_assms_lp_f2_nadds)
 
-  obtain q1 q2 where g: "g = q1 * f1 + q2 * f2"
-    and 1: "\<And>s t. (s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2) \<Longrightarrow>
-                    \<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
-    by (rule thm_3_2_2_aux_3') blast
+  from mpa have "g \<in> ideal {f1, f2}" by (rule membership_problem_assmsD)
+  then obtain q1 q2 where g: "g = q1 * f1 + q2 * f2"
+    and 1: "\<And>f s t. f \<in> {f1, f2} \<Longrightarrow> (s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2) \<Longrightarrow>
+                    \<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f"
+    by (rule thm_3_2_2_aux_1) blast
 
-  have 2: P if "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)"
-            and "\<And>l. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1 \<Longrightarrow> P" for t P
-    using that(1)
+  have 2: P if "f \<in> {f1, f2}" and "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)"
+            and "\<And>l. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f \<Longrightarrow> P" for f t P
+    using that(2)
   proof
     assume "t \<in> keys (q1 * f1)"
     then obtain t1 t2 where "t1 \<in> keys q1" and "t2 \<in> keys f1" and t: "t = t1 + t2"
       by (rule in_keys_timesE)
     from this(1, 2) have "(t1 \<in> keys q1 \<and> t2 \<in> keys f1) \<or> (t1 \<in> keys q2 \<and> t2 \<in> keys f2)" by simp
-    hence "\<exists>l. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1" unfolding t by (rule 1)
-    then obtain l where "of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1" ..
+    with that(1) have "\<exists>l. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f" unfolding t by (rule 1)
+    then obtain l where "of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f" ..
     thus ?thesis by (rule that)
   next
     assume "t \<in> keys (q2 * f2)"
     then obtain t1 t2 where "t1 \<in> keys q2" and "t2 \<in> keys f2" and t: "t = t1 + t2"
       by (rule in_keys_timesE)
     from this(1, 2) have "(t1 \<in> keys q1 \<and> t2 \<in> keys f1) \<or> (t1 \<in> keys q2 \<and> t2 \<in> keys f2)" by simp
-    hence "\<exists>l. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1" unfolding t by (rule 1)
-    then obtain l where "of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f1" ..
-    thus ?thesis by (rule that)
-  qed
-  have 3: P if "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)"
-            and "\<And>l. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f2 \<Longrightarrow> P" for t P
-  proof -
-    from that(1) obtain l' where "of_nat_pm t = of_nat_pm (lp g) + l' \<cdot> vect f1" by (rule 2)
-    also from parallel obtain m where "vect f1 = m \<cdot> vect f2" by (rule parallel_binomialsE_vect)
-    finally have "of_nat_pm t = of_nat_pm (lp g) + (l' * m) \<cdot> vect f2" by (simp only: map_scale_assoc)
+    with that(1) have "\<exists>l. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f" unfolding t by (rule 1)
+    then obtain l where "of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f" ..
     thus ?thesis by (rule that)
   qed
 
@@ -1308,7 +1322,9 @@ proof -
   finally have "lp g \<preceq> lp (q2 * f2)" by (auto dest: punit.lt_max_keys simp only: eq0)
   moreover have "of_nat_pm (lp g) = of_nat_pm (lp g) + 0 \<cdot> vect f2" by simp
   moreover obtain k2 where eq: "of_nat_pm (lp (q2 * f2)) = of_nat_pm (lp g) + k2 \<cdot> vect f2"
-  proof (rule 3)
+  proof (rule 2)
+    show "f2 \<in> {f1, f2}" by simp
+  next
     from \<open>q2 * f2 \<noteq> 0\<close> have "lp (q2 * f2) \<in> keys (q2 * f2)" by (rule punit.lt_in_keys)
     thus "lp (q2 * f2) \<in> keys (q1 * f1) \<union> keys (q2 * f2)" ..
   qed
@@ -1322,8 +1338,9 @@ proof -
     assume "f \<in> {f1, f2}"
     hence disj: "f = f1 \<or> f = f2" by simp
     assume "t \<in> ?A"
-    then obtain m1 where eq1: "of_nat_pm t = of_nat_pm (lp g) + m1 \<cdot> vect f1" by (rule 2)
-    from \<open>t \<in> ?A\<close> obtain m2 where eq2: "of_nat_pm t = of_nat_pm (lp g) + m2 \<cdot> vect f2" by (rule 3)
+    with f1_in obtain m1 where eq1: "of_nat_pm t = of_nat_pm (lp g) + m1 \<cdot> vect f1" by (rule 2)
+    from f2_in \<open>t \<in> ?A\<close> obtain m2 where eq2: "of_nat_pm t = of_nat_pm (lp g) + m2 \<cdot> vect f2"
+      by (rule 2)
     from mpa g show "\<exists>l>- 1. of_nat_pm t = of_nat_pm (lp g) + l \<cdot> vect f"
     proof (rule membership_problem_assms_rep)
       assume eq: "tp (q1 * f1) = tp (q2 * f2)"
@@ -1333,8 +1350,8 @@ proof -
         assume f: "f = f1"
         from \<open>q1 * f1 \<noteq> 0\<close> have "tp (q1 * f1) \<in> keys (q1 * f1)" by (rule punit.tt_in_keys)
         hence "tp (q1 * f1) \<in> keys (q1 * f1) \<union> keys (q2 * f2)" ..
-        then obtain m where eq3: "of_nat_pm (tp (q1 * f1)) = of_nat_pm (lp g) + m \<cdot> vect f1"
-          by (rule 2)
+        with _ obtain m where eq3: "of_nat_pm (tp (q1 * f1)) = of_nat_pm (lp g) + m \<cdot> vect f1"
+          by (rule 2) blast
         have "- 1 < m"
         proof (rule ccontr)
           assume "\<not> - 1 < m"
@@ -1357,8 +1374,8 @@ proof -
         assume f: "f = f2"
         from \<open>q2 * f2 \<noteq> 0\<close> have "tp (q2 * f2) \<in> keys (q2 * f2)" by (rule punit.tt_in_keys)
         hence "tp (q2 * f2) \<in> keys (q1 * f1) \<union> keys (q2 * f2)" ..
-        then obtain m where eq3: "of_nat_pm (tp (q2 * f2)) = of_nat_pm (lp g) + m \<cdot> vect f2"
-          by (rule 3)
+        with f2_in obtain m where eq3: "of_nat_pm (tp (q2 * f2)) = of_nat_pm (lp g) + m \<cdot> vect f2"
+          by (rule 2)
         have "- 1 < m"
         proof (rule ccontr)
           assume "\<not> - 1 < m"
@@ -1506,10 +1523,11 @@ proof -
                           (\<exists>l::rat. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1))}"
   have "A \<noteq> {}"
   proof -
-    obtain q1 q2 where "g = q1 * f1 + q2 * f2"
+    from mpa have "g \<in> ideal {f1, f2}" by (rule membership_problem_assmsD)
+    then obtain q1 q2 where "g = q1 * f1 + q2 * f2"
       and "\<And>s t. (s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2) \<Longrightarrow>
                 \<exists>l::rat. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f1"
-      by (rule thm_3_2_2_aux_3') blast
+      by (rule thm_3_2_2_aux_1) blast
     hence "(q1, q2) \<in> A" by (simp add: A_def)
     thus ?thesis by blast
   qed
@@ -1904,6 +1922,8 @@ proof -
     thus "poly_deg (q2 * f2) \<le> deg_pm (lp g) + to_nat ?a" by (simp only: deg_q1_f1)
   qed fact
 qed
+
+end
 
 end
 
