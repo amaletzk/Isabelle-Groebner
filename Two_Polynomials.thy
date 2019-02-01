@@ -251,6 +251,12 @@ definition poly_point :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 
 definition vect :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> ('x point)"
   where "vect p = fst (poly_point p) - snd (poly_point p)"
 
+definition pos_comps :: "'x point \<Rightarrow> 'x point" ("(_\<^sub>+)" [1000] 999)
+  where "pos_comps p = lcs p 0"
+
+definition neg_comps :: "'x point \<Rightarrow> 'x point" ("(_\<^sub>-)" [1000] 999)
+  where "neg_comps p = lcs (- p) 0"
+
 lemma fst_poly_point: "fst (poly_point p) = of_nat_pm (lp p)"
   by (simp add: poly_point_def)
     
@@ -324,6 +330,78 @@ next
     thus "lookup t x + k * lookup (lp q) x = lookup s x + k * lookup (tp q) x" using of_nat_eq_iff by blast 
   qed
 qed
+
+lemma pos_minus_neg_comps [simp]: "p\<^sub>+ - p\<^sub>- = p"
+  by (rule poly_mapping_eqI) (simp add: pos_comps_def neg_comps_def lookup_minus lookup_lcs_fun lcs_fun_def)
+
+lemma pos_comps_is_int_pm: "is_int_pm p \<Longrightarrow> is_int_pm (p\<^sub>+)"
+  unfolding pos_comps_def by (intro lcs_is_int_pm zero_is_int_pm)
+
+lemma pos_comps_ge_zero: "0 \<unlhd> p\<^sub>+"
+  unfolding pos_comps_def by (rule lcs_ge_pm)
+
+lemma pos_comps_ge_self: "p \<unlhd> p\<^sub>+"
+  unfolding pos_comps_def by (rule lcs_ge_pm)
+
+lemma pos_comps_is_nat_pm: "is_int_pm p \<Longrightarrow> is_nat_pm (p\<^sub>+)"
+  by (auto intro: int_pm_is_nat_pmI pos_comps_is_int_pm pos_comps_ge_zero zero_is_nat_pm)
+
+lemma pos_comps_zero [simp]: "0\<^sub>+ = 0"
+  by (simp add: pos_comps_def lcs_ge_pm(1) lcs_le_pm le_pm_antisym)
+
+lemma pos_comps_zero_iff [iff]: "p\<^sub>+ = 0 \<longleftrightarrow> p \<unlhd> 0"
+  by (metis lcs_comm lcs_ge_pm(1) lcs_le_pm le_pm_antisym le_pm_refl pos_comps_def)
+
+lemma pos_comps_uminus [simp]: "(- p)\<^sub>+ = p\<^sub>-"
+  by (simp only: pos_comps_def neg_comps_def)
+
+lemma pos_comps_plus_le: "(p + q)\<^sub>+ \<unlhd> p\<^sub>+ + q\<^sub>+"
+  by (rule le_pmI) (simp add: pos_comps_def lookup_add lookup_lcs_fun lcs_fun_def)
+
+lemma pos_comps_minus_le: "(p - q)\<^sub>+ \<unlhd> p\<^sub>+ + q\<^sub>-"
+proof -
+  have "(p + (- q))\<^sub>+ \<unlhd> p\<^sub>+ + (- q)\<^sub>+" by (rule pos_comps_plus_le)
+  thus ?thesis by simp
+qed
+
+lemma pos_comps_map_scale: "(c \<cdot> p)\<^sub>+ = (if 0 \<le> c then c \<cdot> p\<^sub>+ else - c \<cdot> p\<^sub>-)"
+  by (rule poly_mapping_eqI)
+    (simp add: pos_comps_def neg_comps_def lookup_lcs_fun lcs_fun_def max_mult_distrib_left)
+
+lemma neg_comps_is_int_pm: "is_int_pm p \<Longrightarrow> is_int_pm (p\<^sub>-)"
+  unfolding neg_comps_def by (intro lcs_is_int_pm uminus_is_int_pm zero_is_int_pm)
+
+lemma neg_comps_ge_zero: "0 \<unlhd> p\<^sub>-"
+  unfolding neg_comps_def by (rule lcs_ge_pm)
+
+lemma neg_comps_ge_self: "- p \<unlhd> p\<^sub>-"
+  unfolding neg_comps_def by (rule lcs_ge_pm)
+
+lemma neg_comps_is_nat_pm: "is_int_pm p \<Longrightarrow> is_nat_pm (p\<^sub>-)"
+  by (auto intro: int_pm_is_nat_pmI neg_comps_is_int_pm neg_comps_ge_zero zero_is_nat_pm)
+
+lemma neg_comps_zero [simp]: "0\<^sub>- = 0"
+  by (simp add: neg_comps_def lcs_ge_pm(1) lcs_le_pm le_pm_antisym)
+
+lemma neg_comps_zero_iff [iff]: "p\<^sub>- = 0 \<longleftrightarrow> 0 \<unlhd> p"
+  by (metis add.right_inverse diff_zero le_pm_increasing le_pm_refl pos_comps_ge_zero
+      pos_comps_uminus pos_comps_zero_iff pos_minus_neg_comps)
+
+lemma neg_comps_uminus [simp]: "(- p)\<^sub>- = p\<^sub>+"
+  by (simp add: pos_comps_def neg_comps_def)
+
+lemma neg_comps_plus_le: "(p + q)\<^sub>- \<unlhd> p\<^sub>- + q\<^sub>-"
+  by (rule le_pmI) (simp add: neg_comps_def lookup_add lookup_minus lookup_lcs_fun lcs_fun_def)
+
+lemma neg_comps_minus_le: "(p - q)\<^sub>- \<unlhd> p\<^sub>- + q\<^sub>+"
+proof -
+  have "(p + (- q))\<^sub>- \<unlhd> p\<^sub>- + (- q)\<^sub>-" by (rule neg_comps_plus_le)
+  thus ?thesis by simp
+qed
+
+lemma neg_comps_map_scale: "(c \<cdot> p)\<^sub>- = (if 0 \<le> c then c \<cdot> p\<^sub>- else - c \<cdot> p\<^sub>+)"
+  by (rule poly_mapping_eqI)
+    (simp add: pos_comps_def neg_comps_def lookup_lcs_fun lcs_fun_def max_mult_distrib_left)
 
 end (* pm_powerprod *)
 
