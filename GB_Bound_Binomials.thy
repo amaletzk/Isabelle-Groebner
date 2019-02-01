@@ -576,16 +576,11 @@ next
       qed
     qed
 
-    have "punit.is_Groebner_basis ?G" by (rule punit.reduced_GB_is_GB_finite) simp
-    moreover from \<open>a \<in> ideal {f1, f2}\<close> have "a \<in> ideal ?G"
-      by (simp add: punit.reduced_GB_pmdl_finite[simplified])
-    ultimately obtain g' where "g' \<in> ?G" and "g' \<noteq> 0" and *: "lp g' adds lp a" using \<open>a \<noteq> 0\<close>
-      by (rule punit.GB_adds_lt[simplified])
-    from this(3) \<open>to_nat_pm Q' adds lp g\<close> have "lp g' adds lp g" unfolding lp_a by (rule adds_trans)
-    with _ \<open>g \<in> ?G\<close> \<open>g' \<in> ?G\<close> \<open>lp g \<in> keys g\<close> have "g' = g" by (rule rem_3_1_4_aux_1) simp
-    with * have "lp g adds to_nat_pm Q'" by (simp only: lp_a)
-    from this \<open>to_nat_pm Q' adds lp g\<close> have "lp g = to_nat_pm Q'" by (rule adds_antisym)
-    with \<open>is_nat_pm Q'\<close> have eq4: "of_nat_pm (lp g) = Q'" by (simp only: of_nat_pm_comp_to_nat_pm)
+    have "to_nat_pm Q' = lp g"
+      using _ \<open>a \<in> ideal {f1, f2}\<close> \<open>a \<noteq> 0\<close> \<open>g \<in> ?G\<close> \<open>lp g \<in> keys g\<close> \<open>to_nat_pm Q' adds lp g\<close>
+      unfolding lp_a[symmetric] by (rule punit.reduced_GB_lt_addsD_finite(2)[simplified]) simp
+    from this[symmetric] \<open>is_nat_pm Q'\<close> have eq4: "of_nat_pm (lp g) = Q'"
+      by (simp only: of_nat_pm_comp_to_nat_pm)
     hence eq3: "of_nat_pm (overlapshift (lp g)) = Q" by (simp add: eq1 Q'_def)
 
     have "membership_problem_concl f1 f2 g (max (deg_pm (lp g)) (deg_pm (overlapshift (lp g))))"
