@@ -634,6 +634,423 @@ qed
 
 end
 
+subsection \<open>Two Parallel Binomials\<close>
+
+context
+  assumes parallel: "parallel_binomials f1 f2"
+begin
+
+text \<open>The following theorem is the analogue of lemma \<open>thm_3_2_2_aux_1\<close> for proper binomials:\<close>
+
+lemma thm_4_4_1_aux_1:
+  assumes "g \<in> ideal {f1, f2}" and "is_proper_binomial g" and "monomial 1 ` keys g \<inter> ideal {f1, f2} = {}"
+  obtains q1 q2 where "g = q1 * f1 + q2 * f2"
+    and "\<And>f s t. f \<in> {f1, f2} \<Longrightarrow> (s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2) \<Longrightarrow>
+            \<exists>l. of_nat_pm (s + t) = of_nat_pm (tp g) + l \<cdot> vect f"
+proof -
+  from assms(1) obtain q1' q2' where g: "g = q1' * f1 + q2' * f2" by (rule idealE_2)
+  define S1 where "S1 = {t. \<forall>s\<in>keys f1. \<forall>l. of_nat_pm (t + s) \<noteq> of_nat_pm (tp g) + l \<cdot> vect f1}"
+  define S2 where "S2 = {t. \<forall>s\<in>keys f2. \<forall>l. of_nat_pm (t + s) \<noteq> of_nat_pm (tp g) + l \<cdot> vect f1}"
+  define q1 where "q1 = except q1' S1"
+  define q2 where "q2 = except q2' S2"
+  from parallel have "parallel_binomials f2 f1" by (rule parallel_binomials_sym)
+  then obtain m where "0 < m" and m: "vect f2 = m \<cdot> vect f1" by (rule parallel_binomialsE_vect)
+  have 1: "P" if "s \<in> keys q1" and "t \<in> keys f1"
+    and "\<And>l. of_nat_pm (s + t) = of_nat_pm (tp g) + l \<cdot> vect f1 \<Longrightarrow> P" for s t P
+  proof -
+    from that(1) have "s \<in> keys q1'" and "s \<notin> S1" by (simp_all add: q1_def keys_except)
+    from this(2) obtain t0 l where "t0 \<in> keys f1"
+      and eq1: "of_nat_pm (s + t0) = of_nat_pm (tp g) + l \<cdot> vect f1" by (auto simp: S1_def)
+    from parallel have "is_proper_binomial f1" by (rule parallel_binomialsD)
+    moreover note \<open>t0 \<in> keys f1\<close> that(2)
+    ultimately obtain l' where eq2: "of_nat_pm t = of_nat_pm t0 + l' \<cdot> vect f1"
+      by (rule proper_binomial_cases)
+    show ?thesis
+    proof (rule that(3))
+      have "of_nat_pm (s + t) = of_nat_pm (s + t0) + l' \<cdot> vect f1" by (simp add: of_nat_pm_plus eq2)
+      also have "\<dots> = of_nat_pm (tp g) + (l + l') \<cdot> vect f1" by (simp add: eq1 map_scale_distrib_right)
+      finally show "of_nat_pm (s + t) = of_nat_pm (tp g) + (l + l') \<cdot> vect f1" .
+    qed
+  qed
+  have 2: "P" if "s \<in> keys q2" and "t \<in> keys f2"
+    and "\<And>l. of_nat_pm (s + t) = of_nat_pm (tp g) + l \<cdot> vect f1 \<Longrightarrow> P" for s t P
+  proof -
+    from that(1) have "s \<in> keys q2'" and "s \<notin> S2" by (simp_all add: q2_def keys_except)
+    from this(2) obtain t0 l where "t0 \<in> keys f2"
+      and eq1: "of_nat_pm (s + t0) = of_nat_pm (tp g) + l \<cdot> vect f1" by (auto simp: S2_def)
+    from parallel have "is_proper_binomial f2" by (rule parallel_binomialsD)
+    moreover note \<open>t0 \<in> keys f2\<close> that(2)
+    ultimately obtain l' where eq2: "of_nat_pm t = of_nat_pm t0 + l' \<cdot> vect f2"
+      by (rule proper_binomial_cases)
+    show ?thesis
+    proof (rule that(3))
+      have "of_nat_pm (s + t) = of_nat_pm (s + t0) + l' \<cdot> vect f2" by (simp add: of_nat_pm_plus eq2)
+      also have "\<dots> = of_nat_pm (tp g) + (l + l' * m) \<cdot> vect f1"
+        by (simp add: m eq1 map_scale_distrib_right map_scale_assoc)
+      finally show "of_nat_pm (s + t) = of_nat_pm (tp g) + (l + l' * m) \<cdot> vect f1" .
+    qed
+  qed
+  show ?thesis
+  proof
+    from assms(2) have "g \<noteq> 0" and keys_g: "keys g = {lp g, tp g}"
+      by (rule proper_binomial_not_0, rule punit.keys_proper_binomial)
+    let ?P = "\<lambda>t l. of_nat_pm t = of_nat_pm (tp g) + l \<cdot> vect f1"
+    have 3: "lookup (q1 * f1 + q2 * f2) t = lookup g t" if "?P t l" for t l
+    proof -
+      have "lookup (q1 * f1) t = lookup (q1' * f1) t" unfolding lookup_times
+      proof (intro sum.mono_neutral_cong_left ballI)
+        fix s
+        assume "s \<in> keys q1' - keys q1"
+        hence "s \<in> S1" by (auto simp: q1_def keys_except)
+        hence "s0 \<in> keys f1 \<Longrightarrow> of_nat_pm (s + s0) \<noteq> (of_nat_pm t :: _ \<Rightarrow>\<^sub>0 rat)" for s0
+          by (simp add: that S1_def)
+        hence "\<And>s0. s0 \<in> keys f1 \<Longrightarrow> t \<noteq> s + s0" by auto
+        hence "(\<Sum>v\<in>keys f1. lookup f1 v when t = s + v) = 0" by (auto intro!: sum.neutral)
+        thus "lookup q1' s * (\<Sum>v\<in>keys f1. lookup f1 v when t = s + v) = 0" by simp
+      next
+        fix s
+        assume "s \<in> keys q1"
+        hence "s \<notin> S1" by (simp add: q1_def keys_except)
+        hence "lookup q1 s = lookup q1' s" by (simp add: q1_def lookup_except)
+        thus "lookup q1 s * (\<Sum>v\<in>keys f1. lookup f1 v when t = s + v) =
+              lookup q1' s * (\<Sum>v\<in>keys f1. lookup f1 v when t = s + v)"
+          by (simp only:)
+      qed (auto simp: q1_def keys_except)
+      moreover have "lookup (q2 * f2) t = lookup (q2' * f2) t" unfolding lookup_times
+      proof (intro sum.mono_neutral_cong_left ballI)
+        fix s
+        assume "s \<in> keys q2' - keys q2"
+        hence "s \<in> S2" by (auto simp: q2_def keys_except)
+        hence "s0 \<in> keys f2 \<Longrightarrow> of_nat_pm (s + s0) \<noteq> (of_nat_pm t :: _ \<Rightarrow>\<^sub>0 rat)" for s0
+          by (simp add: that S2_def)
+        hence "\<And>s0. s0 \<in> keys f2 \<Longrightarrow> t \<noteq> s + s0" by auto
+        hence "(\<Sum>v\<in>keys f2. lookup f2 v when t = s + v) = 0" by (auto intro!: sum.neutral)
+        thus "lookup q2' s * (\<Sum>v\<in>keys f2. lookup f2 v when t = s + v) = 0" by simp
+      next
+        fix s
+        assume "s \<in> keys q2"
+        hence "s \<notin> S2" by (simp add: q2_def keys_except)
+        hence "lookup q2 s = lookup q2' s" by (simp add: q2_def lookup_except)
+        thus "lookup q2 s * (\<Sum>v\<in>keys f2. lookup f2 v when t = s + v) =
+              lookup q2' s * (\<Sum>v\<in>keys f2. lookup f2 v when t = s + v)"
+          by (simp only:)
+      qed (auto simp: q2_def keys_except)
+      ultimately show ?thesis by (simp only: g lookup_add)
+    qed
+    have 4: "\<exists>l. ?P t l" if "t \<in> keys (q1 * f1 + q2 * f2)" for t
+    proof (rule ccontr)
+      assume *: "\<nexists>l. ?P t l"
+      hence "t \<noteq> tp g" by (metis add.right_neutral map_scale_zero_left)
+      have "t \<notin> keys (q1 * f1)"
+      proof
+        assume "t \<in> keys (q1 * f1)"
+        then obtain t1 t2 where "t1 \<in> keys q1" and "t2 \<in> keys f1" and t: "t = t1 + t2"
+          by (rule in_keys_timesE)
+        from this(1, 2) obtain l where "of_nat_pm t = of_nat_pm (tp g) + l \<cdot> vect f1"
+          unfolding t by (rule 1)
+        with * show False by blast
+      qed
+      moreover have "t \<notin> keys (q2 * f2)"
+      proof
+        assume "t \<in> keys (q2 * f2)"
+        then obtain t1 t2 where "t1 \<in> keys q2" and "t2 \<in> keys f2" and t: "t = t1 + t2"
+          by (rule in_keys_timesE)
+        from this(1, 2) obtain l where "of_nat_pm t = of_nat_pm (tp g) + l \<cdot> vect f1"
+          unfolding t by (rule 2)
+        with * show False by blast
+      qed
+      ultimately have "t \<notin> keys (q1 * f1 + q2 * f2)" by (simp add: lookup_add)
+      thus False using that ..
+    qed
+    have eq1: "lookup (q1 * f1 + q2 * f2) (tp g) = lookup g (tp g)" by (rule 3[of _ 0]) simp
+    also have "\<dots> \<noteq> 0" unfolding punit.tc_def[symmetric] using \<open>g \<noteq> 0\<close> by (rule punit.tc_not_0)
+    finally have "tp g \<in> keys (q1 * f1 + q2 * f2)" by simp
+    have "keys (q1 * f1 + q2 * f2) \<subseteq> keys g"
+    proof
+      fix t
+      assume t_in: "t \<in> keys (q1 * f1 + q2 * f2)"
+      hence "\<exists>l. ?P t l" by (rule 4)
+      then obtain l where "?P t l" ..
+      hence "lookup (q1 * f1 + q2 * f2) t = lookup g t" by (rule 3)
+      with t_in show "t \<in> keys g" by (simp only: in_keys_iff not_False_eq_True)
+    qed
+    have "\<exists>l. ?P (lp g) l"
+    proof (rule ccontr)
+      assume "\<nexists>l. ?P (lp g) l"
+      with 4 have lp_not_in: "lp g \<notin> keys (q1 * f1 + q2 * f2)" by blast
+      have eq0: "keys (q1 * f1 + q2 * f2) = {tp g}"
+      proof (intro subset_antisym subsetI)
+        fix t
+        assume t_in: "t \<in> keys (q1 * f1 + q2 * f2)"
+        also have "\<dots> \<subseteq> keys g" by fact
+        finally have "t \<in> keys g" .
+        moreover from lp_not_in t_in have "t \<noteq> lp g" by blast
+        ultimately show "t \<in> {tp g}" by (simp add: keys_g)
+      next
+        fix t
+        assume "t \<in> {tp g}"
+        with \<open>tp g \<in> keys (q1 * f1 + q2 * f2)\<close> show "t \<in> keys (q1 * f1 + q2 * f2)" by simp
+      qed
+      moreover define c where "c = lookup (q1 * f1 + q2 * f2) (tp g)"
+      moreover have "c \<noteq> 0" by (simp add: c_def eq0)
+      ultimately have "q1 * f1 + q2 * f2 = monomial c (tp g)"
+        by (metis (mono_tags, lifting) keys_single lookup_not_eq_zero_eq_in_keys lookup_single_eq
+            lookup_single_not_eq poly_mapping_keys_eqI)
+      with \<open>c \<noteq> 0\<close> have "monomial 1 (tp g) = punit.monom_mult (1 / c) 0 (q1 * f1 + q2 * f2)"
+        by (simp add: punit.monom_mult_monomial)
+      also from idealI_2 have "\<dots> \<in> ideal {f1, f2}" by (rule punit.pmdl_closed_monom_mult[simplified])
+      finally have "monomial 1 (tp g) \<in> ideal {f1, f2}" .
+      moreover from punit.tt_in_keys have "monomial 1 (tp g) \<in> monomial 1 ` keys g"
+        by (rule imageI) fact
+      ultimately have "monomial 1 (tp g) \<in> monomial 1 ` keys g \<inter> ideal {f1, f2}" by simp
+      thus False by (simp add: assms(3))
+    qed
+    then obtain l where "?P (lp g) l" ..
+    hence eq2: "lookup (q1 * f1 + q2 * f2) (lp g) = lookup g (lp g)" by (rule 3)
+    also have "\<dots> \<noteq> 0" unfolding punit.lc_def[symmetric] using \<open>g \<noteq> 0\<close> by (rule punit.lc_not_0)
+    finally have "keys g = keys (q1 * f1 + q2 * f2)"
+      using \<open>tp g \<in> keys (q1 * f1 + q2 * f2)\<close> \<open>keys (q1 * f1 + q2 * f2) \<subseteq> keys g\<close>
+      by (auto simp: keys_g)
+    thus "g = q1 * f1 + q2 * f2"
+    proof (rule poly_mapping_keys_eqI)
+      fix t
+      assume "t \<in> keys g"
+      thus "lookup g t = lookup (q1 * f1 + q2 * f2) t" by (auto simp: keys_g eq1 eq2)
+    qed
+  next
+    fix f s t
+    assume "f \<in> {f1, f2}"
+    hence disj: "f = f1 \<or> f = f2" by simp
+    from parallel obtain m' where m': "vect f1 = m' \<cdot> vect f2" by (rule parallel_binomialsE_vect)
+    assume "(s \<in> keys q1 \<and> t \<in> keys f1) \<or> (s \<in> keys q2 \<and> t \<in> keys f2)"
+    thus "\<exists>l. of_nat_pm (s + t) = of_nat_pm (tp g) + l \<cdot> vect f"
+    proof
+      assume "s \<in> keys q1 \<and> t \<in> keys f1"
+      hence "s \<in> keys q1" and "t \<in> keys f1" by simp_all
+      then obtain l where eq: "of_nat_pm (s + t) = of_nat_pm (tp g) + l \<cdot> vect f1" by (rule 1)
+      from disj show ?thesis
+      proof
+        assume "f = f1"
+        from eq show ?thesis unfolding \<open>f = f1\<close> ..
+      next
+        assume "f = f2"
+        from eq show ?thesis unfolding \<open>f = f2\<close> m' map_scale_assoc ..
+      qed
+    next
+      assume "s \<in> keys q2 \<and> t \<in> keys f2"
+      hence "s \<in> keys q2" and "t \<in> keys f2" by simp_all
+      then obtain l where eq: "of_nat_pm (s + t) = of_nat_pm (tp g) + l \<cdot> vect f1" by (rule 2)
+      from disj show ?thesis
+      proof
+        assume "f = f1"
+        from eq show ?thesis unfolding \<open>f = f1\<close> ..
+      next
+        assume "f = f2"
+        from eq show ?thesis unfolding \<open>f = f2\<close> m' map_scale_assoc ..
+      qed
+    qed
+  qed
+qed
+
+lemma thm_4_4_1_1:
+  assumes "deg_pm (tp f1) < deg_pm (lp f1)"
+    and "V = vect f1 + vect f2" and "P1 = lcs (of_nat_pm (overlapshift (tp f1)) + V) overlap"
+    and "P2 = lcs (of_nat_pm (overlapshift (tp f2)) + V) overlap"
+    and "d = max (deg_pm P1) (deg_pm P2)"
+  shows "gb_problem (to_nat d)"
+proof (rule gb_problemI_reduced_GB_binomials)
+  from parallel have f1_pbinomial: "is_proper_binomial f1" by (rule parallel_binomialsD)
+  thus "is_binomial f1" by (rule proper_binomial_imp_binomial)
+  hence keys_f1: "keys f1 = {lp f1, tp f1}" by (rule punit.keys_binomial)
+
+  from parallel have f2_pbinomial: "is_proper_binomial f2" by (rule parallel_binomialsD)
+  thus "is_binomial f2" by (rule proper_binomial_imp_binomial)
+  hence keys_f2: "keys f2 = {lp f2, tp f2}" by (rule punit.keys_binomial)
+
+  from assms(1) have "0 < deg_pm (vect f1)" by (simp add: vect_alt deg_pm_minus deg_of_nat_pm)
+  have "0 < deg_pm (vect f2)"
+  proof -
+    from parallel obtain r where "0 < r" and "vect f1 = r \<cdot> vect f2" by (rule parallel_binomialsE_vect)
+    with \<open>0 < deg_pm (vect f1)\<close> show ?thesis by (simp add: deg_pm_map_scale zero_less_mult_iff)
+  qed
+  hence "deg_pm (tp f2) < deg_pm (lp f2)" by (simp add: vect_alt deg_pm_minus deg_of_nat_pm)
+
+  show "poly_deg f1 \<le> to_nat d"
+  proof (rule poly_deg_leI)
+    fix t
+    assume "t \<in> keys f1"
+    hence "t = lp f1 \<or> t = tp f1" by (simp add: keys_f1)
+    moreover have "deg_pm (lp f1) \<le> to_nat d"
+    proof -
+      have *: "deg_pm (of_nat_pm (tp f1) + rat (step (tp f1)) \<cdot> vect f1) \<le>
+                  deg_pm (of_nat_pm (overlapshift (tp f1)))"
+        using overlapshift_tp_ge_pm by (rule deg_pm_mono_le) (simp_all add: f1_pbinomial)
+      have V: "V = vect f2 + of_nat_pm (lp f1) - of_nat_pm (tp f1)" by (simp add: assms(2) vect_alt)
+      have "deg_pm (of_nat_pm (lp f1)) \<le> deg_pm (of_nat_pm (tp f1) + rat (step (tp f1)) \<cdot> vect f1) + deg_pm V"
+        using \<open>0 < deg_pm (vect f1)\<close> \<open>0 < deg_pm (vect f2)\<close>
+        by (simp add: deg_pm_plus deg_pm_minus deg_pm_map_scale V)
+      also from * have "\<dots> \<le> deg_pm (of_nat_pm (overlapshift (tp f1))) + deg_pm V"
+        by (rule add_right_mono)
+      also have "\<dots> = deg_pm (of_nat_pm (overlapshift (tp f1)) + V)" by (simp only: deg_pm_plus)
+      also have "\<dots> \<le> deg_pm P1" unfolding assms(3) by (intro deg_pm_mono_le lcs_ge_pm)
+      also have "\<dots> \<le> d" unfolding assms(5) by (rule max.cobounded1)
+      finally have "to_nat (deg_pm (of_nat_pm (lp f1) :: _ \<Rightarrow>\<^sub>0 rat)) \<le> to_nat d" by (rule to_nat_mono)
+      thus ?thesis by (simp only: deg_of_nat_pm to_nat_of_nat)
+    qed
+    moreover from assms(1) this have "deg_pm (tp f1) \<le> to_nat d" by simp
+    ultimately show "deg_pm t \<le> to_nat d" by blast
+  qed
+
+  show "poly_deg f2 \<le> to_nat d"
+  proof (rule poly_deg_leI)
+    fix t
+    assume "t \<in> keys f2"
+    hence "t = lp f2 \<or> t = tp f2" by (simp add: keys_f2)
+    moreover have "deg_pm (lp f2) \<le> to_nat d"
+    proof -
+      have *: "deg_pm (of_nat_pm (tp f2) + rat (step (tp f2)) \<cdot> vect f2) \<le>
+                  deg_pm (of_nat_pm (overlapshift (tp f2)))"
+        using overlapshift_tp_ge_pm by (rule deg_pm_mono_le) (simp_all add: f2_pbinomial)
+      have V: "V = vect f1 + of_nat_pm (lp f2) - of_nat_pm (tp f2)" by (simp add: assms(2) vect_alt)
+      have "deg_pm (of_nat_pm (lp f2)) \<le> deg_pm (of_nat_pm (tp f2) + rat (step (tp f2)) \<cdot> vect f2) + deg_pm V"
+        using \<open>0 < deg_pm (vect f1)\<close> \<open>0 < deg_pm (vect f2)\<close>
+        by (simp add: deg_pm_plus deg_pm_minus deg_pm_map_scale V)
+      also from * have "\<dots> \<le> deg_pm (of_nat_pm (overlapshift (tp f2))) + deg_pm V"
+        by (rule add_right_mono)
+      also have "\<dots> = deg_pm (of_nat_pm (overlapshift (tp f2)) + V)" by (simp only: deg_pm_plus)
+      also have "\<dots> \<le> deg_pm P2" unfolding assms(4) by (intro deg_pm_mono_le lcs_ge_pm)
+      also have "\<dots> \<le> d" unfolding assms(5) by (rule max.cobounded2)
+      finally have "to_nat (deg_pm (of_nat_pm (lp f2) :: _ \<Rightarrow>\<^sub>0 rat)) \<le> to_nat d" by (rule to_nat_mono)
+      thus ?thesis by (simp only: deg_of_nat_pm to_nat_of_nat)
+    qed
+    moreover from \<open>deg_pm (tp f2) < deg_pm (lp f2)\<close> this have "deg_pm (tp f2) \<le> to_nat d" by simp
+    ultimately show "deg_pm t \<le> to_nat d" by blast
+  qed
+
+  fix g
+  assume "g \<in> punit.reduced_GB {f1, f2}" (is "g \<in> ?G") and mpa: "membership_problem_assms f1 f2 g"
+  from mpa have g_in: "g \<in> ideal {f1, f2}" and "is_binomial g" by (rule membership_problem_assmsD)+
+  note \<open>is_binomial f1\<close> \<open>is_binomial f2\<close> g_in
+  moreover from mpa have "\<not> punit.is_red {f1, f2} g" by (rule membership_problem_assmsD)
+  moreover from binomial_not_0 have "tp g \<in> keys g" by (rule punit.tt_in_keys) fact
+  ultimately obtain h1 k u where "h1 \<in> {f1, f2}" and "is_proper_binomial h1" and "tp h1 adds tp g"
+    and "associated h1 u (tp g) k" and "overlap \<unlhd> of_nat_pm u" and "lp h1 adds u"
+    by (rule binomial_ideal_irredE_assoc)
+  from this(1-5) have le1: "overlap \<unlhd> of_nat_pm (overlapshift (tp g))"
+    and eq1: "of_nat_pm (overlapshift (tp g)) = of_nat_pm (tp g) + rat (step (tp g)) \<cdot> vect h1"
+    by (rule overlapshift_is_above_overlap, rule of_nat_pm_overlapshift')
+  from \<open>tp h1 adds tp g\<close> have le2: "tp h1 \<unlhd> tp g" by (simp only: adds_pm)
+  from \<open>h1 \<in> {f1, f2}\<close> obtain h2 where f1_f2: "{f1, f2} = {h1, h2}" by blast
+  with parallel have "parallel_binomials h2 h1" by (auto simp: doubleton_eq_iff parallel_binomials_sym)
+  then obtain r where "0 < r" and "vect h2 = r \<cdot> vect h1" by (rule parallel_binomialsE_vect)
+  from f1_f2 have V: "V = vect h1 + vect h2" by (auto simp: doubleton_eq_iff assms(2))
+
+  obtain q1' q2' where "g = q1' * h1 + q2' * h2"
+    and "\<And>s t. s \<in> keys q1' \<and> t \<in> keys h1 \<or> s \<in> keys q2' \<and> t \<in> keys h2 \<Longrightarrow>
+              \<exists>l. of_nat_pm (s + t) = of_nat_pm (tp g) + l \<cdot> vect h1"
+  proof -
+    from \<open>is_binomial g\<close> have "is_monomial g \<or> is_proper_binomial g" by (simp only: is_binomial_alt)
+    then obtain q1 q2 where g: "g = q1 * f1 + q2 * f2"
+      and *: "\<And>f s t. f \<in> {f1, f2} \<Longrightarrow> s \<in> keys q1 \<and> t \<in> keys f1 \<or> s \<in> keys q2 \<and> t \<in> keys f2 \<Longrightarrow>
+                  \<exists>l. of_nat_pm (s + t) = of_nat_pm (tp g) + l \<cdot> vect f"
+    proof
+      assume "is_monomial g"
+      hence lp_g: "lp g = tp g" by (rule punit.lt_eq_tt_monomial)
+      from parallel \<open>is_monomial g\<close> g_in obtain q1 q2 where g: "g = q1 * f1 + q2 * f2"
+        and "\<And>f s t. f \<in> {f1, f2} \<Longrightarrow> s \<in> keys q1 \<and> t \<in> keys f1 \<or> s \<in> keys q2 \<and> t \<in> keys f2 \<Longrightarrow>
+                \<exists>l. of_nat_pm (s + t) = of_nat_pm (lp g) + l \<cdot> vect f" by (rule thm_3_2_2_aux_2) blast
+      thus ?thesis unfolding lp_g ..
+    next
+      assume "is_proper_binomial g"
+      with mpa have "monomial 1 ` keys g \<inter> ideal {f1, f2} = {}" by (rule membership_problem_assmsD)
+      with g_in \<open>is_proper_binomial g\<close> obtain q1 q2 where g: "g = q1 * f1 + q2 * f2"
+        and *: "\<And>f s t. f \<in> {f1, f2} \<Longrightarrow> s \<in> keys q1 \<and> t \<in> keys f1 \<or> s \<in> keys q2 \<and> t \<in> keys f2 \<Longrightarrow>
+                    \<exists>l. of_nat_pm (s + t) = of_nat_pm (tp g) + l \<cdot> vect f"
+        by (rule thm_4_4_1_aux_1) blast
+      thus ?thesis ..
+    qed
+    from f1_f2 show ?thesis unfolding doubleton_eq_iff
+    proof (elim disjE conjE)
+      assume "f1 = h1" and "f2 = h2"
+      hence "g = q1 * h1 + q2 * h2" by (simp only: g)
+      moreover from * have "\<And>s t. s \<in> keys q1 \<and> t \<in> keys h1 \<or> s \<in> keys q2 \<and> t \<in> keys h2 \<Longrightarrow>
+                                \<exists>l. of_nat_pm (s + t) = of_nat_pm (tp g) + l \<cdot> vect h1"
+        by (auto simp: \<open>f1 = h1\<close> \<open>f2 = h2\<close>)
+      ultimately show ?thesis ..
+    next
+      assume "f1 = h2" and "f2 = h1"
+      hence "g = q2 * h1 + q1 * h2" by (simp only: g add.commute)
+      moreover from * have "\<And>s t. s \<in> keys q2 \<and> t \<in> keys h1 \<or> s \<in> keys q1 \<and> t \<in> keys h2 \<Longrightarrow>
+                                \<exists>l. of_nat_pm (s + t) = of_nat_pm (tp g) + l \<cdot> vect h1"
+        by (auto simp: \<open>f1 = h2\<close> \<open>f2 = h1\<close>)
+      ultimately show ?thesis ..
+    qed
+  qed
+  with parallel mpa f1_f2 \<open>vect h2 = r \<cdot> vect h1\<close> \<open>0 < r\<close> \<open>tp h1 adds tp g\<close> obtain q1 q2 l'
+    where g: "g = q1 * h1 + q2 * h2" and "0 < l'" and "l' < rat (step (tp g)) + 1 + r"
+    and "of_nat_pm (lp (q1 * h1)) = of_nat_pm (tp g) + l' \<cdot> vect h1"
+    and "\<And>s t. s \<in> keys q1 \<and> t \<in> keys h1 \<or> s \<in> keys q2 \<and> t \<in> keys h2 \<Longrightarrow>
+            \<exists>l. of_nat_pm (s + t) = of_nat_pm (tp g) + l \<cdot> vect h1"
+    by (rule thm_3_2_2_aux_1) blast+
+  from mpa f1_f2 have "membership_problem_assms h1 h2 g" by (auto simp: membership_problem_assms_def)
+  hence "q1 * h1 \<noteq> 0" and "q2 * h2 \<noteq> 0" and lp_eq: "lp (q1 * h1) = lp (q2 * h2)"
+    using g by (rule membership_problem_assms_rep)+
+
+  define Q where "Q = lcs (of_nat_pm (tp h1) + rat (step (tp g)) \<cdot> vect h1 + V) overlap"
+
+  (* I don't know whether the following is needed. *)
+  define Q1 where "Q1 = Q - rat (step (tp g)) \<cdot> vect h1 - V\<^sub>-"
+  define Q2 where "Q2 = Q - rat (step (tp g)) \<cdot> vect h1 - V\<^sub>+"
+  from pos_comps_ge_zero le1 have "overlap \<unlhd> of_nat_pm (overlapshift (tp g)) + V\<^sub>+"
+    by (rule le_pm_increasing2)
+  hence "Q \<unlhd> of_nat_pm (tp g) + rat (step (tp g)) \<cdot> vect h1 + V\<^sub>+" unfolding Q_def
+    by (intro lcs_le_pm le_pm_mono_plus[where u=V] pos_comps_ge_self le_pm_mono_plus_right)
+        (simp add: le_of_nat_pm le2, simp flip: eq1)
+  hence "Q2 \<unlhd> of_nat_pm (tp g) + rat (step (tp g)) \<cdot> vect h1 + V\<^sub>+ - rat (step (tp g)) \<cdot> vect h1 - V\<^sub>+"
+    unfolding Q2_def by (intro le_pm_mono_minus)
+  hence "Q2 \<unlhd> of_nat_pm (tp g)" by simp
+  hence "to_nat_pm Q2 adds tp g" by (auto simp: adds_pm dest: to_nat_pm_mono)
+
+  have "of_nat_pm (tp h1) + rat (step (tp g)) \<cdot> vect h1 + V \<unlhd> Q" unfolding Q_def by (rule lcs_ge_pm)
+  hence "of_nat_pm (tp h1) + rat (step (tp g)) \<cdot> vect h1 + V - V \<unlhd> Q - V"
+    and "of_nat_pm (tp h1) + rat (step (tp g)) \<cdot> vect h1 + V - rat (step (tp g)) \<cdot> vect h1 - V\<^sub>+ \<unlhd> Q2"
+  unfolding Q2_def apply (rule le_pm_mono_minus) sorry  (* should be true *)
+  hence le3: "of_nat_pm (lp h1) \<unlhd> Q - (rat (step (tp g)) + 1 + r) \<cdot> vect h1" and "of_nat_pm (tp h1) \<unlhd> Q2 + V\<^sub>-"
+    by (simp_all add: vect_alt algebra_simps)   (* should be true *)
+
+  have "of_nat_pm (lp h1) \<unlhd> Q"
+  proof (rule le_pmI)
+    fix y
+    have "rat (lookup (lp h1) y) \<le> lookup Q y"
+    proof (rule ccontr)
+      assume "\<not> rat (lookup (lp h1) y) \<le> lookup Q y"
+      hence "lookup Q y < rat (lookup (lp h1) y)" by simp
+      also from le3 have "\<dots> \<le> lookup Q y - (rat (step (tp g)) + 1 + r) * lookup (vect h1) y"
+        by (auto dest!: le_pmD simp: lookup_of_nat_pm lookup_minus)
+      finally have "(rat (step (tp g)) + 1 + r) * lookup (vect h1) y < 0" by simp
+      with \<open>0 < r\<close> have "lookup (vect h1) y < 0" by (simp add: mult_less_0_iff)
+      hence "lookup (lp h1) y \<le> lookup (tp h1) y" by (simp add: vect_alt lookup_minus lookup_of_nat_pm)
+      hence "rat (lookup (lp h1) y) \<le> lookup Q y"
+        by (simp add: Q_def lookup_lcs_fun lcs_fun_def overlap_alt lookup_gcs_fun gcs_fun lookup_of_nat_pm)
+        (* should be true *)
+      also have "\<dots> < rat (lookup (lp h1) y)" by fact
+      finally show False ..
+    qed
+    thus "lookup (of_nat_pm (lp h1)) y \<le> lookup Q y" by (simp only: lookup_of_nat_pm)
+  qed
+
+  have "step (tp g) \<le> step (tp h1)" by (rule lem_4_2_1) fact+
+
+  have 1: "poly_deg (q1 * h1) \<le> to_nat d" sorry
+
+  have 2: "poly_deg (q2 * h2) \<le> to_nat d" sorry
+
+  show "\<exists>q1 q2. g = q1 * f1 + q2 * f2 \<and> poly_deg (q1 * f1) \<le> to_nat d \<and> poly_deg (q2 * f2) \<le> to_nat d"
+    using f1_f2 1 2 by (fastforce simp: doubleton_eq_iff g add.commute)
+qed
+
+end
+
 end (* two_polys *)
 
 end (* theory *)

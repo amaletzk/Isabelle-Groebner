@@ -196,6 +196,9 @@ lemma of_nat_pm_is_nat_pm: "is_nat_pm (of_nat_pm f)"
 lemma of_int_pm_is_int_pm: "is_int_pm (of_int_pm f)"
   unfolding is_int_pm_def by (rule is_int_funI) (simp add: lookup_of_int_pm)
 
+lemma of_nat_pm_is_int_pm: "is_int_pm (of_nat_pm f)"
+  using of_nat_pm_is_nat_pm by (rule nat_pm_is_int_pm)
+
 lemma lcs_of_nat_pm:
   assumes "\<And>m n::nat. of_nat m \<le> ((of_nat n)::'b::{semiring_1, add_linorder}) \<longleftrightarrow> m \<le> n"
   shows "lcs (of_nat_pm a) (of_nat_pm b) = ((of_nat_pm (lcs a b))::'a \<Rightarrow>\<^sub>0 'b)"
@@ -228,6 +231,9 @@ lemma gcs_is_int_pm: "is_int_pm f \<Longrightarrow> is_int_pm g \<Longrightarrow
   
 lemma zero_is_nat_pm [simp]: "is_nat_pm 0"
   unfolding is_nat_pm_def by (rule is_nat_funI) simp
+
+lemma zero_is_int_pm [simp]: "is_int_pm 0"
+  using zero_is_nat_pm by (rule nat_pm_is_int_pm)
 
 lemma of_nat_pm_zero [simp]: "of_nat_pm 0 = 0"
   by (rule poly_mapping_eqI, simp add: lookup_of_nat_pm)
