@@ -3,7 +3,7 @@
 section \<open>Dub\'{e}'s Degree-Bound for Homogeneous Gr\"obner Bases\<close>
 
 theory Dube_Bound
-  imports Poly_Fun Cone_Decomposition
+  imports Poly_Fun Cone_Decomposition Degree_Bound_Utils
 begin
 
 context fixes n d :: nat
@@ -1467,6 +1467,10 @@ next
   qed
 qed
 
+corollary Dube_is_hom_GB_bound:
+  "finite F \<Longrightarrow> F \<subseteq> P[X] \<Longrightarrow> is_hom_GB_bound F (Dube (card X) (maxdeg F))"
+  by (intro is_hom_GB_boundI Dube)
+
 end
 
 corollary Dube_indets:
@@ -1479,8 +1483,101 @@ next
   show "F \<subseteq> P[UNION F indets]" by (auto simp: Polys_alt)
 qed
 
+corollary Dube_is_hom_GB_bound_indets:
+  "finite F \<Longrightarrow> is_hom_GB_bound F (Dube (card (UNION F indets)) (maxdeg F))"
+  by (intro is_hom_GB_boundI Dube_indets)
+
 end (* pm_powerprod *)
 
 hide_const (open) pm_powerprod.\<a> pm_powerprod.\<b>
+
+context extended_ord_pm_powerprod
+begin
+
+lemma Dube_is_GB_cofactor_bound:
+  assumes "finite X" and "finite F" and "F \<subseteq> P[X]"
+  shows "is_GB_cofactor_bound F (Dube (Suc (card X)) (maxdeg F))"
+  using assms(1, 3)
+proof (rule hom_GB_bound_is_GB_cofactor_bound)
+  let ?F = "homogenize None ` extend_indets ` F"
+  let ?X = "insert None (Some ` X)"
+  from assms(1) have "finite ?X" by simp
+  moreover from assms(2) have "finite ?F" by (intro finite_imageI)
+  moreover have "?F \<subseteq> P[?X]"
+  proof
+    fix f'
+    assume "f' \<in> ?F"
+    then obtain f where "f \<in> F" and f': "f' = homogenize None (extend_indets f)" by blast
+    from this(1) assms(3) have "f \<in> P[X]" ..
+    hence "extend_indets f \<in> P[Some ` X]" by (auto simp: Polys_alt indets_extend_indets)
+    thus "f' \<in> P[?X]" unfolding f' by (rule homogenize_in_Polys)
+  qed
+  ultimately have "extended_ord.is_hom_GB_bound ?F (Dube (card ?X) (maxdeg ?F))"
+    by (rule extended_ord.Dube_is_hom_GB_bound)
+  moreover have "maxdeg ?F = maxdeg F"
+  proof -
+    have "maxdeg ?F = maxdeg (extend_indets ` F)"
+      by (auto simp: indets_extend_indets intro: maxdeg_homogenize)
+    also have "\<dots> = maxdeg F" by (simp add: maxdeg_def image_image)
+    finally show "maxdeg ?F = maxdeg F" .
+  qed
+  moreover from assms(1) have "card ?X = card X + 1" by (simp add: card_image)
+  ultimately show "extended_ord.is_hom_GB_bound ?F (Dube (Suc (card X)) (maxdeg F))" by simp
+qed
+
+lemma Dube_is_GB_cofactor_bound_explicit:
+  assumes "finite X" and "finite F" and "F \<subseteq> P[X]"
+  obtains G where "punit.is_Groebner_basis G" and "ideal G = ideal F" and "G \<subseteq> P[X]"
+    and "\<And>g. g \<in> G \<Longrightarrow> \<exists>q. g = (\<Sum>f\<in>F. q f * f) \<and>
+                            (\<forall>f. q f \<in> P[X] \<and> poly_deg (q f * f) \<le> Dube (Suc (card X)) (maxdeg F) \<and>
+                              (f \<notin> F \<longrightarrow> q f = 0))"
+proof -
+  from assms have "is_GB_cofactor_bound F (Dube (Suc (card X)) (maxdeg F))"
+    (is "is_GB_cofactor_bound _ ?b") by (rule Dube_is_GB_cofactor_bound)
+  moreover note assms(3)
+  ultimately obtain G where "punit.is_Groebner_basis G" and "ideal G = ideal F" and "G \<subseteq> P[X]"
+    and 1: "\<And>g. g \<in> G \<Longrightarrow> \<exists>F' q. finite F' \<and> F' \<subseteq> F \<and> g = (\<Sum>f\<in>F'. q f * f) \<and>
+                              (\<forall>f. q f \<in> P[X] \<and> poly_deg (q f * f) \<le> ?b \<and> (f \<notin> F' \<longrightarrow> q f = 0))"
+    by (rule is_GB_cofactor_boundE_Polys) blast
+  from this(1-3) show ?thesis
+  proof
+    fix g
+    assume "g \<in> G"
+    hence "\<exists>F' q. finite F' \<and> F' \<subseteq> F \<and> g = (\<Sum>f\<in>F'. q f * f) \<and>
+                              (\<forall>f. q f \<in> P[X] \<and> poly_deg (q f * f) \<le> ?b \<and> (f \<notin> F' \<longrightarrow> q f = 0))"
+      by (rule 1)
+    then obtain F' q where "F' \<subseteq> F" and g: "g = (\<Sum>f\<in>F'. q f * f)" and "\<And>f. q f \<in> P[X]"
+      and "\<And>f. poly_deg (q f * f) \<le> ?b" and 2: "\<And>f. f \<notin> F' \<Longrightarrow> q f = 0" by blast
+    show "\<exists>q. g = (\<Sum>f\<in>F. q f * f) \<and> (\<forall>f. q f \<in> P[X] \<and> poly_deg (q f * f) \<le> ?b \<and> (f \<notin> F \<longrightarrow> q f = 0))"
+    proof (intro exI allI conjI impI)
+      from assms(2) \<open>F' \<subseteq> F\<close> have "(\<Sum>f\<in>F'. q f * f) = (\<Sum>f\<in>F. q f * f)"
+      proof (intro sum.mono_neutral_left ballI)
+        fix f
+        assume "f \<in> F - F'"
+        hence "f \<notin> F'" by simp
+        hence "q f = 0" by (rule 2)
+        thus "q f * f = 0" by simp
+      qed
+      thus "g = (\<Sum>f\<in>F. q f * f)" by (simp only: g)
+    next
+      fix f
+      assume "f \<notin> F"
+      with \<open>F' \<subseteq> F\<close> have "f \<notin> F'" by blast
+      thus "q f = 0" by (rule 2)
+    qed fact+
+  qed
+qed
+
+corollary Dube_is_GB_cofactor_bound_indets:
+  assumes "finite F"
+  shows "is_GB_cofactor_bound F (Dube (Suc (card (UNION F indets))) (maxdeg F))"
+  using _ assms _
+proof (rule Dube_is_GB_cofactor_bound)
+  from assms show "finite (UNION F indets)" by (simp add: finite_indets)
+next
+  show "F \<subseteq> P[UNION F indets]" by (auto simp: Polys_alt)
+qed
+
+end (* extended_ord_pm_powerprod *)
 
 end (* theory *)
