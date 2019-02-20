@@ -909,4 +909,12 @@ end
 
 end (* two_polys *)
 
+locale two_binoms =
+  two_polys ord ord_strict f1 f2
+  for ord :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> ('x::{countable,linorder} \<Rightarrow>\<^sub>0 nat) \<Rightarrow> bool" (infixl "\<preceq>" 50)
+  and ord_strict (infixl "\<prec>" 50)
+  and f1 f2 :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::field" +
+  assumes f1_pbinomial: "is_proper_binomial f1"
+  and f2_pbinomial: "is_proper_binomial f2"
+
 end (* theory *)

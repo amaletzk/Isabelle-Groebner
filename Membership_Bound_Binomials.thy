@@ -1716,26 +1716,29 @@ end
 
 end
 
+end (* two_polys *)
+
 subsection \<open>Degree Bounds on the Shifts for Generating a Proper Binomial\<close>
 
+context two_binoms
+begin
+
 theorem thm_3_3_35:
-  assumes "membership_problem_assms f1 f2 g" and "is_proper_binomial f1" and "is_proper_binomial f2"
-    and "is_proper_binomial g"
+  assumes "membership_problem_assms f1 f2 g" and "is_proper_binomial g"
   shows "membership_problem_concl f1 f2 g (Max {deg_pm (lp g), deg_pm (tp g),
             max (deg_pm (overlapshift (lp g))) (deg_pm (overlapshift (tp g))) +
               to_nat (\<bar>deg_pm (vect f1)\<bar> + \<bar>deg_pm (vect f2)\<bar>)})"
 proof -
   from assms(1) have "g \<in> ideal {f1, f2}" and disjnt: "monomial 1 ` keys g \<inter> ideal {f1, f2} = {}"
     by (rule membership_problem_assmsD)+ fact
-  from assms(4) have keys_g: "keys g = {lp g, tp g}" by (rule punit.keys_proper_binomial)
+  from assms(2) have keys_g: "keys g = {lp g, tp g}" by (rule punit.keys_proper_binomial)
   hence "lp g \<in> keys g" by simp
   hence "monomial 1 (lp g) \<in> monomial 1 ` keys g" by (rule imageI)
   with disjnt have *: "monomial 1 (lp g) \<notin> ideal {f1, f2}" by blast
-  note assms(2, 3)
-  moreover obtain zs where "is_vpc zs" and "fst (hd zs) = of_nat_pm (lp g)"
-    and "snd (last zs) = of_nat_pm (tp g)" using assms(2, 3) \<open>g \<in> ideal {f1, f2}\<close> assms(4) *
+  obtain zs where "is_vpc zs" and "fst (hd zs) = of_nat_pm (lp g)"
+    and "snd (last zs) = of_nat_pm (tp g)" using \<open>g \<in> ideal {f1, f2}\<close> assms(2) *
     by (rule idealE_vpc)
-  moreover from assms(4) have "lp g \<noteq> tp g" by (auto dest: punit.lt_gr_tt_binomial)
+  moreover from assms(2) have "lp g \<noteq> tp g" by (auto dest: punit.lt_gr_tt_binomial)
   ultimately obtain zs' where "is_vpc zs'" and hd': "fst (hd zs') = of_nat_pm (lp g)"
     and last': "snd (last zs') = of_nat_pm (tp g)"
     and deg': "deg_vpc zs' \<le> rat (Max {deg_pm (lp g), deg_pm (tp g),
@@ -1745,7 +1748,7 @@ proof -
   proof (rule thm_3_3_34)
     fix f
     assume "f \<in> {f1, f2}"
-    with assms(2, 3) have "f \<noteq> 0" by (auto dest: proper_binomial_not_0)
+    with f1_pbinomial f2_pbinomial have "f \<noteq> 0" by (auto dest: proper_binomial_not_0)
     from assms(1) have irred: "\<not> punit.is_red {f1, f2} g" by (rule membership_problem_assmsD)
     have rl: "\<not> lp f adds t" if "t \<in> keys g" for t
     proof
@@ -1756,7 +1759,7 @@ proof -
     qed
     show "\<not> lp f adds lp g" and "\<not> lp f adds tp g" by (rule rl, simp add: keys_g)+
   qed
-  note assms(2, 3) this(1)
+  note this(1)
   moreover from \<open>lp g \<noteq> tp g\<close> have "fst (hd zs') \<noteq> snd (last zs')" by (simp add: hd' last')
   ultimately obtain q1 q2 where "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {fst (hd zs'), snd (last zs')}"
     and "rat (poly_deg (q1 * f1)) \<le> deg_vpc zs'" and "rat (poly_deg (q2 * f2)) \<le> deg_vpc zs'"
@@ -1768,7 +1771,7 @@ proof -
   define c where "c = tc g / lookup ?g (tp g)"
   show ?thesis unfolding membership_problem_concl_def
   proof (intro exI conjI)
-    from assms(4) have "g \<noteq> 0" by (rule proper_binomial_not_0)
+    from assms(2) have "g \<noteq> 0" by (rule proper_binomial_not_0)
     hence "tc g \<noteq> 0" by (rule punit.tc_not_0)
     moreover have **: "lookup ?g (tp g) \<noteq> 0" by (simp add: keys_g')
     ultimately have "c \<noteq> 0" by (simp add: c_def)

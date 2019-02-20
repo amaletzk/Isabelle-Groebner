@@ -1300,9 +1300,9 @@ proof -
   finally show ?thesis by (simp only: num_pos_shifts_def num_neg_shifts_def)
 qed
 
-context
-  assumes f1_pbinomial: "is_proper_binomial f1"
-  assumes f2_pbinomial: "is_proper_binomial f2"
+end (* two_polys *)
+
+context two_binoms
 begin
 
 lemma length_eq_num_pos_shifts_plus_num_neg_shifts:
@@ -5489,8 +5489,6 @@ proof -
   qed
 qed
 
-end
-
-end (* two_polys *)
+end (* two_binoms *)
 
 end (* theory *)
