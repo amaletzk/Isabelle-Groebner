@@ -1189,12 +1189,97 @@ proof -
   with \<open>zs \<noteq> []\<close> show ?thesis by (simp add: hd_conv_nth last_conv_nth)
 qed
 
-subsection \<open>Correspondence Between VPCs and Ideal Elements\<close>
+subsection \<open>Number of Positive and Negative Shifts in VPCs\<close>
+
+definition num_pos_shifts :: "('x point \<times> 'x point) list \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> nat"
+  where "num_pos_shifts zs f = length [z\<leftarrow>zs. z \<in> pos_Nshifts {f}]"
+
+definition num_neg_shifts :: "('x point \<times> 'x point) list \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> nat"
+  where "num_neg_shifts zs f = length [z\<leftarrow>zs. z \<in> neg_Nshifts {f}]"
+
+lemma num_pos_shifts_Nil [simp]: "num_pos_shifts [] f = 0"
+  by (simp add: num_pos_shifts_def)
+
+lemma num_pos_shifts_singleton: "num_pos_shifts [z] f = (if z \<in> pos_Nshifts {f} then 1 else 0)"
+  by (simp add: num_pos_shifts_def)
+
+lemma num_pos_shifts_Cons:
+  "num_pos_shifts (z # zs) f = num_pos_shifts [z] f + num_pos_shifts zs f"
+  by (simp add: num_pos_shifts_def)
+
+lemma num_pos_shifts_append:
+  "num_pos_shifts (zs1 @ zs2) f = num_pos_shifts zs1 f + num_pos_shifts zs2 f"
+  by (simp add: num_pos_shifts_def)
+
+lemma num_pos_shifts_take_Suc:
+  "i < length zs \<Longrightarrow>
+    num_pos_shifts (take (Suc i) zs) f = num_pos_shifts (take i zs) f + num_pos_shifts [zs ! i] f"
+  by (simp add: num_pos_shifts_append take_Suc_conv_app_nth)
+
+lemma num_neg_shifts_Nil [simp]: "num_neg_shifts [] f = 0"
+  by (simp add: num_neg_shifts_def)
+
+lemma num_neg_shifts_singleton: "num_neg_shifts [z] f = (if z \<in> neg_Nshifts {f} then 1 else 0)"
+  by (simp add: num_neg_shifts_def)
+
+lemma num_neg_shifts_Cons:
+  "num_neg_shifts (z # zs) f = num_neg_shifts [z] f + num_neg_shifts zs f"
+  by (simp add: num_neg_shifts_def)
+
+lemma num_neg_shifts_append:
+  "num_neg_shifts (zs1 @ zs2) f = num_neg_shifts zs1 f + num_neg_shifts zs2 f"
+  by (simp add: num_neg_shifts_def)
+
+lemma num_neg_shifts_take_Suc:
+  "i < length zs \<Longrightarrow>
+    num_neg_shifts (take (Suc i) zs) f = num_neg_shifts (take i zs) f + num_neg_shifts [zs ! i] f"
+  by (simp add: num_neg_shifts_append take_Suc_conv_app_nth)
+
+lemma num_shifts_eq_num_pos_shifts_plus_num_neg_shifts:
+  assumes "is_proper_binomial f"
+  shows "length [z\<leftarrow>zs. z \<in> Nshifts {f}] = num_pos_shifts zs f + num_neg_shifts zs f"
+proof -
+  have "neg_Nshifts {f} \<inter> pos_Nshifts {f} = pos_Nshifts {f} \<inter> neg_Nshifts {f}"
+    by (simp only: Int_commute)
+  also from assms have "\<dots> = {}" by (rule pos_neg_Nshifts_disjointI)
+  finally have eq2: "Nshifts {f} - pos_Nshifts {f} = neg_Nshifts {f}"
+    by (simp add: Nshifts_def Un_Diff Diff_triv)
+  have eq1: "Nshifts {f} \<inter> pos_Nshifts {f} = pos_Nshifts {f}" by (simp add: Nshifts_def Int_commute)
+  let ?zs = "[z\<leftarrow>zs. z \<in> Nshifts {f}]"
+  have "length ?zs = length [z\<leftarrow>?zs. z \<in> pos_Nshifts {f}] + length [z\<leftarrow>?zs. z \<notin> pos_Nshifts {f}]"
+    by (rule sym) (rule sum_length_filter_compl)
+  also have "\<dots> = length [z\<leftarrow>zs. z \<in> pos_Nshifts {f}] + length [z\<leftarrow>zs. z \<in> neg_Nshifts {f}]"
+    by (simp flip: Int_iff Diff_iff add: eq1 eq2)
+  finally show ?thesis by (simp only: num_pos_shifts_def num_neg_shifts_def)
+qed
 
 context
   assumes f1_pbinomial: "is_proper_binomial f1"
   assumes f2_pbinomial: "is_proper_binomial f2"
 begin
+
+lemma length_eq_num_pos_shifts_plus_num_neg_shifts:
+  assumes "\<not> parallel_binomials f1 f2" and "is_vpc zs"
+  shows "length zs = num_pos_shifts zs f1 + num_neg_shifts zs f1 +
+                     num_pos_shifts zs f2 + num_neg_shifts zs f2"
+proof -
+  from f1_pbinomial f2_pbinomial assms(1) have disjnt: "Nshifts {f1} \<inter> Nshifts {f2} = {}"
+    by (rule Nshifts_disjointI)
+  have "length zs = length [z\<leftarrow>zs. z \<in> Nshifts {f1}] + length [z\<leftarrow>zs. z \<notin> Nshifts {f1}]"
+    by (rule sym) (rule sum_length_filter_compl)
+  also from refl have "[z\<leftarrow>zs. z \<notin> Nshifts {f1}] = [z\<leftarrow>zs. z \<in> Nshifts {f2}]"
+  proof (rule filter_cong)
+    fix z
+    assume "z \<in> set zs"
+    also from assms(2) have "\<dots> \<subseteq> Nshifts {f1, f2}" by (rule is_vpcD)
+    also have "\<dots> = Nshifts {f1} \<union> Nshifts {f2}" by (auto intro: NshiftsI_poly elim: NshiftsE_poly)
+    finally show "(z \<notin> Nshifts {f1}) = (z \<in> Nshifts {f2})" using disjnt by blast
+  qed
+  finally show ?thesis
+    using f1_pbinomial f2_pbinomial by (simp add: num_shifts_eq_num_pos_shifts_plus_num_neg_shifts)
+qed
+
+subsection \<open>Correspondence Between VPCs and Ideal Elements\<close>
 
 lemma Nshifts_fst_not_eq_snd:
   assumes "z \<in> Nshifts {f1, f2}"
@@ -1509,13 +1594,32 @@ lemma vpcE_ideal_singleton:
   assumes "z \<in> Nshifts {f1, f2}"
   obtains q1 q2 where "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {fst z, snd z}"
     and "rat (poly_deg (q1 * f1)) \<le> deg_vpc [z]" and "rat (poly_deg (q2 * f2)) \<le> deg_vpc [z]"
+    and "\<not> parallel_binomials f1 f2 \<Longrightarrow>
+          lookup (q1 * f1 + q2 * f2) (to_nat_pm (snd z)) = lookup (q1 * f1 + q2 * f2) (to_nat_pm (fst z)) *
+            (lc f1 / tc f1) ^ num_pos_shifts [z] f1 * (tc f1 / lc f1) ^ num_neg_shifts [z] f1 *
+            (lc f2 / tc f2) ^ num_pos_shifts [z] f2 * (tc f2 / lc f2) ^ num_neg_shifts [z] f2"
   using assms
-proof (rule NshiftsE)
-  fix f t
-  assume "f \<in> {f1, f2}" and "z = t +\<^sub>N poly_point f \<or> z = t +\<^sub>N prod.swap (poly_point f)"
-  from this(2) have eq1: "{fst z, snd z} = of_nat_pm ` {t + lp f, t + tp f}"
+proof (rule NshiftsE_poly)
+  fix f
+  assume "f \<in> {f1, f2}" and "z \<in> Nshifts {f}"
+  from this(2) obtain t where cases: "z = t +\<^sub>N poly_point f \<or> z = t +\<^sub>N prod.swap (poly_point f)"
+    by (rule NshiftsE_singleton)
+  hence eq1: "{fst z, snd z} = of_nat_pm ` {t + lp f, t + tp f}"
     by (auto simp: poly_point_def nat_plus_point_pair_def of_nat_pm_plus)
   hence eq1': "set_of_vpc [z] = of_nat_pm ` {t + lp f, t + tp f}" by (simp add: set_of_vpc_Cons)
+
+  let ?p1 = "num_pos_shifts [z] f1"
+  let ?n1 = "num_neg_shifts [z] f1"
+  let ?p2 = "num_pos_shifts [z] f2"
+  let ?n2 = "num_neg_shifts [z] f2"
+  have 1: "?p1 + ?n1 + ?p2 + ?n2 = 1" if "\<not> parallel_binomials f1 f2"
+  proof -
+    from assms have "is_vpc [z]" by simp
+    with that have "length [z] = ?p1 + ?n1 + ?p2 + ?n2"
+      by (rule length_eq_num_pos_shifts_plus_num_neg_shifts)
+    thus ?thesis by simp
+  qed
+
   from \<open>f \<in> {f1, f2}\<close> have "f = f1 \<or> f = f2" by blast
   thus ?thesis
   proof
@@ -1538,6 +1642,36 @@ proof (rule NshiftsE)
       have "rat (poly_deg (0 * f2)) \<le> rat (poly_deg (monomial 1 t * f1))" by simp
       also have "\<dots> \<le> deg_vpc [z]" by fact
       finally show "rat (poly_deg (0 * f2)) \<le> deg_vpc [z]" .
+
+      assume "\<not> parallel_binomials f1 f2"
+      hence *: "?p1 + ?n1 + ?p2 + ?n2 = 1" by (rule 1)
+      from cases show "lookup (monomial 1 t * f1 + 0 * f2) (to_nat_pm (snd z)) =
+                        lookup (monomial 1 t * f1 + 0 * f2) (to_nat_pm (fst z)) *
+                            (lc f1 / tc f1) ^ ?p1 * (tc f1 / lc f1) ^ ?n1 *
+                            (lc f2 / tc f2) ^ ?p2 * (tc f2 / lc f2) ^ ?n2"
+      proof
+        assume z: "z = t +\<^sub>N poly_point f"
+        hence fst_z: "to_nat_pm (fst z) = t + lp f" and snd_z: "to_nat_pm (snd z) = t + tp f"
+          by (simp_all add: nat_plus_point_pair_def poly_point_def flip: of_nat_pm_plus)
+        have z_in: "z \<in> neg_Nshifts {f}" by (simp add: neg_Nshifts_singleton z)
+        hence "?n1 = 1" by (simp add: f num_neg_shifts_singleton)
+        moreover from * this have "?p1 = 0" and "?p2 = 0" and "?n2 = 0" by simp_all
+        moreover from f1_pbinomial have "lc f1 \<noteq> 0" by (intro punit.lc_not_0 proper_binomial_not_0)
+        ultimately show ?thesis
+          by (simp add: f \<open>?p2 = 0\<close> \<open>?n2 = 0\<close> fst_z snd_z times_monomial_left
+                  punit.lookup_monom_mult_plus[simplified] flip: punit.lc_def punit.tc_def)
+      next
+        assume z: "z = t +\<^sub>N prod.swap (poly_point f)"
+        hence fst_z: "to_nat_pm (fst z) = t + tp f" and snd_z: "to_nat_pm (snd z) = t + lp f"
+          by (simp_all add: nat_plus_point_pair_def poly_point_def flip: of_nat_pm_plus)
+        have z_in: "z \<in> pos_Nshifts {f}" by (simp add: pos_Nshifts_singleton z)
+        hence "?p1 = 1" by (simp add: f num_pos_shifts_singleton)
+        moreover from * this have "?n1 = 0" and "?p2 = 0" and "?n2 = 0" by simp_all
+        moreover from f1_pbinomial have "tc f1 \<noteq> 0" by (intro punit.tc_not_0 proper_binomial_not_0)
+        ultimately show ?thesis
+          by (simp add: f \<open>?p2 = 0\<close> \<open>?n2 = 0\<close> fst_z snd_z times_monomial_left
+                  punit.lookup_monom_mult_plus[simplified] flip: punit.lc_def punit.tc_def)
+      qed
     qed
   next
     assume f: "f = f2"
@@ -1559,6 +1693,36 @@ proof (rule NshiftsE)
       have "rat (poly_deg (0 * f1)) \<le> rat (poly_deg (monomial 1 t * f2))" by simp
       also have "\<dots> \<le> deg_vpc [z]" by fact
       finally show "rat (poly_deg (0 * f1)) \<le> deg_vpc [z]" .
+
+      assume "\<not> parallel_binomials f1 f2"
+      hence *: "?p1 + ?n1 + ?p2 + ?n2 = 1" by (rule 1)
+      from cases show "lookup (0 * f1 + monomial 1 t * f2) (to_nat_pm (snd z)) =
+                        lookup (0 * f1 + monomial 1 t * f2) (to_nat_pm (fst z)) *
+                            (lc f1 / tc f1) ^ ?p1 * (tc f1 / lc f1) ^ ?n1 *
+                            (lc f2 / tc f2) ^ ?p2 * (tc f2 / lc f2) ^ ?n2"
+      proof
+        assume z: "z = t +\<^sub>N poly_point f"
+        hence fst_z: "to_nat_pm (fst z) = t + lp f" and snd_z: "to_nat_pm (snd z) = t + tp f"
+          by (simp_all add: nat_plus_point_pair_def poly_point_def flip: of_nat_pm_plus)
+        have z_in: "z \<in> neg_Nshifts {f}" by (simp add: neg_Nshifts_singleton z)
+        hence "?n2 = 1" by (simp add: f num_neg_shifts_singleton)
+        moreover from * this have "?p1 = 0" and "?n1 = 0" and "?p2 = 0" by simp_all
+        moreover from f2_pbinomial have "lc f2 \<noteq> 0" by (intro punit.lc_not_0 proper_binomial_not_0)
+        ultimately show ?thesis
+          by (simp add: f \<open>?p1 = 0\<close> \<open>?n1 = 0\<close> fst_z snd_z times_monomial_left
+                  punit.lookup_monom_mult_plus[simplified] flip: punit.lc_def punit.tc_def)
+      next
+        assume z: "z = t +\<^sub>N prod.swap (poly_point f)"
+        hence fst_z: "to_nat_pm (fst z) = t + tp f" and snd_z: "to_nat_pm (snd z) = t + lp f"
+          by (simp_all add: nat_plus_point_pair_def poly_point_def flip: of_nat_pm_plus)
+        have z_in: "z \<in> pos_Nshifts {f}" by (simp add: pos_Nshifts_singleton z)
+        hence "?p2 = 1" by (simp add: f num_pos_shifts_singleton)
+        moreover from * this have "?p1 = 0" and "?n1 = 0" and "?n2 = 0" by simp_all
+        moreover from f2_pbinomial have "tc f2 \<noteq> 0" by (intro punit.tc_not_0 proper_binomial_not_0)
+        ultimately show ?thesis
+          by (simp add: f \<open>?p1 = 0\<close> \<open>?n1 = 0\<close> fst_z snd_z times_monomial_left
+                  punit.lookup_monom_mult_plus[simplified] flip: punit.lc_def punit.tc_def)
+      qed
     qed
   qed
 qed
@@ -1567,17 +1731,43 @@ lemma vpcE_ideal:
   assumes "is_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)"
   obtains q1 q2 where "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {fst (hd zs), snd (last zs)}"
     and "rat (poly_deg (q1 * f1)) \<le> deg_vpc zs" and "rat (poly_deg (q2 * f2)) \<le> deg_vpc zs"
+    and "\<not> parallel_binomials f1 f2 \<Longrightarrow> distinct (map snd zs) \<Longrightarrow>
+          lookup (q1 * f1 + q2 * f2) (to_nat_pm (snd (last zs))) =
+            - ((- 1) ^ length zs * lookup (q1 * f1 + q2 * f2) (to_nat_pm (fst (hd zs))) *
+                (lc f1 / tc f1) ^ num_pos_shifts zs f1 * (tc f1 / lc f1) ^ num_neg_shifts zs f1 *
+                (lc f2 / tc f2) ^ num_pos_shifts zs f2 * (tc f2 / lc f2) ^ num_neg_shifts zs f2)"
   using assms
 proof (induct zs arbitrary: thesis rule: vpc_induct)
   case (single z)
   from single(1) obtain q1 q2 where "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {fst z, snd z}"
     and 1: "rat (poly_deg (q1 * f1)) \<le> deg_vpc [z]" and 2: "rat (poly_deg (q2 * f2)) \<le> deg_vpc [z]"
-    by (rule vpcE_ideal_singleton)
+    and 3: "\<not> parallel_binomials f1 f2 \<Longrightarrow>
+            lookup (q1 * f1 + q2 * f2) (to_nat_pm (snd z)) =
+              lookup (q1 * f1 + q2 * f2) (to_nat_pm (fst z)) *
+              (lc f1 / tc f1) ^ num_pos_shifts [z] f1 * (tc f1 / lc f1) ^ num_neg_shifts [z] f1 *
+              (lc f2 / tc f2) ^ num_pos_shifts [z] f2 * (tc f2 / lc f2) ^ num_neg_shifts [z] f2"
+    by (rule vpcE_ideal_singleton) blast
   from this(1) have "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {fst (hd [z]), snd (last [z])}"
     by simp
-  thus ?case using 1 2 by (rule single)
+  thus ?case using 1 2 by (rule single) (simp add: 3)
 next
   case (Cons z zs)
+
+  let ?p10 = "num_pos_shifts zs f1"
+  let ?n10 = "num_neg_shifts zs f1"
+  let ?p20 = "num_pos_shifts zs f2"
+  let ?n20 = "num_neg_shifts zs f2"
+
+  let ?p11 = "num_pos_shifts [z] f1"
+  let ?n11 = "num_neg_shifts [z] f1"
+  let ?p21 = "num_pos_shifts [z] f2"
+  let ?n21 = "num_neg_shifts [z] f2"
+
+  let ?p1 = "num_pos_shifts (z # zs) f1"
+  let ?n1 = "num_neg_shifts (z # zs) f1"
+  let ?p2 = "num_pos_shifts (z # zs) f2"
+  let ?n2 = "num_neg_shifts (z # zs) f2"
+
   from Cons.hyps(1) have "zs \<noteq> []" by (rule is_vpcD)
   with Cons.prems(2) have "fst z \<noteq> snd (last zs)" by simp
   from Cons.hyps(2) have "is_nat_pm_pair z" by (rule Nshifts_is_nat_pm_pair)
@@ -1595,24 +1785,45 @@ next
   hence neq2: "to_nat_pm (fst z) \<noteq> to_nat_pm (snd z)" by (rule vpc_fst_not_eq_snd) simp
   from Cons.hyps(2) obtain q1 q2 where eq1: "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {fst z, snd z}"
     and 10: "rat (poly_deg (q1 * f1)) \<le> deg_vpc [z]" and 20: "rat (poly_deg (q2 * f2)) \<le> deg_vpc [z]"
-    by (rule vpcE_ideal_singleton)
+    and 30: "\<not> parallel_binomials f1 f2 \<Longrightarrow>
+            lookup (q1 * f1 + q2 * f2) (to_nat_pm (snd z)) =
+              lookup (q1 * f1 + q2 * f2) (to_nat_pm (fst z)) *
+              (lc f1 / tc f1) ^ ?p11 * (tc f1 / lc f1) ^ ?n11 *
+              (lc f2 / tc f2) ^ ?p21 * (tc f2 / lc f2) ^ ?n21"
+    by (rule vpcE_ideal_singleton) blast
   let ?f = "q1 * f1 + q2 * f2"
   from 10 deg_vpc_Cons_ge have 1: "rat (poly_deg (q1 * f1)) \<le> deg_vpc (z # zs)" by (rule order.trans)
   from 20 deg_vpc_Cons_ge have 2: "rat (poly_deg (q2 * f2)) \<le> deg_vpc (z # zs)" by (rule order.trans)
   show ?case
   proof (cases "fst (hd zs) = snd (last zs)")
     case True
-    with \<open>zs \<noteq> []\<close> have eq2: "snd (last (z # zs)) = snd z" by (simp add: Cons.hyps(3))
-    have "of_nat_pm ` keys ?f = {fst (hd (z # zs)), snd (last (z # zs))}"
-      by (simp only: eq1 eq2 list.sel(1))
-    thus ?thesis using 1 2 by (rule Cons.prems)
+    with \<open>zs \<noteq> []\<close> have "snd (last (z # zs)) = snd z" by (simp add: Cons.hyps(3))
+    hence "of_nat_pm ` keys ?f = {fst (hd (z # zs)), snd (last (z # zs))}"
+      by (simp only: eq1 list.sel(1))
+    thus ?thesis using 1 2
+    proof (rule Cons.prems)
+      assume dist: "distinct (map snd (z # zs))"
+      from \<open>zs \<noteq> []\<close> have "snd (last zs) = snd (last (z # zs))" by simp
+      also have "\<dots> = snd z" by fact
+      also from dist have "\<dots> \<notin> snd ` set zs" by simp
+      finally have False using \<open>zs \<noteq> []\<close> by auto
+      thus "lookup (q1 * f1 + q2 * f2) (to_nat_pm (snd (last (z # zs)))) =
+            - ((- 1) ^ length (z # zs) * lookup (q1 * f1 + q2 * f2) (to_nat_pm (fst (hd (z # zs)))) *
+               (lc f1 / tc f1) ^ ?p1 * (tc f1 / lc f1) ^ ?n1 *
+               (lc f2 / tc f2) ^ ?p2 * (tc f2 / lc f2) ^ ?n2)" ..
+    qed
   next
     case False
     then obtain q1' q2' where eq2: "of_nat_pm ` keys (q1' * f1 + q2' * f2) = {fst (hd zs), snd (last zs)}"
-      and 30: "rat (poly_deg (q1' * f1)) \<le> deg_vpc zs" and 40: "rat (poly_deg (q2' * f2)) \<le> deg_vpc zs"
+      and 40: "rat (poly_deg (q1' * f1)) \<le> deg_vpc zs" and 50: "rat (poly_deg (q2' * f2)) \<le> deg_vpc zs"
+      and 60: "\<not> parallel_binomials f1 f2 \<Longrightarrow> distinct (map snd zs) \<Longrightarrow>
+                lookup (q1' * f1 + q2' * f2) (to_nat_pm (snd (last zs))) =
+                 - ((- 1) ^ length zs * lookup (q1' * f1 + q2' * f2) (to_nat_pm (fst (hd zs))) *
+                    (lc f1 / tc f1) ^ ?p10 * (tc f1 / lc f1) ^ ?n10 *
+                    (lc f2 / tc f2) ^ ?p20 * (tc f2 / lc f2) ^ ?n20)"
       using Cons.hyps(4) by blast
-    from \<open>zs \<noteq> []\<close> 30 have 3: "rat (poly_deg (q1' * f1)) \<le> deg_vpc (z # zs)" by (simp add: deg_vpc_Cons)
-    from \<open>zs \<noteq> []\<close> 40 have 4: "rat (poly_deg (q2' * f2)) \<le> deg_vpc (z # zs)" by (simp add: deg_vpc_Cons)
+    from \<open>zs \<noteq> []\<close> 40 have 3: "rat (poly_deg (q1' * f1)) \<le> deg_vpc (z # zs)" by (simp add: deg_vpc_Cons)
+    from \<open>zs \<noteq> []\<close> 50 have 4: "rat (poly_deg (q2' * f2)) \<le> deg_vpc (z # zs)" by (simp add: deg_vpc_Cons)
     let ?g = "q1' * f1 + q2' * f2"
     have eq3: "of_nat_pm ` keys (q1' * f1 + q2' * f2) = {snd z, snd (last zs)}"
       by (simp only: eq2 Cons.hyps(3))
@@ -1631,10 +1842,28 @@ next
       by (simp add: keys_map_scale keys_g)
     define q1'' where "q1'' = - (c / d) \<cdot> q1'"
     define q2'' where "q2'' = - (c / d) \<cdot> q2'"
+
+    have eq4: "(q1 + q1'') * f1 + (q2 + q2'') * f2 = ?f + (- (c / d)) \<cdot> ?g"
+      by (simp add: q1''_def q2''_def map_scale_eq_times algebra_simps)
+    have neq3: "to_nat_pm (snd (last zs)) \<noteq> to_nat_pm (snd z)"
+    proof -
+      from Cons.hyps(1) hd_in_set have "is_nat_pm_pair (hd zs)"
+        by (rule vpc_is_nat_pm_pair) fact
+      hence "is_nat_pm (fst (hd zs))" by (rule is_nat_pm_pairD)
+      hence "of_nat_pm (to_nat_pm (fst (hd zs))) = fst (hd zs)" by (simp add: of_nat_pm_comp_to_nat_pm)
+      hence "of_nat_pm (to_nat_pm (snd z)) \<noteq> (of_nat_pm (to_nat_pm (snd (last zs)))::_ \<Rightarrow>\<^sub>0 rat)"
+        using False by (simp add: Cons.hyps(3) eq0)
+      thus ?thesis by simp
+    qed
+    from neq1 neq2 have "to_nat_pm (fst z) \<notin> keys ((- (c / d)) \<cdot> ?g)"
+      by (simp add: keys_g')
+    from neq1[symmetric] neq3 False have "to_nat_pm (snd (last zs)) \<notin> keys ?f"
+      by (simp add: keys_f)
+
     show ?thesis
     proof (rule Cons.prems)
       have "keys ((q1 + q1'') * f1 + (q2 + q2'') * f2) = keys (?f + (- (c / d)) \<cdot> ?g)"
-        by (simp add: q1''_def q2''_def map_scale_eq_times algebra_simps)
+        by (simp only: eq4)
       also have "\<dots> = {to_nat_pm (fst z), to_nat_pm (snd (last zs))}" (is "?A = ?B")
       proof (intro subset_antisym insert_subsetI empty_subsetI, rule subsetI)
         fix t
@@ -1650,24 +1879,12 @@ next
         ultimately show "t \<in> ?B" by simp
       next
         have "to_nat_pm (fst z) \<in> keys ?f" by (simp add: keys_f)
-        moreover from neq1 neq2 have "to_nat_pm (fst z) \<notin> keys ((- (c / d)) \<cdot> ?g)"
-          by (simp add: keys_g')
-        ultimately show "to_nat_pm (fst z) \<in> ?A" by (rule in_keys_plusI1)
+        thus "to_nat_pm (fst z) \<in> ?A" using \<open>to_nat_pm (fst z) \<notin> keys ((- (c / d)) \<cdot> ?g)\<close>
+          by (rule in_keys_plusI1)
       next
-        have neq3: "to_nat_pm (snd (last zs)) \<noteq> to_nat_pm (snd z)"
-        proof -
-          from Cons.hyps(1) hd_in_set have "is_nat_pm_pair (hd zs)"
-            by (rule vpc_is_nat_pm_pair) fact
-          hence "is_nat_pm (fst (hd zs))" by (rule is_nat_pm_pairD)
-          hence "of_nat_pm (to_nat_pm (fst (hd zs))) = fst (hd zs)" by (simp add: of_nat_pm_comp_to_nat_pm)
-          hence "of_nat_pm (to_nat_pm (snd z)) \<noteq> (of_nat_pm (to_nat_pm (snd (last zs)))::_ \<Rightarrow>\<^sub>0 rat)"
-            using False by (simp add: Cons.hyps(3) eq0)
-          thus ?thesis by simp
-        qed
         have "to_nat_pm (snd (last zs)) \<in> keys ((- (c / d)) \<cdot> ?g)" by (simp add: keys_g')
-        moreover from neq1[symmetric] neq3 False have "to_nat_pm (snd (last zs)) \<notin> keys ?f"
-          by (simp add: keys_f)
-        ultimately show "to_nat_pm (snd (last zs)) \<in> ?A" by (rule in_keys_plusI2)
+        thus "to_nat_pm (snd (last zs)) \<in> ?A" using \<open>to_nat_pm (snd (last zs)) \<notin> keys ?f\<close>
+          by (rule in_keys_plusI2)
       qed
       finally show "of_nat_pm ` keys ((q1 + q1'') * f1 + (q2 + q2'') * f2) =
                       {fst (hd (z # zs)), snd (last (z # zs))}"
@@ -1694,6 +1911,49 @@ next
         by simp
       also from 2 4 have "\<dots> \<le> deg_vpc (z # zs)" by (rule max.boundedI)
       finally show "rat (poly_deg ((q2 + q2'') * f2)) \<le> deg_vpc (z # zs)" .
+    next
+      assume "\<not> parallel_binomials f1 f2"
+      hence c: "c = lookup ?f (to_nat_pm (fst z)) *
+                    (lc f1 / tc f1) ^ ?p11 * (tc f1 / lc f1) ^ ?n11 *
+                    (lc f2 / tc f2) ^ ?p21 * (tc f2 / lc f2) ^ ?n21"
+        unfolding c_def by (rule 30)
+      assume "distinct (map snd (z # zs))"
+      hence "snd z \<notin> snd ` set zs" and "distinct (map snd zs)" by simp_all
+      from this(1) have "z \<notin> set zs" by blast
+      have eq5: "lookup ?g (to_nat_pm (snd (last zs))) =
+                    - ((- 1) ^ length zs * d * (lc f1 / tc f1) ^ ?p10 * (tc f1 / lc f1) ^ ?n10 *
+                       (lc f2 / tc f2) ^ ?p20 * (tc f2 / lc f2) ^ ?n20)"
+        using \<open>\<not> parallel_binomials f1 f2\<close> \<open>distinct (map snd zs)\<close> unfolding Cons.hyps(3) d_def
+        by (rule 60)
+      have "lookup ((q1 + q1'') * f1 + (q2 + q2'') * f2) (to_nat_pm (snd (last (z # zs)))) =
+              - (c / d) * lookup ?g (to_nat_pm (snd (last zs)))"
+        using \<open>zs \<noteq> []\<close> \<open>to_nat_pm (snd (last zs)) \<notin> keys ?f\<close> by (simp add: eq4 lookup_add)
+      also from \<open>d \<noteq> 0\<close> have "\<dots> = (- 1) ^ length zs * c *
+                                    (lc f1 / tc f1) ^ ?p10 * (tc f1 / lc f1) ^ ?n10 *
+                                    (lc f2 / tc f2) ^ ?p20 * (tc f2 / lc f2) ^ ?n20"
+        by (simp add: eq5)
+      also have "\<dots> = (- 1) ^ length zs * lookup ?f (to_nat_pm (fst z)) *
+                          (lc f1 / tc f1) ^ (?p10 + ?p11) * (tc f1 / lc f1) ^ (?n10 + ?n11) *
+                          (lc f2 / tc f2) ^ (?p20 + ?p21) * (tc f2 / lc f2) ^ (?n20 + ?n21)"
+        by (simp add: c power_add)
+      term "()"
+      also have "\<dots> = (- 1) ^ length zs * lookup ?f (to_nat_pm (fst z)) *
+                        (lc f1 / tc f1) ^ ?p1 * (tc f1 / lc f1) ^ ?n1 *
+                        (lc f2 / tc f2) ^ ?p2 * (tc f2 / lc f2) ^ ?n2"
+        using \<open>z \<notin> set zs\<close>
+        by (simp add: num_pos_shifts_Cons[where zs=zs] num_neg_shifts_Cons[where zs=zs] add.commute)
+      also have "\<dots> = - ((- 1) ^ length (z # zs) * lookup ?f (to_nat_pm (fst z)) *
+                        (lc f1 / tc f1) ^ ?p1 * (tc f1 / lc f1) ^ ?n1 *
+                        (lc f2 / tc f2) ^ ?p2 * (tc f2 / lc f2) ^ ?n2)" by simp
+      also have "lookup ?f (to_nat_pm (fst z)) =
+                  lookup ((q1 + q1'') * f1 + (q2 + q2'') * f2) (to_nat_pm (fst (hd (z # zs))))"
+        using \<open>to_nat_pm (fst z) \<notin> keys ((- (c / d)) \<cdot> ?g)\<close>
+        by (simp add: eq4 lookup_add del: lookup_map_scale)
+      finally show "lookup ((q1 + q1'') * f1 + (q2 + q2'') * f2) (to_nat_pm (snd (last (z # zs)))) =
+                    - ((- 1) ^ length (z # zs) *
+                       lookup ((q1 + q1'') * f1 + (q2 + q2'') * f2) (to_nat_pm (fst (hd (z # zs)))) *
+                       (lc f1 / tc f1) ^ ?p1 * (tc f1 / lc f1) ^ ?n1 *
+                       (lc f2 / tc f2) ^ ?p2 * (tc f2 / lc f2) ^ ?n2)" .
     qed
   qed
 qed
