@@ -72,6 +72,14 @@ lemma pos_NshiftsE:
   obtains f t where "f \<in> F" and "z = t +\<^sub>N prod.swap (poly_point f)"
   using assms by (auto simp: pos_Nshifts_def)
 
+lemma pos_NshiftsE_poly:
+  assumes "z \<in> pos_Nshifts F"
+  obtains f where "f \<in> F" and "z \<in> pos_Nshifts {f}"
+  using assms by (auto elim!: pos_NshiftsE intro: pos_NshiftsI)
+
+lemma pos_Nshifts_mono: "F \<subseteq> G \<Longrightarrow> pos_Nshifts F \<subseteq> pos_Nshifts G"
+  by (fastforce simp: pos_Nshifts_def)
+
 lemma pos_Nshifts_singleton: "pos_Nshifts {f} = range (\<lambda>t. t +\<^sub>N prod.swap (poly_point f))"
   by (auto elim: pos_NshiftsE intro: pos_NshiftsI)
 
@@ -85,6 +93,14 @@ lemma neg_NshiftsE:
   assumes "z \<in> neg_Nshifts F"
   obtains f t where "f \<in> F" and "z = t +\<^sub>N poly_point f"
   using assms by (auto simp: neg_Nshifts_def)
+
+lemma neg_NshiftsE_poly:
+  assumes "z \<in> neg_Nshifts F"
+  obtains f where "f \<in> F" and "z \<in> neg_Nshifts {f}"
+  using assms by (auto elim!: neg_NshiftsE intro: neg_NshiftsI)
+
+lemma neg_Nshifts_mono: "F \<subseteq> G \<Longrightarrow> neg_Nshifts F \<subseteq> neg_Nshifts G"
+  by (fastforce simp: neg_Nshifts_def)
 
 lemma neg_Nshifts_singleton: "neg_Nshifts {f} = range (\<lambda>t. t +\<^sub>N poly_point f)"
   by (auto elim: neg_NshiftsE intro: neg_NshiftsI)
@@ -149,6 +165,9 @@ next
   hence "z \<in> Nshifts {f}" by (rule NshiftsI1)
   with \<open>f \<in> F\<close> show ?thesis ..
 qed
+
+lemma Nshifts_mono: "F \<subseteq> G \<Longrightarrow> Nshifts F \<subseteq> Nshifts G"
+  by (auto simp: Nshifts_def dest: pos_Nshifts_mono neg_Nshifts_mono)
 
 lemma Nshifts_alt: "Nshifts F = shifts_of (shifts F)"
   by (simp only: Nshifts_def pos_Nshifts_def neg_Nshifts_def shifts_of_def shifts_def Sigma_Un_distrib2 image_Un)
@@ -355,6 +374,30 @@ proof (intro conjI)
     thus "nat m1 \<cdot> lp f1 + nat m2 \<cdot> tp f2 = nat m1 \<cdot> tp f1 + nat m2 \<cdot> lp f2" by simp
   qed
 qed fact+
+
+lemma not_parallel_binomialsD_vect:
+  assumes "is_proper_binomial f1" and "is_proper_binomial f2" and "\<not> parallel_binomials f1 f2"
+    and "k \<cdot> vect f1 = m \<cdot> vect f2"
+  shows "k = 0" and "m = 0"
+proof -
+  show "k = 0"
+  proof (rule ccontr)
+    assume "k \<noteq> 0"
+    have "inverse k \<cdot> k \<cdot> vect f1 = inverse k \<cdot> m \<cdot> vect f2" by (simp only: assms(4))
+    with \<open>k \<noteq> 0\<close> have "vect f1 = (m / k) \<cdot> vect f2"
+      by (simp add: map_scale_assoc divide_inverse_commute)
+    with assms(1, 2) have "parallel_binomials f1 f2" by (rule parallel_binomialsI_vect)
+    with assms(3) show False ..
+  qed
+  with assms(4) have "m = 0 \<or> vect f2 = 0" by (simp add: map_scale_eq_0_iff)
+  thus "m = 0"
+  proof
+    assume "vect f2 = 0"
+    hence "lp f2 = tp f2" by (simp add: vect_alt)
+    also from assms(2) have "\<dots> \<prec> lp f2" by (rule punit.lt_gr_tt_binomial)
+    finally show ?thesis ..
+  qed
+qed
 
 lemma parallel_binomialsI_vect':
   assumes "keys f1 = {s1, t1}" and "keys f2 = {s2, t2}" and "s1 \<noteq> t1" and "s2 \<noteq> t2"
@@ -1247,6 +1290,9 @@ definition num_neg_shifts :: "('x point \<times> 'x point) list \<Rightarrow> ((
 lemma num_pos_shifts_Nil [simp]: "num_pos_shifts [] f = 0"
   by (simp add: num_pos_shifts_def)
 
+lemma num_pos_shifts_eq_zero_iff: "num_pos_shifts zs f = 0 \<longleftrightarrow> set zs \<inter> pos_Nshifts {f} = {}"
+  by (auto simp: num_pos_shifts_def filter_empty_conv)
+
 lemma num_pos_shifts_singleton: "num_pos_shifts [z] f = (if z \<in> pos_Nshifts {f} then 1 else 0)"
   by (simp add: num_pos_shifts_def)
 
@@ -1265,6 +1311,9 @@ lemma num_pos_shifts_take_Suc:
 
 lemma num_neg_shifts_Nil [simp]: "num_neg_shifts [] f = 0"
   by (simp add: num_neg_shifts_def)
+
+lemma num_neg_shifts_eq_zero_iff: "num_neg_shifts zs f = 0 \<longleftrightarrow> set zs \<inter> neg_Nshifts {f} = {}"
+  by (auto simp: num_neg_shifts_def filter_empty_conv)
 
 lemma num_neg_shifts_singleton: "num_neg_shifts [z] f = (if z \<in> neg_Nshifts {f} then 1 else 0)"
   by (simp add: num_neg_shifts_def)
@@ -1327,6 +1376,11 @@ proof -
 qed
 
 subsection \<open>Correspondence Between VPCs and Ideal Elements\<close>
+
+lemma pos_neg_Nshifts_disjoint: "pos_Nshifts {f1, f2} \<inter> neg_Nshifts {f1, f2} = {}"
+  using f1_pbinomial f2_pbinomial
+  by (auto elim!: pos_NshiftsE_poly[where F="{f1, f2}"] neg_NshiftsE_poly[where F="{f1, f2}"]
+            dest: pos_neg_Nshifts_disjointI)
 
 lemma Nshifts_fst_not_eq_snd:
   assumes "z \<in> Nshifts {f1, f2}"
@@ -2298,6 +2352,26 @@ proof -
   thus ?thesis using hd_zs' last_zs' ..
 qed
 
+lemma pos_neg_Nshifts_disjointI2:
+  assumes "is_vpc zs" and "set zs \<inter> Nshifts {f} \<noteq> {}"
+  shows "pos_Nshifts {f} \<inter> neg_Nshifts {f} = {}"
+proof -
+  from assms(1) have 1: "set zs \<subseteq> Nshifts {f1, f2}" by (rule is_vpcD)+
+  from assms(2) obtain z where "z \<in> set zs" and z: "z \<in> Nshifts {f}" by fastforce
+  from this(1) 1 have "z \<in> Nshifts {f1, f2}" ..
+  hence "fst z \<noteq> snd z" by (rule Nshifts_fst_not_eq_snd)
+  have "2 \<le> card (keys f)"
+  proof (rule ccontr)
+    assume "\<not> 2 \<le> card (keys f)"
+    hence eq: "fst (poly_point f) = snd (poly_point f)" by (simp add: fst_eq_snd_poly_point_iff)
+    moreover from z obtain t where "z = t +\<^sub>N poly_point f \<or> z = t +\<^sub>N prod.swap (poly_point f)"
+      by (rule NshiftsE_singleton)
+    hence "fst z = snd z" by (simp add: nat_plus_point_pair_def eq)
+    with \<open>fst z \<noteq> snd z\<close> show False ..
+  qed
+  thus ?thesis by (rule pos_neg_Nshifts_disjointI')
+qed
+
 lemma lem_3_3_19:
   assumes "min_length_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)" and "Suc i < length zs"
     and "zs ! i \<in> Nshifts {f}" and "zs ! Suc i \<in> Nshifts {f}"
@@ -2945,278 +3019,295 @@ qed
 lemma thm_3_3_22:
   assumes "min_length_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)" and "overlap \<unlhd> fst (hd zs)"
     and "overlap \<unlhd> snd (last zs)" and "f \<in> {f1, f2}"
-  assumes "set zs \<inter> Nshifts {f} \<subseteq> pos_Nshifts {f} \<Longrightarrow> thesis"
-  assumes "set zs \<inter> Nshifts {f} \<subseteq> neg_Nshifts {f} \<Longrightarrow> thesis"
+  assumes "set zs \<inter> Nshifts {f} \<subseteq> pos_Nshifts {f} \<Longrightarrow> set zs \<inter> neg_Nshifts {f} = {} \<Longrightarrow> thesis"
+  assumes "set zs \<inter> Nshifts {f} \<subseteq> neg_Nshifts {f} \<Longrightarrow> set zs \<inter> pos_Nshifts {f} = {} \<Longrightarrow> thesis"
   shows thesis
-proof (cases "set zs \<inter> Nshifts {f} \<subseteq> pos_Nshifts {f}")
-  case True
-  thus ?thesis by (rule assms(6))
-next
-  case False
-  have disjnt: "pos_Nshifts {f} \<inter> neg_Nshifts {f} = {}"
-  proof (rule ccontr)
-    assume "pos_Nshifts {f} \<inter> neg_Nshifts {f} \<noteq> {}"
-    hence "pos_Nshifts {f} = neg_Nshifts {f}" by (rule pos_neg_Nshifts_not_disjointD)
-    with False show False unfolding Nshifts_def by blast
-  qed
-  obtain i where "i < length zs" and i_neg: "zs ! i \<in> neg_Nshifts {f}"
-    and i_min: "\<And>a. a < i \<Longrightarrow> zs ! a \<notin> neg_Nshifts {f}"
-  proof -
-    let ?A = "{k\<in>{..<length zs}. zs ! k \<in> neg_Nshifts {f}}"
-    define i where "i = Min ?A"
-    have "finite ?A" by simp
-    moreover have "?A \<noteq> {}"
-    proof
-      from False obtain z where "z \<in> set zs" and z_neg: "z \<in> neg_Nshifts {f}"
-        by (auto simp: Nshifts_def)
-      moreover from this(1) obtain j where "j < length zs" and z: "z = zs ! j"
-        by (metis in_set_conv_nth)
-      ultimately have "j \<in> ?A" by simp
-      also assume "?A = {}"
-      finally show False ..
-    qed
-    ultimately have "i \<in> ?A" unfolding i_def by (rule Min_in)
-    hence "i < length zs" and "zs ! i \<in> neg_Nshifts {f}" by simp_all
-    thus ?thesis
-    proof
-      fix a
-      assume "a < i"
-      show "zs ! a \<notin> neg_Nshifts {f}"
-      proof
-        assume "zs ! a \<in> neg_Nshifts {f}"
-        moreover from \<open>a < i\<close> \<open>i < length zs\<close> have "a < length zs" by (rule less_trans)
-        ultimately have "a \<in> ?A" by simp
-        with \<open>finite ?A\<close> have "i \<le> a" unfolding i_def by (rule Min_le)
-        with \<open>a < i\<close> show False by simp
-      qed
-    qed
-  qed
+proof -
+  from f1_pbinomial f2_pbinomial assms(5) have "is_proper_binomial f" by blast
+  hence disjnt: "pos_Nshifts {f} \<inter> neg_Nshifts {f} = {}" by (rule pos_neg_Nshifts_disjointI)
   show ?thesis
-  proof (cases "set zs \<inter> Nshifts {f} \<subseteq> neg_Nshifts {f}")
+  proof (cases "set zs \<inter> Nshifts {f} \<subseteq> pos_Nshifts {f}")
     case True
-    thus ?thesis by (rule assms(7))
+    moreover have "set zs \<inter> neg_Nshifts {f} = {}"
+    proof (intro subset_antisym subsetI)
+      fix z
+      assume "z \<in> set zs \<inter> neg_Nshifts {f}"
+      hence "z \<in> set zs \<inter> Nshifts {f}" and "z \<in> neg_Nshifts {f}" by (simp_all add: Nshifts_def)
+      moreover from this(1) True have "z \<in> pos_Nshifts {f}" ..
+      ultimately have "pos_Nshifts {f} \<inter> neg_Nshifts {f} \<noteq> {}" by blast
+      thus "z \<in> {}" by (simp add: disjnt)
+    qed simp
+    ultimately show ?thesis by (rule assms(6))
   next
     case False
-    obtain j where "j < length zs" and j_pos: "zs ! j \<in> pos_Nshifts {f}"
-      and j_min: "\<And>a. a < j \<Longrightarrow> zs ! a \<notin> pos_Nshifts {f}"
+    obtain i where "i < length zs" and i_neg: "zs ! i \<in> neg_Nshifts {f}"
+      and i_min: "\<And>a. a < i \<Longrightarrow> zs ! a \<notin> neg_Nshifts {f}"
     proof -
-      let ?A = "{k\<in>{..<length zs}. zs ! k \<in> pos_Nshifts {f}}"
-      define j where "j = Min ?A"
+      let ?A = "{k\<in>{..<length zs}. zs ! k \<in> neg_Nshifts {f}}"
+      define i where "i = Min ?A"
       have "finite ?A" by simp
       moreover have "?A \<noteq> {}"
       proof
-        from False obtain z where "z \<in> set zs" and z_neg: "z \<in> pos_Nshifts {f}"
+        from False obtain z where "z \<in> set zs" and z_neg: "z \<in> neg_Nshifts {f}"
           by (auto simp: Nshifts_def)
-        moreover from this(1) obtain k where "k < length zs" and z: "z = zs ! k"
+        moreover from this(1) obtain j where "j < length zs" and z: "z = zs ! j"
           by (metis in_set_conv_nth)
-        ultimately have "k \<in> ?A" by simp
+        ultimately have "j \<in> ?A" by simp
         also assume "?A = {}"
         finally show False ..
       qed
-      ultimately have "j \<in> ?A" unfolding j_def by (rule Min_in)
-      hence "j < length zs" and "zs ! j \<in> pos_Nshifts {f}" by simp_all
+      ultimately have "i \<in> ?A" unfolding i_def by (rule Min_in)
+      hence "i < length zs" and "zs ! i \<in> neg_Nshifts {f}" by simp_all
       thus ?thesis
       proof
         fix a
-        assume "a < j"
-        show "zs ! a \<notin> pos_Nshifts {f}"
+        assume "a < i"
+        show "zs ! a \<notin> neg_Nshifts {f}"
         proof
-          assume "zs ! a \<in> pos_Nshifts {f}"
-          moreover from \<open>a < j\<close> \<open>j < length zs\<close> have "a < length zs" by (rule less_trans)
+          assume "zs ! a \<in> neg_Nshifts {f}"
+          moreover from \<open>a < i\<close> \<open>i < length zs\<close> have "a < length zs" by (rule less_trans)
           ultimately have "a \<in> ?A" by simp
-          with \<open>finite ?A\<close> have "j \<le> a" unfolding j_def by (rule Min_le)
-          with \<open>a < j\<close> show False by simp
+          with \<open>finite ?A\<close> have "i \<le> a" unfolding i_def by (rule Min_le)
+          with \<open>a < i\<close> show False by simp
         qed
       qed
     qed
-    from assms(1) have "is_vpc zs" by (rule min_length_vpcD)
-    obtain m1 m2 f' l where "Suc m1 < m2" and "m2 < length zs" and "f' \<in> {f1, f2}" and "l \<in> \<int>"
-      and abs_l: "\<bar>l\<bar> = rat (m2 - Suc m1)" and snd_m2: "snd (zs ! m2) = fst (zs ! m1) + l \<cdot> vect f'"
-    proof (rule linorder_cases)
-      \<comment>\<open>Case 1: First a negative shift of \<open>f\<close>, then a positive one.\<close>
-      let ?A = "{k\<in>{..<j}. zs ! k \<in> neg_Nshifts {f}}"
-      have "finite ?A" by simp
-      define k where "k = Max ?A"
-      assume "i < j"
-      with i_neg have "i \<in> ?A" by simp
-      hence "?A \<noteq> {}" by blast
-      with \<open>finite ?A\<close> have "k \<in> ?A" unfolding k_def by (rule Max_in)
-      hence "k < j" and k_neg: "zs ! k \<in> neg_Nshifts {f}" by simp_all
-      have "Suc k \<le> j - 1"
-      proof (rule ccontr)
-        assume "\<not> Suc k \<le> j - 1"
-        with \<open>k < j\<close> have j: "j = Suc k" by simp
-        note assms(1, 2)
-        moreover from \<open>j < length zs\<close> have "Suc k < length zs" by (simp only: j)
-        moreover from k_neg have "zs ! k \<in> Nshifts {f}" by (rule NshiftsI2)
-        moreover from j_pos have "zs ! Suc k \<in> Nshifts {f}" unfolding j by (rule NshiftsI1)
-        ultimately show False
-        proof (rule lem_3_3_19)
-          assume "zs ! k \<in> pos_Nshifts {f}"
-          with k_neg have "pos_Nshifts {f} \<inter> neg_Nshifts {f} \<noteq> {}" by blast
-          thus ?thesis using disjnt ..
-        next
-          assume "zs ! Suc k \<in> neg_Nshifts {f}"
-          with j_pos disjnt show ?thesis unfolding j by blast
-        qed
-      qed
-      hence Suc_j: "Suc (j - Suc 0) = j" by simp
-      from \<open>j < length zs\<close> have "j - 1 < length zs" by simp
-      have 1: "zs ! a \<in> Nshifts {f1, f2} - Nshifts {f}" if "Suc k \<le> a" and "a \<le> j - 1" for a
-      proof -
-        from that(2) \<open>j - 1 < length zs\<close> have "a < length zs" by (rule le_less_trans)
-        hence "zs ! a \<in> set zs" by simp
-        also from \<open>is_vpc zs\<close> have "\<dots> \<subseteq> Nshifts {f1, f2}" by (rule is_vpcD)
-        finally have "zs ! a \<in> Nshifts {f1, f2}" .
-        moreover have "zs ! a \<notin> Nshifts {f}"
-        proof
-          assume "zs ! a \<in> Nshifts {f}"
-          thus False
-          proof (rule NshiftsE_shift)
-            from that(2) \<open>Suc k \<le> j - 1\<close> have "a < j" by simp
-            hence "zs ! a \<notin> pos_Nshifts {f}" by (rule j_min)
-            moreover assume "zs ! a \<in> pos_Nshifts {f}"
-            ultimately show ?thesis ..
-          next
-            assume "zs ! a \<in> neg_Nshifts {f}"
-            with that(2) \<open>Suc k \<le> j - 1\<close> have "a \<in> ?A" by simp
-            with \<open>finite ?A\<close> have "a \<le> k" unfolding k_def by (rule Max_ge)
-            with that(1) show ?thesis by simp
-          qed
-        qed
-        ultimately show ?thesis by simp
-      qed
-      from le_refl \<open>Suc k \<le> j - 1\<close> have "zs ! Suc k \<in> Nshifts {f1, f2} - Nshifts {f}" by (rule 1)
-      then obtain f' where "f' \<in> {f1, f2}" and "f' \<noteq> f" and "zs ! Suc k \<in> Nshifts {f'}"
-        by (auto elim: NshiftsE_poly)
-      have "zs ! a \<in> Nshifts {f'}" if "Suc k \<le> a" and "a \<le> j - 1" for a
-        using that assms(5) \<open>f' \<in> {f1, f2}\<close> \<open>f' \<noteq> f\<close> by (auto simp only: dest: 1 elim: NshiftsE_poly)
-      with assms(1, 2) \<open>Suc k \<le> j - 1\<close> \<open>j - 1 < length zs\<close> obtain l where "l \<in> \<int>"
-        and abs_l: "\<bar>l\<bar> = rat (Suc (j - 1) - Suc k)"
-        and eq: "snd (zs ! (j - 1)) = fst (zs ! Suc k) + l \<cdot> vect f'" by (rule vpc_Nshifts_conv_vect)
-      from j_pos have "snd (zs ! j) = fst (zs ! j) + vect f" by (rule pos_Nshifts_conv_vect)
-      also have "fst (zs ! j) = fst (zs ! Suc (j - 1))" by (simp add: Suc_j)
-      also from \<open>is_vpc zs\<close> have "\<dots> = snd (zs ! (j - 1))"
-        by (rule is_vpcD(2)[symmetric]) (simp add: Suc_j \<open>j < length zs\<close>)
-      finally have "snd (zs ! j) = fst (zs ! Suc k) + l \<cdot> vect f' + vect f" by (simp only: eq)
-      also from \<open>is_vpc zs\<close> have "fst (zs ! Suc k) = snd (zs ! k)"
-        by (rule is_vpcD(2)[symmetric]) (rule le_less_trans, fact+)
-      also from k_neg have "\<dots> = fst (zs ! k) - vect f" by (rule neg_Nshifts_conv_vect)
-      finally have "snd (zs ! j) = fst (zs ! k) + l \<cdot> vect f'" by simp
-      with _ \<open>j < length zs\<close> \<open>f' \<in> {f1, f2}\<close> \<open>l \<in> \<int>\<close> _ show ?thesis
-      proof (rule that)
-        from \<open>Suc k \<le> j - 1\<close> show "Suc k < j" by simp
-      next
-        from abs_l show "\<bar>l\<bar> = rat (j - Suc k)" by (simp only: Suc_j)
-      qed
+    show ?thesis
+    proof (cases "set zs \<inter> Nshifts {f} \<subseteq> neg_Nshifts {f}")
+      case True
+      moreover have "set zs \<inter> pos_Nshifts {f} = {}"
+      proof (intro subset_antisym subsetI)
+        fix z
+        assume "z \<in> set zs \<inter> pos_Nshifts {f}"
+        hence "z \<in> set zs \<inter> Nshifts {f}" and "z \<in> pos_Nshifts {f}" by (simp_all add: Nshifts_def)
+        moreover from this(1) True have "z \<in> neg_Nshifts {f}" ..
+        ultimately have "pos_Nshifts {f} \<inter> neg_Nshifts {f} \<noteq> {}" by blast
+        thus "z \<in> {}" by (simp add: disjnt)
+      qed simp
+      ultimately show ?thesis by (rule assms(7))
     next
-      \<comment>\<open>Case 2: First a positive shift of \<open>f\<close>, then a negative one.\<close>
-      let ?A = "{k\<in>{..<i}. zs ! k \<in> pos_Nshifts {f}}"
-      have "finite ?A" by simp
-      define k where "k = Max ?A"
-      assume "j < i"
-      with j_pos have "j \<in> ?A" by simp
-      hence "?A \<noteq> {}" by blast
-      with \<open>finite ?A\<close> have "k \<in> ?A" unfolding k_def by (rule Max_in)
-      hence "k < i" and k_pos: "zs ! k \<in> pos_Nshifts {f}" by simp_all
-      have "Suc k \<le> i - 1"
-      proof (rule ccontr)
-        assume "\<not> Suc k \<le> i - 1"
-        with \<open>k < i\<close> have i: "i = Suc k" by simp
-        note assms(1, 2)
-        moreover from \<open>i < length zs\<close> have "Suc k < length zs" by (simp only: i)
-        moreover from k_pos have "zs ! k \<in> Nshifts {f}" by (rule NshiftsI1)
-        moreover from i_neg have "zs ! Suc k \<in> Nshifts {f}" unfolding i by (rule NshiftsI2)
-        ultimately show False
-        proof (rule lem_3_3_19)
-          assume "zs ! k \<in> neg_Nshifts {f}"
-          with k_pos have "pos_Nshifts {f} \<inter> neg_Nshifts {f} \<noteq> {}" by blast
-          thus ?thesis using disjnt ..
-        next
-          assume "zs ! Suc k \<in> pos_Nshifts {f}"
-          with i_neg disjnt show ?thesis unfolding i by blast
-        qed
-      qed
-      hence Suc_i: "Suc (i - Suc 0) = i" by simp
-      from \<open>i < length zs\<close> have "i - 1 < length zs" by simp
-      have 1: "zs ! a \<in> Nshifts {f1, f2} - Nshifts {f}" if "Suc k \<le> a" and "a \<le> i - 1" for a
+      case False
+      obtain j where "j < length zs" and j_pos: "zs ! j \<in> pos_Nshifts {f}"
+        and j_min: "\<And>a. a < j \<Longrightarrow> zs ! a \<notin> pos_Nshifts {f}"
       proof -
-        from that(2) \<open>i - 1 < length zs\<close> have "a < length zs" by (rule le_less_trans)
-        hence "zs ! a \<in> set zs" by simp
-        also from \<open>is_vpc zs\<close> have "\<dots> \<subseteq> Nshifts {f1, f2}" by (rule is_vpcD)
-        finally have "zs ! a \<in> Nshifts {f1, f2}" .
-        moreover have "zs ! a \<notin> Nshifts {f}"
+        let ?A = "{k\<in>{..<length zs}. zs ! k \<in> pos_Nshifts {f}}"
+        define j where "j = Min ?A"
+        have "finite ?A" by simp
+        moreover have "?A \<noteq> {}"
         proof
-          assume "zs ! a \<in> Nshifts {f}"
-          thus False
-          proof (rule NshiftsE_shift)
-            from that(2) \<open>Suc k \<le> i - 1\<close> have "a < i" by simp
-            hence "zs ! a \<notin> neg_Nshifts {f}" by (rule i_min)
-            moreover assume "zs ! a \<in> neg_Nshifts {f}"
-            ultimately show ?thesis ..
-          next
+          from False obtain z where "z \<in> set zs" and z_neg: "z \<in> pos_Nshifts {f}"
+            by (auto simp: Nshifts_def)
+          moreover from this(1) obtain k where "k < length zs" and z: "z = zs ! k"
+            by (metis in_set_conv_nth)
+          ultimately have "k \<in> ?A" by simp
+          also assume "?A = {}"
+          finally show False ..
+        qed
+        ultimately have "j \<in> ?A" unfolding j_def by (rule Min_in)
+        hence "j < length zs" and "zs ! j \<in> pos_Nshifts {f}" by simp_all
+        thus ?thesis
+        proof
+          fix a
+          assume "a < j"
+          show "zs ! a \<notin> pos_Nshifts {f}"
+          proof
             assume "zs ! a \<in> pos_Nshifts {f}"
-            with that(2) \<open>Suc k \<le> i - 1\<close> have "a \<in> ?A" by simp
-            with \<open>finite ?A\<close> have "a \<le> k" unfolding k_def by (rule Max_ge)
-            with that(1) show ?thesis by simp
+            moreover from \<open>a < j\<close> \<open>j < length zs\<close> have "a < length zs" by (rule less_trans)
+            ultimately have "a \<in> ?A" by simp
+            with \<open>finite ?A\<close> have "j \<le> a" unfolding j_def by (rule Min_le)
+            with \<open>a < j\<close> show False by simp
           qed
         qed
-        ultimately show ?thesis by simp
       qed
-      from le_refl \<open>Suc k \<le> i - 1\<close> have "zs ! Suc k \<in> Nshifts {f1, f2} - Nshifts {f}" by (rule 1)
-      then obtain f' where "f' \<in> {f1, f2}" and "f' \<noteq> f" and "zs ! Suc k \<in> Nshifts {f'}"
-        by (auto elim: NshiftsE_poly)
-      have "zs ! a \<in> Nshifts {f'}" if "Suc k \<le> a" and "a \<le> i - 1" for a
-        using that assms(5) \<open>f' \<in> {f1, f2}\<close> \<open>f' \<noteq> f\<close> by (auto simp only: dest: 1 elim: NshiftsE_poly)
-      with assms(1, 2) \<open>Suc k \<le> i - 1\<close> \<open>i - 1 < length zs\<close> obtain l where "l \<in> \<int>"
-        and abs_l: "\<bar>l\<bar> = rat (Suc (i - 1) - Suc k)"
-        and eq: "snd (zs ! (i - 1)) = fst (zs ! Suc k) + l \<cdot> vect f'" by (rule vpc_Nshifts_conv_vect)
-      from i_neg have "snd (zs ! i) = fst (zs ! i) - vect f" by (rule neg_Nshifts_conv_vect)
-      also have "fst (zs ! i) = fst (zs ! Suc (i - 1))" by (simp add: Suc_i)
-      also from \<open>is_vpc zs\<close> have "\<dots> = snd (zs ! (i - 1))"
-        by (rule is_vpcD(2)[symmetric]) (simp add: Suc_i \<open>i < length zs\<close>)
-      finally have "snd (zs ! i) = fst (zs ! Suc k) + l \<cdot> vect f' - vect f" by (simp only: eq)
-      also from \<open>is_vpc zs\<close> have "fst (zs ! Suc k) = snd (zs ! k)"
-        by (rule is_vpcD(2)[symmetric]) (rule le_less_trans, fact+)
-      also from k_pos have "\<dots> = fst (zs ! k) + vect f" by (rule pos_Nshifts_conv_vect)
-      finally have "snd (zs ! i) = fst (zs ! k) + l \<cdot> vect f'" by simp
-      with _ \<open>i < length zs\<close> \<open>f' \<in> {f1, f2}\<close> \<open>l \<in> \<int>\<close> _ show ?thesis
-      proof (rule that)
-        from \<open>Suc k \<le> i - 1\<close> show "Suc k < i" by simp
+      from assms(1) have "is_vpc zs" by (rule min_length_vpcD)
+      obtain m1 m2 f' l where "Suc m1 < m2" and "m2 < length zs" and "f' \<in> {f1, f2}" and "l \<in> \<int>"
+        and abs_l: "\<bar>l\<bar> = rat (m2 - Suc m1)" and snd_m2: "snd (zs ! m2) = fst (zs ! m1) + l \<cdot> vect f'"
+      proof (rule linorder_cases)
+        \<comment>\<open>Case 1: First a negative shift of \<open>f\<close>, then a positive one.\<close>
+        let ?A = "{k\<in>{..<j}. zs ! k \<in> neg_Nshifts {f}}"
+        have "finite ?A" by simp
+        define k where "k = Max ?A"
+        assume "i < j"
+        with i_neg have "i \<in> ?A" by simp
+        hence "?A \<noteq> {}" by blast
+        with \<open>finite ?A\<close> have "k \<in> ?A" unfolding k_def by (rule Max_in)
+        hence "k < j" and k_neg: "zs ! k \<in> neg_Nshifts {f}" by simp_all
+        have "Suc k \<le> j - 1"
+        proof (rule ccontr)
+          assume "\<not> Suc k \<le> j - 1"
+          with \<open>k < j\<close> have j: "j = Suc k" by simp
+          note assms(1, 2)
+          moreover from \<open>j < length zs\<close> have "Suc k < length zs" by (simp only: j)
+          moreover from k_neg have "zs ! k \<in> Nshifts {f}" by (rule NshiftsI2)
+          moreover from j_pos have "zs ! Suc k \<in> Nshifts {f}" unfolding j by (rule NshiftsI1)
+          ultimately show False
+          proof (rule lem_3_3_19)
+            assume "zs ! k \<in> pos_Nshifts {f}"
+            with k_neg have "pos_Nshifts {f} \<inter> neg_Nshifts {f} \<noteq> {}" by blast
+            thus ?thesis using disjnt ..
+          next
+            assume "zs ! Suc k \<in> neg_Nshifts {f}"
+            with j_pos disjnt show ?thesis unfolding j by blast
+          qed
+        qed
+        hence Suc_j: "Suc (j - Suc 0) = j" by simp
+        from \<open>j < length zs\<close> have "j - 1 < length zs" by simp
+        have 1: "zs ! a \<in> Nshifts {f1, f2} - Nshifts {f}" if "Suc k \<le> a" and "a \<le> j - 1" for a
+        proof -
+          from that(2) \<open>j - 1 < length zs\<close> have "a < length zs" by (rule le_less_trans)
+          hence "zs ! a \<in> set zs" by simp
+          also from \<open>is_vpc zs\<close> have "\<dots> \<subseteq> Nshifts {f1, f2}" by (rule is_vpcD)
+          finally have "zs ! a \<in> Nshifts {f1, f2}" .
+          moreover have "zs ! a \<notin> Nshifts {f}"
+          proof
+            assume "zs ! a \<in> Nshifts {f}"
+            thus False
+            proof (rule NshiftsE_shift)
+              from that(2) \<open>Suc k \<le> j - 1\<close> have "a < j" by simp
+              hence "zs ! a \<notin> pos_Nshifts {f}" by (rule j_min)
+              moreover assume "zs ! a \<in> pos_Nshifts {f}"
+              ultimately show ?thesis ..
+            next
+              assume "zs ! a \<in> neg_Nshifts {f}"
+              with that(2) \<open>Suc k \<le> j - 1\<close> have "a \<in> ?A" by simp
+              with \<open>finite ?A\<close> have "a \<le> k" unfolding k_def by (rule Max_ge)
+              with that(1) show ?thesis by simp
+            qed
+          qed
+          ultimately show ?thesis by simp
+        qed
+        from le_refl \<open>Suc k \<le> j - 1\<close> have "zs ! Suc k \<in> Nshifts {f1, f2} - Nshifts {f}" by (rule 1)
+        then obtain f' where "f' \<in> {f1, f2}" and "f' \<noteq> f" and "zs ! Suc k \<in> Nshifts {f'}"
+          by (auto elim: NshiftsE_poly)
+        have "zs ! a \<in> Nshifts {f'}" if "Suc k \<le> a" and "a \<le> j - 1" for a
+          using that assms(5) \<open>f' \<in> {f1, f2}\<close> \<open>f' \<noteq> f\<close> by (auto simp only: dest: 1 elim: NshiftsE_poly)
+        with assms(1, 2) \<open>Suc k \<le> j - 1\<close> \<open>j - 1 < length zs\<close> obtain l where "l \<in> \<int>"
+          and abs_l: "\<bar>l\<bar> = rat (Suc (j - 1) - Suc k)"
+          and eq: "snd (zs ! (j - 1)) = fst (zs ! Suc k) + l \<cdot> vect f'" by (rule vpc_Nshifts_conv_vect)
+        from j_pos have "snd (zs ! j) = fst (zs ! j) + vect f" by (rule pos_Nshifts_conv_vect)
+        also have "fst (zs ! j) = fst (zs ! Suc (j - 1))" by (simp add: Suc_j)
+        also from \<open>is_vpc zs\<close> have "\<dots> = snd (zs ! (j - 1))"
+          by (rule is_vpcD(2)[symmetric]) (simp add: Suc_j \<open>j < length zs\<close>)
+        finally have "snd (zs ! j) = fst (zs ! Suc k) + l \<cdot> vect f' + vect f" by (simp only: eq)
+        also from \<open>is_vpc zs\<close> have "fst (zs ! Suc k) = snd (zs ! k)"
+          by (rule is_vpcD(2)[symmetric]) (rule le_less_trans, fact+)
+        also from k_neg have "\<dots> = fst (zs ! k) - vect f" by (rule neg_Nshifts_conv_vect)
+        finally have "snd (zs ! j) = fst (zs ! k) + l \<cdot> vect f'" by simp
+        with _ \<open>j < length zs\<close> \<open>f' \<in> {f1, f2}\<close> \<open>l \<in> \<int>\<close> _ show ?thesis
+        proof (rule that)
+          from \<open>Suc k \<le> j - 1\<close> show "Suc k < j" by simp
+        next
+          from abs_l show "\<bar>l\<bar> = rat (j - Suc k)" by (simp only: Suc_j)
+        qed
       next
-        from abs_l show "\<bar>l\<bar> = rat (i - Suc k)" by (simp only: Suc_i)
+        \<comment>\<open>Case 2: First a positive shift of \<open>f\<close>, then a negative one.\<close>
+        let ?A = "{k\<in>{..<i}. zs ! k \<in> pos_Nshifts {f}}"
+        have "finite ?A" by simp
+        define k where "k = Max ?A"
+        assume "j < i"
+        with j_pos have "j \<in> ?A" by simp
+        hence "?A \<noteq> {}" by blast
+        with \<open>finite ?A\<close> have "k \<in> ?A" unfolding k_def by (rule Max_in)
+        hence "k < i" and k_pos: "zs ! k \<in> pos_Nshifts {f}" by simp_all
+        have "Suc k \<le> i - 1"
+        proof (rule ccontr)
+          assume "\<not> Suc k \<le> i - 1"
+          with \<open>k < i\<close> have i: "i = Suc k" by simp
+          note assms(1, 2)
+          moreover from \<open>i < length zs\<close> have "Suc k < length zs" by (simp only: i)
+          moreover from k_pos have "zs ! k \<in> Nshifts {f}" by (rule NshiftsI1)
+          moreover from i_neg have "zs ! Suc k \<in> Nshifts {f}" unfolding i by (rule NshiftsI2)
+          ultimately show False
+          proof (rule lem_3_3_19)
+            assume "zs ! k \<in> neg_Nshifts {f}"
+            with k_pos have "pos_Nshifts {f} \<inter> neg_Nshifts {f} \<noteq> {}" by blast
+            thus ?thesis using disjnt ..
+          next
+            assume "zs ! Suc k \<in> pos_Nshifts {f}"
+            with i_neg disjnt show ?thesis unfolding i by blast
+          qed
+        qed
+        hence Suc_i: "Suc (i - Suc 0) = i" by simp
+        from \<open>i < length zs\<close> have "i - 1 < length zs" by simp
+        have 1: "zs ! a \<in> Nshifts {f1, f2} - Nshifts {f}" if "Suc k \<le> a" and "a \<le> i - 1" for a
+        proof -
+          from that(2) \<open>i - 1 < length zs\<close> have "a < length zs" by (rule le_less_trans)
+          hence "zs ! a \<in> set zs" by simp
+          also from \<open>is_vpc zs\<close> have "\<dots> \<subseteq> Nshifts {f1, f2}" by (rule is_vpcD)
+          finally have "zs ! a \<in> Nshifts {f1, f2}" .
+          moreover have "zs ! a \<notin> Nshifts {f}"
+          proof
+            assume "zs ! a \<in> Nshifts {f}"
+            thus False
+            proof (rule NshiftsE_shift)
+              from that(2) \<open>Suc k \<le> i - 1\<close> have "a < i" by simp
+              hence "zs ! a \<notin> neg_Nshifts {f}" by (rule i_min)
+              moreover assume "zs ! a \<in> neg_Nshifts {f}"
+              ultimately show ?thesis ..
+            next
+              assume "zs ! a \<in> pos_Nshifts {f}"
+              with that(2) \<open>Suc k \<le> i - 1\<close> have "a \<in> ?A" by simp
+              with \<open>finite ?A\<close> have "a \<le> k" unfolding k_def by (rule Max_ge)
+              with that(1) show ?thesis by simp
+            qed
+          qed
+          ultimately show ?thesis by simp
+        qed
+        from le_refl \<open>Suc k \<le> i - 1\<close> have "zs ! Suc k \<in> Nshifts {f1, f2} - Nshifts {f}" by (rule 1)
+        then obtain f' where "f' \<in> {f1, f2}" and "f' \<noteq> f" and "zs ! Suc k \<in> Nshifts {f'}"
+          by (auto elim: NshiftsE_poly)
+        have "zs ! a \<in> Nshifts {f'}" if "Suc k \<le> a" and "a \<le> i - 1" for a
+          using that assms(5) \<open>f' \<in> {f1, f2}\<close> \<open>f' \<noteq> f\<close> by (auto simp only: dest: 1 elim: NshiftsE_poly)
+        with assms(1, 2) \<open>Suc k \<le> i - 1\<close> \<open>i - 1 < length zs\<close> obtain l where "l \<in> \<int>"
+          and abs_l: "\<bar>l\<bar> = rat (Suc (i - 1) - Suc k)"
+          and eq: "snd (zs ! (i - 1)) = fst (zs ! Suc k) + l \<cdot> vect f'" by (rule vpc_Nshifts_conv_vect)
+        from i_neg have "snd (zs ! i) = fst (zs ! i) - vect f" by (rule neg_Nshifts_conv_vect)
+        also have "fst (zs ! i) = fst (zs ! Suc (i - 1))" by (simp add: Suc_i)
+        also from \<open>is_vpc zs\<close> have "\<dots> = snd (zs ! (i - 1))"
+          by (rule is_vpcD(2)[symmetric]) (simp add: Suc_i \<open>i < length zs\<close>)
+        finally have "snd (zs ! i) = fst (zs ! Suc k) + l \<cdot> vect f' - vect f" by (simp only: eq)
+        also from \<open>is_vpc zs\<close> have "fst (zs ! Suc k) = snd (zs ! k)"
+          by (rule is_vpcD(2)[symmetric]) (rule le_less_trans, fact+)
+        also from k_pos have "\<dots> = fst (zs ! k) + vect f" by (rule pos_Nshifts_conv_vect)
+        finally have "snd (zs ! i) = fst (zs ! k) + l \<cdot> vect f'" by simp
+        with _ \<open>i < length zs\<close> \<open>f' \<in> {f1, f2}\<close> \<open>l \<in> \<int>\<close> _ show ?thesis
+        proof (rule that)
+          from \<open>Suc k \<le> i - 1\<close> show "Suc k < i" by simp
+        next
+          from abs_l show "\<bar>l\<bar> = rat (i - Suc k)" by (simp only: Suc_i)
+        qed
+      next
+        assume "i = j"
+        with i_neg j_pos disjnt show ?thesis by blast
       qed
-    next
-      assume "i = j"
-      with i_neg j_pos disjnt show ?thesis by blast
+      from \<open>Suc m1 < m2\<close> \<open>m2 < length zs\<close> have m1_in: "fst (zs ! m1) \<in> set_of_vpc zs"
+        by (simp add: set_of_vpc_def)
+      with assms(1-4) have "overlap \<unlhd> fst (zs ! m1)" by (rule thm_3_3_20)
+      moreover from assms(1-4) have "overlap \<unlhd> fst (zs ! m1) + l \<cdot> vect f'" unfolding snd_m2[symmetric]
+        by (rule thm_3_3_20) (simp add: set_of_vpc_def \<open>m2 < length zs\<close>)
+      moreover from \<open>is_vpc zs\<close> m1_in have "is_int_pm (fst (zs ! m1))"
+        by (intro nat_pm_is_int_pm vpc_is_nat_pm)
+      moreover note \<open>f' \<in> {f1, f2}\<close> \<open>l \<in> \<int>\<close>
+      moreover from \<open>Suc m1 < m2\<close> abs_l have "l \<noteq> 0" by simp
+      ultimately obtain zs2 where "is_vpc zs2" and len_zs2': "rat (length zs2) = \<bar>l\<bar>"
+        and hd_zs2: "fst (hd zs2) = fst (zs ! m1)" and "snd (last zs2) = fst (zs ! m1) + l \<cdot> vect f'"
+        by (rule lem_3_3_21)
+      from this(4) have last_zs2: "snd (last zs2) = snd (zs ! m2)" by (simp only: snd_m2)
+      from len_zs2' have len_zs2: "length zs2 = m2 - Suc m1" by (simp add: abs_l)
+      from \<open>Suc m1 < m2\<close> have "m1 \<le> m2" by simp
+      with \<open>is_vpc zs\<close> obtain zs' where "is_vpc zs'" and hd_zs': "fst (hd zs') = fst (hd zs)"
+        and last_zs': "snd (last zs') = snd (last zs)"
+        and "length zs + length zs2 = length zs' + (Suc m2 - m1)"
+        using \<open>m2 < length zs\<close> \<open>is_vpc zs2\<close> hd_zs2 last_zs2
+      proof (rule replace_vpc)
+        from \<open>is_vpc zs2\<close> have "zs2 \<noteq> []" by (rule is_vpcD)
+        moreover assume "zs2 = []"
+        ultimately show False and "fst (zs ! m1) = snd (zs ! m2)" by (rule notE)+
+      qed
+      from this(4) \<open>Suc m1 < m2\<close> have "length zs' < length zs" by (simp add: len_zs2)
+      also from assms(1) \<open>is_vpc zs'\<close> hd_zs' last_zs' have "\<dots> \<le> length zs'" by (rule min_length_vpcD)
+      finally show ?thesis ..
     qed
-    from \<open>Suc m1 < m2\<close> \<open>m2 < length zs\<close> have m1_in: "fst (zs ! m1) \<in> set_of_vpc zs"
-      by (simp add: set_of_vpc_def)
-    with assms(1-4) have "overlap \<unlhd> fst (zs ! m1)" by (rule thm_3_3_20)
-    moreover from assms(1-4) have "overlap \<unlhd> fst (zs ! m1) + l \<cdot> vect f'" unfolding snd_m2[symmetric]
-      by (rule thm_3_3_20) (simp add: set_of_vpc_def \<open>m2 < length zs\<close>)
-    moreover from \<open>is_vpc zs\<close> m1_in have "is_int_pm (fst (zs ! m1))"
-      by (intro nat_pm_is_int_pm vpc_is_nat_pm)
-    moreover note \<open>f' \<in> {f1, f2}\<close> \<open>l \<in> \<int>\<close>
-    moreover from \<open>Suc m1 < m2\<close> abs_l have "l \<noteq> 0" by simp
-    ultimately obtain zs2 where "is_vpc zs2" and len_zs2': "rat (length zs2) = \<bar>l\<bar>"
-      and hd_zs2: "fst (hd zs2) = fst (zs ! m1)" and "snd (last zs2) = fst (zs ! m1) + l \<cdot> vect f'"
-      by (rule lem_3_3_21)
-    from this(4) have last_zs2: "snd (last zs2) = snd (zs ! m2)" by (simp only: snd_m2)
-    from len_zs2' have len_zs2: "length zs2 = m2 - Suc m1" by (simp add: abs_l)
-    from \<open>Suc m1 < m2\<close> have "m1 \<le> m2" by simp
-    with \<open>is_vpc zs\<close> obtain zs' where "is_vpc zs'" and hd_zs': "fst (hd zs') = fst (hd zs)"
-      and last_zs': "snd (last zs') = snd (last zs)"
-      and "length zs + length zs2 = length zs' + (Suc m2 - m1)"
-      using \<open>m2 < length zs\<close> \<open>is_vpc zs2\<close> hd_zs2 last_zs2
-    proof (rule replace_vpc)
-      from \<open>is_vpc zs2\<close> have "zs2 \<noteq> []" by (rule is_vpcD)
-      moreover assume "zs2 = []"
-      ultimately show False and "fst (zs ! m1) = snd (zs ! m2)" by (rule notE)+
-    qed
-    from this(4) \<open>Suc m1 < m2\<close> have "length zs' < length zs" by (simp add: len_zs2)
-    also from assms(1) \<open>is_vpc zs'\<close> hd_zs' last_zs' have "\<dots> \<le> length zs'" by (rule min_length_vpcD)
-    finally show ?thesis ..
   qed
 qed
 
