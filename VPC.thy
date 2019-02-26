@@ -2894,6 +2894,9 @@ next
   with assms(6) show ?thesis ..
 qed
 
+text \<open>With some effort, the assumption @{prop "f \<in> {f1, f2}"} in the following lemma could maybe be
+  dropped.\<close>
+
 lemma thm_3_3_22:
   assumes "min_length_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)" and "overlap \<unlhd> fst (hd zs)"
     and "overlap \<unlhd> snd (last zs)" and "f \<in> {f1, f2}"
@@ -3626,8 +3629,10 @@ lemma vpc_partitionD2:
     and "zs2 \<noteq> [] \<Longrightarrow> overlap \<unlhd> snd (last zs2)"
     and "f \<in> {f1, f2} \<Longrightarrow> (\<And>thesis. (\<And>pos'. set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts pos' {f} \<Longrightarrow>
                                   set zs2 \<inter> pn_Nshifts (\<not> pos') {f} = {} \<Longrightarrow> thesis) \<Longrightarrow> thesis)"
-    and "set zs2 \<inter> pn_Nshifts pos {f} \<noteq> {} \<Longrightarrow> set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts pos {f}"
-    and "set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts pos {f} \<Longrightarrow> set zs2 \<inter> pn_Nshifts (\<not> pos) {f} = {}"
+    and "f \<in> {f1, f2} \<Longrightarrow> set zs2 \<inter> pn_Nshifts pos {f} \<noteq> {} \<Longrightarrow>
+          set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts pos {f}"
+    and "f \<in> {f1, f2} \<Longrightarrow> set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts pos {f} \<Longrightarrow>
+          set zs2 \<inter> pn_Nshifts (\<not> pos) {f} = {}"
 proof -
   let ?zs = "zs1 @ zs2 @ zs3"
   from assms refl have zs_min: "min_length_vpc ?zs" and zs_dist: "fst (hd ?zs) \<noteq> snd (last ?zs)"
@@ -3654,27 +3659,42 @@ proof -
   qed
   thus zs2_min: "zs2 \<noteq> [] \<Longrightarrow> min_length_vpc zs2"
     and zs2_dist: "zs2 \<noteq> [] \<Longrightarrow> fst (hd zs2) \<noteq> snd (last zs2)"
-    and "zs2 \<noteq> [] \<Longrightarrow> overlap \<unlhd> fst (hd zs2)" and "zs2 \<noteq> [] \<Longrightarrow> overlap \<unlhd> snd (last zs2)" by blast+
+    and hd_zs2: "zs2 \<noteq> [] \<Longrightarrow> overlap \<unlhd> fst (hd zs2)"
+    and last_zs2: "zs2 \<noteq> [] \<Longrightarrow> overlap \<unlhd> snd (last zs2)" by blast+
 
-  show rl1: thesis if "f \<in> {f1, f2}"
-                    and "\<And>pos'. set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts pos' {f} \<Longrightarrow>
-                                  set zs2 \<inter> pn_Nshifts (\<not> pos') {f} = {} \<Longrightarrow> thesis" for thesis
-    sorry
+  assume "f \<in> {f1, f2}"
+  show rl: thesis if "\<And>pos'. set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts pos' {f} \<Longrightarrow>
+                              set zs2 \<inter> pn_Nshifts (\<not> pos') {f} = {} \<Longrightarrow> thesis" for thesis
+  proof (cases "zs2 = []")
+    case True
+    show ?thesis
+    proof (rule that)
+      show "set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts True {f}" by (simp add: True)
+    qed (simp add: True)
+  next
+    case False
+    hence "min_length_vpc zs2" and "fst (hd zs2) \<noteq> snd (last zs2)" and "overlap \<unlhd> fst (hd zs2)"
+      and "overlap \<unlhd> snd (last zs2)" by (rule zs2_min, rule zs2_dist, rule hd_zs2, rule last_zs2)
+    thus ?thesis using \<open>f \<in> {f1, f2}\<close> that by (rule thm_3_3_22)
+  qed
 
-  show rl2: "set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts pos' {f}" if "set zs2 \<inter> pn_Nshifts pos' {f} \<noteq> {}" for pos'
-    sorry
-
+  obtain pos' where 1: "set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts pos' {f}"
+    and 2: "set zs2 \<inter> pn_Nshifts (\<not> pos') {f} = {}" by (rule rl)
   {
-    assume 1: "set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts pos {f}"
-    show "set zs2 \<inter> pn_Nshifts (\<not> pos) {f} = {}"
-    proof (rule ccontr)
-      assume 2: "set zs2 \<inter> pn_Nshifts (\<not> pos) {f} \<noteq> {}"
-      hence "zs2 \<noteq> []" by auto
-      from this(1) have "min_length_vpc zs2" and "fst (hd zs2) \<noteq> snd (last zs2)"
-        by (rule zs2_min, rule zs2_dist)
-      thus False sorry
-    qed
+    assume "set zs2 \<inter> pn_Nshifts pos {f} \<noteq> {}"
+    with 2 have "pos' = pos" by auto
+    with 1 show "set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts pos {f}" by simp
   }
+
+  assume 3: "set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts pos {f}"
+  show "set zs2 \<inter> pn_Nshifts (\<not> pos) {f} = {}"
+  proof (rule ccontr)
+    assume 4: "set zs2 \<inter> pn_Nshifts (\<not> pos) {f} \<noteq> {}"
+    with 2 have "pos' = (\<not> pos)" by auto
+    with 2 3 have "set zs2 \<inter> Nshifts {f} = {}" by auto
+    moreover from 4 have "set zs2 \<inter> Nshifts {f} \<noteq> {}" by (auto intro: NshiftsI)
+    ultimately show False by simp
+  qed
 qed
 
 lemma vpc_partitionD3:
@@ -3781,7 +3801,46 @@ proof -
   }
 qed
 
-lemma min_length_vpc_partitionE:
+lemma vpc_partition_revI:
+  assumes "vpc_partition zs1 zs2 zs3"
+  shows "vpc_partition (map prod.swap (rev zs3)) (map prod.swap (rev zs2)) (map prod.swap (rev zs1))"
+    (is "vpc_partition ?zs3 ?zs2 ?zs1")
+  unfolding vpc_partition_def
+proof (intro conjI ballI)
+  have eq: "?zs3 @ ?zs2 @ ?zs1 = map prod.swap (rev (zs1 @ zs2 @ zs3))" by simp
+
+  from assms refl have *: "min_length_vpc (zs1 @ zs2 @ zs3)" by (rule vpc_partitionD)
+  thus "min_length_vpc (?zs3 @ ?zs2 @ ?zs1)" unfolding eq by (rule min_length_vpc_revI)
+
+  from * have "is_vpc (zs1 @ zs2 @ zs3)" by (rule min_length_vpcD)
+  hence "zs1 @ zs2 @ zs3 \<noteq> []" by (rule is_vpcD)
+  moreover from assms refl have "fst (hd (zs1 @ zs2 @ zs3)) \<noteq> snd (last (zs1 @ zs2 @ zs3))"
+    by (rule vpc_partitionD)
+  ultimately show "fst (hd (?zs3 @ ?zs2 @ ?zs1)) \<noteq> snd (last (?zs3 @ ?zs2 @ ?zs1))"
+    unfolding eq
+    by (simp add: hd_rev last_rev last_map hd_map del: rev_append map_append flip: rev_map)
+next
+  fix z
+  assume "z \<in> set ?zs3"
+  hence "z \<in> prod.swap ` set zs3" by simp
+  then obtain z' where "z' \<in> set zs3" and z: "z = prod.swap z'" ..
+  from assms this(1) have "\<not> overlap \<unlhd> snd z'" by (rule vpc_partitionD3)
+  thus "\<not> overlap \<unlhd> fst z" by (simp add: z)
+next
+  fix p
+  assume "p \<in> set_of_vpc ?zs2"
+  hence "p \<in> set_of_vpc zs2" by (auto simp: set_of_vpc_def image_iff)
+  with assms show "overlap \<unlhd> p" by (rule vpc_partitionD2)
+next
+  fix z
+  assume "z \<in> set ?zs1"
+  hence "z \<in> prod.swap ` set zs1" by simp
+  then obtain z' where "z' \<in> set zs1" and z: "z = prod.swap z'" ..
+  from assms this(1) have "\<not> overlap \<unlhd> fst z'" by (rule vpc_partitionD1)
+  thus "\<not> overlap \<unlhd> snd z" by (simp add: z)
+qed
+
+lemma min_length_vpcE_partition:
   assumes "min_length_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)"
   obtains zs1 zs2 zs3 where "zs = zs1 @ zs2 @ zs3" and "vpc_partition zs1 zs2 zs3"
 proof (cases "{i\<in>{..<length zs}. overlap \<unlhd> snd (zs ! i)} = {}")
@@ -5073,7 +5132,9 @@ proof -
   finally show ?thesis by (simp only: hd_zs' last_zs')
 qed
 
-(* TODO: Move to partition. *)
+text \<open>Probably the following theorems could be connected to partitions of VPCs, but it seems that
+  their proofs would not become shorter then.\<close>
+
 lemma thm_3_3_34_aux_1:
   assumes "min_length_vpc zs" and "fst (hd zs) = of_nat_pm A" and "snd (last zs) = of_nat_pm B"
     and "A \<noteq> B" and "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lp f adds A" and "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lp f adds B"
