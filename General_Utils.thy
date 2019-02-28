@@ -60,16 +60,8 @@ next
   qed
 qed
 
-lemma card_2_I:
-  assumes "x \<noteq> y"
-  shows "card {x, y} = 2"
-proof -
-  from assms have eq: "{y} - {x} = {y}" by simp
-  have "card {x, y} = Suc (card ({y} - {x}))" by (rule card_insert, rule, rule)
-  also have "... = Suc (card {y})" unfolding eq ..
-  also have "... = Suc 1" by simp
-  finally show ?thesis by simp
-qed
+lemma card_2_I: "x \<noteq> y \<Longrightarrow> card {x, y} = 2"
+  by simp
 
 lemma card_2_E_1:
   assumes "card A = 2" and "x \<in> A"
