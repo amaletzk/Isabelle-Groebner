@@ -285,7 +285,7 @@ proof -
       from inj_on \<open>finite F0\<close> show "finite F'" by (simp only: finite_image_iff F0 image_comp)
     next
       from inj_on show "g = (\<Sum>f\<in>F'. (restrict_indets \<circ> q \<circ> homogenize None \<circ> extend_indets) f * f)"
-        by (simp add: g g' F0 restrict_indets_sum restrict_indets_times sum.reindex image_comp)
+        by (simp add: g g' F0 restrict_indets_sum restrict_indets_times sum.reindex image_comp o_def)
     next
       fix f
       assume "f \<in> F'"

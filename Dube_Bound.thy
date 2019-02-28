@@ -700,7 +700,7 @@ proof
     with \<open>d = deg_pm t\<close> show "d \<in> deg_pm ` Keys P" by (rule image_eqI)
   qed
   moreover from inj1 inj2 have "infinite ((deg_pm \<circ> punit.lt) ` range q')"
-    by (simp add: finite_image_iff)
+    by (simp add: finite_image_iff o_def)
   ultimately have "infinite (deg_pm ` Keys P)" by (rule infinite_super)
   hence "infinite (Keys P)" by blast
   thus False using \<open>finite (Keys P)\<close> ..

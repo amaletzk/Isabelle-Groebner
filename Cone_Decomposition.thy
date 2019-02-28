@@ -2981,7 +2981,7 @@ proof -
   proof
     fix s
     assume "s \<in> S"
-    then obtain q where "s = normal_form L q * f" by (auto simp: S_def mult.commute)
+    then obtain q where "s = normal_form L q * f" unfolding S_def by (elim imageE) auto
     also have "\<dots> \<in> ideal {f}" by (intro ideal.span_scale ideal.span_base singletonI)
     finally show "s \<in> ideal {f}" .
   qed
