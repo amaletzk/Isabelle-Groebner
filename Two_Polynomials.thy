@@ -469,6 +469,158 @@ next
   finally show "lookup (gcs ?t ?s) \<le> lookup p" .
 qed
 
+lemma line_above_overlapD:
+  assumes "overlap \<unlhd> p" and "overlap \<unlhd> p + l \<cdot> vect f" and "f \<in> {f1, f2}" and "1 \<le> l"
+  shows "of_nat_pm (tp f) \<unlhd> p" and "tp f \<unlhd> to_nat_pm p" and "of_nat_pm (lp f) \<unlhd> p + l \<cdot> vect f"
+    and "lp f \<unlhd> to_nat_pm (p + l \<cdot> vect f)"
+proof -
+  define q where "q = p + l \<cdot> vect f"
+  let ?l = "of_nat_pm (lp f) :: _ \<Rightarrow>\<^sub>0 rat"
+  let ?t = "of_nat_pm (tp f) :: _ \<Rightarrow>\<^sub>0 rat"
+  let ?p = "to_nat_pm p"
+  let ?q = "to_nat_pm q"
+
+  from assms(1, 3) have 1: "gcs ?l ?t \<unlhd> p" by (auto simp: overlap_alt intro: le_pm_trans lcs_ge_pm)
+  from assms(1) have "overlap \<unlhd> p + 0 \<cdot> vect f" by simp
+  hence "overlap \<unlhd> p + 1 \<cdot> vect f" using assms(2) _ assms(4) by (rule map_scale_le_interval) simp
+  hence "overlap \<unlhd> p + vect f" by simp
+  with assms(3) have 2: "gcs ?l ?t \<unlhd> p + vect f"
+    by (auto simp: overlap_alt intro: le_pm_trans lcs_ge_pm)
+
+  show "?t \<unlhd> p"
+  proof (rule le_pmI)
+    fix x
+    show "lookup ?t x \<le> lookup p x"
+    proof (rule ccontr)
+      assume "\<not> lookup ?t x \<le> lookup p x"
+      hence 3: "lookup p x < lookup ?t x" by simp
+      hence "lookup (p + vect f) x < lookup (?t + vect f) x" by (simp only: lookup_add)
+      also have "\<dots> = lookup ?l x" by (simp add: vect_alt)
+      finally have 4: "lookup (p + vect f) x < lookup ?l x" .
+      have *: "min (lookup ?l x) (lookup ?t x) = lookup (gcs ?l ?t) x"
+        by (simp only: lookup_gcs_fun gcs_fun)
+      also from 1 have "\<dots> \<le> lookup p x" by (rule le_pmD)
+      finally have **: "lookup ?l x < lookup ?t x" using 3 by simp
+      note *
+      also from 2 have "lookup (gcs ?l ?t) x \<le> lookup (p + vect f) x" by (rule le_pmD)
+      finally have "lookup ?t x < lookup ?l x" using 4 by simp
+      with ** show False by simp
+    qed
+  qed
+
+  hence "to_nat_pm ?t \<unlhd> ?p" by (rule to_nat_pm_mono)
+  thus "tp f \<unlhd> ?p" by simp
+
+  from assms(2, 3) have 1: "gcs ?l ?t \<unlhd> q" by (auto simp: q_def overlap_alt intro: le_pm_trans lcs_ge_pm)
+  from assms(1) have "overlap \<unlhd> p + 0 \<cdot> vect f" by simp
+  hence "overlap \<unlhd> p + (l - 1) \<cdot> vect f" using assms(2)
+    by (rule map_scale_le_interval) (simp_all add: assms(4))
+  hence "overlap \<unlhd> q -  vect f" by (simp add: q_def algebra_simps)
+  with assms(3) have 2: "gcs ?l ?t \<unlhd> q - vect f"
+    by (auto simp: overlap_alt intro: le_pm_trans lcs_ge_pm)
+
+  show "?l \<unlhd> q"
+  proof (rule le_pmI)
+    fix x
+    show "lookup ?l x \<le> lookup q x"
+    proof (rule ccontr)
+      assume "\<not> lookup ?l x \<le> lookup q x"
+      hence 3: "lookup q x < lookup ?l x" by simp
+      hence "lookup (q - vect f) x < lookup (?l - vect f) x" by (simp only: lookup_minus)
+      also have "\<dots> = lookup ?t x" by (simp add: vect_alt)
+      finally have 4: "lookup (q - vect f) x < lookup ?t x" .
+      have *: "min (lookup ?l x) (lookup ?t x) = lookup (gcs ?l ?t) x"
+        by (simp only: lookup_gcs_fun gcs_fun)
+      also from 1 have "\<dots> \<le> lookup q x" by (rule le_pmD)
+      finally have **: "lookup ?t x < lookup ?l x" using 3 by simp
+      note *
+      also from 2 have "lookup (gcs ?l ?t) x \<le> lookup (q - vect f) x" by (rule le_pmD)
+      finally have "lookup ?l x < lookup ?t x" using 4 by simp
+      with ** show False by simp
+    qed
+  qed
+
+  hence "to_nat_pm ?l \<unlhd> ?q" by (rule to_nat_pm_mono)
+  thus "lp f \<unlhd> ?q" by simp
+qed
+
+lemma line_above_tp_overlapD:
+  assumes "of_nat_pm (tp f) \<unlhd> p" and "overlap \<unlhd> p + l \<cdot> vect f" and "f \<in> {f1, f2}" and "1 \<le> l"
+  shows "of_nat_pm (lp f) \<unlhd> p + l \<cdot> vect f" and "lp f \<unlhd> to_nat_pm (p + l \<cdot> vect f)"
+proof -
+  define q where "q = p + l \<cdot> vect f"
+  let ?l = "of_nat_pm (lp f) :: _ \<Rightarrow>\<^sub>0 rat"
+  let ?t = "of_nat_pm (tp f) :: _ \<Rightarrow>\<^sub>0 rat"
+  let ?q = "to_nat_pm q"
+
+  from assms(2, 3) have 1: "gcs ?l ?t \<unlhd> q" by (auto simp: q_def overlap_alt intro: le_pm_trans lcs_ge_pm)
+
+  show "?l \<unlhd> q"
+  proof (rule le_pmI)
+    fix x
+    show "lookup ?l x \<le> lookup q x"
+    proof (rule ccontr)
+      assume "\<not> lookup ?l x \<le> lookup q x"
+      hence 3: "lookup q x < lookup ?l x" by simp
+      hence "lookup (q - vect f) x < lookup (?l - vect f) x" by (simp only: lookup_minus)
+      also have "\<dots> = lookup ?t x" by (simp add: vect_alt)
+      also from assms(1) have "\<dots> \<le> lookup p x" by (rule le_pmD)
+      finally have "lookup (q - vect f) x < lookup p x" .
+      hence "(l - 1) * lookup (vect f) x < 0" by (simp add: q_def lookup_add lookup_minus algebra_simps)
+      with assms(4) have "lookup (vect f) x < 0" by (simp add: mult_less_0_iff)
+
+      have "min (lookup ?l x) (lookup ?t x) = lookup (gcs ?l ?t) x"
+        by (simp only: lookup_gcs_fun gcs_fun)
+      also from 1 have "\<dots> \<le> lookup q x" by (rule le_pmD)
+      finally have "lookup ?t x < lookup ?l x" using 3 by simp
+      hence "0 < lookup (vect f) x" by (simp add: vect_alt lookup_minus)
+      also have "\<dots> < 0" by fact
+      finally show False ..
+    qed
+  qed
+
+  hence "to_nat_pm ?l \<unlhd> ?q" by (rule to_nat_pm_mono)
+  thus "lp f \<unlhd> ?q" by simp
+qed
+
+lemma line_above_lp_overlapD:
+  assumes "overlap \<unlhd> p" and "of_nat_pm (lp f) \<unlhd> p + l \<cdot> vect f" and "f \<in> {f1, f2}" and "1 \<le> l"
+  shows "of_nat_pm (tp f) \<unlhd> p" and "tp f \<unlhd> to_nat_pm p"
+proof -
+  let ?l = "of_nat_pm (lp f) :: _ \<Rightarrow>\<^sub>0 rat"
+  let ?t = "of_nat_pm (tp f) :: _ \<Rightarrow>\<^sub>0 rat"
+  let ?p = "to_nat_pm p"
+
+  from assms(1, 3) have 1: "gcs ?l ?t \<unlhd> p" by (auto simp: overlap_alt intro: le_pm_trans lcs_ge_pm)
+
+  show "?t \<unlhd> p"
+  proof (rule le_pmI)
+    fix x
+    show "lookup ?t x \<le> lookup p x"
+    proof (rule ccontr)
+      assume "\<not> lookup ?t x \<le> lookup p x"
+      hence 3: "lookup p x < lookup ?t x" by simp
+      hence "lookup (p + vect f) x < lookup (?t + vect f) x" by (simp only: lookup_add)
+      also have "\<dots> = lookup ?l x" by (simp add: vect_alt)
+      also from assms(2) have "\<dots> \<le> lookup (p + l \<cdot> vect f) x" by (rule le_pmD)
+      finally have "lookup (p + vect f) x < lookup (p + l \<cdot> vect f) x" .
+      hence "0 < (l - 1) * lookup (vect f) x" by (simp add: lookup_add algebra_simps)
+      with assms(4) have "0 < lookup (vect f) x" by (simp add: zero_less_mult_iff)
+
+      have "min (lookup ?l x) (lookup ?t x) = lookup (gcs ?l ?t) x"
+        by (simp only: lookup_gcs_fun gcs_fun)
+      also from 1 have "\<dots> \<le> lookup p x" by (rule le_pmD)
+      finally have "lookup ?l x < lookup ?t x" using 3 by simp
+      hence "lookup (vect f) x < 0" by (simp add: vect_alt lookup_minus)
+      also have "\<dots> < lookup (vect f) x" by fact
+      finally show False ..
+    qed
+  qed
+
+  hence "to_nat_pm ?t \<unlhd> ?p" by (rule to_nat_pm_mono)
+  thus "tp f \<unlhd> ?p" by simp
+qed
+
 definition step_p' :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> 'x point \<Rightarrow> nat" where
   "step_p' f p = Max ({nat \<lceil>(lookup overlap x - lookup p x) / lookup (vect f) x\<rceil> |
                       x::'x. 0 < lookup (vect f) x \<and> lookup p x < lookup overlap x} \<union> {0})"
