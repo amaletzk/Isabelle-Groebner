@@ -2774,39 +2774,15 @@ proof -
   qed
 qed
 
-lemma lem_3_3_21_aux_1:
-  assumes "overlap \<unlhd> p" and "overlap \<unlhd> p + vect f" and "is_int_pm p" and "f \<in> {f1, f2}"
+lemma lem_3_3_21_aux:
+  assumes "of_nat_pm (tp f) \<unlhd> p" and "is_int_pm p" and "f \<in> {f1, f2}"
   obtains z where "z \<in> pn_Nshifts True {f}" and "is_vpc [z]" and "fst z = p" and "snd z = p + vect f"
 proof -
-  let ?l = "of_nat_pm (lp f) :: _ \<Rightarrow>\<^sub>0 rat"
   let ?t = "of_nat_pm (tp f) :: _ \<Rightarrow>\<^sub>0 rat"
   let ?p = "to_nat_pm p"
-  from assms(3) overlap_is_nat_pm assms(1) have p_nat: "is_nat_pm p" by (rule int_pm_is_nat_pmI)
-  from assms(1, 4) have 1: "gcs ?l ?t \<unlhd> p" by (auto simp: overlap_alt intro: le_pm_trans lcs_ge_pm)
-  from assms(2, 4) have 2: "gcs ?l ?t \<unlhd> p + vect f"
-    by (auto simp: overlap_alt intro: le_pm_trans lcs_ge_pm)
-  have "tp f \<unlhd> ?p"
-  proof (rule le_pmI)
-    fix x
-    show "lookup (tp f) x \<le> lookup ?p x"
-    proof (rule ccontr)
-      assume "\<not> lookup (tp f) x \<le> lookup ?p x"
-      hence "rat (lookup ?p x) < rat (lookup (tp f) x)" by simp
-      with p_nat have 3: "lookup p x < lookup ?t x"
-        by (simp only: of_nat_pm_comp_to_nat_pm flip: lookup_of_nat_pm lookup_to_nat_pm)
-      hence "lookup (p + vect f) x < lookup (?t + vect f) x" by (simp only: lookup_add)
-      also have "\<dots> = lookup ?l x" by (simp add: vect_alt)
-      finally have 4: "lookup (p + vect f) x < lookup ?l x" .
-      have *: "min (lookup ?l x) (lookup ?t x) = lookup (gcs ?l ?t) x"
-        by (simp only: lookup_gcs_fun gcs_fun)
-      also from 1 have "\<dots> \<le> lookup p x" by (rule le_pmD)
-      finally have **: "lookup ?l x < lookup ?t x" using 3 by simp
-      note *
-      also from 2 have "lookup (gcs ?l ?t) x \<le> lookup (p + vect f) x" by (rule le_pmD)
-      finally have "lookup ?t x < lookup ?l x" using 4 by simp
-      with ** show False by simp
-    qed
-  qed
+  from assms(2) of_nat_pm_is_nat_pm assms(1) have p_nat: "is_nat_pm p" by (rule int_pm_is_nat_pmI)
+  from assms(1) have "to_nat_pm ?t \<unlhd> ?p" by (rule to_nat_pm_mono)
+  hence "tp f \<unlhd> ?p" by simp
   hence "tp f adds ?p" by (rule adds_pmI)
   with p_nat have eq: "of_nat_pm (?p - tp f) = p - ?t"
     by (simp only: of_nat_pm_minus of_nat_pm_comp_to_nat_pm)
@@ -2814,7 +2790,7 @@ proof -
   show ?thesis
   proof
     show "?z \<in> pn_Nshifts True {f}" by (simp add: pn_Nshifts_singleton_pos)
-    with assms(4) have "?z \<in> Nshifts {f1, f2}" by (intro NshiftsI NshiftsI_poly)
+    with assms(3) have "?z \<in> Nshifts {f1, f2}" by (intro NshiftsI NshiftsI_poly)
     thus "is_vpc [?z]" by simp
   next
     show "fst ?z = p" by (simp add: nat_plus_point_pair_def snd_poly_point eq)
@@ -2823,9 +2799,9 @@ proof -
   qed
 qed
 
-lemma lem_3_3_21_aux_2:
-  assumes "overlap \<unlhd> p" and "overlap \<unlhd> p + rat l \<cdot> vect f" and "is_int_pm p" and "f \<in> {f1, f2}"
-    and "l \<noteq> 0"
+lemma lem_3_3_21':
+  assumes "of_nat_pm (tp f) \<unlhd> p" and "of_nat_pm (lp f) \<unlhd> p + rat l \<cdot> vect f" and "is_int_pm p"
+    and "f \<in> {f1, f2}" and "l \<noteq> 0"
   obtains zs where "is_vpc zs" and "length zs = l" and "set zs \<subseteq> pn_Nshifts True {f}"
     and "fst (hd zs) = p" and "snd (last zs) = p + rat l \<cdot> vect f"
 proof -
@@ -2833,26 +2809,30 @@ proof -
   from assms(1, 2, 3) that show ?thesis unfolding l
   proof (induct k arbitrary: p thesis)
     case 0
-    note 0(1)
-    moreover from 0(2) have "overlap \<unlhd> p + vect f" by simp
-    ultimately obtain z where z: "z \<in> pn_Nshifts True {f}" and "is_vpc [z]" and eq1: "fst z = p"
-      and eq2: "snd z = p + vect f" using 0(3) assms(4) by (rule lem_3_3_21_aux_1)
+    from 0(1, 3) assms(4) obtain z where z: "z \<in> pn_Nshifts True {f}" and "is_vpc [z]"
+      and eq1: "fst z = p" and eq2: "snd z = p + vect f" by (rule lem_3_3_21_aux)
     from this(2) show ?case by (rule 0) (simp_all add: eq1 eq2 map_scale_uminus_left z)
   next
     case (Suc k)
     have eq: "p + rat (Suc (Suc k)) \<cdot> vect f = p + vect f + rat (Suc k) \<cdot> vect f"
       by (simp add: algebra_simps map_scale_two_left)
-    from Suc.prems(1) have "overlap \<unlhd> p + 0 \<cdot> vect f" by simp
-    hence "overlap \<unlhd> p + 1 \<cdot> vect f" using Suc.prems(2) by (rule map_scale_le_interval) simp_all
-    hence "overlap \<unlhd> p + vect f" (is "_ \<unlhd> ?p") by simp
-    moreover from Suc.prems(2) have "overlap \<unlhd> ?p + rat (Suc k) \<cdot> vect f" by (simp only: eq)
+    from Suc.prems(1) have *: "of_nat_pm (tp f) \<unlhd> p + 0 \<cdot> vect f" by simp
+    have "of_nat_pm (tp f) = of_nat_pm (lp f) - vect f" by (simp add: vect_alt)
+    also from Suc.prems(2) have "\<dots> \<unlhd> p + rat (Suc (Suc k)) \<cdot> vect f - vect f"
+      by (rule le_pm_mono_minus)
+    also have "\<dots> = p + rat (Suc k) \<cdot> vect f" by (simp add: eq del: of_nat_Suc)
+    finally have "of_nat_pm (tp f) \<unlhd> p + rat (Suc k) \<cdot> vect f" .
+    with * have "of_nat_pm (tp f) \<unlhd> p + 1 \<cdot> vect f" by (rule map_scale_le_interval) simp_all
+    hence "of_nat_pm (tp f) \<unlhd> p + vect f" (is "_ \<unlhd> ?p") by simp
+    moreover from Suc.prems(2) have "of_nat_pm (lp f) \<unlhd> ?p + rat (Suc k) \<cdot> vect f" by (simp only: eq)
     moreover from Suc.prems(3) have "is_int_pm ?p" by (intro plus_is_int_pm vect_is_int_pm)
     ultimately obtain zs where "is_vpc zs" and len_zs: "length zs = Suc k"
       and hd_zs: "fst (hd zs) = ?p" and last_zs: "snd (last zs) = ?p + rat (Suc k) \<cdot> vect f"
       and zs: "set zs \<subseteq> pn_Nshifts True {f}" by (rule Suc.hyps)
     from this(1) have "zs \<noteq> []" by (rule is_vpcD)
-    from Suc.prems(1) \<open>overlap \<unlhd> ?p\<close> Suc.prems(3) assms(4) obtain z where z: "z \<in> pn_Nshifts True {f}"
-      and "is_vpc [z]" and fst_z: "fst z = p" and snd_z: "snd z = ?p" by (rule lem_3_3_21_aux_1)
+    from Suc.prems(1) Suc.prems(3) assms(4) obtain z
+      where z: "z \<in> pn_Nshifts True {f}"
+      and "is_vpc [z]" and fst_z: "fst z = p" and snd_z: "snd z = ?p" by (rule lem_3_3_21_aux)
     show ?case
     proof (rule Suc.prems)
       from z assms(4) have "z \<in> Nshifts {f1, f2}" by (intro NshiftsI NshiftsI_poly)
@@ -2882,11 +2862,15 @@ proof (rule linorder_cases)
 
   note assms(2)
   moreover from assms(1) have "overlap \<unlhd> ?p + rat k \<cdot> vect f" by (simp only: eq)
+  moreover note assms(4)
+  moreover from \<open>k \<noteq> 0\<close> have "1 \<le> rat k" by simp
+  ultimately have "of_nat_pm (tp f) \<unlhd> ?p" and "of_nat_pm (lp f) \<unlhd> ?p + rat k \<cdot> vect f"
+    by (rule line_above_overlapD)+
   moreover from assms(3, 5) have "is_int_pm ?p"
     by (intro plus_is_int_pm map_scale_is_int_pm vect_is_int_pm)
   moreover note assms(4) \<open>k \<noteq> 0\<close>
   ultimately obtain zs where "is_vpc zs" and len: "length zs = k" and "set zs \<subseteq> pn_Nshifts True {f}"
-    and hd: "fst (hd zs) = ?p" and last: "snd (last zs) = ?p + rat k \<cdot> vect f" by (rule lem_3_3_21_aux_2)
+    and hd: "fst (hd zs) = ?p" and last: "snd (last zs) = ?p + rat k \<cdot> vect f" by (rule lem_3_3_21')
 
   let ?zs = "map prod.swap (rev zs)"
   show ?thesis
@@ -2910,9 +2894,13 @@ next
 
   note assms(1)
   moreover from assms(2) have "overlap \<unlhd> p + rat k \<cdot> vect f" by (simp only: l)
+  moreover note assms(4)
+  moreover from \<open>k \<noteq> 0\<close> have "1 \<le> rat k" by simp
+  ultimately have "of_nat_pm (tp f) \<unlhd> p" and "of_nat_pm (lp f) \<unlhd> p + rat k \<cdot> vect f"
+    by (rule line_above_overlapD)+
   moreover note assms(3, 4) \<open>k \<noteq> 0\<close>
   ultimately obtain zs where "is_vpc zs" and len: "length zs = k" and *: "set zs \<subseteq> pn_Nshifts True {f}"
-    and "fst (hd zs) = p" and "snd (last zs) = p + l \<cdot> vect f" unfolding l by (rule lem_3_3_21_aux_2)
+    and "fst (hd zs) = p" and "snd (last zs) = p + l \<cdot> vect f" unfolding l by (rule lem_3_3_21')
 
   from this(1) _ _ this(4, 5) show ?thesis
   proof
