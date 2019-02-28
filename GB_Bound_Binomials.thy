@@ -1580,21 +1580,24 @@ proof -
   show ?thesis sorry
 qed
 
+end
+
+end
+
 lemma thm_4_5_2:
+  assumes "f \<in> {f1, f2}" and "vect g = rat k \<cdot> vect f"
   obtains g' where "g' \<in> ideal {f1, f2}" and "lp g' = lp g" and "vect g' = vect f"
-proof (cases "overlap \<unlhd> of_nat_pm (lp g)")
-  case True
-  thus ?thesis using that by (rule thm_4_5_2_aux_3)
-next
-  case False
-  thus ?thesis using that by (rule thm_4_5_2_aux_4)
+proof -
+  from assms(1) obtain f' where f_f': "{f1, f2} = {f, f'}" by blast
+  show ?thesis
+  proof (cases "overlap \<unlhd> of_nat_pm (lp g)")
+    case True
+    with f_f' assms(2) show ?thesis using that by (rule thm_4_5_2_aux_3)
+  next
+    case False
+    with f_f' assms(2) show ?thesis using that by (rule thm_4_5_2_aux_4)
+  qed
 qed
-
-end
-
-end
-
-thm thm_4_5_2
 
 end
 
