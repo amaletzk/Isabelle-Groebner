@@ -106,6 +106,18 @@ lemma pn_Nshifts_singleton_neg:
   "pn_Nshifts False {f} = range (\<lambda>t. t +\<^sub>N poly_point f)"
   by (simp add: pn_Nshifts_singleton)
 
+lemma pn_NshiftsD_pos_le:
+  assumes "z \<in> pn_Nshifts True {f}"
+  shows "of_nat_pm (tp f) \<unlhd> fst z" and "of_nat_pm (lp f) \<unlhd> snd z"
+  using assms by (auto simp: pn_Nshifts_singleton_pos nat_plus_point_pair_def poly_point_def
+                       intro!: le_pm_increasing zero_le_of_nat_pm)
+
+lemma pn_NshiftsD_neg_le:
+  assumes "z \<in> pn_Nshifts False {f}"
+  shows "of_nat_pm (lp f) \<unlhd> fst z" and "of_nat_pm (tp f) \<unlhd> snd z"
+  using assms by (auto simp: pn_Nshifts_singleton_neg nat_plus_point_pair_def poly_point_def
+                       intro!: le_pm_increasing zero_le_of_nat_pm)
+
 lemma pn_Nshifts_conv_vect: "z \<in> pn_Nshifts pos {f} \<Longrightarrow> snd z = fst z + (if pos then 1 else - 1) \<cdot> vect f"
   by (auto simp: pn_Nshifts_singleton nat_plus_point_pair_def vect_def map_scale_uminus_left)
 
@@ -960,24 +972,33 @@ qed
 lemma is_vpc_revI:
   assumes "is_vpc zs"
   shows "is_vpc (map prod.swap (rev zs))" (is "is_vpc ?zs")
-proof (rule is_vpcI)
+    and "fst (hd (map prod.swap (rev zs))) = snd (last zs)"
+    and "snd (last (map prod.swap (rev zs))) = fst (hd zs)"
+proof -
+  show "is_vpc ?zs"
+  proof (rule is_vpcI)
+    from assms have "zs \<noteq> []" by (rule is_vpcD)
+    thus "?zs \<noteq> []" by simp
+  next
+    fix i
+    assume "Suc i < length ?zs"
+    hence *: "Suc i < length zs" by simp
+    moreover define j where "j = length zs - Suc (Suc i)"
+    ultimately have Sj: "Suc j = length zs - Suc i" and **: "Suc j < length zs" by simp_all
+    from * have "fst (?zs ! Suc i) = snd (zs ! j)" by (simp add: rev_nth j_def)
+    also from assms ** have "\<dots> = fst (zs ! Suc j)" by (rule is_vpcD)
+    also from * have "\<dots> = snd (?zs ! i)" by (simp add: rev_nth Sj)
+    finally show "snd (?zs ! i) = fst (?zs ! Suc i)" by (rule sym)
+  next
+    have "set ?zs = prod.swap ` set zs" by simp
+    also from assms have "set zs \<subseteq> Nshifts {f1, f2}" by (rule is_vpcD)
+    finally have "set ?zs \<subseteq> prod.swap ` Nshifts {f1, f2}" by blast
+    thus "set ?zs \<subseteq> Nshifts {f1, f2}" by simp
+  qed
+next
   from assms have "zs \<noteq> []" by (rule is_vpcD)
-  thus "?zs \<noteq> []" by simp
-next
-  fix i
-  assume "Suc i < length ?zs"
-  hence *: "Suc i < length zs" by simp
-  moreover define j where "j = length zs - Suc (Suc i)"
-  ultimately have Sj: "Suc j = length zs - Suc i" and **: "Suc j < length zs" by simp_all
-  from * have "fst (?zs ! Suc i) = snd (zs ! j)" by (simp add: rev_nth j_def)
-  also from assms ** have "\<dots> = fst (zs ! Suc j)" by (rule is_vpcD)
-  also from * have "\<dots> = snd (?zs ! i)" by (simp add: rev_nth Sj)
-  finally show "snd (?zs ! i) = fst (?zs ! Suc i)" by (rule sym)
-next
-  have "set ?zs = prod.swap ` set zs" by simp
-  also from assms have "set zs \<subseteq> Nshifts {f1, f2}" by (rule is_vpcD)
-  finally have "set ?zs \<subseteq> prod.swap ` Nshifts {f1, f2}" by blast
-  thus "set ?zs \<subseteq> Nshifts {f1, f2}" by simp
+  thus "fst (hd ?zs) = snd (last zs)" by (simp add: hd_rev last_map flip: rev_map)
+  from \<open>zs \<noteq> []\<close> show "snd (last ?zs) = fst (hd zs)" by (simp add: last_rev hd_map flip: rev_map)
 qed
 
 lemma replace_vpc:
@@ -1284,6 +1305,14 @@ lemma num_shifts_Nil [simp]: "num_shifts pos [] f = 0"
 
 lemma num_shifts_eq_zero_iff: "num_shifts pos zs f = 0 \<longleftrightarrow> set zs \<inter> pn_Nshifts pos {f} = {}"
   by (auto simp: num_shifts_def filter_empty_conv)
+
+lemma num_shifts_eq_length_iff: "num_shifts pos zs f = length zs \<longleftrightarrow> set zs \<subseteq> pn_Nshifts pos {f}"
+proof
+  assume "num_shifts pos zs f = length zs"
+  with sum_length_filter_compl[where P="\<lambda>z. z \<in> pn_Nshifts pos {f}" and xs=zs]
+  have "filter (\<lambda>x. x \<notin> pn_Nshifts pos {f}) zs = []" by (simp add: num_shifts_def)
+  thus "set zs \<subseteq> pn_Nshifts pos {f}" by (simp add: filter_empty_conv subsetI)
+qed (simp add: num_shifts_def subsetD)
 
 lemma num_shifts_singleton: "num_shifts pos [z] f = (if z \<in> pn_Nshifts pos {f} then 1 else 0)"
   by (simp add: num_shifts_def)
