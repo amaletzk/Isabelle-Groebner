@@ -1016,7 +1016,7 @@ proof (rule gb_problemI_reduced_GB_binomials)
     and "of_nat_pm (tp h1) + rat (step (tp g)) \<cdot> vect h1 + V - rat (step (tp g)) \<cdot> vect h1 - V\<^sub>+ \<unlhd> Q2"
   unfolding Q2_def apply (rule le_pm_mono_minus) sorry  (* should be true *)
   hence le3: "of_nat_pm (lp h1) \<unlhd> Q - (rat (step (tp g)) + 1 + r) \<cdot> vect h1" and "of_nat_pm (tp h1) \<unlhd> Q2 + V\<^sub>-"
-    by (simp_all add: vect_alt algebra_simps)   (* should be true *)
+    sorry (*by (simp_all add: vect_alt algebra_simps)*)   (* should be true *)
 
   have "of_nat_pm (lp h1) \<unlhd> Q"
   proof (rule le_pmI)
@@ -1031,7 +1031,8 @@ proof (rule gb_problemI_reduced_GB_binomials)
       with \<open>0 < r\<close> have "lookup (vect h1) y < 0" by (simp add: mult_less_0_iff)
       hence "lookup (lp h1) y \<le> lookup (tp h1) y" by (simp add: vect_alt lookup_minus lookup_of_nat_pm)
       hence "rat (lookup (lp h1) y) \<le> lookup Q y"
-        by (simp add: Q_def lookup_lcs_fun lcs_fun_def overlap_alt lookup_gcs_fun gcs_fun lookup_of_nat_pm)
+        sorry
+        (*by (simp add: Q_def lookup_lcs_fun lcs_fun_def overlap_alt lookup_gcs_fun gcs_fun lookup_of_nat_pm)*)
         (* should be true *)
       also have "\<dots> < rat (lookup (lp h1) y)" by fact
       finally show False ..
@@ -1051,6 +1052,552 @@ qed
 
 end
 
-end (* two_polys *)
+end (* two_binomials *)
+
+subsection \<open>Two Linearly Independent Binomials\<close>
+
+context two_binoms
+begin
+
+context
+  fixes g
+  assumes nparallel: "\<not> parallel_binomials f1 f2"
+  assumes g_in: "g \<in> ideal {f1, f2}"
+  assumes g_pbinomial: "is_proper_binomial g"
+  assumes nadds_lp: "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lp f adds lp g"
+  assumes nadds_tp: "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lp f adds tp g"
+  assumes lp_not_in: "monomial 1 (lp g) \<notin> ideal {f1, f2}"
+begin
+
+text \<open>The assumptions do not necessarily hold for all proper binomials in the reduced Gr\"obner
+  basis @{term G} of @{term "{f1, f2}"}. But, after replacing all elements @{prop "g \<in> G"} satisfying
+  @{prop "lp g = lp f"} for some @{prop "f \<in> {f1, f2}"} by the respective @{term f}, the other
+  binomials in @{term G} \<^emph>\<open>do\<close> satisfy the assumptions. And of course, the new set is still a
+  Gr\"obner basis of @{term "{f1, f2}"}.
+  Note that assumption \<open>lp_not_in\<close> is satisfied because otherwise the trailing power-product would
+  also be in the ideal, meaning there is another element @{term G} which reduces it -- contradicting
+  the fact that @{term g} is reduced.\<close>
+
+context
+  fixes f f'
+  assumes f_f': "{f1, f2} = {f, f'}"
+begin
+
+lemma exists_min_length_vpc:
+  assumes "vect g = (rat k - rat l) \<cdot> vect f + (rat k' - rat l') \<cdot> vect f'"
+  obtains zs where "min_length_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)"
+    and "fst (hd zs) = of_nat_pm (lp g)" and "snd (last zs) = of_nat_pm (tp g)"
+    and "l + num_shifts False zs f = k + num_shifts True zs f"
+    and "l' + num_shifts False zs f' = k' + num_shifts True zs f'"
+proof -
+  obtain zs where zs_min: "min_length_vpc zs" and hd_zs: "fst (hd zs) = of_nat_pm (lp g)"
+    and last_zs: "snd (last zs) = of_nat_pm (tp g)"
+  proof -
+    from g_in g_pbinomial lp_not_in obtain zs' where "is_vpc zs'"
+      and 1: "fst (hd zs') = of_nat_pm (lp g)" and 2: "snd (last zs') = of_nat_pm (tp g)"
+      by (rule idealE_vpc)
+    from this(1) obtain zs where "min_length_vpc zs" and "fst (hd zs) = of_nat_pm (lp g)"
+      and "snd (last zs) = of_nat_pm (tp g)"
+      unfolding 1[symmetric] 2[symmetric] by (rule vpcE_min_length_vpc)
+    thus ?thesis ..
+  qed
+  from this(1) have "is_vpc zs" by (rule min_length_vpcD)
+  hence "zs \<noteq> []" by (rule is_vpcD)
+  from g_pbinomial have "tp g \<prec> lp g" by (rule punit.lt_gr_tt_binomial)
+  hence zs_dist: "fst (hd zs) \<noteq> snd (last zs)" by (simp add: hd_zs last_zs)
+
+  from f_f' f1_pbinomial f2_pbinomial have f_pbinomial: "is_proper_binomial f"
+    and f'_pbinomial: "is_proper_binomial f'" by (auto simp: doubleton_eq_iff)
+  from nparallel f_f' have nparallel': "\<not> parallel_binomials f f'"
+    by (auto simp: doubleton_eq_iff dest: parallel_binomials_sym)
+  from assms have "fst (hd zs) - (rat k - rat l) \<cdot> vect f - (rat k' - rat l') \<cdot> vect f' = snd (last zs)"
+    by (simp add: vect_alt hd_zs last_zs algebra_simps)
+  also from nparallel \<open>is_vpc zs\<close> have "\<dots> = fst (hd zs) +
+                              (rat (num_shifts True zs f1) - rat (num_shifts False zs f1)) \<cdot> vect f1 +
+                              (rat (num_shifts True zs f2) - rat (num_shifts False zs f2)) \<cdot> vect f2"
+    by (rule vpc_snd_last_conv_vect)
+  also from f_f' have "\<dots> = fst (hd zs) +
+                              (rat (num_shifts True zs f) - rat (num_shifts False zs f)) \<cdot> vect f +
+                              (rat (num_shifts True zs f') - rat (num_shifts False zs f')) \<cdot> vect f'"
+    by (auto simp: doubleton_eq_iff)
+  finally have "(rat (k + num_shifts True zs f) - rat (l + num_shifts False zs f)) \<cdot> vect f =
+                (rat (l' + num_shifts False zs f') - rat (k' + num_shifts True zs f')) \<cdot> vect f'"
+    by (simp add: algebra_simps)
+  with f_pbinomial f'_pbinomial nparallel'
+  have "rat (k + num_shifts True zs f) - rat (l + num_shifts False zs f) = 0"
+    and "rat (l' + num_shifts False zs f') - rat (k' + num_shifts True zs f') = 0"
+    by (rule not_parallel_binomialsD_vect)+
+  hence "l + num_shifts False zs f = k + num_shifts True zs f"
+    and "l' + num_shifts False zs f' = k' + num_shifts True zs f'" by simp_all
+  with zs_min zs_dist hd_zs last_zs show ?thesis ..
+qed
+
+context
+  fixes k
+  assumes vect_g: "vect g = rat k \<cdot> vect f"
+begin
+
+lemma thm_4_5_2_aux_1: "k \<noteq> 0"
+proof
+  assume "k = 0"
+  hence "vect g = 0" by (simp add: vect_g)
+  hence "card (keys g) \<le> 1" by (simp add: vect_def fst_eq_snd_poly_point_iff)
+  with g_pbinomial show False by (simp add: is_proper_binomial_def)
+qed
+
+lemma thm_4_5_2_aux_2:
+  obtains zs where "min_length_vpc zs" and "fst (hd zs) \<noteq> snd (last zs)"
+    and "fst (hd zs) = of_nat_pm (lp g)" and "snd (last zs) = of_nat_pm (tp g)"
+    and "num_shifts False zs f = k + num_shifts True zs f"
+    and "num_shifts False zs f' = num_shifts True zs f'"
+    and "hd zs \<in> pn_Nshifts True {f, f'}" and "last zs \<in> pn_Nshifts False {f, f'}"
+proof -
+  have "vect g = (rat k - rat 0) \<cdot> vect f + (rat 0 - rat 0) \<cdot> vect f'" by (simp add: vect_g)
+  then obtain zs where zs_min: "min_length_vpc zs" and zs_dist: "fst (hd zs) \<noteq> snd (last zs)"
+    and hd_zs: "fst (hd zs) = of_nat_pm (lp g)" and last_zs: "snd (last zs) = of_nat_pm (tp g)"
+    and "0 + num_shifts False zs f = k + num_shifts True zs f"
+    and "0 + num_shifts False zs f' = 0 + num_shifts True zs f'" by (rule exists_min_length_vpc)
+  from this(5, 6) have num_neg_f: "num_shifts False zs f = k + num_shifts True zs f"
+    and num_neg_f': "num_shifts False zs f' = num_shifts True zs f'" by simp_all
+
+  from zs_min have "is_vpc zs" by (rule min_length_vpcD)
+  hence "zs \<noteq> []" by (rule is_vpcD)
+  have hd_zs_nneg: "hd zs \<notin> pn_Nshifts False {f, f'}"
+  proof
+    assume "hd zs \<in> pn_Nshifts False {f, f'}"
+    hence "hd zs \<in> pn_Nshifts False {f1, f2}" by (simp only: f_f')
+    then obtain h0 t where "h0 \<in> {f1, f2}" and "hd zs = t +\<^sub>N poly_point h0" by (rule pn_NshiftsE_neg)
+    from this(2) have "fst (hd zs) = of_nat_pm (t + lp h0)"
+      by (simp add: nat_plus_point_pair_def poly_point_def of_nat_pm_plus)
+    hence "lp h0 adds lp g" by (simp add: hd_zs)
+    moreover from \<open>h0 \<in> {f1, f2}\<close> have "\<not> lp h0 adds lp g" by (rule nadds_lp)
+    ultimately show False by simp
+  qed
+  from \<open>zs \<noteq> []\<close> have "hd zs \<in> set zs" by simp
+  also from \<open>is_vpc zs\<close> have "\<dots> \<subseteq> Nshifts {f1, f2}" by (rule is_vpcD)
+  finally have "hd zs \<in> pn_Nshifts True {f, f'} \<union> pn_Nshifts False {f, f'}"
+    by (simp only: f_f' Nshifts_def)
+  with hd_zs_nneg have hd_zs_pos: "hd zs \<in> pn_Nshifts True {f, f'}" by simp
+
+  have last_zs_npos: "last zs \<notin> pn_Nshifts True {f, f'}"
+  proof
+    assume "last zs \<in> pn_Nshifts True {f, f'}"
+    hence "last zs \<in> pn_Nshifts True {f1, f2}" by (simp only: f_f')
+    then obtain h0 t where "h0 \<in> {f1, f2}" and "last zs = t +\<^sub>N prod.swap (poly_point h0)"
+      by (rule pn_NshiftsE_pos)
+    from this(2) have "snd (last zs) = of_nat_pm (t + lp h0)"
+      by (simp add: nat_plus_point_pair_def poly_point_def of_nat_pm_plus)
+    hence "lp h0 adds tp g" by (simp add: last_zs)
+    moreover from \<open>h0 \<in> {f1, f2}\<close> have "\<not> lp h0 adds tp g" by (rule nadds_tp)
+    ultimately show False by simp
+  qed
+  from \<open>zs \<noteq> []\<close> have "last zs \<in> set zs" by simp
+  also from \<open>is_vpc zs\<close> have "\<dots> \<subseteq> Nshifts {f1, f2}" by (rule is_vpcD)
+  finally have "last zs \<in> pn_Nshifts True {f, f'} \<union> pn_Nshifts False {f, f'}"
+    by (simp only: f_f' Nshifts_def)
+  with last_zs_npos have "last zs \<in> pn_Nshifts False {f, f'}" by simp
+  with zs_min zs_dist hd_zs last_zs num_neg_f num_neg_f' hd_zs_pos show ?thesis ..
+qed
+
+lemma thm_4_5_2_aux_3:
+  assumes "overlap \<unlhd> of_nat_pm (lp g)"
+  obtains g' where "g' \<in> ideal {f1, f2}" and "lp g' = lp g" and "vect g' = vect f"
+proof -
+  have f_in: "f \<in> {f1, f2}" and f'_in: "f' \<in> {f1, f2}" by (simp_all add: f_f')
+  from f_f' f1_pbinomial f2_pbinomial have f_pbinomial: "is_proper_binomial f"
+    and f'_pbinomial: "is_proper_binomial f'" by (auto simp: doubleton_eq_iff)
+  from nparallel f_f' have nparallel': "\<not> parallel_binomials f f'"
+    by (auto simp: doubleton_eq_iff dest: parallel_binomials_sym)
+
+  from thm_4_5_2_aux_1 have "1 \<le> rat k" by simp
+
+  obtain zs where zs_min: "min_length_vpc zs" and zs_dist: "fst (hd zs) \<noteq> snd (last zs)"
+    and hd_zs: "fst (hd zs) = of_nat_pm (lp g)" and last_zs: "snd (last zs) = of_nat_pm (tp g)"
+    and num_neg_f: "num_shifts False zs f = k + num_shifts True zs f"
+    and num_neg_f': "num_shifts False zs f' = num_shifts True zs f'"
+    and hd_zs_pos: "hd zs \<in> pn_Nshifts True {f, f'}"
+    and last_zs_neg: "last zs \<in> pn_Nshifts False {f, f'}" by (rule thm_4_5_2_aux_2)
+
+  from zs_min have "is_vpc zs" by (rule min_length_vpcD)
+  hence "zs \<noteq> []" by (rule is_vpcD)
+  hence "hd zs \<in> set zs" and "last zs \<in> set zs" by simp_all
+  from zs_min zs_dist obtain zs1 zs2 zs3 where zs: "zs = zs1 @ zs2 @ zs3"
+    and part: "vpc_partition zs1 zs2 zs3" by (rule min_length_vpcE_partition)
+
+  have "zs1 = []"
+  proof (rule ccontr)
+    assume "zs1 \<noteq> []"
+    hence "hd zs1 \<in> set zs1" by simp
+    with part have "\<not> overlap \<unlhd> fst (hd zs1)" by (rule vpc_partitionD1)
+    moreover from assms \<open>zs1 \<noteq> []\<close> have "overlap \<unlhd> fst (hd zs1)" by (simp add: zs flip: hd_zs)
+    ultimately show False ..
+  qed
+  hence zs: "zs = zs2 @ zs3" by (simp add: zs)
+  have "zs2 \<noteq> []"
+  proof
+    assume "zs2 = []"
+    from part obtain h' pos' where "h' \<in> {f1, f2}" and "set zs3 \<subseteq> pn_Nshifts pos' {h'}"
+      and zs3_disjnt: "set zs3 \<inter> pn_Nshifts (\<not> pos') {h'} = {}" by (rule vpc_partitionD3)
+    with \<open>zs2 = []\<close> have zs_sub: "set zs \<subseteq> pn_Nshifts pos' {h'}" by (simp add: zs)
+    show False
+    proof (cases pos')
+      case True
+      note \<open>last zs \<in> set zs\<close>
+      also from zs_sub True have "set zs \<subseteq> pn_Nshifts True {h'}" by simp
+      also from \<open>h' \<in> {f1, f2}\<close> have "\<dots> \<subseteq> pn_Nshifts True {f1, f2}"
+        by (intro pn_Nshifts_mono) simp
+      finally have "pn_Nshifts True {f1, f2} \<inter> pn_Nshifts False {f, f'} \<noteq> {}"
+        using last_zs_neg by blast
+      moreover have "pn_Nshifts True {f1, f2} \<inter> pn_Nshifts False {f, f'} = {}"
+        unfolding f_f'[symmetric] by (rule pn_Nshifts_disjoint) simp
+      ultimately show False ..
+    next
+      case False
+      note \<open>hd zs \<in> set zs\<close>
+      also from zs_sub False have "set zs \<subseteq> pn_Nshifts False {h'}" by simp
+      also from \<open>h' \<in> {f1, f2}\<close> have "\<dots> \<subseteq> pn_Nshifts False {f1, f2}"
+        by (intro pn_Nshifts_mono) simp
+      finally have "pn_Nshifts True {f, f'} \<inter> pn_Nshifts False {f1, f2} \<noteq> {}"
+        using hd_zs_pos by blast
+      moreover have "pn_Nshifts True {f, f'} \<inter> pn_Nshifts False {f1, f2} = {}"
+        unfolding f_f'[symmetric] by (rule pn_Nshifts_disjoint) simp
+      ultimately show False ..
+    qed
+  qed
+  with part have zs2_min: "min_length_vpc zs2" and zs2_dist: "fst (hd zs2) \<noteq> snd (last zs2)"
+    and overlap_hd: "overlap \<unlhd> fst (hd zs2)" and overlap_last: "overlap \<unlhd> snd (last zs2)"
+    and "hd zs = hd zs2" by ((rule vpc_partitionD2)+, simp add: zs)
+  from \<open>zs2 \<noteq> []\<close> have "hd zs2 \<in> set zs2" and "last zs2 \<in> set zs2" by simp_all
+  have rl: P if "{p, p'} = {f, f'}" and "hd zs2 \<in> pn_Nshifts True {p}"
+    and "set zs2 \<inter> pn_Nshifts True {p} \<noteq> {} \<Longrightarrow> set zs2 \<inter> Nshifts {p} \<subseteq> pn_Nshifts True {p} \<Longrightarrow>
+          set zs2 \<inter> pn_Nshifts (\<not> True) {p} = {} \<Longrightarrow> set zs3 \<inter> pn_Nshifts False {p} \<noteq> {} \<Longrightarrow>
+          set zs3 \<subseteq> pn_Nshifts False {p} \<Longrightarrow> set zs3 \<inter> Nshifts {p'} = {} \<Longrightarrow> P" for P p p'
+  proof (rule that(3))
+    from that(1) have p_in: "p \<in> {f1, f2}" by (auto simp: f_f')
+    from \<open>hd zs2 \<in> set zs2\<close> that(2) have "hd zs2 \<in> set zs2 \<inter> pn_Nshifts True {p}" by (rule IntI)
+    thus *: "set zs2 \<inter> pn_Nshifts True {p} \<noteq> {}" by blast
+    with part p_in show "set zs2 \<inter> Nshifts {p} \<subseteq> pn_Nshifts True {p}" by (rule vpc_partitionD2)
+    with part p_in show "set zs2 \<inter> pn_Nshifts (\<not> True) {p} = {}" by (rule vpc_partitionD2)
+    hence "num_shifts False zs2 p = 0" by (simp add: num_shifts_eq_zero_iff)
+    with p_in num_neg_f num_neg_f' have "num_shifts False zs3 p \<ge> num_shifts True zs p"
+      by (auto simp: f_f' zs num_shifts_append)
+    moreover from * have "num_shifts True zs p \<noteq> 0"
+      by (simp add: zs num_shifts_eq_zero_iff Int_Un_distrib2)
+    ultimately show "set zs3 \<inter> pn_Nshifts False {p} \<noteq> {}"
+      by (simp flip: num_shifts_eq_zero_iff)
+    with part nparallel p_in show zs3_sub: "set zs3 \<subseteq> pn_Nshifts False {p}"
+      by (rule vpc_partitionD3)
+    show "set zs3 \<inter> Nshifts {p'} = {}"
+    proof (rule ccontr)
+      from that(1) f_pbinomial f'_pbinomial have p_pbinomial: "is_proper_binomial p"
+        and p'_pbinomial: "is_proper_binomial p'" by (auto simp: doubleton_eq_iff)
+      from nparallel' that(1) have nparallel': "\<not> parallel_binomials p p'"
+        by (auto simp: doubleton_eq_iff dest: parallel_binomials_sym)
+      assume "set zs3 \<inter> Nshifts {p'} \<noteq> {}"
+      with zs3_sub have "Nshifts {p} \<inter> Nshifts {p'} \<noteq> {}" by (auto simp: Nshifts_def)
+      moreover from p_pbinomial p'_pbinomial nparallel' have "Nshifts {p} \<inter> Nshifts {p'} = {}"
+        by (rule Nshifts_disjointI)
+      ultimately show False ..
+    qed
+  qed
+
+  from hd_zs_pos have "hd zs2 \<in> pn_Nshifts True {f} \<or> hd zs2 \<in> pn_Nshifts True {f'}"
+    by (auto simp: \<open>hd zs = hd zs2\<close> elim: pn_NshiftsE_poly)
+  thus ?thesis
+  proof
+    \<comment>\<open>Case I: \<open>zs\<close> starts with a positive shift of \<open>f\<close>.\<close>
+
+    assume "hd zs2 \<in> pn_Nshifts True {f}"
+    with refl obtain "set zs2 \<inter> pn_Nshifts True {f} \<noteq> {}"
+      and "set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts True {f}"
+      and "set zs2 \<inter> pn_Nshifts (\<not> True) {f} = {}" and ndisjnt: "set zs3 \<inter> pn_Nshifts False {f} \<noteq> {}"
+      and zs3_sub: "set zs3 \<subseteq> pn_Nshifts False {f}" and 0: "set zs3 \<inter> Nshifts {f'} = {}" by (rule rl)
+    have "set zs \<inter> Nshifts {f'} = {}"
+    proof (rule ccontr)
+      assume "set zs \<inter> Nshifts {f'} \<noteq> {}"
+      hence "set zs \<inter> pn_Nshifts True {f'} \<noteq> {}" and "set zs \<inter> pn_Nshifts False {f'} \<noteq> {}"
+        by (simp_all add: Nshifts_def Int_Un_distrib num_neg_f' flip: num_shifts_eq_zero_iff)
+      with 0 have "set zs2 \<inter> pn_Nshifts True {f'} \<noteq> {}" and 1: "set zs2 \<inter> pn_Nshifts False {f'} \<noteq> {}"
+        by (simp_all add: zs Int_Un_distrib Int_Un_distrib2 Nshifts_def)
+      from part f'_in this(1) have "set zs2 \<inter> Nshifts {f'} \<subseteq> pn_Nshifts True {f'}"
+        by (rule vpc_partitionD2)
+      with part f'_in have "set zs2 \<inter> pn_Nshifts (\<not> True) {f'} = {}" by (rule vpc_partitionD2)
+      with 1 show False by simp
+    qed
+    hence "set zs2 \<inter> Nshifts {f'} = {}" by (simp add: zs Int_Un_distrib2)
+    moreover have "set zs2 \<subseteq> Nshifts {f, f'}" unfolding f_f'[symmetric] using zs2_min
+      by (intro is_vpcD min_length_vpcD)
+    ultimately have "set zs2 = set zs2 \<inter> Nshifts {f}" by (auto elim: NshiftsE_poly)
+    also have "\<dots> \<subseteq> pn_Nshifts True {f}" by fact
+    finally have "set zs2 \<subseteq> pn_Nshifts True {f}" .
+    hence "set zs2 \<subseteq> Nshifts {f}" by (auto simp: Nshifts_def)
+    moreover from zs3_sub have "set zs3 \<subseteq> Nshifts {f}" by (auto simp: Nshifts_def)
+    ultimately have "set zs \<subseteq> Nshifts {f}" by (simp add: zs)
+    with zs_min zs_dist obtain pos where "set zs \<inter> pn_Nshifts pos {f} = {}" by (rule lem_3_3_19'')
+    hence "set zs2 \<inter> pn_Nshifts pos {f} = {}" and "set zs3 \<inter> pn_Nshifts pos {f} = {}"
+      by (simp_all add: zs Int_Un_distrib2)
+    with \<open>set zs2 \<inter> pn_Nshifts True {f} \<noteq> {}\<close> ndisjnt show ?thesis by (cases pos) simp_all
+
+  next
+    \<comment>\<open>Case II: \<open>zs\<close> starts with a positive shift of \<open>f'\<close>.\<close>
+
+    have "{f', f} = {f, f'}" by (simp only: insert_commute)
+    moreover assume "hd zs2 \<in> pn_Nshifts True {f'}"
+    ultimately obtain "set zs2 \<inter> pn_Nshifts True {f'} \<noteq> {}"
+      and zs2_sub_f': "set zs2 \<inter> Nshifts {f'} \<subseteq> pn_Nshifts True {f'}"
+      and "set zs2 \<inter> pn_Nshifts (\<not> True) {f'} = {}" and "set zs3 \<inter> pn_Nshifts False {f'} \<noteq> {}"
+      and zs3_sub: "set zs3 \<subseteq> pn_Nshifts False {f'}" and 0: "set zs3 \<inter> Nshifts {f} = {}" by (rule rl)
+    from this(4) have "zs3 \<noteq> []" by auto
+    from \<open>k \<noteq> 0\<close> have "num_shifts False zs f \<noteq> 0" by (simp add: num_neg_f)
+    hence "set zs \<inter> pn_Nshifts False {f} \<noteq> {}" by (simp add: num_shifts_eq_zero_iff)
+    with 0 have "set zs2 \<inter> pn_Nshifts False {f} \<noteq> {}"
+      by (simp add: zs Nshifts_def Int_Un_distrib Int_Un_distrib2)
+    with part f_in have zs2_sub_f: "set zs2 \<inter> Nshifts {f} \<subseteq> pn_Nshifts False {f}"
+      by (rule vpc_partitionD2)
+    with part f_in have "set zs2 \<inter> pn_Nshifts (\<not> False) {f} = {}" by (rule vpc_partitionD2)
+
+    obtain i where "0 < i" and "i < length zs2" and i_neg: "zs2 ! i \<in> pn_Nshifts False {f}"
+      and num_f'_i: "num_shifts True (take i zs2) f' = i"
+    proof -
+      let ?A = "{i\<in>{..<length zs2}. zs2 ! i \<in> pn_Nshifts False {f}}"
+      define i where "i = Min ?A"
+      have "finite ?A" by simp
+      moreover have "?A \<noteq> {}"
+      proof
+        from \<open>set zs2 \<inter> pn_Nshifts False {f} \<noteq> {}\<close> obtain z where "z \<in> set zs2"
+          and z_in: "z \<in> pn_Nshifts False {f}" by blast
+        from this(1) obtain j where "j < length zs2" and "z = zs2 ! j" by (metis in_set_conv_nth)
+        with z_in have "j \<in> ?A" by simp
+        also assume "\<dots> = {}"
+        finally show False ..
+      qed
+      ultimately have "i \<in> ?A" unfolding i_def by (rule Min_in)
+      hence "i < length zs2" and i_in: "zs2 ! i \<in> pn_Nshifts False {f}" by simp_all
+      show ?thesis
+      proof
+        show "0 < i"
+        proof (rule ccontr)
+          assume "\<not> 0 < i"
+          hence "i = 0" by simp
+          with \<open>zs2 \<noteq> []\<close> i_in have "hd zs2 \<in> pn_Nshifts False {f}" by (simp add: hd_conv_nth)
+          with \<open>hd zs2 \<in> pn_Nshifts True {f'}\<close> have "pn_Nshifts False {f} \<inter> pn_Nshifts True {f'} \<noteq> {}"
+            by blast
+          moreover from f_pbinomial have "pn_Nshifts False {f} \<inter> pn_Nshifts True {f'} = {}"
+            by (rule pn_Nshifts_disjointI) simp
+          ultimately show False ..
+        qed
+      next
+        have "set (take i zs2) \<subseteq> pn_Nshifts True {f'}"
+        proof (rule subsetI)
+          fix z
+          assume "z \<in> set (take i zs2)"
+          then obtain j where "j < length (take i zs2)" and "z = (take i zs2) ! j"
+            by (metis in_set_conv_nth)
+          hence z: "z = zs2 ! j" by simp
+          from \<open>j < _\<close> have "j < i" by simp
+          from this(1) \<open>i < _\<close> have "j < length zs2" by (rule less_trans)
+          hence "zs2 ! j \<in> set zs2" by simp
+          also have "\<dots> \<subseteq> Nshifts {f, f'}" unfolding f_f'[symmetric] using zs2_min
+            by (intro is_vpcD min_length_vpcD)
+          finally have "zs2 ! j \<in> set zs2 \<inter> Nshifts {f} \<or> zs2 ! j \<in> set zs2 \<inter> Nshifts {f'}"
+            using \<open>zs2 ! j \<in> _\<close> by (auto elim: NshiftsE_poly)
+          thus "z \<in> pn_Nshifts True {f'}"
+          proof
+            assume "zs2 ! j \<in> set zs2 \<inter> Nshifts {f}"
+            hence "zs2 ! j \<in> pn_Nshifts False {f}" using zs2_sub_f ..
+            with \<open>j < length zs2\<close> have "j \<in> ?A" by simp
+            with \<open>finite ?A\<close> have "i \<le> j" unfolding i_def by (rule Min_le)
+            also have "\<dots> < i" by fact
+            finally show ?thesis ..
+          next
+            assume "zs2 ! j \<in> set zs2 \<inter> Nshifts {f'}"
+            thus ?thesis unfolding z using zs2_sub_f' ..
+          qed
+        qed
+        hence "num_shifts True (take i zs2) f' = length (take i zs2)"
+          by (simp only: num_shifts_eq_length_iff)
+        also from \<open>i < length zs2\<close> have "\<dots> = i" by simp
+        finally show "num_shifts True (take i zs2) f' = i" .
+      qed fact+
+    qed
+    from this(1) have "1 \<le> rat i" by simp
+
+    define ys1 where "ys1 = take (Suc i) zs2"
+    from \<open>zs2 \<noteq> []\<close> have hd_ys1: "fst (hd ys1) = fst (hd zs)" by (simp add: ys1_def zs)
+    from \<open>i < length zs2\<close> have len_ys1: "length ys1 = Suc i" by (simp add: ys1_def)
+    hence "ys1 \<noteq> []" by auto
+    hence "last ys1 \<in> set ys1" by simp
+    also have "\<dots> \<subseteq> set zs2" by (simp add: ys1_def set_take_subset)
+    finally have "snd (last ys1) \<in> set_of_vpc zs2" by (simp add: set_of_vpc_def)
+    with part have "overlap \<unlhd> snd (last ys1)" by (rule vpc_partitionD2)
+
+    from zs2_min have "is_vpc zs2" by (rule min_length_vpcD)
+    hence "is_vpc ys1" unfolding ys1_def by (rule is_vpc_takeI) simp
+    with nparallel have "length ys1 = num_shifts True ys1 f1 + num_shifts False ys1 f1 +
+                                      num_shifts True ys1 f2 + num_shifts False ys1 f2"
+      by (rule length_eq_num_pos_shifts_plus_num_neg_shifts)
+    also from f_f' have "\<dots> = num_shifts True ys1 f + num_shifts False ys1 f +
+                                  num_shifts True ys1 f' + num_shifts False ys1 f'"
+      by (auto simp: doubleton_eq_iff)
+    finally have "Suc i = num_shifts True ys1 f + num_shifts False ys1 f +
+                          num_shifts True ys1 f' + num_shifts False ys1 f'" by (simp only: len_ys1)
+    moreover from \<open>i < length zs2\<close> i_neg have "1 \<le> num_shifts False ys1 f"
+      by (simp add: ys1_def num_shifts_take_Suc num_shifts_singleton)
+    moreover from \<open>i < length zs2\<close> have "i \<le> num_shifts True ys1 f'"
+      by (simp add: ys1_def num_shifts_take_Suc num_f'_i)
+    ultimately have ys1_pos_f: "num_shifts True ys1 f = 0" and ys1_neg_f: "num_shifts False ys1 f = 1"
+      and ys1_pos_f': "num_shifts True ys1 f' = i" and ys1_neg_f': "num_shifts False ys1 f' = 0"
+      by auto
+    from nparallel \<open>is_vpc ys1\<close> have "snd (last ys1) = fst (hd ys1) +
+                        (rat (num_shifts True ys1 f1) - rat (num_shifts False ys1 f1)) \<cdot> vect f1 +
+                        (rat (num_shifts True ys1 f2) - rat (num_shifts False ys1 f2)) \<cdot> vect f2"
+      by (rule vpc_snd_last_conv_vect)
+    also from f_f' have "\<dots> = fst (hd ys1) +
+                        (rat (num_shifts True ys1 f) - rat (num_shifts False ys1 f)) \<cdot> vect f +
+                        (rat (num_shifts True ys1 f') - rat (num_shifts False ys1 f')) \<cdot> vect f'"
+      by (auto simp: doubleton_eq_iff)
+    also have "\<dots> = fst (hd ys1) - vect f + rat i \<cdot> vect f'"
+      by (simp add: ys1_pos_f ys1_neg_f ys1_pos_f' ys1_neg_f' map_scale_uminus_left)
+    finally have last_ys1: "snd (last ys1) = fst (hd ys1) - vect f + rat i \<cdot> vect f'" .
+
+    from \<open>zs3 \<noteq> []\<close> have "last zs3 \<in> set zs3" by simp
+    also have "\<dots> \<subseteq> pn_Nshifts False {f'}" by fact
+    finally have "of_nat_pm (tp f') \<unlhd> snd (last zs)" using \<open>zs3 \<noteq> []\<close>
+      by (simp add: zs pn_NshiftsD_neg_le)
+    also from vect_g have "\<dots> = fst (hd ys1) + (- rat k) \<cdot> vect f"
+      by (simp add: hd_ys1 hd_zs last_zs map_scale_uminus_left vect_alt algebra_simps)
+    finally have "of_nat_pm (tp f') \<unlhd> fst (hd ys1) + (- rat k) \<cdot> vect f" .
+    moreover from \<open>hd zs2 \<in> pn_Nshifts True {f'}\<close> have "of_nat_pm (tp f') \<unlhd> fst (hd ys1) + 0 \<cdot> vect f"
+      by (simp add: hd_ys1 \<open>hd zs = hd zs2\<close> pn_NshiftsD_pos_le)
+    ultimately have "of_nat_pm (tp f') \<unlhd> fst (hd ys1) + (- 1) \<cdot> vect f"
+      by (rule map_scale_le_interval) (simp_all add: \<open>1 \<le> rat k\<close>)
+    hence "of_nat_pm (tp f') \<unlhd> fst (hd ys1) - vect f" by (simp add: map_scale_uminus_left)
+    moreover from this _ _ \<open>1 \<le> rat i\<close> have "of_nat_pm (lp f') \<unlhd> fst (hd ys1) - vect f + rat i \<cdot> vect f'"
+      by (rule line_above_tp_overlapD) (simp_all only: \<open>overlap \<unlhd> snd (last ys1)\<close> f'_in flip: last_ys1)
+    moreover have "is_int_pm (fst (hd ys1) - vect f)"
+    proof (intro minus_is_int_pm vect_is_int_pm)
+      from \<open>is_vpc ys1\<close> have "fst (hd ys1) \<in> set_of_vpc ys1" by (simp add: set_of_vpc_alt_1)
+      with \<open>is_vpc ys1\<close> have "is_nat_pm (fst (hd ys1))" by (rule vpc_is_nat_pm)
+      thus "is_int_pm (fst (hd ys1))" by (rule nat_pm_is_int_pm)
+    qed
+    moreover note f'_in
+    moreover from \<open>0 < i\<close> have "i \<noteq> 0" by simp
+    ultimately obtain ys2' where "is_vpc ys2'" and hd_ys2': "fst (hd ys2') = fst (hd ys1) - vect f"
+      and last_ys2': "snd (last ys2') = fst (hd ys1) - vect f + rat i \<cdot> vect f'" by (rule lem_3_3_21')
+    
+    define ys2 where "ys2 = map prod.swap (rev ys2')"
+    from \<open>is_vpc ys2'\<close> have "is_vpc ys2" and hd_ys2: "fst (hd ys2) = snd (last ys2')"
+      and last_ys2: "snd (last ys2) = fst (hd ys2')" unfolding ys2_def by (rule is_vpc_revI)+
+    from this(1) have "ys2 \<noteq> []" by (rule is_vpcD)
+    from \<open>is_vpc ys1\<close> \<open>is_vpc ys2\<close> have "is_vpc (ys1 @ ys2)"
+      by (rule is_vpc_appendI) (simp only: hd_ys2 last_ys2' last_ys1)
+    from \<open>ys1 \<noteq> []\<close> have hd_app: "hd (ys1 @ ys2) = hd ys1" by simp
+    from \<open>ys2 \<noteq> []\<close> have last_app: "last (ys1 @ ys2) = last ys2" by simp
+    from f_pbinomial have "tp f \<prec> lp f" by (rule punit.lt_gr_tt_binomial)
+    hence "fst (hd (ys1 @ ys2)) \<noteq> snd (last (ys1 @ ys2))"
+      by (simp add: hd_app last_app hd_ys1 last_ys2 hd_ys2' vect_alt)
+    with \<open>is_vpc (ys1 @ ys2)\<close> obtain q1 q2
+      where "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {fst (hd (ys1 @ ys2)), snd (last (ys1 @ ys2))}"
+      by (rule vpcE_ideal)
+    also have "\<dots> = {of_nat_pm (lp g), of_nat_pm (lp g) - vect f}"
+      by (simp only: hd_app hd_ys1 hd_zs last_app last_ys2 hd_ys2')
+    finally have "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {of_nat_pm (lp g), of_nat_pm (lp g) - vect f}" .
+    moreover define g' where "g' = q1 * f1 + q2 * f2"
+    ultimately have eq1: "of_nat_pm ` keys g' = {of_nat_pm (lp g), of_nat_pm (lp g) - vect f}" by simp
+    have "of_nat_pm ` (+) (lp f) ` keys g' = (+) (of_nat_pm (lp f)) ` of_nat_pm ` keys g'"
+      by (simp only: image_image of_nat_pm_plus)
+    also have "\<dots> = (+) (of_nat_pm (lp f)) ` {of_nat_pm (lp g), of_nat_pm (lp g) - vect f}"
+      by (simp only: eq1)
+    also have "\<dots> = of_nat_pm ` {lp f + lp g, tp f + lp g}"
+      by (simp add: vect_alt of_nat_pm_plus add.commute)
+    finally have eq2: "(+) (lp f) ` keys g' = {lp f + lp g, tp f + lp g}"
+      by (simp only: inj_image_eq_iff inj_of_nat_pm)
+    hence "g' \<noteq> 0" by auto
+    show ?thesis
+    proof
+      show "g' \<in> ideal {f1, f2}" unfolding g'_def by (rule idealI_2)
+
+      show lp_g': "lp g' = lp g"
+      proof (rule punit.lt_eqI_keys)
+        have "(of_nat_pm (lp g) :: _ \<Rightarrow>\<^sub>0 rat) \<in> of_nat_pm ` keys g'" by (simp add: eq1)
+        hence "to_nat_pm (of_nat_pm (lp g) :: _ \<Rightarrow>\<^sub>0 rat) \<in>
+                to_nat_pm ` (of_nat_pm ` keys g' :: (_ \<Rightarrow>\<^sub>0 rat) set)" by (rule imageI)
+        thus "lp g \<in> keys g'" by (simp add: image_image)
+      next
+        fix t
+        assume "t \<in> keys g'"
+        hence "lp f + t \<in> (+) (lp f) ` keys g'" by (rule imageI)
+        hence "lp f + t = lp f + lp g \<or> lp f + t = tp f + lp g" by (simp add: eq2)
+        thus "t \<preceq> lp g"
+          by (metis punit.lt_ge_tt ord_canc_left ordered_powerprod_lin.order.refl plus_monotone)
+      qed
+
+      from \<open>g' \<noteq> 0\<close> have "tp g' \<in> keys g'" by (rule punit.tt_in_keys)
+      hence "lp f + tp g' \<in> (+) (lp f) ` keys g'" by (rule imageI)
+      moreover have "lp g' \<noteq> tp g'" unfolding punit.lt_eq_tt_iff
+      proof
+        from finite_keys have "card (of_nat_pm ` keys g' :: (_ \<Rightarrow>\<^sub>0 rat) set) \<le> card (keys g')"
+          by (rule card_image_le)
+        moreover assume "has_bounded_keys 1 g'"
+        ultimately have "card {of_nat_pm (lp g), of_nat_pm (lp g) - vect f} \<le> 1"
+          by (simp add: eq1 has_bounded_keys_def)
+        hence "vect f = 0" by (simp add: has_bounded_keys_def card_insert)
+        with \<open>tp f \<prec> lp f\<close> show False by (simp add: vect_alt)
+      qed
+      ultimately have "lp f + tp g' = tp f + lp g'" by (auto simp: eq2 lp_g')
+      also have "\<dots> = lp g' + tp f" by (rule add.commute)
+      finally show "vect g' = vect f"
+        by (simp add: vect_alt lp_g' diff_eq_eq eq_diff_eq diff_add_eq flip: of_nat_pm_plus)
+    qed
+  qed
+qed
+
+lemma thm_4_5_2_aux_4:
+  assumes "\<not> overlap \<unlhd> of_nat_pm (lp g)"
+  obtains g' where "g' \<in> ideal {f1, f2}" and "lp g' = lp g" and "vect g' = vect f"
+proof -
+  have f_in: "f \<in> {f1, f2}" and f'_in: "f' \<in> {f1, f2}" by (simp_all add: f_f')
+  from f_f' f1_pbinomial f2_pbinomial have f_pbinomial: "is_proper_binomial f"
+    and f'_pbinomial: "is_proper_binomial f'" by (auto simp: doubleton_eq_iff)
+  from nparallel f_f' have nparallel': "\<not> parallel_binomials f f'"
+    by (auto simp: doubleton_eq_iff dest: parallel_binomials_sym)
+
+  from thm_4_5_2_aux_1 have "1 \<le> rat k" by simp
+
+  obtain zs where zs_min: "min_length_vpc zs" and zs_dist: "fst (hd zs) \<noteq> snd (last zs)"
+    and hd_zs: "fst (hd zs) = of_nat_pm (lp g)" and last_zs: "snd (last zs) = of_nat_pm (tp g)"
+    and num_neg_f: "num_shifts False zs f = k + num_shifts True zs f"
+    and num_neg_f': "num_shifts False zs f' = num_shifts True zs f'"
+    and hd_zs_pos: "hd zs \<in> pn_Nshifts True {f, f'}"
+    and last_zs_neg: "last zs \<in> pn_Nshifts False {f, f'}" by (rule thm_4_5_2_aux_2)
+
+  from zs_min have "is_vpc zs" by (rule min_length_vpcD)
+  hence "zs \<noteq> []" by (rule is_vpcD)
+  hence "hd zs \<in> set zs" and "last zs \<in> set zs" by simp_all
+  from zs_min zs_dist obtain zs1 zs2 zs3 where zs: "zs = zs1 @ zs2 @ zs3"
+    and part: "vpc_partition zs1 zs2 zs3" by (rule min_length_vpcE_partition)
+
+  show ?thesis sorry
+qed
+
+lemma thm_4_5_2:
+  obtains g' where "g' \<in> ideal {f1, f2}" and "lp g' = lp g" and "vect g' = vect f"
+proof (cases "overlap \<unlhd> of_nat_pm (lp g)")
+  case True
+  thus ?thesis using that by (rule thm_4_5_2_aux_3)
+next
+  case False
+  thus ?thesis using that by (rule thm_4_5_2_aux_4)
+qed
+
+end
+
+end
+
+thm thm_4_5_2
+
+end
+
+end (* two_binoms *)
 
 end (* theory *)
