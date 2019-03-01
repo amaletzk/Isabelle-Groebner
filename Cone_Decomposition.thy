@@ -175,9 +175,9 @@ next
     moreover note *
     moreover assume "normal_form F p \<noteq> 0"
     ultimately obtain g where "g \<in> punit.reduced_GB F" and "g \<noteq> 0"
-      and a: "punit.lt g adds punit.lt (normal_form F p)" by (rule punit.GB_adds_lt[simplified])
+      and a: "lpp g adds lpp (normal_form F p)" by (rule punit.GB_adds_lt[simplified])
     note this(1, 2)
-    moreover from \<open>normal_form F p \<noteq> 0\<close> have "punit.lt (normal_form F p) \<in> keys (normal_form F p)"
+    moreover from \<open>normal_form F p \<noteq> 0\<close> have "lpp (normal_form F p) \<in> keys (normal_form F p)"
       by (rule punit.lt_in_keys)
     ultimately have "punit.is_red (punit.reduced_GB F) (normal_form F p)"
       using a by (rule punit.is_red_addsI[simplified])
@@ -445,12 +445,12 @@ qed
 
 lemma coneD:
   assumes "p \<in> cone (h, U)" and "p \<noteq> 0"
-  shows "punit.lt h adds punit.lt (p::_ \<Rightarrow>\<^sub>0 _::{comm_semiring_0,semiring_no_zero_divisors})"
+  shows "lpp h adds lpp (p::_ \<Rightarrow>\<^sub>0 _::{comm_semiring_0,semiring_no_zero_divisors})"
 proof -
   from assms(1) obtain a where p: "p = a * h" by (rule coneE)
   with assms(2) have "a \<noteq> 0" and "h \<noteq> 0" by auto
-  hence "punit.lt p = punit.lt a + punit.lt h" unfolding p by (rule lp_times)
-  also have "\<dots> = punit.lt h + punit.lt a" by (rule add.commute)
+  hence "lpp p = lpp a + lpp h" unfolding p by (rule lp_times)
+  also have "\<dots> = lpp h + lpp a" by (rule add.commute)
   finally show ?thesis by (rule addsI)
 qed
 
@@ -704,13 +704,13 @@ proof -
           assume "qx0 \<noteq> qx'"
           hence "qx0 - qx' \<noteq> 0" by simp
           moreover have "xx \<noteq> 0" by (simp add: xx_def monomial_0_iff)
-          ultimately have "punit.lt ((qx0 - qx') * xx) = punit.lt (qx0 - qx') + punit.lt xx"
+          ultimately have "lpp ((qx0 - qx') * xx) = lpp (qx0 - qx') + lpp xx"
             by (rule lp_times)
-          also have "punit.lt xx = ?x" by (simp add: xx_def punit.lt_monomial)
-          finally have "?x adds punit.lt (qU - qU0)" by (simp add: eq)
-          hence "lookup ?x x \<le> lookup (punit.lt (qU - qU0)) x" by (simp only: adds_pm le_pm_def le_fun_def)
-          hence "x \<in> keys (punit.lt (qU - qU0))" by (simp add: in_keys_iff lookup_single)
-          moreover have "punit.lt (qU - qU0) \<in> keys (qU - qU0)"
+          also have "lpp xx = ?x" by (simp add: xx_def punit.lt_monomial)
+          finally have "?x adds lpp (qU - qU0)" by (simp add: eq)
+          hence "lookup ?x x \<le> lookup (lpp (qU - qU0)) x" by (simp only: adds_pm le_pm_def le_fun_def)
+          hence "x \<in> keys (lpp (qU - qU0))" by (simp add: in_keys_iff lookup_single)
+          moreover have "lpp (qU - qU0) \<in> keys (qU - qU0)"
           proof (rule punit.lt_in_keys)
             from \<open>qx0 - qx' \<noteq> 0\<close> \<open>xx \<noteq> 0\<close> show "qU - qU0 \<noteq> 0" unfolding eq by (rule times_not_zero)
           qed
@@ -823,11 +823,11 @@ proof (rule monomial_decompI)
   moreover obtain a b where "x = (a, b)" using prod.exhaust by blast
   ultimately have h: "h = f * a" and "(a, U) \<in> set ps" by simp_all
   from assms(1) this(2) have "is_monomial a" and "punit.lc a = 1" by (rule monomial_decompD)+
-  from this(1) have "monomial (punit.lc a) (punit.lt a) = a" by (rule punit.monomial_eq_itself)
-  moreover define t where "t = punit.lt a"
+  from this(1) have "monomial (punit.lc a) (lpp a) = a" by (rule punit.monomial_eq_itself)
+  moreover define t where "t = lpp a"
   ultimately have a: "a = monomial 1 t" by (simp only: \<open>punit.lc a = 1\<close>)
-  from assms(2) have "monomial (punit.lc f) (punit.lt f) = f" by (rule punit.monomial_eq_itself)
-  moreover define s where "s = punit.lt f"
+  from assms(2) have "monomial (punit.lc f) (lpp f) = f" by (rule punit.monomial_eq_itself)
+  moreover define s where "s = lpp f"
   ultimately have f: "f = monomial 1 s" by (simp only: assms(3))
   show "is_monomial h" by (simp add: h a f times_monomial_monomial monomial_is_monomial)
   show "punit.lc h = 1" by (simp add: h a f times_monomial_monomial)
@@ -1781,7 +1781,7 @@ proof -
           moreover have "\<not> punit.is_red ?G x"
           proof
             assume "punit.is_red ?G x"
-            then obtain g t where "g \<in> ?G" and "t \<in> keys x" and "g \<noteq> 0" and adds: "punit.lt g adds t"
+            then obtain g t where "g \<in> ?G" and "t \<in> keys x" and "g \<noteq> 0" and adds: "lpp g adds t"
               by (rule punit.is_red_addsE[simplified])
             from assms(3) x_in this(2) obtain c h U where "(h, U) \<in> set qs" and "c \<noteq> 0"
               and "monomial c t \<in> cone (h, U)" by (rule monomial_decomp_sum_list_monomial_in_cone)
@@ -1840,8 +1840,8 @@ proof -
             moreover from 3 have "monomial 1 t \<in> ideal ?G" by (simp only: ideal_G)
             moreover have "monomial (1::'a) t \<noteq> 0" by (simp add: monomial_0_iff)
             ultimately obtain g where "g \<in> ?G" and "g \<noteq> 0"
-              and "punit.lt g adds punit.lt (monomial (1::'a) t)" by (rule punit.GB_adds_lt[simplified])
-            from this(3) have "punit.lt g adds t" by (simp add: punit.lt_monomial)
+              and "lpp g adds lpp (monomial (1::'a) t)" by (rule punit.GB_adds_lt[simplified])
+            from this(3) have "lpp g adds t" by (simp add: punit.lt_monomial)
             with \<open>g \<in> ?G\<close> \<open>g \<noteq> 0\<close> \<open>t \<in> keys x\<close> show ?thesis by (rule punit.is_red_addsI[simplified])
           qed
           with irred show False ..
@@ -1884,7 +1884,7 @@ proof (rule set_eqI)
         from this(2) have "t = s" by simp
         with \<open>s \<in> keys a\<close> 2(2) show False by simp
       qed
-      ultimately obtain f where "f \<in> monomial (1::'a) ` S" and adds: "punit.lt f adds ?x + t"
+      ultimately obtain f where "f \<in> monomial (1::'a) ` S" and adds: "lpp f adds ?x + t"
         by (rule punit.keys_monomial_pmdl[simplified])
       from this(1) obtain s where "s \<in> S" and f: "f = monomial 1 s" ..
       from adds have "s adds ?x + t" by (simp add: f punit.lt_monomial)
@@ -1916,7 +1916,7 @@ proof (rule set_eqI)
       proof (rule in_keys_plusI1)
         from 2(1) show "t \<in> keys (monomial c t)" by simp
       qed
-      ultimately obtain f where "f \<in> ?S" and adds: "punit.lt f adds t"
+      ultimately obtain f where "f \<in> ?S" and adds: "lpp f adds t"
         by (rule punit.keys_monomial_pmdl[simplified])
       from this(1) obtain s where "s \<in> S" and f: "f = monomial 1 (s - ?x)" by blast
       from adds have "s - ?x adds t" by (simp add: f punit.lt_monomial)
@@ -1961,7 +1961,7 @@ proof
     by (auto intro!: is_monomial_setI monomial_is_monomial)
   moreover from * have "1 \<in> ideal (monomial (1::'a) ` S)" by (simp only: quot_set_iff flip: assms)
   moreover have "0 \<in> keys (1::_ \<Rightarrow>\<^sub>0 'a)" by simp
-  ultimately obtain g where "g \<in> monomial (1::'a) ` S" and adds: "punit.lt g adds 0"
+  ultimately obtain g where "g \<in> monomial (1::'a) ` S" and adds: "lpp g adds 0"
     by (rule punit.keys_monomial_pmdl[simplified])
   from this(1) obtain s where "s \<in> S" and g: "g = monomial 1 s" ..
   from adds have "s adds 0" by (simp add: g punit.lt_monomial flip: single_one)
@@ -2018,14 +2018,14 @@ next
       have "is_monomial_set (monomial (1::'a) ` S)"
         by (auto intro!: is_monomial_setI monomial_is_monomial)
       moreover from * have q_in: "q \<in> ideal (monomial 1 ` S)" by (simp only: assms)
-      moreover from \<open>q \<noteq> 0\<close> have "punit.lt q \<in> keys q" by (rule punit.lt_in_keys)
-      ultimately obtain g where "g \<in> monomial (1::'a) ` S" and adds: "punit.lt g adds punit.lt q"
+      moreover from \<open>q \<noteq> 0\<close> have "lpp q \<in> keys q" by (rule punit.lt_in_keys)
+      ultimately obtain g where "g \<in> monomial (1::'a) ` S" and adds: "lpp g adds lpp q"
         by (rule punit.keys_monomial_pmdl[simplified])
       from this(1) obtain s where "s \<in> S" and g: "g = monomial 1 s" ..
-      from \<open>q \<noteq> 0\<close> have "punit.lt q \<in> keys q" by (rule punit.lt_in_keys)
+      from \<open>q \<noteq> 0\<close> have "lpp q \<in> keys q" by (rule punit.lt_in_keys)
       also from \<open>q \<in> P[U]\<close> have "\<dots> \<subseteq> .[U]" by (rule PolysD)
-      finally have "punit.lt q \<in> .[U]" .
-      moreover from adds have "s adds punit.lt q" by (simp add: g punit.lt_monomial)
+      finally have "lpp q \<in> .[U]" .
+      moreover from adds have "s adds lpp q" by (simp add: g punit.lt_monomial)
       ultimately have "s \<in> .[U]" by (rule PPs_closed_adds)
       with eq \<open>s \<in> S\<close> show False by blast
     qed
@@ -2519,8 +2519,8 @@ proof -
   moreover from assms(1) \<open>?S \<subseteq> P[X]\<close> have "punit.is_monic_set ?G"
     by (rule reduced_GB_is_monic_set_Polys)
   ultimately have "punit.lc g = 1" using assms(3) by (simp add: punit.is_monic_set_def)
-  moreover define t where "t = punit.lt g"
-  moreover from \<open>is_monomial g\<close> have "monomial (punit.lc g) (punit.lt g) = g"
+  moreover define t where "t = lpp g"
+  moreover from \<open>is_monomial g\<close> have "monomial (punit.lc g) (lpp g) = g"
     by (rule punit.monomial_eq_itself)
   ultimately have g: "g = monomial 1 t" by simp
   hence "t \<in> keys g" by simp
@@ -2538,12 +2538,12 @@ proof -
   with \<open>d \<noteq> 0\<close> have "g \<in> cone (h, U)" by (simp add: g punit.monom_mult_monomial)
   then obtain q where "q \<in> P[U]" and g': "g = q * h" by (rule coneE)
   from \<open>g \<noteq> 0\<close> have "q \<noteq> 0" and "h \<noteq> 0" by (auto simp: g')
-  hence lt_g': "punit.lt g = punit.lt q + punit.lt h" unfolding g' by (rule lp_times)
-  hence adds1: "punit.lt h adds t" by (simp add: t_def)
+  hence lt_g': "lpp g = lpp q + lpp h" unfolding g' by (rule lp_times)
+  hence adds1: "lpp h adds t" by (simp add: t_def)
   from assms(5) * have "is_monomial h" and "punit.lc h = 1" by (rule monomial_decompD)+
-  moreover from this(1) have "monomial (punit.lc h) (punit.lt h) = h"
+  moreover from this(1) have "monomial (punit.lc h) (lpp h) = h"
     by (rule punit.monomial_eq_itself)
-  moreover define s where "s = punit.lt h"
+  moreover define s where "s = lpp h"
   ultimately have h: "h = monomial 1 s" by simp
   have "punit.lc q = punit.lc g" by (simp add: g' lc_times \<open>punit.lc h = 1\<close>)
   hence "punit.lc q = 1" by (simp only: \<open>punit.lc g = 1\<close>)
@@ -2552,9 +2552,9 @@ proof -
   also have "\<dots> \<subseteq> ideal ?G" by (simp add: ideal_G)
   finally have "h \<in> ideal ?G" .
   from assms(1) \<open>?S \<subseteq> P[X]\<close> have "punit.is_Groebner_basis ?G" by (rule reduced_GB_is_GB_Polys)
-  then obtain g' where "g' \<in> ?G" and "g' \<noteq> 0" and adds2: "punit.lt g' adds punit.lt h"
+  then obtain g' where "g' \<in> ?G" and "g' \<noteq> 0" and adds2: "lpp g' adds lpp h"
     using \<open>h \<in> ideal ?G\<close> \<open>h \<noteq> 0\<close> by (rule punit.GB_adds_lt[simplified])
-  from this(3) adds1 have "punit.lt g' adds t" by (rule adds_trans)
+  from this(3) adds1 have "lpp g' adds t" by (rule adds_trans)
   with _ \<open>g' \<noteq> 0\<close> \<open>t \<in> keys g\<close> have "punit.is_red {g'} g"
     by (rule punit.is_red_addsI[simplified]) simp
   have "g' = g"
@@ -2566,9 +2566,9 @@ proof -
     hence "\<not> punit.is_red (?G - {g}) g" using assms(3) by (rule punit.is_auto_reducedD)
     thus False using red ..
   qed
-  with adds2 have "t adds punit.lt h" by (simp only: t_def)
-  with adds1 have "punit.lt h = t" by (rule adds_antisym)
-  hence "punit.lt q = 0" using lt_g' by (simp add: t_def)
+  with adds2 have "t adds lpp h" by (simp only: t_def)
+  with adds1 have "lpp h = t" by (rule adds_antisym)
+  hence "lpp q = 0" using lt_g' by (simp add: t_def)
   hence "monomial (punit.lc q) 0 = q" by (rule punit.lt_eq_min_term_monomial[simplified])
   hence "g = h" by (simp add: \<open>punit.lc q = 1\<close> g')
   with * have "(g, U) \<in> set ps" by simp
@@ -2719,7 +2719,7 @@ proof -
   have "is_monomial_set ?S" by (auto intro!: is_monomial_setI monomial_is_monomial)
   with assms(1) 0 have "is_monomial_set ?G" by (rule reduced_GB_is_monomial_set_Polys)
   hence "is_monomial g" using assms(5) by (rule is_monomial_setD)
-  moreover define s where "s = punit.lt g"
+  moreover define s where "s = lpp g"
   ultimately have g: "g = monomial 1 s" using \<open>punit.lc g = 1\<close> by (metis punit.monomial_eq_itself)
   note assms(1) subset_refl assms(2) zero_in_PPs
   moreover have "ideal ?G \<div> monomial 1 0 = ideal ?S" by (simp add: ideal_G)
@@ -2834,8 +2834,8 @@ next
       hence md: "monomial_decomp (qs0 @ qs1)" by (simp add: step.hyps(14))
       moreover from \<open>(h, U0) \<in> set qs1\<close> have "(h, U0) \<in> set (qs0 @ qs1)" by simp
       ultimately have "is_monomial h" and "punit.lc h = 1" by (rule monomial_decompD)+
-      moreover from this(1) have "monomial (punit.lc h) (punit.lt h) = h" by (rule punit.monomial_eq_itself)
-      moreover define s where "s = punit.lt h"
+      moreover from this(1) have "monomial (punit.lc h) (lpp h) = h" by (rule punit.monomial_eq_itself)
+      moreover define s where "s = lpp h"
       ultimately have h: "h = monomial 1 s" by simp
       from d1 have "deg_pm t = d \<or> Suc (deg_pm t) \<le> d" by auto
       thus ?thesis
@@ -2889,7 +2889,7 @@ qed
 theorem standard_cone_decomp_snd_split:
   fixes F
   defines "G \<equiv> punit.reduced_GB F"
-  defines "ss \<equiv> (split 0 X (punit.lt ` G)) :: ((_ \<Rightarrow>\<^sub>0 'a::field) \<times> _) list \<times> _"
+  defines "ss \<equiv> (split 0 X (lpp ` G)) :: ((_ \<Rightarrow>\<^sub>0 'a::field) \<times> _) list \<times> _"
   defines "d \<equiv> Suc (Max (poly_deg ` fst ` set (snd ss)))"
   assumes "finite X" and "F \<subseteq> P[X]"
   shows "standard_decomp 0 (snd ss)" (is ?thesis1)
@@ -2900,10 +2900,10 @@ proof -
     and "G \<subseteq> P[X]" and "punit.is_reduced_GB G" using assms(4, 5) unfolding G_def
     by (rule reduced_GB_ideal_Polys, rule reduced_GB_is_GB_Polys, rule finite_reduced_GB_Polys,
         rule reduced_GB_nonzero_Polys, rule reduced_GB_Polys, rule reduced_GB_is_reduced_GB_Polys)
-  define S where "S = punit.lt ` G"
+  define S where "S = lpp ` G"
   note assms(4) subset_refl
   moreover from \<open>finite G\<close> have "finite S" unfolding S_def by (rule finite_imageI)
-  moreover from \<open>G \<subseteq> P[X]\<close> have "S \<subseteq> .[X]" unfolding S_def  by (rule PPs_closed_image_lp)
+  moreover from \<open>G \<subseteq> P[X]\<close> have "S \<subseteq> .[X]" unfolding S_def by (rule PPs_closed_image_lpp)
   ultimately have "standard_decomp (deg_pm (0::'x \<Rightarrow>\<^sub>0 nat)) (snd ss)"
     using zero_in_PPs unfolding ss_def S_def by (rule standard_decomp_snd_split)
   thus ?thesis1 by simp
@@ -2931,16 +2931,16 @@ proof -
   moreover note \<open>punit.is_reduced_GB G\<close> \<open>ideal G = ideal F\<close>
   moreover assume "g \<in> G"
   ultimately have "homogeneous g" by (rule is_reduced_GB_homogeneous)
-  moreover have "punit.lt g \<in> keys g"
+  moreover have "lpp g \<in> keys g"
   proof (rule punit.lt_in_keys)
     from \<open>g \<in> G\<close> \<open>0 \<notin> G\<close> show "g \<noteq> 0" by blast
   qed
-  ultimately have deg_lt: "deg_pm (punit.lt g) = poly_deg g" by (rule homogeneousD_poly_deg)
-  from \<open>g \<in> G\<close> have "monomial 1 (punit.lt g) \<in> ?S" unfolding S_def by (intro imageI)
+  ultimately have deg_lt: "deg_pm (lpp g) = poly_deg g" by (rule homogeneousD_poly_deg)
+  from \<open>g \<in> G\<close> have "monomial 1 (lpp g) \<in> ?S" unfolding S_def by (intro imageI)
   also have "\<dots> = punit.reduced_GB ?S" unfolding S_def G_def using assms(4, 5)
     by (rule reduced_GB_monomial_lt_reduced_GB_Polys[symmetric])
-  finally have "monomial 1 (punit.lt g) \<in> punit.reduced_GB ?S" .
-  with assms(4) \<open>finite S\<close> \<open>S \<subseteq> .[X]\<close> have "poly_deg (monomial (1::'a) (punit.lt g)) \<le> d"
+  finally have "monomial 1 (lpp g) \<in> punit.reduced_GB ?S" .
+  with assms(4) \<open>finite S\<close> \<open>S \<subseteq> .[X]\<close> have "poly_deg (monomial (1::'a) (lpp g)) \<le> d"
     unfolding d_def ss_def S_def[symmetric] by (rule cor_4_9)
   thus "poly_deg g \<le> d" by (simp add: poly_deg_monomial deg_lt)
 qed
@@ -2950,7 +2950,7 @@ subsection \<open>Splitting Ideals\<close>
 qualified definition ideal_decomp_aux :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) set \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<Rightarrow>
                                           ((('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::field) set \<times> ((('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<times> 'x set) list)"
   where "ideal_decomp_aux F f =
-              (let J = ideal F; L = (J \<div> f) \<inter> P[X]; L' = punit.lt ` punit.reduced_GB L in
+              (let J = ideal F; L = (J \<div> f) \<inter> P[X]; L' = lpp ` punit.reduced_GB L in
                  ((*) f ` normal_form L ` P[X], map (apfst ((*) f)) (snd (split 0 X L'))))"
 
 context
@@ -2970,7 +2970,7 @@ proof -
   define J where "J = ideal F"
   define L where "L = (J \<div> f) \<inter> P[X]"
   define S where "S = (*) f ` normal_form L ` P[X]"
-  define L' where "L' = punit.lt ` punit.reduced_GB L"
+  define L' where "L' = lpp ` punit.reduced_GB L"
 
   have eq: "ideal_decomp_aux F f = (S, map (apfst ((*) f)) (snd (split 0 X L')))"
     by (simp add: J_def ideal_decomp_aux_def Let_def L_def L'_def S_def)
@@ -3643,11 +3643,11 @@ proof -
   let ?x = "Poly_Mapping.single x (1::nat)"
   obtain h U where hU: "hU = (h, U)" using prod.exhaust by blast
   with assms(2) have "(h, U) \<in> set ps" by simp
-  with assms(1) have 1: "is_monomial h" and 2: "punit.lc h = 1" by (rule monomial_decompD)+
-  from this(1) have "monomial (punit.lc h) (punit.lt h) = h" by (rule punit.monomial_eq_itself)
-  moreover define t where "t = punit.lt h"
+  with assms(1) have 1: "is_monomial h" and 2: "lcf h = 1" by (rule monomial_decompD)+
+  from this(1) have "monomial (lcf h) (lpp h) = h" by (rule punit.monomial_eq_itself)
+  moreover define t where "t = lpp h"
   ultimately have "h = monomial 1 t" by (simp only: 2)
-  hence "is_monomial (punit.monom_mult 1 ?x h)" and "punit.lc (punit.monom_mult 1 ?x h) = 1"
+  hence "is_monomial (punit.monom_mult 1 ?x h)" and "lcf (punit.monom_mult 1 ?x h) = 1"
     by (simp_all add: punit.monom_mult_monomial monomial_is_monomial)
   with assms(1) 1 2 show ?thesis by (simp add: shift_list.simps monomial_decomp_def hU)
 qed
@@ -4202,7 +4202,7 @@ next
   have "?p1 \<noteq> (h, U)"
   proof
     assume "?p1 = (h, U)"
-    hence "punit.lt (punit.monom_mult 1 ?x h) = punit.lt h" by simp
+    hence "lpp (punit.monom_mult 1 ?x h) = lpp h" by simp
     with \<open>h \<noteq> 0\<close> show False by (simp add: punit.lt_monom_mult monomial_0_iff)
   qed
   let ?qs = "shift_list (h, U) x qs"
@@ -4833,7 +4833,7 @@ lemma normal_form_exact_decompE:
     and "\<And>g. (\<And>f. f \<in> F \<Longrightarrow> homogeneous f) \<Longrightarrow> g \<in> punit.reduced_GB F \<Longrightarrow> poly_deg g \<le> \<b> qs 0"
 proof -
   let ?G = "punit.reduced_GB F"
-  let ?S = "punit.lt ` ?G"
+  let ?S = "lpp ` ?G"
   let ?N = "normal_form F ` P[X]"
   define qs::"((_ \<Rightarrow>\<^sub>0 'a) \<times> _) list" where "qs = snd (split 0 X ?S)"
   from fin_X assms have std: "standard_decomp 0 qs" and cn: "cone_decomp ?N qs"

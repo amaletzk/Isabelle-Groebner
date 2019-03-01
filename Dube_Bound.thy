@@ -87,34 +87,34 @@ lemma Hilbert_fun_cone_aux:
   assumes "h \<in> P[X]" and "h \<noteq> 0" and "U \<subseteq> X" and "homogeneous (h::_ \<Rightarrow>\<^sub>0 'a::field)"
   shows "Hilbert_fun (cone (h, U)) z = card {t \<in> .[U]. deg_pm t + poly_deg h = z}"
 proof -
-  from assms(2) have "punit.lt h \<in> keys h" by (rule punit.lt_in_keys)
-  with assms(4) have deg_h[symmetric]: "deg_pm (punit.lt h) = poly_deg h"
+  from assms(2) have "lpp h \<in> keys h" by (rule punit.lt_in_keys)
+  with assms(4) have deg_h[symmetric]: "deg_pm (lpp h) = poly_deg h"
     by (rule homogeneousD_poly_deg)
   from assms(1, 3) have "cone (h, U) \<subseteq> P[X]" by (rule cone_subset_PolysI)
-  with fin_X have "Hilbert_fun (cone (h, U)) z = card (punit.lt ` (hom_deg_set z (cone (h, U)) - {0}))"
+  with fin_X have "Hilbert_fun (cone (h, U)) z = card (lpp ` (hom_deg_set z (cone (h, U)) - {0}))"
     using subspace_cone[of "(h, U)"] by (simp only: Hilbert_fun_alt)
-  also from assms(4) have "punit.lt ` (hom_deg_set z (cone (h, U)) - {0}) =
-                            {t \<in> punit.lt ` (cone (h, U) - {0}). deg_pm t = z}"
+  also from assms(4) have "lpp ` (hom_deg_set z (cone (h, U)) - {0}) =
+                            {t \<in> lpp ` (cone (h, U) - {0}). deg_pm t = z}"
     by (intro image_lt_hom_deg_set homogeneous_set_coneI)
-  also have "{t \<in> punit.lt ` (cone (h, U) - {0}). deg_pm t = z} =
-              (\<lambda>t. t + punit.lt h) ` {t \<in> .[U]. deg_pm t + poly_deg h = z}"  (is "?A = ?B")
+  also have "{t \<in> lpp ` (cone (h, U) - {0}). deg_pm t = z} =
+              (\<lambda>t. t + lpp h) ` {t \<in> .[U]. deg_pm t + poly_deg h = z}"  (is "?A = ?B")
   proof
     show "?A \<subseteq> ?B"
     proof
       fix t
       assume "t \<in> ?A"
-      hence "t \<in> punit.lt ` (cone (h, U) - {0})" and "deg_pm t = z" by simp_all
-      from this(1) obtain a where "a \<in> cone (h, U) - {0}" and 2: "t = punit.lt a" ..
+      hence "t \<in> lpp ` (cone (h, U) - {0})" and "deg_pm t = z" by simp_all
+      from this(1) obtain a where "a \<in> cone (h, U) - {0}" and 2: "t = lpp a" ..
       from this(1) have "a \<in> cone (h, U)" and "a \<noteq> 0" by simp_all
       from this(1) obtain q where "q \<in> P[U]" and a: "a = q * h" by (rule coneE)
       from \<open>a \<noteq> 0\<close> have "q \<noteq> 0" by (auto simp: a)
-      hence t: "t = punit.lt q + punit.lt h" using assms(2) unfolding 2 a by (rule lp_times)
-      hence "deg_pm (punit.lt q) + poly_deg h = deg_pm t" by (simp add: deg_pm_plus deg_h)
+      hence t: "t = lpp q + lpp h" using assms(2) unfolding 2 a by (rule lp_times)
+      hence "deg_pm (lpp q) + poly_deg h = deg_pm t" by (simp add: deg_pm_plus deg_h)
       also have "\<dots> = z" by fact
-      finally have "deg_pm (punit.lt q) + poly_deg h = z" .
-      moreover from \<open>q \<in> P[U]\<close> have "punit.lt q \<in> .[U]" by (rule PPs_closed_lp)
-      ultimately have "punit.lt q \<in> {t \<in> .[U]. deg_pm t + poly_deg h = z}" by simp
-      moreover have "t = punit.lt q + punit.lt h" by (simp only: t)
+      finally have "deg_pm (lpp q) + poly_deg h = z" .
+      moreover from \<open>q \<in> P[U]\<close> have "lpp q \<in> .[U]" by (rule PPs_closed_lpp)
+      ultimately have "lpp q \<in> {t \<in> .[U]. deg_pm t + poly_deg h = z}" by simp
+      moreover have "t = lpp q + lpp h" by (simp only: t)
       ultimately show "t \<in> ?B" by (rule rev_image_eqI)
     qed
   next
@@ -123,18 +123,18 @@ proof -
       fix t
       assume "t \<in> ?B"
       then obtain s where "s \<in> {t \<in> .[U]. deg_pm t + poly_deg h = z}"
-        and t1: "t = s + punit.lt h" ..
+        and t1: "t = s + lpp h" ..
       from this(1) have "s \<in> .[U]" and 1: "deg_pm s + poly_deg h = z" by simp_all
       let ?q = "monomial (1::'a) s"
       have "?q \<noteq> 0" by (simp add: monomial_0_iff)
-      hence "?q * h \<noteq> 0" and "punit.lt (?q * h) = punit.lt ?q + punit.lt h" using \<open>h \<noteq> 0\<close>
+      hence "?q * h \<noteq> 0" and "lpp (?q * h) = lpp ?q + lpp h" using \<open>h \<noteq> 0\<close>
         by (rule times_not_zero, rule lp_times)
-      hence t: "t = punit.lt (?q * h)" by (simp add: t1 punit.lt_monomial)
+      hence t: "t = lpp (?q * h)" by (simp add: t1 punit.lt_monomial)
       from \<open>s \<in> .[U]\<close> have "?q \<in> P[U]" by (rule Polys_closed_monomial)
       with refl have "?q * h \<in> cone (h, U)" by (rule coneI)
       moreover from _ assms(2) have "?q * h \<noteq> 0" by (rule times_not_zero) (simp add: monomial_0_iff)
       ultimately have "?q * h \<in> cone (h, U) - {0}" by simp
-      hence "t \<in> punit.lt ` (cone (h, U) - {0})" unfolding t by (rule imageI)
+      hence "t \<in> lpp ` (cone (h, U) - {0})" unfolding t by (rule imageI)
       moreover have "deg_pm t = int z" by (simp add: t1) (simp add: deg_pm_plus deg_h flip: 1)
       ultimately show "t \<in> ?A" by simp
     qed
@@ -611,10 +611,10 @@ proof
   moreover from finite_set finite_keys have "finite ?A" by (rule finite_UN_I)
   ultimately have "finite (Keys P)" by (rule finite_subset)
 
-  have "\<exists>q\<in>ideal F. q \<in> P[X] \<and> q \<noteq> 0 \<and> \<not> punit.lt f adds punit.lt q"
+  have "\<exists>q\<in>ideal F. q \<in> P[X] \<and> q \<noteq> 0 \<and> \<not> lpp f adds lpp q"
   proof (rule ccontr)
-    assume "\<not> (\<exists>q\<in>ideal F. q \<in> P[X] \<and> q \<noteq> 0 \<and> \<not> punit.lt f adds punit.lt q)"
-    hence adds: "punit.lt f adds punit.lt q" if "q \<in> ideal F" and "q \<in> P[X]" and "q \<noteq> 0" for q
+    assume "\<not> (\<exists>q\<in>ideal F. q \<in> P[X] \<and> q \<noteq> 0 \<and> \<not> lpp f adds lpp q)"
+    hence adds: "lpp f adds lpp q" if "q \<in> ideal F" and "q \<in> P[X]" and "q \<noteq> 0" for q
       using that by blast
     from fin_X _ F_sub have "ideal {f} = ideal F"
     proof (rule punit.pmdl_eqI_adds_lt_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt,
@@ -626,20 +626,20 @@ proof
     next
       fix q
       assume "q \<in> ideal F" and "q \<in> P[X]" and "q \<noteq> 0"
-      hence "punit.lt f adds punit.lt q" by (rule adds)
-      with f_not_0 show "\<exists>g\<in>{f}. g \<noteq> 0 \<and> punit.lt g adds punit.lt q" by blast
+      hence "lpp f adds lpp q" by (rule adds)
+      with f_not_0 show "\<exists>g\<in>{f}. g \<noteq> 0 \<and> lpp g adds lpp q" by blast
     qed
     with ideal_f_neq show False ..
   qed
   then obtain q0 where "q0 \<in> ideal F" and "q0 \<in> P[X]" and "q0 \<noteq> 0"
-    and nadds_q0: "\<not> punit.lt f adds punit.lt q0" by blast
-  define q where "q = hom_component q0 (deg_pm (punit.lt q0))"
+    and nadds_q0: "\<not> lpp f adds lpp q0" by blast
+  define q where "q = hom_component q0 (deg_pm (lpp q0))"
   from hom_F \<open>q0 \<in> ideal F\<close> have "q \<in> ideal F" unfolding q_def by (rule homogeneous_ideal)
   from homogeneous_set_Polys \<open>q0 \<in> P[X]\<close> have "q \<in> P[X]" unfolding q_def by (rule homogeneous_setD)
-  from \<open>q0 \<noteq> 0\<close> have "q \<noteq> 0" and "punit.lt q = punit.lt q0" unfolding q_def by (rule hom_component_lp)+
-  from nadds_q0 this(2) have nadds_q: "\<not> punit.lt f adds punit.lt q" by simp
+  from \<open>q0 \<noteq> 0\<close> have "q \<noteq> 0" and "lpp q = lpp q0" unfolding q_def by (rule hom_component_lpp)+
+  from nadds_q0 this(2) have nadds_q: "\<not> lpp f adds lpp q" by simp
   have hom_q: "homogeneous q" by (simp only: q_def homogeneous_hom_component)
-  from nadds_q obtain x where x: "\<not> lookup (punit.lt f) x \<le> lookup (punit.lt q) x"
+  from nadds_q obtain x where x: "\<not> lookup (lpp f) x \<le> lookup (lpp q) x"
     by (auto simp add: adds_pm le_pm_def le_fun_def)
   obtain y where "y \<in> X" and "y \<noteq> x"
   proof -
@@ -654,15 +654,15 @@ proof
   have inj1: "inj q'" by (auto intro!: injI simp: q'_def \<open>q \<noteq> 0\<close> dest: punit.monom_mult_inj_2 monomial_inj)
   have q'_in: "q' k \<in> ideal F \<inter> P[X]" for k unfolding q'_def using \<open>q \<in> ideal F\<close> \<open>q \<in> P[X]\<close> \<open>y \<in> X\<close>
     by (intro IntI punit.pmdl_closed_monom_mult[simplified] Polys_closed_monom_mult PPs_closed_single)
-  have lp_q': "punit.lt (q' k) = Poly_Mapping.single y k + punit.lt q" for k
+  have lpp_q': "lpp (q' k) = Poly_Mapping.single y k + lpp q" for k
     using \<open>q \<noteq> 0\<close> by (simp add: q'_def punit.lt_monom_mult)
-  have inj2: "inj_on (deg_pm \<circ> punit.lt) (range q')"
-    by (auto intro!: inj_onI simp: lp_q' deg_pm_plus deg_pm_single dest: monomial_inj)
-  have "(deg_pm \<circ> punit.lt) ` range q' \<subseteq> deg_pm ` Keys P"
+  have inj2: "inj_on (deg_pm \<circ> lpp) (range q')"
+    by (auto intro!: inj_onI simp: lpp_q' deg_pm_plus deg_pm_single dest: monomial_inj)
+  have "(deg_pm \<circ> lpp) ` range q' \<subseteq> deg_pm ` Keys P"
   proof
     fix d
-    assume "d \<in> (deg_pm \<circ> punit.lt) ` range q'"
-    then obtain k where d: "d = deg_pm (punit.lt (q' k))" (is "_ = deg_pm ?t") by auto
+    assume "d \<in> (deg_pm \<circ> lpp) ` range q'"
+    then obtain k where d: "d = deg_pm (lpp (q' k))" (is "_ = deg_pm ?t") by auto
     from hom_q have hom_q': "homogeneous (q' k)" by (simp add: q'_def homogeneous_monom_mult)
     from \<open>q \<noteq> 0\<close> have "q' k \<noteq> 0" by (simp add: q'_def punit.monom_mult_eq_zero_iff)
     hence "?t \<in> keys (q' k)" by (rule punit.lt_in_keys)
@@ -681,15 +681,15 @@ proof
     have "keys p1 \<noteq> {}"
     proof
       assume "keys p1 = {}"
-      with \<open>q' k = f1 + p1\<close> \<open>q' k \<noteq> 0\<close> have t: "?t = punit.lt f1" and "f1 \<noteq> 0" by simp_all
+      with \<open>q' k = f1 + p1\<close> \<open>q' k \<noteq> 0\<close> have t: "?t = lpp f1" and "f1 \<noteq> 0" by simp_all
       from f0 have "f0 \<in> ideal {f}" by simp
       with _ have "f1 \<in> ideal {f}" unfolding f1_def by (rule homogeneous_ideal) (simp add: hom_f)
-      with punit.is_Groebner_basis_singleton obtain g where "g \<in> {f}" and "punit.lt g adds punit.lt f1"
+      with punit.is_Groebner_basis_singleton obtain g where "g \<in> {f}" and "lpp g adds lpp f1"
         using \<open>f1 \<noteq> 0\<close> by (rule punit.GB_adds_lt[simplified])
-      hence "punit.lt f adds ?t" by (simp add: t)
-      hence "lookup (punit.lt f) x \<le> lookup ?t x" by (simp add: adds_pm le_pmD)
-      also have "\<dots> = lookup (punit.lt q) x" by (simp add: lp_q' lookup_add lookup_single \<open>y \<noteq> x\<close>)
-      finally have "lookup (punit.lt f) x \<le> lookup (punit.lt q) x" .
+      hence "lpp f adds ?t" by (simp add: t)
+      hence "lookup (lpp f) x \<le> lookup ?t x" by (simp add: adds_pm le_pmD)
+      also have "\<dots> = lookup (lpp q) x" by (simp add: lpp_q' lookup_add lookup_single \<open>y \<noteq> x\<close>)
+      finally have "lookup (lpp f) x \<le> lookup (lpp q) x" .
       with x show False ..
     qed
     then obtain t where "t \<in> keys p1" by blast
@@ -699,7 +699,7 @@ proof
     with \<open>t \<in> keys p1\<close> have "t \<in> Keys P" by (rule in_KeysI)
     with \<open>d = deg_pm t\<close> show "d \<in> deg_pm ` Keys P" by (rule image_eqI)
   qed
-  moreover from inj1 inj2 have "infinite ((deg_pm \<circ> punit.lt) ` range q')"
+  moreover from inj1 inj2 have "infinite ((deg_pm \<circ> lpp) ` range q')"
     by (simp add: finite_image_iff o_def)
   ultimately have "infinite (deg_pm ` Keys P)" by (rule infinite_super)
   hence "infinite (Keys P)" by blast
@@ -1419,7 +1419,7 @@ next
     also have "\<dots> \<subseteq> {punit.monic f}" by (simp add: punit.reduced_GB_singleton)
     finally have "g \<in> {punit.monic f}" .
     hence "poly_deg g = poly_deg (punit.monic f)" by simp
-    also from poly_deg_monom_mult_le[where c="1 / punit.lc f" and t=0 and p=f] have "\<dots> \<le> poly_deg f"
+    also from poly_deg_monom_mult_le[where c="1 / lcf f" and t=0 and p=f] have "\<dots> \<le> poly_deg f"
       by (simp add: punit.monic_def)
     also have "\<dots> = maxdeg F" by (fact md)
     also have "\<dots> \<le> Dube (card X) (maxdeg F)" by (fact Dube_ge_d)

@@ -108,31 +108,31 @@ corollary ord_iff_deg_le_univariate: "s \<in> .[X] \<Longrightarrow> t \<in> .[X
 
 lemma poly_deg_univariate:
   assumes "p \<in> P[X]"
-  shows "poly_deg p = deg_pm (punit.lt p)"
+  shows "poly_deg p = deg_pm (lpp p)"
 proof (cases "p = 0")
   case True
   thus ?thesis by simp
 next
   case False
-  hence lp_in: "punit.lt p \<in> keys p" by (rule punit.lt_in_keys)
+  hence lp_in: "lpp p \<in> keys p" by (rule punit.lt_in_keys)
   also from assms have "\<dots> \<subseteq> .[X]" by (rule PolysD)
-  finally have "punit.lt p \<in> .[X]" .
+  finally have "lpp p \<in> .[X]" .
   show ?thesis
   proof (intro antisym poly_deg_leI)
     fix t
     assume "t \<in> keys p"
-    hence "t \<preceq> punit.lt p" by (rule punit.lt_max_keys)
+    hence "t \<preceq> lpp p" by (rule punit.lt_max_keys)
     moreover from \<open>t \<in> keys p\<close> \<open>keys p \<subseteq> .[X]\<close> have "t \<in> .[X]" ..
-    ultimately show "deg_pm t \<le> deg_pm (punit.lt p)" using \<open>punit.lt p \<in> .[X]\<close>
+    ultimately show "deg_pm t \<le> deg_pm (lpp p)" using \<open>lpp p \<in> .[X]\<close>
       by (simp only: ord_iff_deg_le_univariate)
   next
-    from lp_in show "deg_pm (punit.lt p) \<le> poly_deg p" by (rule poly_deg_max_keys)
+    from lp_in show "deg_pm (lpp p) \<le> poly_deg p" by (rule poly_deg_max_keys)
   qed
 qed
 
 lemma reduced_GB_univariate_cases:
   assumes "F \<subseteq> P[X]"
-  obtains g where "g \<in> P[X]" and "g \<noteq> 0" and "punit.lc g = 1" and "punit.reduced_GB F = {g}" |
+  obtains g where "g \<in> P[X]" and "g \<noteq> 0" and "lcf g = 1" and "punit.reduced_GB F = {g}" |
     "punit.reduced_GB F = {}"
 proof (cases "punit.reduced_GB F = {}")
   case True
@@ -146,11 +146,11 @@ next
         rule reduced_GB_is_monic_set_Polys)
   from False obtain g where "g \<in> ?G" by blast
   with \<open>0 \<notin> ?G\<close> \<open>?G \<subseteq> P[X]\<close> have "g \<noteq> 0" and "g \<in> P[X]" by blast+
-  from this(1) have lp_g: "punit.lt g \<in> keys g" by (rule punit.lt_in_keys)
+  from this(1) have lp_g: "lpp g \<in> keys g" by (rule punit.lt_in_keys)
   also from \<open>g \<in> P[X]\<close> have "\<dots> \<subseteq> .[X]" by (rule PolysD)
-  finally have "punit.lt g \<in> .[X]" .
+  finally have "lpp g \<in> .[X]" .
   note \<open>g \<in> P[X]\<close> \<open>g \<noteq> 0\<close>
-  moreover from m \<open>g \<in> ?G\<close> \<open>g \<noteq> 0\<close> have "punit.lc g = 1" by (rule punit.is_monic_setD)
+  moreover from m \<open>g \<in> ?G\<close> \<open>g \<noteq> 0\<close> have "lcf g = 1" by (rule punit.is_monic_setD)
   moreover have "?G = {g}"
   proof
     show "?G \<subseteq> {g}"
@@ -158,22 +158,22 @@ next
       fix g'
       assume "g' \<in> ?G"
       with \<open>0 \<notin> ?G\<close> \<open>?G \<subseteq> P[X]\<close> have "g' \<noteq> 0" and "g' \<in> P[X]" by blast+
-      from this(1) have lp_g': "punit.lt g' \<in> keys g'" by (rule punit.lt_in_keys)
+      from this(1) have lp_g': "lpp g' \<in> keys g'" by (rule punit.lt_in_keys)
       also from \<open>g' \<in> P[X]\<close> have "\<dots> \<subseteq> .[X]" by (rule PolysD)
-      finally have "punit.lt g' \<in> .[X]" .
+      finally have "lpp g' \<in> .[X]" .
       have "g' = g"
       proof (rule ccontr)
         assume "g' \<noteq> g"
         with \<open>g \<in> ?G\<close> \<open>g' \<in> ?G\<close> have g: "g \<in> ?G - {g'}" and g': "g' \<in> ?G - {g}" by blast+
-        from fin_X card_X \<open>punit.lt g \<in> .[X]\<close> \<open>punit.lt g' \<in> .[X]\<close> show False
+        from fin_X card_X \<open>lpp g \<in> .[X]\<close> \<open>lpp g' \<in> .[X]\<close> show False
         proof (rule adds_univariate_linear)
-          assume *: "punit.lt g adds punit.lt g'"
+          assume *: "lpp g adds lpp g'"
           from ar \<open>g' \<in> ?G\<close> have "\<not> punit.is_red (?G - {g'}) g'" by (rule punit.is_auto_reducedD)
           moreover from g \<open>g \<noteq> 0\<close> lp_g' * have "punit.is_red (?G - {g'}) g'"
             by (rule punit.is_red_addsI[simplified])
           ultimately show ?thesis ..
         next
-          assume *: "punit.lt g' adds punit.lt g"
+          assume *: "lpp g' adds lpp g"
           from ar \<open>g \<in> ?G\<close> have "\<not> punit.is_red (?G - {g}) g" by (rule punit.is_auto_reducedD)
           moreover from g' \<open>g' \<noteq> 0\<close> lp_g * have "punit.is_red (?G - {g}) g"
             by (rule punit.is_red_addsI[simplified])
@@ -200,12 +200,12 @@ proof (rule reduced_GB_univariate_cases)
     and "?G \<subseteq> P[X]"
     by (rule reduced_GB_is_GB_Polys, rule reduced_GB_ideal_Polys, rule reduced_GB_Polys)
   from assms(2) this(2) have "f \<in> ideal ?G" by simp
-  with gb obtain g'' where "g'' \<in> ?G" and "punit.lt g'' adds punit.lt f"
+  with gb obtain g'' where "g'' \<in> ?G" and "lpp g'' adds lpp f"
     using assms(3) by (rule punit.GB_adds_lt[simplified])
-  with assms(4) have "punit.lt g adds punit.lt f" by (simp add: G)
-  hence "deg_pm (punit.lt g) \<le> deg_pm (punit.lt f)" by (rule deg_pm_mono)
+  with assms(4) have "lpp g adds lpp f" by (simp add: G)
+  hence "deg_pm (lpp g) \<le> deg_pm (lpp f)" by (rule deg_pm_mono)
   moreover from assms(4) \<open>?G \<subseteq> P[X]\<close> have "g \<in> P[X]" ..
-  ultimately have "poly_deg g \<le> deg_pm (punit.lt f)" by (simp only: poly_deg_univariate)
+  ultimately have "poly_deg g \<le> deg_pm (lpp f)" by (simp only: poly_deg_univariate)
   also from punit.lt_in_keys have "\<dots> \<le> poly_deg f" by (rule poly_deg_max_keys) fact
   finally show ?thesis .
 next
@@ -223,7 +223,7 @@ lemma is_reduced_GB_homogeneous:
   shows "homogeneous g"
 proof (rule homogeneousI)
   fix s t
-  have 1: "deg_pm u = deg_pm (punit.lt g)" if "u \<in> keys g" for u
+  have 1: "deg_pm u = deg_pm (lpp g)" if "u \<in> keys g" for u
   proof -
     from assms(4) have "g \<in> ideal G" by (rule ideal.span_base)
     hence "g \<in> ideal F" by (simp only: assms(3))
@@ -233,53 +233,53 @@ proof (rule homogeneousI)
     from assms(2) have "punit.is_Groebner_basis G" by (rule punit.reduced_GB_D1)
     moreover from \<open>q \<in> ideal F\<close> have "q \<in> ideal G" by (simp only: assms(3))
     moreover from q have "q \<noteq> 0" by (rule hom_components_nonzero)
-    ultimately obtain g' where "g' \<in> G" and "g' \<noteq> 0" and adds: "punit.lt g' adds punit.lt q"
+    ultimately obtain g' where "g' \<in> G" and "g' \<noteq> 0" and adds: "lpp g' adds lpp q"
       by (rule punit.GB_adds_lt[simplified])
-    from \<open>q \<noteq> 0\<close> have "punit.lt q \<in> keys q" by (rule punit.lt_in_keys)
+    from \<open>q \<noteq> 0\<close> have "lpp q \<in> keys q" by (rule punit.lt_in_keys)
     also from q have "\<dots> \<subseteq> Keys (hom_components g)" by (rule keys_subset_Keys)
-    finally have "punit.lt q \<in> keys g" by (simp only: Keys_hom_components)
+    finally have "lpp q \<in> keys g" by (simp only: Keys_hom_components)
     with _ \<open>g' \<noteq> 0\<close> have red: "punit.is_red {g'} g"
       using adds by (rule punit.is_red_addsI[simplified]) simp
     from assms(2) have "punit.is_auto_reduced G" by (rule punit.reduced_GB_D2)
     hence "\<not> punit.is_red (G - {g}) g" using assms(4) by (rule punit.is_auto_reducedD)
     with red have "\<not> {g'} \<subseteq> G - {g}" using punit.is_red_subset by blast
     with \<open>g' \<in> G\<close> have "g' = g" by simp
-    from \<open>punit.lt q \<in> keys g\<close> have "punit.lt q \<preceq> punit.lt g" by (rule punit.lt_max_keys)
-    moreover from adds have "punit.lt g \<preceq> punit.lt q"
+    from \<open>lpp q \<in> keys g\<close> have "lpp q \<preceq> lpp g" by (rule punit.lt_max_keys)
+    moreover from adds have "lpp g \<preceq> lpp q"
       unfolding \<open>g' = g\<close> by (rule punit.ord_adds_term[simplified])
-    ultimately have eq: "punit.lt q = punit.lt g" by (rule ordered_powerprod_lin.antisym)
+    ultimately have eq: "lpp q = lpp g" by (rule ordered_powerprod_lin.antisym)
     from q have "homogeneous q" by (rule hom_components_homogeneous)
-    hence "deg_pm u = deg_pm (punit.lt q)"
-      using \<open>u \<in> keys q\<close> \<open>punit.lt q \<in> keys q\<close> by (rule homogeneousD)
+    hence "deg_pm u = deg_pm (lpp q)"
+      using \<open>u \<in> keys q\<close> \<open>lpp q \<in> keys q\<close> by (rule homogeneousD)
     thus ?thesis by (simp only: eq)
   qed
   assume "s \<in> keys g"
-  hence 2: "deg_pm s = deg_pm (punit.lt g)" by (rule 1)
+  hence 2: "deg_pm s = deg_pm (lpp g)" by (rule 1)
   assume "t \<in> keys g"
-  hence "deg_pm t = deg_pm (punit.lt g)" by (rule 1)
+  hence "deg_pm t = deg_pm (lpp g)" by (rule 1)
   with 2 show "deg_pm s = deg_pm t" by simp
 qed
 
 lemma lp_dehomogenize:
   assumes "is_hom_ord x" and "homogeneous p"
-  shows "punit.lt (dehomogenize x p) = except (punit.lt p) {x}"
+  shows "lpp (dehomogenize x p) = except (lpp p) {x}"
 proof (cases "p = 0")
   case True
   thus ?thesis by simp
 next
   case False
-  hence "punit.lt p \<in> keys p" by (rule punit.lt_in_keys)
-  with assms(2) have "except (punit.lt p) {x} \<in> keys (dehomogenize x p)"
+  hence "lpp p \<in> keys p" by (rule punit.lt_in_keys)
+  with assms(2) have "except (lpp p) {x} \<in> keys (dehomogenize x p)"
     by (rule keys_dehomogenizeI)
   thus ?thesis
   proof (rule punit.lt_eqI_keys)
     fix t
     assume "t \<in> keys (dehomogenize x p)"
     then obtain s where "s \<in> keys p" and t: "t = except s {x}" by (rule keys_dehomogenizeE)
-    from this(1) have "s \<preceq> punit.lt p" by (rule punit.lt_max_keys)
-    moreover from assms(2) \<open>s \<in> keys p\<close> \<open>punit.lt p \<in> keys p\<close> have "deg_pm s = deg_pm (punit.lt p)"
+    from this(1) have "s \<preceq> lpp p" by (rule punit.lt_max_keys)
+    moreover from assms(2) \<open>s \<in> keys p\<close> \<open>lpp p \<in> keys p\<close> have "deg_pm s = deg_pm (lpp p)"
       by (rule homogeneousD)
-    ultimately show "t \<preceq> except (punit.lt p) {x}" using assms(1) by (simp add: t is_hom_ordD)
+    ultimately show "t \<preceq> except (lpp p) {x}" using assms(1) by (simp add: t is_hom_ordD)
   qed
 qed
 
@@ -329,22 +329,22 @@ next
   finally have p: "p = dehomogenize x ?p" .
   moreover assume "p \<noteq> 0"
   ultimately have "?p \<noteq> 0" by (auto simp del: dehomogenize_homogenize)
-  with assms(4) \<open>?p \<in> ideal G\<close> obtain g where "g \<in> G" and "g \<noteq> 0" and adds: "punit.lt g adds punit.lt ?p"
+  with assms(4) \<open>?p \<in> ideal G\<close> obtain g where "g \<in> G" and "g \<noteq> 0" and adds: "lpp g adds lpp ?p"
     by (rule punit.GB_adds_lt[simplified])
   from this(1) have "homogeneous g" by (rule assms(5))
-  show "\<exists>g\<in>dehomogenize x ` G. g \<noteq> 0 \<and> punit.lt g adds punit.lt p"
+  show "\<exists>g\<in>dehomogenize x ` G. g \<noteq> 0 \<and> lpp g adds lpp p"
   proof (intro bexI conjI notI)
     assume "dehomogenize x g = 0"
     hence "g = 0" using \<open>homogeneous g\<close> by (rule dehomogenize_zeroD)
     with \<open>g \<noteq> 0\<close> show False ..
   next
-    from assms(1) \<open>homogeneous g\<close> have "punit.lt (dehomogenize x g) = except (punit.lt g) {x}"
+    from assms(1) \<open>homogeneous g\<close> have "lpp (dehomogenize x g) = except (lpp g) {x}"
       by (rule lp_dehomogenize)
-    also from adds have "\<dots> adds except (punit.lt ?p) {x}"
+    also from adds have "\<dots> adds except (lpp ?p) {x}"
       by (simp add: adds_pm le_pm_def le_fun_def lookup_except)
-    also from assms(1) homogeneous_homogenize have "\<dots> = punit.lt (dehomogenize x ?p)"
+    also from assms(1) homogeneous_homogenize have "\<dots> = lpp (dehomogenize x ?p)"
       by (rule lp_dehomogenize[symmetric])
-    finally show "punit.lt (dehomogenize x g) adds punit.lt p" by (simp only: p)
+    finally show "lpp (dehomogenize x g) adds lpp p" by (simp only: p)
   next
     from \<open>g \<in> G\<close> show "dehomogenize x g \<in> dehomogenize x ` G" by (rule imageI)
   qed
@@ -357,22 +357,22 @@ begin
 
 lemma extended_ord_lp:
   assumes "None \<notin> indets p"
-  shows "restrict_indets_pp (extended_ord.punit.lt p) = punit.lt (restrict_indets p)"
+  shows "restrict_indets_pp (extended_ord.lpp p) = lpp (restrict_indets p)"
 proof (cases "p = 0")
   case True
   thus ?thesis by simp
 next
   case False
-  hence "extended_ord.punit.lt p \<in> keys p" by (rule extended_ord.punit.lt_in_keys)
-  hence "restrict_indets_pp (extended_ord.punit.lt p) \<in> restrict_indets_pp ` keys p" by (rule imageI)
+  hence "extended_ord.lpp p \<in> keys p" by (rule extended_ord.punit.lt_in_keys)
+  hence "restrict_indets_pp (extended_ord.lpp p) \<in> restrict_indets_pp ` keys p" by (rule imageI)
   also from assms have eq: "\<dots> = keys (restrict_indets p)" by (rule keys_restrict_indets[symmetric])
   finally show ?thesis
   proof (rule punit.lt_eqI_keys[symmetric])
     fix t
     assume "t \<in> keys (restrict_indets p)"
     then obtain s where "s \<in> keys p" and t: "t = restrict_indets_pp s" unfolding eq[symmetric] ..
-    from this(1) have "extended_ord s (extended_ord.punit.lt p)" by (rule extended_ord.punit.lt_max_keys)
-    thus "t \<preceq> restrict_indets_pp (extended_ord.punit.lt p)" by (auto simp: t extended_ord_def)
+    from this(1) have "extended_ord s (extended_ord.lpp p)" by (rule extended_ord.punit.lt_max_keys)
+    thus "t \<preceq> restrict_indets_pp (extended_ord.lpp p)" by (auto simp: t extended_ord_def)
   qed
 qed
 
@@ -454,7 +454,7 @@ proof -
     moreover note p_in_ideal
     moreover from \<open>p \<noteq> 0\<close> have "extend_indets p \<noteq> 0" by simp
     ultimately obtain g where g_in: "g \<in> dehomogenize None ` ?G" and "g \<noteq> 0"
-      and adds: "extended_ord.punit.lt g adds extended_ord.punit.lt (extend_indets p)"
+      and adds: "extended_ord.lpp g adds extended_ord.lpp (extend_indets p)"
       by (rule extended_ord.punit.GB_adds_lt[simplified])
     have "None \<notin> indets g"
     proof
@@ -462,19 +462,19 @@ proof -
       moreover from g_in obtain g0 where "g = dehomogenize None g0" ..
       ultimately show False using indets_dehomogenize[of None g0] by blast
     qed
-    show "\<exists>g\<in>restrict_indets ` ?G. g \<noteq> 0 \<and> punit.lt g adds punit.lt p"
+    show "\<exists>g\<in>restrict_indets ` ?G. g \<noteq> 0 \<and> lpp g adds lpp p"
     proof (intro bexI conjI notI)
-      have "punit.lt (restrict_indets g) = restrict_indets_pp (extended_ord.punit.lt g)"
+      have "lpp (restrict_indets g) = restrict_indets_pp (extended_ord.lpp g)"
         by (rule sym, intro extended_ord_lp \<open>None \<notin> indets g\<close>)
-      also from adds have "\<dots> adds restrict_indets_pp (extended_ord.punit.lt (extend_indets p))"
+      also from adds have "\<dots> adds restrict_indets_pp (extended_ord.lpp (extend_indets p))"
         by (simp add: adds_pm le_pm_def le_fun_def lookup_restrict_indets_pp)
-      also have "\<dots> = punit.lt (restrict_indets (extend_indets p))"
+      also have "\<dots> = lpp (restrict_indets (extend_indets p))"
       proof (intro extended_ord_lp notI)
         assume "None \<in> indets (extend_indets p)"
         thus False by (simp add: indets_extend_indets)
       qed
-      also have "\<dots> = punit.lt p" by simp
-      finally show "punit.lt (restrict_indets g) adds punit.lt p" .
+      also have "\<dots> = lpp p" by simp
+      finally show "lpp (restrict_indets g) adds lpp p" .
     next
       from g_in have "restrict_indets g \<in> restrict_indets ` dehomogenize None ` ?G" by (rule imageI)
       also have "\<dots> = restrict_indets ` ?G" by (simp only: image_comp restrict_indets_comp_dehomogenize)

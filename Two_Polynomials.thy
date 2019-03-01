@@ -101,22 +101,22 @@ type_synonym 'x point = "('x \<Rightarrow>\<^sub>0 rat)"
 context pm_powerprod
 begin
 
-lemma binomial_lp_in_ideal_iff:
+lemma binomial_lpp_in_ideal_iff:
   assumes "f \<in> ideal F" and "is_binomial f"
-  shows "monomial 1 (lp f) \<in> ideal F \<longleftrightarrow> monomial (1::_::field) (tp f) \<in> ideal F"
+  shows "monomial 1 (lpp f) \<in> ideal F \<longleftrightarrow> monomial (1::_::field) (tpp f) \<in> ideal F"
 proof (cases "is_monomial f")
   case True
-  hence "lp f = tp f" by (rule punit.lt_eq_tt_monomial)
+  hence "lpp f = tpp f" by (rule punit.lt_eq_tt_monomial)
   thus ?thesis by simp
 next
   case False
   with assms(2) have "is_proper_binomial f" by (simp add: is_binomial_alt)
-  hence "tp f \<prec> lp f" by (rule punit.lt_gr_tt_binomial)
-  hence "lp f \<noteq> tp f" by simp
-  from assms(2) have "keys f = {lp f, tp f}" by (rule punit.keys_binomial)
+  hence "tpp f \<prec> lpp f" by (rule punit.lt_gr_tt_binomial)
+  hence "lpp f \<noteq> tpp f" by simp
+  from assms(2) have "keys f = {lpp f, tpp f}" by (rule punit.keys_binomial)
   moreover have "monomial 1 u \<in> ideal F" if "monomial 1 v \<in> ideal F" and "keys f = {u, v}" for u v
   proof -
-    from \<open>keys f = {lp f, tp f}\<close> that(2) \<open>lp f \<noteq> tp f\<close> have "u \<noteq> v" by auto
+    from \<open>keys f = {lpp f, tpp f}\<close> that(2) \<open>lpp f \<noteq> tpp f\<close> have "u \<noteq> v" by auto
     hence "monomial (lookup f u) u + monomial (lookup f v) v = f"
       by (auto intro!: poly_mapping_eqI simp: lookup_add lookup_single when_def \<open>keys f = {u, v}\<close>)
     moreover define c where "c = lookup f u"
@@ -136,49 +136,50 @@ next
 qed
 
 lemma lem_3_3_12:
-  assumes "f \<in> ideal F" and "f' \<in> ideal F" and "is_proper_binomial f" and "monomial 1 (tp f) \<notin> ideal F"
+  assumes "f \<in> ideal F" and "f' \<in> ideal F" and "is_proper_binomial f" and "monomial 1 (tpp f) \<notin> ideal F"
     and "keys f = keys f'"
   obtains c where "c \<noteq> (0::_::field)" and "f = punit.monom_mult c 0 f'"
 proof -
-  define c where "c = lc f / lc f'"
+  define c where "c = lcf f / lcf f'"
   from assms(3, 5) have f'_pbinomial: "is_proper_binomial f'" by (simp only: is_proper_binomial_def)
   hence "f' \<noteq> 0" by (rule proper_binomial_not_0)
-  hence "lc f' \<noteq> 0" by (rule punit.lc_not_0)
-  hence eq1: "c * lc f' = lc f" by (simp add: c_def)
-  from f'_pbinomial have "binomial (lc f') (lp f') (tc f') (tp f') = f'" by (rule punit.binomial_eq_itself)
-  moreover from assms(5) have "lp f' = lp f"
+  hence "lcf f' \<noteq> 0" by (rule punit.lc_not_0)
+  hence eq1: "c * lcf f' = lcf f" by (simp add: c_def)
+  from f'_pbinomial have "binomial (lcf f') (lpp f') (tcf f') (tpp f') = f'"
+    by (rule punit.binomial_eq_itself)
+  moreover from assms(5) have "lpp f' = lpp f"
     by (metis lookup_zero not_in_keys_iff_lookup_eq_zero punit.lt_def punit.lt_in_keys)
-  moreover from assms(5) have "tp f' = tp f"
+  moreover from assms(5) have "tpp f' = tpp f"
     by (metis lookup_zero not_in_keys_iff_lookup_eq_zero punit.tt_def punit.tt_in_keys)
-  ultimately have f': "binomial (lc f') (lp f) (tc f') (tp f) = f'" by simp
+  ultimately have f': "binomial (lcf f') (lpp f) (tcf f') (tpp f) = f'" by simp
   also note assms(2)
-  finally have "monomial c 0 * binomial (lc f') (lp f) (tc f') (tp f) \<in> ideal F"
+  finally have "monomial c 0 * binomial (lcf f') (lpp f) (tcf f') (tpp f) \<in> ideal F"
     by (rule ideal.span_scale)
-  with \<open>lc f' \<noteq> 0\<close> have 1: "binomial (lc f) (lp f) (c * tc f') (tp f) \<in> ideal F"
+  with \<open>lcf f' \<noteq> 0\<close> have 1: "binomial (lcf f) (lpp f) (c * tcf f') (tpp f) \<in> ideal F"
     by (simp add: times_monomial_left punit.monom_mult_binomial c_def)
-  from assms(3) have "binomial (lc f) (lp f) (tc f) (tp f) = f" by (rule punit.binomial_eq_itself)
+  from assms(3) have "binomial (lcf f) (lpp f) (tcf f) (tpp f) = f" by (rule punit.binomial_eq_itself)
   also note assms(1)
-  finally have "binomial (lc f) (lp f) (tc f) (tp f) - binomial (lc f) (lp f) (c * tc f') (tp f) \<in> ideal F"
+  finally have "binomial (lcf f) (lpp f) (tcf f) (tpp f) - binomial (lcf f) (lpp f) (c * tcf f') (tpp f) \<in> ideal F"
     using 1 by (rule ideal.span_diff)
-  hence 2: "monomial (tc f - c * tc f') (tp f) \<in> ideal F" by (simp add: binomial_def single_diff)
-  have eq2: "c * tc f' = tc f"
+  hence 2: "monomial (tcf f - c * tcf f') (tpp f) \<in> ideal F" by (simp add: binomial_def single_diff)
+  have eq2: "c * tcf f' = tcf f"
   proof (rule ccontr)
-    assume "c * tc f' \<noteq> tc f"
-    hence "tc f - c * tc f' \<noteq> 0" by simp
-    moreover from 2 have "monomial (1 / (tc f - c * tc f')) 0 * monomial (tc f - c * tc f') (tp f) \<in> ideal F"
+    assume "c * tcf f' \<noteq> tcf f"
+    hence "tcf f - c * tcf f' \<noteq> 0" by simp
+    moreover from 2 have "monomial (1 / (tcf f - c * tcf f')) 0 * monomial (tcf f - c * tcf f') (tpp f) \<in> ideal F"
       by (rule ideal.span_scale)
-    ultimately have "monomial 1 (tp f) \<in> ideal F" by (simp add: times_monomial_monomial)
+    ultimately have "monomial 1 (tpp f) \<in> ideal F" by (simp add: times_monomial_monomial)
     with assms(4) show False ..
   qed
   show ?thesis
   proof
     from assms(3) have "f \<noteq> 0" by (rule proper_binomial_not_0)
-    hence "lc f \<noteq> 0" by (rule punit.lc_not_0)
-    with \<open>lc f' \<noteq> 0\<close> show "c \<noteq> 0" by (simp add: c_def)
+    hence "lcf f \<noteq> 0" by (rule punit.lc_not_0)
+    with \<open>lcf f' \<noteq> 0\<close> show "c \<noteq> 0" by (simp add: c_def)
   next
-    have "punit.monom_mult c 0 f' = punit.monom_mult c 0 (binomial (lc f') (lp f) (tc f') (tp f))"
+    have "punit.monom_mult c 0 f' = punit.monom_mult c 0 (binomial (lcf f') (lpp f) (tcf f') (tpp f))"
       by (simp only: f')
-    also have "\<dots> = binomial (lc f) (lp f) (tc f) (tp f)"
+    also have "\<dots> = binomial (lcf f) (lpp f) (tcf f) (tpp f)"
       by (simp add: punit.monom_mult_binomial eq1 eq2)
     also have "\<dots> = f" by fact
     finally show "f = punit.monom_mult c 0 f'" by (rule sym)
@@ -246,7 +247,7 @@ proof -
 qed
 
 definition poly_point :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> ('x point \<times> 'x point)" where
-  "poly_point p = (of_nat_pm (lp p), of_nat_pm (tp p))"
+  "poly_point p = (of_nat_pm (lpp p), of_nat_pm (tpp p))"
 
 definition vect :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> ('x point)"
   where "vect p = fst (poly_point p) - snd (poly_point p)"
@@ -257,10 +258,10 @@ definition pos_comps :: "'x point \<Rightarrow> 'x point" ("(_\<^sub>+)" [1000] 
 definition neg_comps :: "'x point \<Rightarrow> 'x point" ("(_\<^sub>-)" [1000] 999)
   where "neg_comps p = lcs (- p) 0"
 
-lemma fst_poly_point: "fst (poly_point p) = of_nat_pm (lp p)"
+lemma fst_poly_point: "fst (poly_point p) = of_nat_pm (lpp p)"
   by (simp add: poly_point_def)
     
-lemma snd_poly_point: "snd (poly_point p) = of_nat_pm (tp p)"
+lemma snd_poly_point: "snd (poly_point p) = of_nat_pm (tpp p)"
   by (simp add: poly_point_def)
 
 lemma poly_point_is_nat_pm_pair: "is_nat_pm_pair (poly_point p)"
@@ -274,9 +275,9 @@ lemma swap_poly_point_not_eq:
   shows "prod.swap (poly_point p) \<noteq> poly_point q"
 proof
   assume "prod.swap (poly_point p) = poly_point q"
-  hence 1: "lp p = tp q" and 2: "tp p = lp q" by (simp_all add: poly_point_def)
-  from assms(1) have "tp p \<prec> lp p" by (rule punit.lt_gr_tt_binomial)
-  hence "lp q \<prec> tp q" by (simp only: 1 2)
+  hence 1: "lpp p = tpp q" and 2: "tpp p = lpp q" by (simp_all add: poly_point_def)
+  from assms(1) have "tpp p \<prec> lpp p" by (rule punit.lt_gr_tt_binomial)
+  hence "lpp q \<prec> tpp q" by (simp only: 1 2)
   with punit.lt_ge_tt[of q] show False by simp
 qed
 
@@ -292,13 +293,13 @@ qed
 
 lemma fst_eq_snd_poly_point_iff: "fst (poly_point p) = snd (poly_point p) \<longleftrightarrow> card (keys p) \<le> 1"
 proof -
-  have "fst (poly_point p) = snd (poly_point p) \<longleftrightarrow> lp p = tp p"
+  have "fst (poly_point p) = snd (poly_point p) \<longleftrightarrow> lpp p = tpp p"
     by (simp add: poly_point_def)
   also have "\<dots> \<longleftrightarrow> card (keys p) \<le> 1" by (simp only: punit.lt_eq_tt_iff has_bounded_keys_def)
   finally show ?thesis .
 qed
 
-lemma vect_alt: "vect p = of_nat_pm (lp p) - of_nat_pm (tp p)"
+lemma vect_alt: "vect p = of_nat_pm (lpp p) - of_nat_pm (tpp p)"
   by (simp only: vect_def fst_poly_point snd_poly_point)
 
 lemma vect_is_int_pm: "is_int_pm (vect p)"
@@ -311,10 +312,10 @@ proof
   show ?R unfolding vect_alt
   proof (rule poly_mapping_eqI, simp add: lookup_of_nat_pm lookup_add lookup_minus)
     fix x
-    from \<open>?L\<close> have "lookup t x + k * lookup (lp q) x = lookup s x + k * lookup (tp q) x"
+    from \<open>?L\<close> have "lookup t x + k * lookup (lpp q) x = lookup s x + k * lookup (tpp q) x"
       by (rule associatedD_lookup)
-    hence "rat (lookup t x + k * lookup (lp q) x) = rat (lookup s x + k * lookup (tp q) x)" by simp
-    thus "rat (lookup s x) = rat (lookup t x) + rat k * (rat (lookup (lp q) x) - rat (lookup (tp q) x))"
+    hence "rat (lookup t x + k * lookup (lpp q) x) = rat (lookup s x + k * lookup (tpp q) x)" by simp
+    thus "rat (lookup s x) = rat (lookup t x) + rat k * (rat (lookup (lpp q) x) - rat (lookup (tpp q) x))"
       by (simp add: right_diff_distrib)
   qed
 next
@@ -323,11 +324,12 @@ next
   proof (rule associatedI_lookup)
     fix x
     from \<open>?R\<close> have "lookup (of_nat_pm t + rat k \<cdot> vect q) x = lookup (of_nat_pm s) x" by simp
-    hence "rat (lookup t x) + rat k * (rat (lookup (lp q) x) - rat (lookup (tp q) x)) = rat (lookup s x)"
+    hence "rat (lookup t x) + rat k * (rat (lookup (lpp q) x) - rat (lookup (tpp q) x)) = rat (lookup s x)"
       by (simp add: vect_alt lookup_of_nat_pm lookup_add lookup_minus)
-    hence "rat (lookup t x + k * lookup (lp q) x) = rat (lookup s x + k * lookup (tp q) x)"
+    hence "rat (lookup t x + k * lookup (lpp q) x) = rat (lookup s x + k * lookup (tpp q) x)"
       by (simp add: right_diff_distrib)
-    thus "lookup t x + k * lookup (lp q) x = lookup s x + k * lookup (tp q) x" using of_nat_eq_iff by blast 
+    thus "lookup t x + k * lookup (lpp q) x = lookup s x + k * lookup (tpp q) x"
+      using of_nat_eq_iff by blast 
   qed
 qed
 
@@ -419,51 +421,51 @@ definition overlap :: "'x point"
                        (gcs (fst (poly_point f2)) (snd (poly_point f2)))"
 
 lemma overlap_alt:
-  "overlap = lcs (gcs (of_nat_pm (lp f1)) (of_nat_pm (tp f1)))
-                 (gcs (of_nat_pm (lp f2)) (of_nat_pm (tp f2)))"
+  "overlap = lcs (gcs (of_nat_pm (lpp f1)) (of_nat_pm (tpp f1)))
+                 (gcs (of_nat_pm (lpp f2)) (of_nat_pm (tpp f2)))"
   by (simp only: overlap_def fst_poly_point snd_poly_point)
 
-lemma overlap_alt': "overlap = of_nat_pm (lcs (gcs (lp f1) (tp f1)) (gcs (lp f2) (tp f2)))"
+lemma overlap_alt': "overlap = of_nat_pm (lcs (gcs (lpp f1) (tpp f1)) (gcs (lpp f2) (tpp f2)))"
   by (simp add: overlap_alt gcs_of_nat_pm lcs_of_nat_pm)
 
 lemma overlap_is_nat_pm: "is_nat_pm overlap"
   by (simp add: overlap_def is_nat_pm_pairD[OF poly_point_is_nat_pm_pair] gcs_is_nat_pm lcs_is_nat_pm)
 
 lemma gcs_le_overlap:
-  shows "gcs (of_nat_pm (lp f1)) (of_nat_pm (tp f1)) \<unlhd> overlap"
-    and "gcs (of_nat_pm (lp f2)) (of_nat_pm (tp f2)) \<unlhd> overlap"
+  shows "gcs (of_nat_pm (lpp f1)) (of_nat_pm (tpp f1)) \<unlhd> overlap"
+    and "gcs (of_nat_pm (lpp f2)) (of_nat_pm (tpp f2)) \<unlhd> overlap"
   by (simp_all add: overlap_alt le_pm_def lookup_lcs_fun leq_lcs_fun_1 leq_lcs_fun_2)
 
 lemma gcs_le_overlap':
-  shows "of_nat_pm (gcs (lp f1) (tp f1)) \<unlhd> overlap" and "of_nat_pm (gcs (lp f2) (tp f2)) \<unlhd> overlap"
+  shows "of_nat_pm (gcs (lpp f1) (tpp f1)) \<unlhd> overlap" and "of_nat_pm (gcs (lpp f2) (tpp f2)) \<unlhd> overlap"
   using gcs_le_overlap by (simp_all add: gcs_of_nat_pm)
 
 lemma overlap_is_int_pm: "is_int_pm overlap"
   using overlap_is_nat_pm by (rule nat_pm_is_int_pm)
 
 lemma overlap_leI:
-  "gcs (lp f1) (tp f1) adds t \<Longrightarrow> gcs (lp f2) (tp f2) adds t \<Longrightarrow> overlap \<unlhd> of_nat_pm t"
+  "gcs (lpp f1) (tpp f1) adds t \<Longrightarrow> gcs (lpp f2) (tpp f2) adds t \<Longrightarrow> overlap \<unlhd> of_nat_pm t"
   unfolding overlap_alt' le_of_nat_pm adds_pm[symmetric] by (rule lcs_adds)
 
 lemma overlap_leD:
   assumes "overlap \<unlhd> of_nat_pm t"
-  shows "gcs (lp f1) (tp f1) adds t" and "gcs (lp f2) (tp f2) adds t"
+  shows "gcs (lpp f1) (tpp f1) adds t" and "gcs (lpp f2) (tpp f2) adds t"
   using assms by (auto simp: overlap_alt' le_of_nat_pm adds_pm[symmetric]
                        intro: adds_trans[OF adds_lcs] adds_trans[OF adds_lcs_2])
 
 lemma lem_3_1_13:
-  assumes "of_nat_pm (tp f1) \<unlhd> p" and "of_nat_pm (tp f2) \<unlhd> p"
+  assumes "of_nat_pm (tpp f1) \<unlhd> p" and "of_nat_pm (tpp f2) \<unlhd> p"
   shows "overlap \<unlhd> p"
   unfolding overlap_alt lookup_lcs_fun le_pm_def
 proof (rule lcs_leq_fun)
-  let ?t = "of_nat_pm (lp f1)"
-  let ?s = "of_nat_pm (tp f1)"
+  let ?t = "of_nat_pm (lpp f1)"
+  let ?s = "of_nat_pm (tpp f1)"
   have "lookup (gcs ?t ?s) \<le> lookup ?s" unfolding lookup_gcs_fun by (fact gcs_leq_fun_2)
   also from assms(1) have "... \<le> lookup p" by (simp only: le_pm_def)
   finally show "lookup (gcs ?t ?s) \<le> lookup p" .
 next
-  let ?t = "of_nat_pm (lp f2)"
-  let ?s = "of_nat_pm (tp f2)"
+  let ?t = "of_nat_pm (lpp f2)"
+  let ?s = "of_nat_pm (tpp f2)"
   have "lookup (gcs ?t ?s) \<le> lookup ?s" unfolding lookup_gcs_fun by (fact gcs_leq_fun_2)
   also from assms(2) have "... \<le> lookup p" by (simp only: le_pm_def)
   finally show "lookup (gcs ?t ?s) \<le> lookup p" .
@@ -471,12 +473,12 @@ qed
 
 lemma line_above_overlapD:
   assumes "overlap \<unlhd> p" and "overlap \<unlhd> p + l \<cdot> vect f" and "f \<in> {f1, f2}" and "1 \<le> l"
-  shows "of_nat_pm (tp f) \<unlhd> p" and "tp f \<unlhd> to_nat_pm p" and "of_nat_pm (lp f) \<unlhd> p + l \<cdot> vect f"
-    and "lp f \<unlhd> to_nat_pm (p + l \<cdot> vect f)"
+  shows "of_nat_pm (tpp f) \<unlhd> p" and "tpp f \<unlhd> to_nat_pm p" and "of_nat_pm (lpp f) \<unlhd> p + l \<cdot> vect f"
+    and "lpp f \<unlhd> to_nat_pm (p + l \<cdot> vect f)"
 proof -
   define q where "q = p + l \<cdot> vect f"
-  let ?l = "of_nat_pm (lp f) :: _ \<Rightarrow>\<^sub>0 rat"
-  let ?t = "of_nat_pm (tp f) :: _ \<Rightarrow>\<^sub>0 rat"
+  let ?l = "of_nat_pm (lpp f) :: _ \<Rightarrow>\<^sub>0 rat"
+  let ?t = "of_nat_pm (tpp f) :: _ \<Rightarrow>\<^sub>0 rat"
   let ?p = "to_nat_pm p"
   let ?q = "to_nat_pm q"
 
@@ -509,7 +511,7 @@ proof -
   qed
 
   hence "to_nat_pm ?t \<unlhd> ?p" by (rule to_nat_pm_mono)
-  thus "tp f \<unlhd> ?p" by simp
+  thus "tpp f \<unlhd> ?p" by simp
 
   from assms(2, 3) have 1: "gcs ?l ?t \<unlhd> q" by (auto simp: q_def overlap_alt intro: le_pm_trans lcs_ge_pm)
   from assms(1) have "overlap \<unlhd> p + 0 \<cdot> vect f" by simp
@@ -541,16 +543,16 @@ proof -
   qed
 
   hence "to_nat_pm ?l \<unlhd> ?q" by (rule to_nat_pm_mono)
-  thus "lp f \<unlhd> ?q" by simp
+  thus "lpp f \<unlhd> ?q" by simp
 qed
 
-lemma line_above_tp_overlapD:
-  assumes "of_nat_pm (tp f) \<unlhd> p" and "overlap \<unlhd> p + l \<cdot> vect f" and "f \<in> {f1, f2}" and "1 \<le> l"
-  shows "of_nat_pm (lp f) \<unlhd> p + l \<cdot> vect f" and "lp f \<unlhd> to_nat_pm (p + l \<cdot> vect f)"
+lemma line_above_tpp_overlapD:
+  assumes "of_nat_pm (tpp f) \<unlhd> p" and "overlap \<unlhd> p + l \<cdot> vect f" and "f \<in> {f1, f2}" and "1 \<le> l"
+  shows "of_nat_pm (lpp f) \<unlhd> p + l \<cdot> vect f" and "lpp f \<unlhd> to_nat_pm (p + l \<cdot> vect f)"
 proof -
   define q where "q = p + l \<cdot> vect f"
-  let ?l = "of_nat_pm (lp f) :: _ \<Rightarrow>\<^sub>0 rat"
-  let ?t = "of_nat_pm (tp f) :: _ \<Rightarrow>\<^sub>0 rat"
+  let ?l = "of_nat_pm (lpp f) :: _ \<Rightarrow>\<^sub>0 rat"
+  let ?t = "of_nat_pm (tpp f) :: _ \<Rightarrow>\<^sub>0 rat"
   let ?q = "to_nat_pm q"
 
   from assms(2, 3) have 1: "gcs ?l ?t \<unlhd> q" by (auto simp: q_def overlap_alt intro: le_pm_trans lcs_ge_pm)
@@ -580,15 +582,15 @@ proof -
   qed
 
   hence "to_nat_pm ?l \<unlhd> ?q" by (rule to_nat_pm_mono)
-  thus "lp f \<unlhd> ?q" by simp
+  thus "lpp f \<unlhd> ?q" by simp
 qed
 
-lemma line_above_lp_overlapD:
-  assumes "overlap \<unlhd> p" and "of_nat_pm (lp f) \<unlhd> p + l \<cdot> vect f" and "f \<in> {f1, f2}" and "1 \<le> l"
-  shows "of_nat_pm (tp f) \<unlhd> p" and "tp f \<unlhd> to_nat_pm p"
+lemma line_above_lpp_overlapD:
+  assumes "overlap \<unlhd> p" and "of_nat_pm (lpp f) \<unlhd> p + l \<cdot> vect f" and "f \<in> {f1, f2}" and "1 \<le> l"
+  shows "of_nat_pm (tpp f) \<unlhd> p" and "tpp f \<unlhd> to_nat_pm p"
 proof -
-  let ?l = "of_nat_pm (lp f) :: _ \<Rightarrow>\<^sub>0 rat"
-  let ?t = "of_nat_pm (tp f) :: _ \<Rightarrow>\<^sub>0 rat"
+  let ?l = "of_nat_pm (lpp f) :: _ \<Rightarrow>\<^sub>0 rat"
+  let ?t = "of_nat_pm (tpp f) :: _ \<Rightarrow>\<^sub>0 rat"
   let ?p = "to_nat_pm p"
 
   from assms(1, 3) have 1: "gcs ?l ?t \<unlhd> p" by (auto simp: overlap_alt intro: le_pm_trans lcs_ge_pm)
@@ -618,7 +620,7 @@ proof -
   qed
 
   hence "to_nat_pm ?t \<unlhd> ?p" by (rule to_nat_pm_mono)
-  thus "tp f \<unlhd> ?p" by simp
+  thus "tpp f \<unlhd> ?p" by simp
 qed
 
 definition step_p' :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> 'x point \<Rightarrow> nat" where
@@ -630,8 +632,8 @@ text \<open>Note that the original definition of @{term step_p'} requires @{term
 
 definition step_p :: "'x point \<Rightarrow> nat" where
   "step_p p =
-    (if (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p) then
-      step_p' (SOME f. f \<in> {f1, f2} \<and> is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p) p
+    (if (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> of_nat_pm (tpp f) \<unlhd> p) then
+      step_p' (SOME f. f \<in> {f1, f2} \<and> is_proper_binomial f \<and> of_nat_pm (tpp f) \<unlhd> p) p
     else 0)"
 
 definition overlapshift_p' :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> 'x point \<Rightarrow> 'x point" where
@@ -639,8 +641,8 @@ definition overlapshift_p' :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^s
 
 definition overlapshift_p :: "'x point \<Rightarrow> 'x point" where
   "overlapshift_p p =
-    (if (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p) then
-      overlapshift_p' (SOME f. f \<in> {f1,f2} \<and> is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p) p
+    (if (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> of_nat_pm (tpp f) \<unlhd> p) then
+      overlapshift_p' (SOME f. f \<in> {f1,f2} \<and> is_proper_binomial f \<and> of_nat_pm (tpp f) \<unlhd> p) p
     else p)"
 
 definition step' :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> nat" where
@@ -714,63 +716,63 @@ proof -
 qed
 
 lemma step_p_welldefined:
-  assumes "of_nat_pm (tp f1) \<unlhd> p" and "of_nat_pm (tp f2) \<unlhd> p"
+  assumes "of_nat_pm (tpp f1) \<unlhd> p" and "of_nat_pm (tpp f2) \<unlhd> p"
   shows "step_p p = 0"
   unfolding step_p_def
 proof (split if_split, intro conjI impI)
   from assms have "overlap \<unlhd> p" by (rule lem_3_1_13)
-  thus "step_p' (SOME f. f\<in> {f1, f2} \<and> is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p) p = 0"
+  thus "step_p' (SOME f. f\<in> {f1, f2} \<and> is_proper_binomial f \<and> of_nat_pm (tpp f) \<unlhd> p) p = 0"
     by (rule step_p'_above_overlap)
 qed rule
 
 lemma some_step_p_eqI:
-  assumes "f \<in> {f1, f2}" and "is_proper_binomial f" and "of_nat_pm (tp f) \<unlhd> p"
-    and "\<exists>g\<in>{f1,f2}. \<not> of_nat_pm (tp g) \<unlhd> p"
-  shows "(SOME f. f \<in> {f1, f2} \<and> is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p) = f"
+  assumes "f \<in> {f1, f2}" and "is_proper_binomial f" and "of_nat_pm (tpp f) \<unlhd> p"
+    and "\<exists>g\<in>{f1,f2}. \<not> of_nat_pm (tpp g) \<unlhd> p"
+  shows "(SOME f. f \<in> {f1, f2} \<and> is_proper_binomial f \<and> of_nat_pm (tpp f) \<unlhd> p) = f"
 proof (rule some_equality)
-  from assms show "f \<in> {f1, f2} \<and> is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p" by simp
+  from assms show "f \<in> {f1, f2} \<and> is_proper_binomial f \<and> of_nat_pm (tpp f) \<unlhd> p" by simp
 next
   fix f'
-  assume "f' \<in> {f1, f2} \<and> is_proper_binomial f' \<and> of_nat_pm (tp f') \<unlhd> p"
-  hence "f' \<in> {f1, f2}" and "of_nat_pm (tp f') \<unlhd> p" by simp_all
+  assume "f' \<in> {f1, f2} \<and> is_proper_binomial f' \<and> of_nat_pm (tpp f') \<unlhd> p"
+  hence "f' \<in> {f1, f2}" and "of_nat_pm (tpp f') \<unlhd> p" by simp_all
   show "f' = f"
   proof (rule ccontr)
     assume "f' \<noteq> f"
-    have "\<forall>g\<in>{f1, f2}. of_nat_pm (tp g) \<unlhd> p"
+    have "\<forall>g\<in>{f1, f2}. of_nat_pm (tpp g) \<unlhd> p"
     proof
       fix g
       assume "g \<in> {f1, f2}"
       with \<open>f \<in> {f1, f2}\<close> \<open>f' \<in> {f1, f2}\<close> \<open>f' \<noteq> f\<close> have "g = f \<or> g = f'" by auto
-      with \<open>of_nat_pm (tp f) \<unlhd> p\<close> \<open>of_nat_pm (tp f') \<unlhd> p\<close> show "of_nat_pm (tp g) \<unlhd> p" by auto
+      with \<open>of_nat_pm (tpp f) \<unlhd> p\<close> \<open>of_nat_pm (tpp f') \<unlhd> p\<close> show "of_nat_pm (tpp g) \<unlhd> p" by auto
     qed
     with assms(4) show False by simp
   qed
 qed
 
 lemma step_p_alt1:
-  assumes "f \<in> {f1, f2}" and "is_proper_binomial f" and "of_nat_pm (tp f) \<unlhd> p"
+  assumes "f \<in> {f1, f2}" and "is_proper_binomial f" and "of_nat_pm (tpp f) \<unlhd> p"
   shows "step_p p = step_p' f p"
-proof (cases "\<forall>g\<in>{f1, f2}. of_nat_pm (tp g) \<unlhd> p")
+proof (cases "\<forall>g\<in>{f1, f2}. of_nat_pm (tpp g) \<unlhd> p")
   case True
-  hence "of_nat_pm (tp f1) \<unlhd> p" and "of_nat_pm (tp f2) \<unlhd> p" by simp_all
+  hence "of_nat_pm (tpp f1) \<unlhd> p" and "of_nat_pm (tpp f2) \<unlhd> p" by simp_all
   hence "step_p p = 0" and "overlap \<unlhd> p" by (rule step_p_welldefined, rule lem_3_1_13)
   from this(2) have "step_p' f p = 0" by (rule step_p'_above_overlap)
   with \<open>step_p p = 0\<close> show ?thesis by simp
 next
   case False
-  hence "\<exists>g\<in>{f1,f2}. \<not> of_nat_pm (tp g) \<unlhd> p" by simp
-  with assms have eq: "(SOME f. f \<in> {f1, f2} \<and> is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p) = f"
+  hence "\<exists>g\<in>{f1,f2}. \<not> of_nat_pm (tpp g) \<unlhd> p" by simp
+  with assms have eq: "(SOME f. f \<in> {f1, f2} \<and> is_proper_binomial f \<and> of_nat_pm (tpp f) \<unlhd> p) = f"
     by (rule some_step_p_eqI)
   show ?thesis unfolding step_p_def eq
   proof (split if_split, intro conjI impI, rule)
-    assume "\<not> (\<exists>g\<in>{f1, f2}.is_proper_binomial g \<and> of_nat_pm (tp g) \<unlhd> p)"
-    hence "\<forall>g\<in>{f1,f2}. (\<not> is_proper_binomial g) \<or> \<not> of_nat_pm (tp g) \<unlhd> p" by simp
-    from this \<open>f \<in> {f1, f2}\<close> have "(\<not> is_proper_binomial f) \<or> \<not> of_nat_pm (tp f) \<unlhd> p" ..
+    assume "\<not> (\<exists>g\<in>{f1, f2}.is_proper_binomial g \<and> of_nat_pm (tpp g) \<unlhd> p)"
+    hence "\<forall>g\<in>{f1,f2}. (\<not> is_proper_binomial g) \<or> \<not> of_nat_pm (tpp g) \<unlhd> p" by simp
+    from this \<open>f \<in> {f1, f2}\<close> have "(\<not> is_proper_binomial f) \<or> \<not> of_nat_pm (tpp f) \<unlhd> p" ..
     with assms(2) assms(3) show "0 = step_p' f p" by simp
   qed
 qed
 
-lemma step_p_alt2: "\<not> (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p) \<Longrightarrow> step_p p = 0"
+lemma step_p_alt2: "\<not> (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> of_nat_pm (tpp f) \<unlhd> p) \<Longrightarrow> step_p p = 0"
   by (auto simp: step_p_def)
 
 lemma overlapshift_p'_is_int_pm: "is_int_pm p \<Longrightarrow> is_int_pm (overlapshift_p' f p)"
@@ -780,46 +782,46 @@ lemma overlapshift_p'_above_overlap: "overlap \<unlhd> p \<Longrightarrow> overl
   by (simp add: overlapshift_p'_def step_p'_above_overlap)
 
 lemma overlapshift_p_welldefined:
-  assumes "of_nat_pm (tp f1) \<unlhd> p" and "of_nat_pm (tp f2) \<unlhd> p"
+  assumes "of_nat_pm (tpp f1) \<unlhd> p" and "of_nat_pm (tpp f2) \<unlhd> p"
   shows "overlapshift_p p = p"
   unfolding overlapshift_p_def
 proof (split if_split, intro conjI impI)
   from assms have "overlap \<unlhd> p" by (rule lem_3_1_13)
-  thus "overlapshift_p' (SOME f. f \<in> {f1, f2} \<and> is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p) p = p"
+  thus "overlapshift_p' (SOME f. f \<in> {f1, f2} \<and> is_proper_binomial f \<and> of_nat_pm (tpp f) \<unlhd> p) p = p"
     by (rule overlapshift_p'_above_overlap)
 qed rule
 
 lemma overlapshift_p_alt0:
-  assumes "f \<in> {f1, f2}" and "is_proper_binomial f" and "of_nat_pm (tp f) \<unlhd> p"
+  assumes "f \<in> {f1, f2}" and "is_proper_binomial f" and "of_nat_pm (tpp f) \<unlhd> p"
   shows "overlapshift_p p = p + rat (step_p p) \<cdot> vect f"
-proof (cases "\<forall>g\<in>{f1, f2}. of_nat_pm (tp g) \<unlhd> p")
+proof (cases "\<forall>g\<in>{f1, f2}. of_nat_pm (tpp g) \<unlhd> p")
   case True
-  hence "of_nat_pm (tp f1) \<unlhd> p" and "of_nat_pm (tp f2) \<unlhd> p" by simp_all
+  hence "of_nat_pm (tpp f1) \<unlhd> p" and "of_nat_pm (tpp f2) \<unlhd> p" by simp_all
   hence "overlapshift_p p = p" and "step_p p = 0" by (rule overlapshift_p_welldefined, rule step_p_welldefined)
   thus ?thesis by simp
 next
   case False
-  hence "\<exists>g\<in>{f1,f2}. \<not> of_nat_pm (tp g) \<unlhd> p" by simp
-  with assms have eq: "(SOME f. f \<in> {f1, f2} \<and> is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p) = f"
+  hence "\<exists>g\<in>{f1,f2}. \<not> of_nat_pm (tpp g) \<unlhd> p" by simp
+  with assms have eq: "(SOME f. f \<in> {f1, f2} \<and> is_proper_binomial f \<and> of_nat_pm (tpp f) \<unlhd> p) = f"
     by (rule some_step_p_eqI)
   show ?thesis unfolding overlapshift_p_def eq
   proof (split if_split, intro conjI impI)
     from assms have "step_p p = step_p' f p" by (rule step_p_alt1)
     thus "overlapshift_p' f p = p + rat (step_p p) \<cdot> vect f" by (simp add: overlapshift_p'_def)
   next
-    assume "\<not> (\<exists>f\<in>{f1, f2}. is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p)"
-    hence "\<forall>f\<in>{f1,f2}. (\<not> is_proper_binomial f) \<or> \<not> of_nat_pm (tp f) \<unlhd> p" by simp
-    from this \<open>f \<in> {f1, f2}\<close> have "(\<not> is_proper_binomial f) \<or> \<not> of_nat_pm (tp f) \<unlhd> p" ..
+    assume "\<not> (\<exists>f\<in>{f1, f2}. is_proper_binomial f \<and> of_nat_pm (tpp f) \<unlhd> p)"
+    hence "\<forall>f\<in>{f1,f2}. (\<not> is_proper_binomial f) \<or> \<not> of_nat_pm (tpp f) \<unlhd> p" by simp
+    from this \<open>f \<in> {f1, f2}\<close> have "(\<not> is_proper_binomial f) \<or> \<not> of_nat_pm (tpp f) \<unlhd> p" ..
     with assms(2) assms(3) show "p = p + rat (step_p p) \<cdot> vect f" by simp
   qed
 qed
 
 lemma overlapshift_p_alt1:
-  "f \<in> {f1, f2} \<Longrightarrow> is_proper_binomial f \<Longrightarrow> of_nat_pm (tp f) \<unlhd> p \<Longrightarrow> overlapshift_p p = overlapshift_p' f p"
+  "f \<in> {f1, f2} \<Longrightarrow> is_proper_binomial f \<Longrightarrow> of_nat_pm (tpp f) \<unlhd> p \<Longrightarrow> overlapshift_p p = overlapshift_p' f p"
   by (simp only: overlapshift_p'_def overlapshift_p_alt0 step_p_alt1)
 
 lemma overlapshift_p_alt2:
-  "\<not> (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> of_nat_pm (tp f) \<unlhd> p) \<Longrightarrow> overlapshift_p p = p"
+  "\<not> (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> of_nat_pm (tpp f) \<unlhd> p) \<Longrightarrow> overlapshift_p p = p"
   by (auto simp: overlapshift_p_def)
   
 lemma overlapshift_p_is_int_pm:
@@ -903,19 +905,19 @@ lemma step'_alt:
 
 lemma step_alt:
   "step p =
-    (if (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> tp f \<unlhd> p) then
-      step' (SOME f. f \<in> {f1, f2} \<and> is_proper_binomial f \<and> tp f \<unlhd> p) p
+    (if (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> tpp f \<unlhd> p) then
+      step' (SOME f. f \<in> {f1, f2} \<and> is_proper_binomial f \<and> tpp f \<unlhd> p) p
     else 0)"
   by (simp only: le_pm_def step_def step_p_def step'_def[symmetric] leq_of_nat_fun of_nat_pm.rep_eq)
 
 lemma step_alt1:
-  assumes "f \<in> {f1, f2}" and "is_proper_binomial f" and "tp f \<unlhd> p"
+  assumes "f \<in> {f1, f2}" and "is_proper_binomial f" and "tpp f \<unlhd> p"
   shows "step p = step' f p"
   unfolding step_def step'_def
   by (rule step_p_alt1, fact, fact, simp only: le_of_nat_pm, fact)
 
 lemma step_alt2:
-  assumes "\<not> (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> tp f \<unlhd> p)"
+  assumes "\<not> (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> tpp f \<unlhd> p)"
   shows "step p = 0"
   unfolding step_def
   by (rule step_p_alt2, simp only: le_of_nat_pm, fact)
@@ -927,14 +929,14 @@ lemma overlapshift'_alt:
 
 lemma overlapshift_alt:
   "overlapshift p =
-    (if (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> tp f \<unlhd> p) then
-      overlapshift' (SOME f. f \<in> {f1,f2} \<and> is_proper_binomial f \<and> tp f \<unlhd> p) p
+    (if (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> tpp f \<unlhd> p) then
+      overlapshift' (SOME f. f \<in> {f1,f2} \<and> is_proper_binomial f \<and> tpp f \<unlhd> p) p
     else p)"
   by (simp only: overlapshift_def o_def overlapshift_p_def le_of_nat_pm if_distrib[of to_nat_pm]
       overlapshift'_def[symmetric] to_nat_pm_comp_of_nat_pm)
 
 lemma overlapshift_alt1:
-  assumes "f \<in> {f1, f2}" and "is_proper_binomial f" and "tp f \<unlhd> p"
+  assumes "f \<in> {f1, f2}" and "is_proper_binomial f" and "tpp f \<unlhd> p"
   shows "overlapshift p = overlapshift' f p"
 proof -
   have "overlapshift_p (of_nat_pm p) = overlapshift_p' f (of_nat_pm p)"
@@ -943,7 +945,7 @@ proof -
 qed
 
 lemma overlapshift_alt2:
-  assumes "\<not> (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> tp f \<unlhd> p)"
+  assumes "\<not> (\<exists>f\<in>{f1,f2}. is_proper_binomial f \<and> tpp f \<unlhd> p)"
   shows "overlapshift p = p"
 proof -
   have "overlapshift_p (of_nat_pm p) = of_nat_pm p"
@@ -954,9 +956,9 @@ qed
 lemma overlapshift_step_idI:
   assumes "step p = 0"
   shows "overlapshift p = p"
-proof (cases "\<exists>f\<in>{f1, f2}. is_proper_binomial f \<and> tp f \<unlhd> p")
+proof (cases "\<exists>f\<in>{f1, f2}. is_proper_binomial f \<and> tpp f \<unlhd> p")
   case True
-  then obtain f where "f \<in> {f1, f2}" and "is_proper_binomial f" and "tp f \<unlhd> p" by auto
+  then obtain f where "f \<in> {f1, f2}" and "is_proper_binomial f" and "tpp f \<unlhd> p" by auto
   hence eq: "step p = step' f p" and "overlapshift p = overlapshift' f p"
     by (rule step_alt1, rule overlapshift_alt1)
   note this(2)
@@ -1007,24 +1009,24 @@ context
   fixes f p q k
   assumes f_in: "f \<in> {f1, f2}"
     and f_pbinomial: "is_proper_binomial f"
-    and tp_adds: "tp f adds q"
+    and tpp_adds: "tpp f adds q"
     and assoc: "associated f p q k"
     and overlap_le: "overlap \<unlhd> of_nat_pm p"
 begin
 
 lemma step_min: "step q \<le> k"
 proof -
-  from tp_adds have "tp f \<unlhd> q" by (simp only: adds_pm)
+  from tpp_adds have "tpp f \<unlhd> q" by (simp only: adds_pm)
   from assoc overlap_le have "step' f q \<le> k" by (rule step'_min)
-  thus ?thesis by (simp only: step_alt1[OF f_in f_pbinomial \<open>tp f \<unlhd> q\<close>])
+  thus ?thesis by (simp only: step_alt1[OF f_in f_pbinomial \<open>tpp f \<unlhd> q\<close>])
 qed
 
 lemma overlapshift_is_above_overlap: "overlap \<unlhd> of_nat_pm (overlapshift q)"
 proof -
-  from tp_adds have "tp f \<unlhd> q" by (simp only: adds_pm)
+  from tpp_adds have "tpp f \<unlhd> q" by (simp only: adds_pm)
   from assoc overlap_le have "overlap \<unlhd> of_nat_pm (overlapshift' f q)"
     by (rule overlapshift'_is_above_overlap)
-  thus ?thesis by (simp only: overlapshift_alt1[OF f_in f_pbinomial \<open>tp f \<unlhd> q\<close>])
+  thus ?thesis by (simp only: overlapshift_alt1[OF f_in f_pbinomial \<open>tpp f \<unlhd> q\<close>])
 qed
 
 lemma overlapshift_p_is_nat_pm: "is_nat_pm (overlapshift_p (of_nat_pm q))"
@@ -1039,7 +1041,7 @@ proof (rule int_pm_is_nat_pm, rule overlapshift_p_is_int_pm, rule nat_pm_is_int_
   hence "lookup overlap x \<le> lookup (overlapshift_p' f (of_nat_pm q)) x" by (rule le_pmD)
   have eq: "overlapshift_p (of_nat_pm q) = overlapshift_p' f (of_nat_pm q)"
     by (rule overlapshift_p_alt1, fact f_in, fact f_pbinomial,
-        simp only: le_of_nat_pm adds_pm[symmetric], fact tp_adds)
+        simp only: le_of_nat_pm adds_pm[symmetric], fact tpp_adds)
   from overlap_is_nat_pm have "lookup overlap x \<in> \<nat>" by (rule is_nat_pmD)
   hence "(0::rat) \<le> lookup overlap x" by (rule Nats_ge_0)
   also have "\<dots> \<le> lookup (overlapshift_p' f (of_nat_pm q)) x" by fact
@@ -1052,7 +1054,7 @@ lemma of_nat_pm_overlapshift: "of_nat_pm (overlapshift q) = overlapshift_p (of_n
 lemma of_nat_pm_overlapshift': "of_nat_pm (overlapshift q) = of_nat_pm q + rat (step q) \<cdot> vect f"
   unfolding of_nat_pm_overlapshift step_def
   by (rule overlapshift_p_alt0, fact f_in, fact f_pbinomial,
-      simp only: le_of_nat_pm adds_pm[symmetric], fact tp_adds)
+      simp only: le_of_nat_pm adds_pm[symmetric], fact tpp_adds)
 
 lemma associated_overlapshift: "associated f (overlapshift q) q (step q)"
   by (simp only: associated_alt_rat of_nat_pm_overlapshift')

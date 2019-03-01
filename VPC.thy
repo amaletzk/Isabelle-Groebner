@@ -108,13 +108,13 @@ lemma pn_Nshifts_singleton_neg:
 
 lemma pn_NshiftsD_pos_le:
   assumes "z \<in> pn_Nshifts True {f}"
-  shows "of_nat_pm (tp f) \<unlhd> fst z" and "of_nat_pm (lp f) \<unlhd> snd z"
+  shows "of_nat_pm (tpp f) \<unlhd> fst z" and "of_nat_pm (lpp f) \<unlhd> snd z"
   using assms by (auto simp: pn_Nshifts_singleton_pos nat_plus_point_pair_def poly_point_def
                        intro!: le_pm_increasing zero_le_of_nat_pm)
 
 lemma pn_NshiftsD_neg_le:
   assumes "z \<in> pn_Nshifts False {f}"
-  shows "of_nat_pm (lp f) \<unlhd> fst z" and "of_nat_pm (tp f) \<unlhd> snd z"
+  shows "of_nat_pm (lpp f) \<unlhd> fst z" and "of_nat_pm (tpp f) \<unlhd> snd z"
   using assms by (auto simp: pn_Nshifts_singleton_neg nat_plus_point_pair_def poly_point_def
                        intro!: le_pm_increasing zero_le_of_nat_pm)
 
@@ -203,24 +203,24 @@ proof (rule ccontr)
     unfolding pn_Nshifts_singleton ..
   ultimately have eq: "s +\<^sub>N (if p' then prod.swap else id) (poly_point f') =
                         t +\<^sub>N (if p then prod.swap else id) (poly_point f)" by simp
-  have "(s + lp f') + (t + lp f) = (s + tp f') + (t + tp f)"
+  have "(s + lpp f') + (t + lpp f) = (s + tpp f') + (t + tpp f)"
   proof (cases p)
     case True
     moreover from this assms(2) have "\<not> p'" by simp
-    ultimately have "s + lp f' = t + tp f" and "s + tp f' = t + lp f" using eq
+    ultimately have "s + lpp f' = t + tpp f" and "s + tpp f' = t + lpp f" using eq
       by (simp_all add: nat_plus_point_pair_def poly_point_def flip: of_nat_pm_plus)
-    thus "(s + lp f') + (t + lp f) = (s + tp f') + (t + tp f)" by (simp only: add.commute)
+    thus "(s + lpp f') + (t + lpp f) = (s + tpp f') + (t + tpp f)" by (simp only: add.commute)
   next
     case False
     moreover from this assms(2) have "p'" by simp
-    ultimately have "s + lp f' = t + tp f" and "s + tp f' = t + lp f" using eq
+    ultimately have "s + lpp f' = t + tpp f" and "s + tpp f' = t + lpp f" using eq
       by (simp_all add: nat_plus_point_pair_def poly_point_def flip: of_nat_pm_plus)
-    thus "(s + lp f') + (t + lp f) = (s + tp f') + (t + tp f)" by (simp only: add.commute)
+    thus "(s + lpp f') + (t + lpp f) = (s + tpp f') + (t + tpp f)" by (simp only: add.commute)
   qed
-  hence "lp f = tp f"
+  hence "lpp f = tpp f"
     by (simp add: ac_simps)
        (metis (no_types, hide_lams) ord_canc ordered_powerprod_lin.antisym plus_monotone_left punit.lt_ge_tt)
-  also from assms have "\<dots> \<prec> lp f" by (simp add: punit.lt_gr_tt_iff has_bounded_keys_def)
+  also from assms have "\<dots> \<prec> lpp f" by (simp add: punit.lt_gr_tt_iff has_bounded_keys_def)
   finally show False ..
 qed
 
@@ -230,9 +230,9 @@ corollary pn_Nshifts_disjointI:
 
 corollary pn_Nshifts_not_disjointD:
   assumes "pn_Nshifts p {f} \<inter> pn_Nshifts p' {f} \<noteq> {}"
-  shows "p \<noteq> p' \<Longrightarrow> lp f = tp f" and "pn_Nshifts p {f} = pn_Nshifts p' {f}"
+  shows "p \<noteq> p' \<Longrightarrow> lpp f = tpp f" and "pn_Nshifts p {f} = pn_Nshifts p' {f}"
 proof -
-  show rl: "lp f = tp f" if "p \<noteq> p'"
+  show rl: "lpp f = tpp f" if "p \<noteq> p'"
   proof -
     from assms that pn_Nshifts_disjointI' have "\<not> 2 \<le> card (keys f)" by blast
     hence "f = 0 \<or> is_monomial f"
@@ -246,7 +246,7 @@ proof -
     thus ?thesis by simp
   next
     case False
-    hence "lp f = tp f" by (rule rl)
+    hence "lpp f = tpp f" by (rule rl)
     hence "prod.swap (poly_point f) = poly_point f" by (simp add: poly_point_def)
     thus ?thesis by (simp add: pn_Nshifts_singleton)
   qed
@@ -289,17 +289,17 @@ proof -
     have 2: "l' - l = (- rat m) / rat n" by (simp only: 1 m n Fract_of_int_quotient)
     hence "rat n \<cdot> (of_nat_pm t - of_nat_pm s) = rat n \<cdot> ((- rat m) / rat n) \<cdot> vect f"
       by (simp only: eq)
-    with \<open>0 < n\<close> have "rat n \<cdot> of_nat_pm t + rat m \<cdot> of_nat_pm (lp f) =
-                        rat n \<cdot> of_nat_pm s + rat m \<cdot> of_nat_pm (tp f)"
+    with \<open>0 < n\<close> have "rat n \<cdot> of_nat_pm t + rat m \<cdot> of_nat_pm (lpp f) =
+                        rat n \<cdot> of_nat_pm s + rat m \<cdot> of_nat_pm (tpp f)"
       by (simp add: vect_alt algebra_simps map_scale_assoc map_scale_uminus_left)
-    hence "of_nat_pm (n \<cdot> t + m \<cdot> lp f) = (of_nat_pm (n \<cdot> s + m \<cdot> tp f) ::_ \<Rightarrow>\<^sub>0 rat)"
+    hence "of_nat_pm (n \<cdot> t + m \<cdot> lpp f) = (of_nat_pm (n \<cdot> s + m \<cdot> tpp f) ::_ \<Rightarrow>\<^sub>0 rat)"
       by (simp only: of_nat_pm_plus of_nat_pm_map_scale)
-    hence eq2: "n \<cdot> t + m \<cdot> lp f = n \<cdot> s + m \<cdot> tp f" by simp
+    hence eq2: "n \<cdot> t + m \<cdot> lpp f = n \<cdot> s + m \<cdot> tpp f" by simp
     from assms(1) \<open>0 < n\<close> have "n \<cdot> s \<prec> n \<cdot> t" by (rule map_scale_mono_strict_left)
-    hence "n \<cdot> s + m \<cdot> tp f \<prec> n \<cdot> t + m \<cdot> tp f" by (rule plus_monotone_strict)
-    from punit.lt_ge_tt have "m \<cdot> tp f \<preceq> m \<cdot> lp f" by (rule map_scale_mono_left)
-    hence "n \<cdot> t + m \<cdot> tp f \<preceq> n \<cdot> t + m \<cdot> lp f" by (rule plus_monotone_left)
-    with \<open>n \<cdot> s + m \<cdot> tp f \<prec> n \<cdot> t + m \<cdot> tp f\<close> have "n \<cdot> s + m \<cdot> tp f \<prec> n \<cdot> t + m \<cdot> lp f"
+    hence "n \<cdot> s + m \<cdot> tpp f \<prec> n \<cdot> t + m \<cdot> tpp f" by (rule plus_monotone_strict)
+    from punit.lt_ge_tt have "m \<cdot> tpp f \<preceq> m \<cdot> lpp f" by (rule map_scale_mono_left)
+    hence "n \<cdot> t + m \<cdot> tpp f \<preceq> n \<cdot> t + m \<cdot> lpp f" by (rule plus_monotone_left)
+    with \<open>n \<cdot> s + m \<cdot> tpp f \<prec> n \<cdot> t + m \<cdot> tpp f\<close> have "n \<cdot> s + m \<cdot> tpp f \<prec> n \<cdot> t + m \<cdot> lpp f"
       by (rule ordered_powerprod_lin.less_le_trans)
     thus False by (simp add: eq2)
   qed
@@ -327,7 +327,7 @@ qed
 
 definition parallel_binomials :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool"
   where "parallel_binomials f1 f2 \<longleftrightarrow> (is_proper_binomial f1 \<and> is_proper_binomial f2 \<and>
-    (\<exists>m1 m2::nat. m1 \<noteq> 0 \<and> m2 \<noteq> 0 \<and> m1 \<cdot> lp f1 + m2 \<cdot> tp f2 = m1 \<cdot> tp f1 + m2 \<cdot> lp f2))"
+    (\<exists>m1 m2::nat. m1 \<noteq> 0 \<and> m2 \<noteq> 0 \<and> m1 \<cdot> lpp f1 + m2 \<cdot> tpp f2 = m1 \<cdot> tpp f1 + m2 \<cdot> lpp f2))"
 
 lemma parallel_binomialsD:
   assumes "parallel_binomials f1 f2"
@@ -336,7 +336,7 @@ lemma parallel_binomialsD:
 
 lemma parallel_binomialsE:
   assumes "parallel_binomials f1 f2"
-  obtains m1 m2 where "m1 \<noteq> 0" and "m2 \<noteq> 0" and "m1 \<cdot> lp f1 + m2 \<cdot> tp f2 = m1 \<cdot> tp f1 + m2 \<cdot> lp f2"
+  obtains m1 m2 where "m1 \<noteq> 0" and "m2 \<noteq> 0" and "m1 \<cdot> lpp f1 + m2 \<cdot> tpp f2 = m1 \<cdot> tpp f1 + m2 \<cdot> lpp f2"
   using assms unfolding parallel_binomials_def by blast
 
 lemma parallel_binomials_sym:
@@ -344,11 +344,11 @@ lemma parallel_binomials_sym:
   shows "parallel_binomials f2 f1"
 proof -
   from assms have "is_proper_binomial f1" and "is_proper_binomial f2" by (rule parallel_binomialsD)+
-  from assms obtain m1 m2 where "m1 \<noteq> 0" and "m2 \<noteq> 0" and eq: "m1 \<cdot> lp f1 + m2 \<cdot> tp f2 = m1 \<cdot> tp f1 + m2 \<cdot> lp f2"
+  from assms obtain m1 m2 where "m1 \<noteq> 0" and "m2 \<noteq> 0" and eq: "m1 \<cdot> lpp f1 + m2 \<cdot> tpp f2 = m1 \<cdot> tpp f1 + m2 \<cdot> lpp f2"
     by (rule parallel_binomialsE)
   show ?thesis unfolding parallel_binomials_def
   proof (intro conjI exI)
-    show "m2 \<cdot> lp f2 + m1 \<cdot> tp f1 = m2 \<cdot> tp f2 + m1 \<cdot> lp f1" by (simp add: ac_simps eq)
+    show "m2 \<cdot> lpp f2 + m1 \<cdot> tpp f1 = m2 \<cdot> tpp f2 + m1 \<cdot> lpp f1" by (simp add: ac_simps eq)
   qed fact+
 qed
 
@@ -357,16 +357,16 @@ lemma parallel_binomialsI_vect:
   shows "parallel_binomials f1 f2"
   unfolding parallel_binomials_def
 proof (intro conjI)
-  from assms(1) have "tp f1 \<prec> lp f1" by (rule punit.lt_gr_tt_binomial)
-  moreover have "of_nat_pm (tp f1) = of_nat_pm (tp f1) + 0 \<cdot> vect f2" by simp
-  moreover have "of_nat_pm (lp f1) = of_nat_pm (tp f1) + m \<cdot> vect f2"
+  from assms(1) have "tpp f1 \<prec> lpp f1" by (rule punit.lt_gr_tt_binomial)
+  moreover have "of_nat_pm (tpp f1) = of_nat_pm (tpp f1) + 0 \<cdot> vect f2" by simp
+  moreover have "of_nat_pm (lpp f1) = of_nat_pm (tpp f1) + m \<cdot> vect f2"
     by (simp flip: assms(3)) (simp add: vect_alt)
   ultimately have "0 < m" by (rule ord_rat_strict)
   obtain m2 m1 where "0 < m1" and m: "m = Fract m2 m1" by (rule Rat_cases)
   with \<open>0 < m\<close> have "0 < m2" by (simp only: zero_less_Fract_iff)
   from \<open>0 < m1\<close> have m1: "rat (nat m1) = rat_of_int m1" by auto
   from \<open>0 < m2\<close> have m2: "rat (nat m2) = rat_of_int m2" by auto
-  show "\<exists>m1 m2. m1 \<noteq> 0 \<and> m2 \<noteq> 0 \<and> m1 \<cdot> lp f1 + m2 \<cdot> tp f2 = m1 \<cdot> tp f1 + m2 \<cdot> lp f2"
+  show "\<exists>m1 m2. m1 \<noteq> 0 \<and> m2 \<noteq> 0 \<and> m1 \<cdot> lpp f1 + m2 \<cdot> tpp f2 = m1 \<cdot> tpp f1 + m2 \<cdot> lpp f2"
   proof (intro exI conjI)
     from \<open>0 < m1\<close> show "nat m1 \<noteq> 0" by simp
   next
@@ -375,10 +375,10 @@ proof (intro conjI)
     have "rat_of_int m1 \<cdot> vect f1 = rat_of_int m1 \<cdot> m \<cdot> vect f2" by (simp only: assms(3))
     also from \<open>0 < m1\<close> have "\<dots> = rat_of_int m2 \<cdot> vect f2"
       by (simp add: m map_scale_assoc Fract_of_int_quotient)
-    finally have "of_nat_pm (nat m1 \<cdot> lp f1 + nat m2 \<cdot> tp f2) =
-                  (of_nat_pm (nat m1 \<cdot> tp f1 + nat m2 \<cdot> lp f2) :: _ \<Rightarrow>\<^sub>0 rat)"
+    finally have "of_nat_pm (nat m1 \<cdot> lpp f1 + nat m2 \<cdot> tpp f2) =
+                  (of_nat_pm (nat m1 \<cdot> tpp f1 + nat m2 \<cdot> lpp f2) :: _ \<Rightarrow>\<^sub>0 rat)"
       by (simp only: vect_alt algebra_simps of_nat_pm_map_scale of_nat_pm_plus m1 m2)
-    thus "nat m1 \<cdot> lp f1 + nat m2 \<cdot> tp f2 = nat m1 \<cdot> tp f1 + nat m2 \<cdot> lp f2" by simp
+    thus "nat m1 \<cdot> lpp f1 + nat m2 \<cdot> tpp f2 = nat m1 \<cdot> tpp f1 + nat m2 \<cdot> lpp f2" by simp
   qed
 qed fact+
 
@@ -400,8 +400,8 @@ proof -
   thus "m = 0"
   proof
     assume "vect f2 = 0"
-    hence "lp f2 = tp f2" by (simp add: vect_alt)
-    also from assms(2) have "\<dots> \<prec> lp f2" by (rule punit.lt_gr_tt_binomial)
+    hence "lpp f2 = tpp f2" by (simp add: vect_alt)
+    also from assms(2) have "\<dots> \<prec> lpp f2" by (rule punit.lt_gr_tt_binomial)
     finally show ?thesis ..
   qed
 qed
@@ -429,14 +429,14 @@ proof -
   proof (rule ordered_powerprod_lin.linorder_cases)
     assume "s1 \<prec> t1"
     with \<open>?c1 \<noteq> 0\<close> \<open>?d1 \<noteq> 0\<close> have "punit.is_obd ?d1 t1 ?c1 s1" by (simp add: punit.is_obd_def)
-    hence "lp (binomial ?c1 s1 ?d1 t1) = t1" and "tp (binomial ?c1 s1 ?d1 t1) = s1"
+    hence "lpp (binomial ?c1 s1 ?d1 t1) = t1" and "tpp (binomial ?c1 s1 ?d1 t1) = s1"
       by (simp_all add: punit.lt_binomial punit.tt_binomial binomial_comm[of ?c1])
     hence v1: "vect f1 = - (of_nat_pm s1 - of_nat_pm t1)" by (simp add: f1 vect_alt)
     show ?thesis
     proof (rule ordered_powerprod_lin.linorder_cases)
       assume "s2 \<prec> t2"
       with \<open>?c2 \<noteq> 0\<close> \<open>?d2 \<noteq> 0\<close> have "punit.is_obd ?d2 t2 ?c2 s2" by (simp add: punit.is_obd_def)
-      hence "lp (binomial ?c2 s2 ?d2 t2) = t2" and "tp (binomial ?c2 s2 ?d2 t2) = s2"
+      hence "lpp (binomial ?c2 s2 ?d2 t2) = t2" and "tpp (binomial ?c2 s2 ?d2 t2) = s2"
         by (simp_all add: punit.lt_binomial punit.tt_binomial binomial_comm[of ?c2])
       hence v2: "vect f2 = - (of_nat_pm s2 - of_nat_pm t2)" by (simp add: f2 vect_alt)
       show ?thesis
@@ -446,7 +446,7 @@ proof -
     next
       assume "t2 \<prec> s2"
       with \<open>?c2 \<noteq> 0\<close> \<open>?d2 \<noteq> 0\<close> have "punit.is_obd ?c2 s2 ?d2 t2" by (simp add: punit.is_obd_def)
-      hence "tp (binomial ?c2 s2 ?d2 t2) = t2" and "lp (binomial ?c2 s2 ?d2 t2) = s2"
+      hence "tpp (binomial ?c2 s2 ?d2 t2) = t2" and "lpp (binomial ?c2 s2 ?d2 t2) = s2"
         by (simp_all add: punit.lt_binomial punit.tt_binomial)
       hence v2: "vect f2 = of_nat_pm s2 - of_nat_pm t2" by (simp add: f2 vect_alt)
       show ?thesis
@@ -461,14 +461,14 @@ proof -
   next
     assume "t1 \<prec> s1"
     with \<open>?c1 \<noteq> 0\<close> \<open>?d1 \<noteq> 0\<close> have "punit.is_obd ?c1 s1 ?d1 t1" by (simp add: punit.is_obd_def)
-    hence "tp (binomial ?c1 s1 ?d1 t1) = t1" and "lp (binomial ?c1 s1 ?d1 t1) = s1"
+    hence "tpp (binomial ?c1 s1 ?d1 t1) = t1" and "lpp (binomial ?c1 s1 ?d1 t1) = s1"
       by (simp_all add: punit.lt_binomial punit.tt_binomial)
     hence v1: "vect f1 = of_nat_pm s1 - of_nat_pm t1" by (simp add: f1 vect_alt)
     show ?thesis
     proof (rule ordered_powerprod_lin.linorder_cases)
       assume "s2 \<prec> t2"
       with \<open>?c2 \<noteq> 0\<close> \<open>?d2 \<noteq> 0\<close> have "punit.is_obd ?d2 t2 ?c2 s2" by (simp add: punit.is_obd_def)
-      hence "lp (binomial ?c2 s2 ?d2 t2) = t2" and "tp (binomial ?c2 s2 ?d2 t2) = s2"
+      hence "lpp (binomial ?c2 s2 ?d2 t2) = t2" and "tpp (binomial ?c2 s2 ?d2 t2) = s2"
         by (simp_all add: punit.lt_binomial punit.tt_binomial binomial_comm[of ?c2])
       hence v2: "vect f2 = - (of_nat_pm s2 - of_nat_pm t2)" by (simp add: f2 vect_alt)
       show ?thesis
@@ -479,7 +479,7 @@ proof -
     next
       assume "t2 \<prec> s2"
       with \<open>?c2 \<noteq> 0\<close> \<open>?d2 \<noteq> 0\<close> have "punit.is_obd ?c2 s2 ?d2 t2" by (simp add: punit.is_obd_def)
-      hence "tp (binomial ?c2 s2 ?d2 t2) = t2" and "lp (binomial ?c2 s2 ?d2 t2) = s2"
+      hence "tpp (binomial ?c2 s2 ?d2 t2) = t2" and "lpp (binomial ?c2 s2 ?d2 t2) = s2"
         by (simp_all add: punit.lt_binomial punit.tt_binomial)
       hence v2: "vect f2 = of_nat_pm s2 - of_nat_pm t2" by (simp add: f2 vect_alt)
       show ?thesis
@@ -501,15 +501,15 @@ lemma parallel_binomialsE_vect:
   obtains m::rat where "0 < m" and "vect f1 = m \<cdot> vect f2"
 proof -
   from assms obtain m1 m2 where "m1 \<noteq> 0" and "m2 \<noteq> 0"
-    and eq: "m1 \<cdot> lp f1 + m2 \<cdot> tp f2 = m1 \<cdot> tp f1 + m2 \<cdot> lp f2" by (rule parallel_binomialsE)
+    and eq: "m1 \<cdot> lpp f1 + m2 \<cdot> tpp f2 = m1 \<cdot> tpp f1 + m2 \<cdot> lpp f2" by (rule parallel_binomialsE)
   show ?thesis
   proof
     from \<open>m1 \<noteq> 0\<close> \<open>m2 \<noteq> 0\<close> show "0 < rat m2 / rat m1" by simp
   next
-    have "of_nat_pm (m1 \<cdot> lp f1 + m2 \<cdot> tp f2) = (of_nat_pm (m1 \<cdot> tp f1 + m2 \<cdot> lp f2) :: _ \<Rightarrow>\<^sub>0 rat)"
+    have "of_nat_pm (m1 \<cdot> lpp f1 + m2 \<cdot> tpp f2) = (of_nat_pm (m1 \<cdot> tpp f1 + m2 \<cdot> lpp f2) :: _ \<Rightarrow>\<^sub>0 rat)"
       by (simp only: eq)
-    hence "rat m1 \<cdot> of_nat_pm (lp f1) + rat m2 \<cdot> of_nat_pm (tp f2) =
-            rat m1 \<cdot> of_nat_pm (tp f1) + rat m2 \<cdot> of_nat_pm (lp f2)"
+    hence "rat m1 \<cdot> of_nat_pm (lpp f1) + rat m2 \<cdot> of_nat_pm (tpp f2) =
+            rat m1 \<cdot> of_nat_pm (tpp f1) + rat m2 \<cdot> of_nat_pm (lpp f2)"
       by (simp add: of_nat_pm_plus of_nat_pm_map_scale)
     hence "rat m1 \<cdot> vect f1 = rat m2 \<cdot> vect f2" by (simp add: vect_alt algebra_simps)
     hence "(1 / rat m1) \<cdot> rat m1 \<cdot> vect f1 = (1 / rat m1) \<cdot> rat m2 \<cdot> vect f2" by (simp only:)
@@ -520,17 +520,17 @@ qed
 lemma parallel_binomialsE_lookup:
   assumes "parallel_binomials f1 f2"
   obtains m1 m2 where "m1 \<noteq> 0" and "m2 \<noteq> 0"
-    and "\<forall>x. m1 * lookup (lp f1) x + m2 * lookup (tp f2) x = m1 * lookup (tp f1) x + m2 * lookup (lp f2) x"
+    and "\<forall>x. m1 * lookup (lpp f1) x + m2 * lookup (tpp f2) x = m1 * lookup (tpp f1) x + m2 * lookup (lpp f2) x"
 proof -
-  from assms obtain m1 m2 where "m1 \<noteq> 0" and "m2 \<noteq> 0" and *: "m1 \<cdot> lp f1 + m2 \<cdot> tp f2 = m1 \<cdot> tp f1 + m2 \<cdot> lp f2"
+  from assms obtain m1 m2 where "m1 \<noteq> 0" and "m2 \<noteq> 0" and *: "m1 \<cdot> lpp f1 + m2 \<cdot> tpp f2 = m1 \<cdot> tpp f1 + m2 \<cdot> lpp f2"
     by (rule parallel_binomialsE)
   from this(1) this(2) show ?thesis
   proof
-    show "\<forall>x. m1 * lookup (lp f1) x + m2 * lookup (tp f2) x = m1 * lookup (tp f1) x + m2 * lookup (lp f2) x"
+    show "\<forall>x. m1 * lookup (lpp f1) x + m2 * lookup (tpp f2) x = m1 * lookup (tpp f1) x + m2 * lookup (lpp f2) x"
     proof
       fix x
-      from * have "lookup (m1 \<cdot> lp f1 + m2 \<cdot> tp f2) x = lookup (m1 \<cdot> tp f1 + m2 \<cdot> lp f2) x" by simp
-      thus "m1 * lookup (lp f1) x + m2 * lookup (tp f2) x = m1 * lookup (tp f1) x + m2 * lookup (lp f2) x"
+      from * have "lookup (m1 \<cdot> lpp f1 + m2 \<cdot> tpp f2) x = lookup (m1 \<cdot> tpp f1 + m2 \<cdot> lpp f2) x" by simp
+      thus "m1 * lookup (lpp f1) x + m2 * lookup (tpp f2) x = m1 * lookup (tpp f1) x + m2 * lookup (lpp f2) x"
         by (simp add: lookup_add)
     qed
   qed
@@ -540,12 +540,12 @@ text \<open>This version is weaker but sometimes easier to use:\<close>
 lemma parallel_binomialsE_lookup':
   assumes "parallel_binomials f1 f2"
   obtains m1 m2 where "m1 \<noteq> 0" and "m2 \<noteq> 0"
-    and "m1 * lookup (lp f1) x + m2 * lookup (tp f2) x = m1 * lookup (tp f1) x + m2 * lookup (lp f2) x"
+    and "m1 * lookup (lpp f1) x + m2 * lookup (tpp f2) x = m1 * lookup (tpp f1) x + m2 * lookup (lpp f2) x"
 proof -
   from assms obtain m1 m2 where "m1 \<noteq> 0" and "m2 \<noteq> 0"
-    and "\<forall>x. m1 * lookup (lp f1) x + m2 * lookup (tp f2) x = m1 * lookup (tp f1) x + m2 * lookup (lp f2) x"
+    and "\<forall>x. m1 * lookup (lpp f1) x + m2 * lookup (tpp f2) x = m1 * lookup (tpp f1) x + m2 * lookup (lpp f2) x"
     by (rule parallel_binomialsE_lookup)
-  from this(3) have "m1 * lookup (lp f1) x + m2 * lookup (tp f2) x = m1 * lookup (tp f1) x + m2 * lookup (lp f2) x" ..
+  from this(3) have "m1 * lookup (lpp f1) x + m2 * lookup (tpp f2) x = m1 * lookup (tpp f1) x + m2 * lookup (lpp f2) x" ..
   with \<open>m1 \<noteq> 0\<close> \<open>m2 \<noteq> 0\<close> show ?thesis ..
 qed
 
@@ -557,53 +557,53 @@ proof -
   let ?f1 = "homogenize h f1"
   let ?f2 = "homogenize h f2"
   from assms(1) have "is_proper_binomial f1" by (rule parallel_binomialsD)
-  hence k1: "keys f1 = {lp f1, tp f1}" and 1: "card (keys f1) = 2"
+  hence k1: "keys f1 = {lpp f1, tpp f1}" and 1: "card (keys f1) = 2"
     by (rule punit.keys_proper_binomial, simp only: is_proper_binomial_def)
-  from assms(2) this(1) have "keys ?f1 = {?f f1 (lp f1), ?f f1 (tp f1)}"
+  from assms(2) this(1) have "keys ?f1 = {?f f1 (lpp f1), ?f f1 (tpp f1)}"
     by (simp add: keys_homogenize)
   moreover from assms(2) have "card (keys ?f1) = 2" by (simp add: card_keys_homogenize 1)
-  ultimately have "?f f1 (lp f1) \<noteq> ?f f1 (tp f1)" by auto
+  ultimately have "?f f1 (lpp f1) \<noteq> ?f f1 (tpp f1)" by auto
   from assms(1) have "is_proper_binomial f2" by (rule parallel_binomialsD)
-  hence k2: "keys f2 = {lp f2, tp f2}" and 2: "card (keys f2) = 2"
+  hence k2: "keys f2 = {lpp f2, tpp f2}" and 2: "card (keys f2) = 2"
     by (rule punit.keys_proper_binomial, simp only: is_proper_binomial_def)
-  from assms(3) this(1) have "keys ?f2 = {?f f2 (lp f2), ?f f2 (tp f2)}"
+  from assms(3) this(1) have "keys ?f2 = {?f f2 (lpp f2), ?f f2 (tpp f2)}"
     by (simp add: keys_homogenize)
   moreover from assms(3) have "card (keys ?f2) = 2" by (simp add: card_keys_homogenize 2)
-  ultimately have "?f f2 (lp f2) \<noteq> ?f f2 (tp f2)" by auto
+  ultimately have "?f f2 (lpp f2) \<noteq> ?f f2 (tpp f2)" by auto
   from assms(1) obtain m where m: "vect f1 = m \<cdot> vect f2" by (rule parallel_binomialsE_vect)
   hence "deg_pm (vect f1) = m * deg_pm (vect f2)" by (simp only: deg_pm_map_scale)
-  hence eq0: "rat (deg_pm (tp f1)) - rat (deg_pm (lp f1)) = m * (rat (deg_pm (tp f2)) - rat (deg_pm (lp f2)))"
+  hence eq0: "rat (deg_pm (tpp f1)) - rat (deg_pm (lpp f1)) = m * (rat (deg_pm (tpp f2)) - rat (deg_pm (lpp f2)))"
     by (simp add: vect_alt deg_pm_minus_group deg_of_nat_pm algebra_simps)
   show ?thesis
   proof (rule parallel_binomialsI_vect')
-    have "lp f1 \<in> keys f1" and "tp f1 \<in> keys f1" by (simp_all add: k1)
-    hence "deg_pm (lp f1) \<le> poly_deg f1" and "deg_pm (tp f1) \<le> poly_deg f1"
+    have "lpp f1 \<in> keys f1" and "tpp f1 \<in> keys f1" by (simp_all add: k1)
+    hence "deg_pm (lpp f1) \<le> poly_deg f1" and "deg_pm (tpp f1) \<le> poly_deg f1"
       by (auto intro: poly_deg_max_keys)
-    hence eq1: "rat (poly_deg f1 - deg_pm (lp f1)) = rat (poly_deg f1) - rat (deg_pm (lp f1))"
-      and eq2: "rat (poly_deg f1 - deg_pm (tp f1)) = rat (poly_deg f1) - rat (deg_pm (tp f1))"
+    hence eq1: "rat (poly_deg f1 - deg_pm (lpp f1)) = rat (poly_deg f1) - rat (deg_pm (lpp f1))"
+      and eq2: "rat (poly_deg f1 - deg_pm (tpp f1)) = rat (poly_deg f1) - rat (deg_pm (tpp f1))"
       by simp_all
-    have "lp f2 \<in> keys f2" and "tp f2 \<in> keys f2" by (simp_all add: k2)
-    hence "deg_pm (lp f2) \<le> poly_deg f2" and "deg_pm (tp f2) \<le> poly_deg f2"
+    have "lpp f2 \<in> keys f2" and "tpp f2 \<in> keys f2" by (simp_all add: k2)
+    hence "deg_pm (lpp f2) \<le> poly_deg f2" and "deg_pm (tpp f2) \<le> poly_deg f2"
       by (auto intro: poly_deg_max_keys)
-    hence eq3: "rat (poly_deg f2 - deg_pm (lp f2)) = rat (poly_deg f2) - rat (deg_pm (lp f2))"
-      and eq4: "rat (poly_deg f2 - deg_pm (tp f2)) = rat (poly_deg f2) - rat (deg_pm (tp f2))"
+    hence eq3: "rat (poly_deg f2 - deg_pm (lpp f2)) = rat (poly_deg f2) - rat (deg_pm (lpp f2))"
+      and eq4: "rat (poly_deg f2 - deg_pm (tpp f2)) = rat (poly_deg f2) - rat (deg_pm (tpp f2))"
       by simp_all
-    have "of_nat_pm (?f f1 (lp f1)) - of_nat_pm (?f f1 (tp f1)) =
-            Poly_Mapping.single h (rat (poly_deg f1 - deg_pm (lp f1)) -
-            rat (poly_deg f1 - deg_pm (tp f1))) + vect f1"
+    have "of_nat_pm (?f f1 (lpp f1)) - of_nat_pm (?f f1 (tpp f1)) =
+            Poly_Mapping.single h (rat (poly_deg f1 - deg_pm (lpp f1)) -
+            rat (poly_deg f1 - deg_pm (tpp f1))) + vect f1"
       by (simp add: of_nat_pm_plus vect_alt of_nat_pm_single flip: single_diff)
-    also have "\<dots> = Poly_Mapping.single h (rat (deg_pm (tp f1)) - rat (deg_pm (lp f1))) + m \<cdot> vect f2"
+    also have "\<dots> = Poly_Mapping.single h (rat (deg_pm (tpp f1)) - rat (deg_pm (lpp f1))) + m \<cdot> vect f2"
       by (simp add: eq1 eq2 m)
-    also have "\<dots> = m \<cdot> (Poly_Mapping.single h (rat (deg_pm (tp f2)) - rat (deg_pm (lp f2))) + vect f2)"
+    also have "\<dots> = m \<cdot> (Poly_Mapping.single h (rat (deg_pm (tpp f2)) - rat (deg_pm (lpp f2))) + vect f2)"
       by (simp only: map_scale_distrib_left map_scale_single eq0)
-    also have "Poly_Mapping.single h (rat (deg_pm (tp f2)) - rat (deg_pm (lp f2))) + vect f2 =
-                Poly_Mapping.single h (rat (poly_deg f2 - deg_pm (lp f2)) -
-                rat (poly_deg f2 - deg_pm (tp f2))) + vect f2"
+    also have "Poly_Mapping.single h (rat (deg_pm (tpp f2)) - rat (deg_pm (lpp f2))) + vect f2 =
+                Poly_Mapping.single h (rat (poly_deg f2 - deg_pm (lpp f2)) -
+                rat (poly_deg f2 - deg_pm (tpp f2))) + vect f2"
       by (simp add: eq3 eq4)
-    also have "\<dots> = of_nat_pm (?f f2 (lp f2)) - of_nat_pm (?f f2 (tp f2))"
+    also have "\<dots> = of_nat_pm (?f f2 (lpp f2)) - of_nat_pm (?f f2 (tpp f2))"
       by (simp add: of_nat_pm_plus vect_alt of_nat_pm_single flip: single_diff)
-    finally show "of_nat_pm (?f f1 (lp f1)) - of_nat_pm (?f f1 (tp f1)) =
-                    m \<cdot> (of_nat_pm (?f f2 (lp f2)) - of_nat_pm (?f f2 (tp f2)))" .
+    finally show "of_nat_pm (?f f1 (lpp f1)) - of_nat_pm (?f f1 (tpp f1)) =
+                    m \<cdot> (of_nat_pm (?f f2 (lpp f2)) - of_nat_pm (?f f2 (tpp f2)))" .
   qed fact+
 qed
 
@@ -1421,15 +1421,15 @@ text \<open>If VPCs were defined w.r.t. arbitrary sets of polynomials, the follo
   probably be proved for arbitrary sets of proper binomials.\<close>
 
 lemma idealE_vpc:
-  assumes "f \<in> ideal {f1, f2}" and "is_proper_binomial f" and "monomial 1 (lp f) \<notin> ideal {f1, f2}"
-  obtains zs where "is_vpc zs" and "fst (hd zs) = of_nat_pm (lp f)" and "snd (last zs) = of_nat_pm (tp f)"
+  assumes "f \<in> ideal {f1, f2}" and "is_proper_binomial f" and "monomial 1 (lpp f) \<notin> ideal {f1, f2}"
+  obtains zs where "is_vpc zs" and "fst (hd zs) = of_nat_pm (lpp f)" and "snd (last zs) = of_nat_pm (tpp f)"
 proof -
-  let ?l = "of_nat_pm (lp f)"
+  let ?l = "of_nat_pm (lpp f)"
   define F where "F = {f1, f2}"
   have "finite F" by (simp add: F_def)
   moreover from assms(1) have "f \<in> ideal F" by (simp only: F_def)
   ultimately obtain q where f: "f = (\<Sum>f0\<in>F. q f0 * f0)" by (rule ideal.span_finiteE)
-  from assms(2) have keys_f: "keys f = {lp f, tp f}" by (rule punit.keys_proper_binomial)
+  from assms(2) have keys_f: "keys f = {lpp f, tpp f}" by (rule punit.keys_proper_binomial)
   define Y where "Y = (\<lambda>f0. {t \<in> keys (q f0). \<exists>zs. is_vpc zs \<and> fst (hd zs) = ?l \<and>
                             (t +\<^sub>N poly_point f0 \<in> set zs \<or> t +\<^sub>N prod.swap (poly_point f0) \<in> set zs)})"
   define q' where "q' = (\<lambda>f0. except (q f0) (- Y f0))"
@@ -1449,11 +1449,11 @@ proof -
       assume "f0 \<in> F"
       hence "f0 = f1 \<or> f0 = f2" by (simp add: F_def)
       with f1_pbinomial f2_pbinomial have "is_proper_binomial f0" by blast
-      hence keys_f0: "keys f0 = {lp f0, tp f0}" by (rule punit.keys_proper_binomial)
+      hence keys_f0: "keys f0 = {lpp f0, tpp f0}" by (rule punit.keys_proper_binomial)
       assume "t \<in> keys (q' f0 * f0)"
       then obtain s u where "s \<in> keys (q' f0)" and "u \<in> keys f0" and t: "t = s + u"
         by (rule in_keys_timesE)
-      from this(2) have u_cases: "u = lp f0 \<or> u = tp f0" by (simp add: keys_f0)
+      from this(2) have u_cases: "u = lpp f0 \<or> u = tpp f0" by (simp add: keys_f0)
       from \<open>s \<in> keys (q' f0)\<close> obtain zs where "is_vpc zs" and eq1: "fst (hd zs) = ?l"
         and "s +\<^sub>N poly_point f0 \<in> set zs \<or> s +\<^sub>N prod.swap (poly_point f0) \<in> set zs"
         unfolding keys_q' Y_def by blast
@@ -1469,7 +1469,7 @@ proof -
           by (auto simp: last_take_conv_nth eq2)
         from u_cases show ?thesis
         proof
-          assume u: "u = lp f0"
+          assume u: "u = lpp f0"
           let ?ys = "?zs @ [s +\<^sub>N prod.swap (poly_point f0)]"
           from \<open>is_vpc ?zs\<close> have "is_vpc ?ys"
           proof (rule is_vpc_appendI)
@@ -1481,7 +1481,7 @@ proof -
             by (simp add: nat_plus_point_pair_def t u fst_poly_point of_nat_pm_plus)
           ultimately show ?thesis by (rule that(2))
         next
-          assume "u = tp f0"
+          assume "u = tpp f0"
           hence "snd (last ?zs) = of_nat_pm t"
             by (simp add: eq4 nat_plus_point_pair_def snd_poly_point t of_nat_pm_plus)
           with \<open>is_vpc ?zs\<close> eq3 show ?thesis by (rule that(2))
@@ -1497,7 +1497,7 @@ proof -
           by (auto simp: last_take_conv_nth eq2)
         from u_cases show ?thesis
         proof
-          assume u: "u = tp f0"
+          assume u: "u = tpp f0"
           let ?ys = "?zs @ [s +\<^sub>N poly_point f0]"
           from \<open>is_vpc ?zs\<close> have "is_vpc ?ys"
           proof (rule is_vpc_appendI)
@@ -1508,7 +1508,7 @@ proof -
             by (simp add: nat_plus_point_pair_def t u snd_poly_point of_nat_pm_plus)
           ultimately show ?thesis by (rule that(2))
         next
-          assume "u = lp f0"
+          assume "u = lpp f0"
           hence "snd (last ?zs) = of_nat_pm t"
             by (simp add: eq4 nat_plus_point_pair_def fst_poly_point t of_nat_pm_plus)
           with \<open>is_vpc ?zs\<close> eq3 show ?thesis by (rule that(2))
@@ -1531,16 +1531,16 @@ proof -
       assume "f0 \<in> F"
       hence "f0 = f1 \<or> f0 = f2" by (simp add: F_def)
       with f1_pbinomial f2_pbinomial have "is_proper_binomial f0" by blast
-      hence keys_f0: "keys f0 = {lp f0, tp f0}" by (rule punit.keys_proper_binomial)
+      hence keys_f0: "keys f0 = {lpp f0, tpp f0}" by (rule punit.keys_proper_binomial)
       assume "t \<in> keys (q'' f0 * f0)"
       then obtain s u where "s \<in> keys (q'' f0)" and "u \<in> keys f0" and t: "t = s + u"
         by (rule in_keys_timesE)
       have "keys (q'' f0) \<subseteq> keys (q f0)" by (simp add: q''_def keys_except)
       with \<open>s \<in> keys (q'' f0)\<close> have "s \<in> keys (q f0)" ..
-      from \<open>u \<in> keys f0\<close> have u_cases: "u = lp f0 \<or> u = tp f0" by (simp add: keys_f0)
+      from \<open>u \<in> keys f0\<close> have u_cases: "u = lpp f0 \<or> u = tpp f0" by (simp add: keys_f0)
       thus ?thesis
       proof
-        assume u: "u = lp f0"
+        assume u: "u = lpp f0"
         let ?zs = "zs @ [s +\<^sub>N poly_point f0]"
         from \<open>is_vpc zs\<close> have "is_vpc ?zs"
         proof (rule is_vpc_appendI)
@@ -1551,7 +1551,7 @@ proof -
         hence "s \<notin> keys (q'' f0)" by (simp add: q''_def keys_except)
         thus ?thesis using \<open>s \<in> keys (q'' f0)\<close> ..
       next
-        assume u: "u = tp f0"
+        assume u: "u = tpp f0"
         let ?zs = "zs @ [s +\<^sub>N prod.swap (poly_point f0)]"
         from \<open>is_vpc zs\<close> have "is_vpc ?zs"
         proof (rule is_vpc_appendI)
@@ -1576,22 +1576,22 @@ proof -
     thus "t \<in> {}" using \<open>t \<in> keys ?g\<close> ..
   qed simp
   hence "keys ?g \<union> keys ?f = keys (?g + ?f)" by (rule keys_add)
-  also have "\<dots> = {lp f, tp f}" by (simp only: keys_f flip: f')
-  finally have *: "keys ?g \<union> keys ?f = {lp f, tp f}" .
-  moreover have "lp f \<notin> keys ?g"
+  also have "\<dots> = {lpp f, tpp f}" by (simp only: keys_f flip: f')
+  finally have *: "keys ?g \<union> keys ?f = {lpp f, tpp f}" .
+  moreover have "lpp f \<notin> keys ?g"
   proof -
-    have "lp f \<in> keys f" by (simp add: keys_f)
+    have "lpp f \<in> keys f" by (simp add: keys_f)
     also have "\<dots> \<subseteq> (\<Union>f0\<in>F. keys (q f0 * f0))" unfolding f by (rule keys_sum_subset)
-    finally obtain f0 where "f0 \<in> F" and "lp f \<in> keys (q f0 * f0)" ..
-    from this(2) obtain s u where "s \<in> keys (q f0)" and "u \<in> keys f0" and lp: "lp f = s + u"
+    finally obtain f0 where "f0 \<in> F" and "lpp f \<in> keys (q f0 * f0)" ..
+    from this(2) obtain s u where "s \<in> keys (q f0)" and "u \<in> keys f0" and lpp: "lpp f = s + u"
       by (rule in_keys_timesE)
     from \<open>f0 \<in> F\<close> have f0_cases: "f0 = f1 \<or> f0 = f2" by (simp add: F_def)
     with f1_pbinomial f2_pbinomial have "is_proper_binomial f0" by blast
-    hence "keys f0 = {lp f0, tp f0}" by (rule punit.keys_proper_binomial)
-    with \<open>u \<in> keys f0\<close> have "u = lp f0 \<or> u = tp f0" by simp
+    hence "keys f0 = {lpp f0, tpp f0}" by (rule punit.keys_proper_binomial)
+    with \<open>u \<in> keys f0\<close> have "u = lpp f0 \<or> u = tpp f0" by simp
     thus ?thesis
     proof
-      assume u: "u = lp f0"
+      assume u: "u = lpp f0"
       let ?zs = "[s +\<^sub>N poly_point f0, s +\<^sub>N prod.swap (poly_point f0)]"
       have "is_vpc ?zs"
       proof (rule is_vpc_ConsI)
@@ -1600,11 +1600,11 @@ proof -
       next
         from \<open>f0 \<in> F\<close> show "s +\<^sub>N poly_point f0 \<in> Nshifts {f1, f2}" unfolding F_def by (intro NshiftsI2)
       qed (simp add: nat_plus_point_pair_def)
-      moreover have "fst (hd ?zs) = of_nat_pm (lp f)" and "snd (last ?zs) = of_nat_pm (lp f)"
-        by (simp_all add: nat_plus_point_pair_def poly_point_def lp u of_nat_pm_plus)
+      moreover have "fst (hd ?zs) = of_nat_pm (lpp f)" and "snd (last ?zs) = of_nat_pm (lpp f)"
+        by (simp_all add: nat_plus_point_pair_def poly_point_def lpp u of_nat_pm_plus)
       ultimately show ?thesis by (rule 1)
     next
-      assume u: "u = tp f0"
+      assume u: "u = tpp f0"
       let ?zs = "[s +\<^sub>N prod.swap (poly_point f0), s +\<^sub>N poly_point f0]"
       have "is_vpc ?zs"
       proof (rule is_vpc_ConsI)
@@ -1613,26 +1613,26 @@ proof -
         from \<open>f0 \<in> F\<close> show "s +\<^sub>N prod.swap (poly_point f0) \<in> Nshifts {f1, f2}"
           unfolding F_def by (intro NshiftsI2)
       qed (simp add: nat_plus_point_pair_def)
-      moreover have "fst (hd ?zs) = of_nat_pm (lp f)" and "snd (last ?zs) = of_nat_pm (lp f)"
-        by (simp_all add: nat_plus_point_pair_def poly_point_def lp u of_nat_pm_plus)
+      moreover have "fst (hd ?zs) = of_nat_pm (lpp f)" and "snd (last ?zs) = of_nat_pm (lpp f)"
+        by (simp_all add: nat_plus_point_pair_def poly_point_def lpp u of_nat_pm_plus)
       ultimately show ?thesis by (rule 1)
     qed
   qed
-  ultimately have "lp f \<in> keys ?f" by blast
-  have "tp f \<in> keys ?f"
+  ultimately have "lpp f \<in> keys ?f" by blast
+  have "tpp f \<in> keys ?f"
   proof (rule ccontr)
-    assume "tp f \<notin> keys ?f"
-    with \<open>lp f \<in> keys ?f\<close> * have keys_f': "keys ?f = {lp f}" by blast
-    moreover define c where "c = lookup ?f (lp f)"
-    ultimately have "monomial c (lp f) = ?f"
+    assume "tpp f \<notin> keys ?f"
+    with \<open>lpp f \<in> keys ?f\<close> * have keys_f': "keys ?f = {lpp f}" by blast
+    moreover define c where "c = lookup ?f (lpp f)"
+    ultimately have "monomial c (lpp f) = ?f"
       by (auto intro!: poly_mapping_eqI simp: lookup_single when_def)
     also have "\<dots> \<in> ideal F" by (rule ideal.sum_in_spanI)
-    finally have "monomial (1 / c) 0 * monomial c (lp f) \<in> ideal F" by (rule ideal.span_scale)
+    finally have "monomial (1 / c) 0 * monomial c (lpp f) \<in> ideal F" by (rule ideal.span_scale)
     moreover have "c \<noteq> 0" by (simp add: c_def keys_f')
-    ultimately have "monomial 1 (lp f) \<in> ideal {f1, f2}" by (simp add: times_monomial_monomial F_def)
+    ultimately have "monomial 1 (lpp f) \<in> ideal {f1, f2}" by (simp add: times_monomial_monomial F_def)
     with assms(3) show False ..
   qed
-  then obtain zs where "is_vpc zs" and "fst (hd zs) = ?l" and "snd (last zs) = of_nat_pm (tp f)"
+  then obtain zs where "is_vpc zs" and "fst (hd zs) = ?l" and "snd (last zs) = of_nat_pm (tpp f)"
     by (rule vpcE)
   thus ?thesis ..
 qed
@@ -1706,17 +1706,17 @@ lemma vpcE_ideal_singleton:
     and "rat (poly_deg (q1 * f1)) \<le> deg_vpc [z]" and "rat (poly_deg (q2 * f2)) \<le> deg_vpc [z]"
     and "\<not> parallel_binomials f1 f2 \<Longrightarrow>
           lookup (q1 * f1 + q2 * f2) (to_nat_pm (snd z)) = lookup (q1 * f1 + q2 * f2) (to_nat_pm (fst z)) *
-            (lc f1 / tc f1) ^ num_shifts True [z] f1 * (tc f1 / lc f1) ^ num_shifts False [z] f1 *
-            (lc f2 / tc f2) ^ num_shifts True [z] f2 * (tc f2 / lc f2) ^ num_shifts False [z] f2"
+            (lcf f1 / tcf f1) ^ num_shifts True [z] f1 * (tcf f1 / lcf f1) ^ num_shifts False [z] f1 *
+            (lcf f2 / tcf f2) ^ num_shifts True [z] f2 * (tcf f2 / lcf f2) ^ num_shifts False [z] f2"
   using assms
 proof (rule NshiftsE_poly)
   fix f
   assume "f \<in> {f1, f2}" and "z \<in> Nshifts {f}"
   from this(2) obtain t where cases: "z = t +\<^sub>N poly_point f \<or> z = t +\<^sub>N prod.swap (poly_point f)"
     by (rule NshiftsE_singleton)
-  hence eq1: "{fst z, snd z} = of_nat_pm ` {t + lp f, t + tp f}"
+  hence eq1: "{fst z, snd z} = of_nat_pm ` {t + lpp f, t + tpp f}"
     by (auto simp: poly_point_def nat_plus_point_pair_def of_nat_pm_plus)
-  hence eq1': "set_of_vpc [z] = of_nat_pm ` {t + lp f, t + tp f}" by (simp add: set_of_vpc_Cons)
+  hence eq1': "set_of_vpc [z] = of_nat_pm ` {t + lpp f, t + tpp f}" by (simp add: set_of_vpc_Cons)
 
   let ?p1 = "num_shifts True [z] f1"
   let ?n1 = "num_shifts False [z] f1"
@@ -1737,14 +1737,14 @@ proof (rule NshiftsE_poly)
     show ?thesis
     proof
       have "keys (monomial 1 t * f1 + 0 * f2) = keys (monomial 1 t * f1)" by simp
-      also from f1_pbinomial have eq2: "keys (monomial 1 t * f1) = {t + lp f1, t + tp f1}"
+      also from f1_pbinomial have eq2: "keys (monomial 1 t * f1) = {t + lpp f1, t + tpp f1}"
         by (simp add: times_monomial_left punit.keys_monom_mult punit.keys_proper_binomial)
       finally show "of_nat_pm ` keys (monomial 1 t * f1 + 0 * f2) = {fst z, snd z}"
         by (simp only: f eq1)
 
-      have "poly_deg (monomial 1 t * f1) \<le> max (deg_pm (t + lp f1)) (deg_pm (t + tp f1))"
+      have "poly_deg (monomial 1 t * f1) \<le> max (deg_pm (t + lpp f1)) (deg_pm (t + tpp f1))"
         by (rule poly_deg_leI) (auto simp: eq2)
-      also have "rat \<dots> = max (deg_pm (of_nat_pm (t + lp f1))) (deg_pm (of_nat_pm (t + tp f1)))"
+      also have "rat \<dots> = max (deg_pm (of_nat_pm (t + lpp f1))) (deg_pm (of_nat_pm (t + tpp f1)))"
         by (simp add: deg_of_nat_pm)
       also have "\<dots> \<le> deg_vpc [z]" by (intro max.boundedI deg_vpc_max) (simp_all add: f eq1')
       finally show "rat (poly_deg (monomial 1 t * f1)) \<le> deg_vpc [z]" by simp
@@ -1757,27 +1757,27 @@ proof (rule NshiftsE_poly)
       hence *: "?p1 + ?n1 + ?p2 + ?n2 = 1" by (rule 1)
       from cases show "lookup (monomial 1 t * f1 + 0 * f2) (to_nat_pm (snd z)) =
                         lookup (monomial 1 t * f1 + 0 * f2) (to_nat_pm (fst z)) *
-                            (lc f1 / tc f1) ^ ?p1 * (tc f1 / lc f1) ^ ?n1 *
-                            (lc f2 / tc f2) ^ ?p2 * (tc f2 / lc f2) ^ ?n2"
+                            (lcf f1 / tcf f1) ^ ?p1 * (tcf f1 / lcf f1) ^ ?n1 *
+                            (lcf f2 / tcf f2) ^ ?p2 * (tcf f2 / lcf f2) ^ ?n2"
       proof
         assume z: "z = t +\<^sub>N poly_point f"
-        hence fst_z: "to_nat_pm (fst z) = t + lp f" and snd_z: "to_nat_pm (snd z) = t + tp f"
+        hence fst_z: "to_nat_pm (fst z) = t + lpp f" and snd_z: "to_nat_pm (snd z) = t + tpp f"
           by (simp_all add: nat_plus_point_pair_def poly_point_def flip: of_nat_pm_plus)
         have z_in: "z \<in> pn_Nshifts False {f}" by (simp add: pn_Nshifts_singleton z)
         hence "?n1 = 1" by (simp add: f num_shifts_singleton)
         moreover from * this have "?p1 = 0" and "?p2 = 0" and "?n2 = 0" by simp_all
-        moreover from f1_pbinomial have "lc f1 \<noteq> 0" by (intro punit.lc_not_0 proper_binomial_not_0)
+        moreover from f1_pbinomial have "lcf f1 \<noteq> 0" by (intro punit.lc_not_0 proper_binomial_not_0)
         ultimately show ?thesis
           by (simp add: f \<open>?p2 = 0\<close> \<open>?n2 = 0\<close> fst_z snd_z times_monomial_left
                   punit.lookup_monom_mult_plus[simplified] flip: punit.lc_def punit.tc_def)
       next
         assume z: "z = t +\<^sub>N prod.swap (poly_point f)"
-        hence fst_z: "to_nat_pm (fst z) = t + tp f" and snd_z: "to_nat_pm (snd z) = t + lp f"
+        hence fst_z: "to_nat_pm (fst z) = t + tpp f" and snd_z: "to_nat_pm (snd z) = t + lpp f"
           by (simp_all add: nat_plus_point_pair_def poly_point_def flip: of_nat_pm_plus)
         have z_in: "z \<in> pn_Nshifts True {f}" by (simp add: pn_Nshifts_singleton z)
         hence "?p1 = 1" by (simp add: f num_shifts_singleton)
         moreover from * this have "?n1 = 0" and "?p2 = 0" and "?n2 = 0" by simp_all
-        moreover from f1_pbinomial have "tc f1 \<noteq> 0" by (intro punit.tc_not_0 proper_binomial_not_0)
+        moreover from f1_pbinomial have "tcf f1 \<noteq> 0" by (intro punit.tc_not_0 proper_binomial_not_0)
         ultimately show ?thesis
           by (simp add: f \<open>?p2 = 0\<close> \<open>?n2 = 0\<close> fst_z snd_z times_monomial_left
                   punit.lookup_monom_mult_plus[simplified] flip: punit.lc_def punit.tc_def)
@@ -1788,14 +1788,14 @@ proof (rule NshiftsE_poly)
     show ?thesis
     proof
       have "keys (0 * f1 + monomial 1 t * f2) = keys (monomial 1 t * f2)" by simp
-      also from f2_pbinomial have eq2: "keys (monomial 1 t * f2) = {t + lp f2, t + tp f2}"
+      also from f2_pbinomial have eq2: "keys (monomial 1 t * f2) = {t + lpp f2, t + tpp f2}"
         by (simp add: times_monomial_left punit.keys_monom_mult punit.keys_proper_binomial)
       finally show "of_nat_pm ` keys (0 * f1 + monomial 1 t * f2) = {fst z, snd z}"
         by (simp only: f eq1)
 
-      have "poly_deg (monomial 1 t * f2) \<le> max (deg_pm (t + lp f2)) (deg_pm (t + tp f2))"
+      have "poly_deg (monomial 1 t * f2) \<le> max (deg_pm (t + lpp f2)) (deg_pm (t + tpp f2))"
         by (rule poly_deg_leI) (auto simp: eq2)
-      also have "rat \<dots> = max (deg_pm (of_nat_pm (t + lp f2))) (deg_pm (of_nat_pm (t + tp f2)))"
+      also have "rat \<dots> = max (deg_pm (of_nat_pm (t + lpp f2))) (deg_pm (of_nat_pm (t + tpp f2)))"
         by (simp add: deg_of_nat_pm)
       also have "\<dots> \<le> deg_vpc [z]" by (intro max.boundedI deg_vpc_max) (simp_all add: f eq1')
       finally show "rat (poly_deg (monomial 1 t * f2)) \<le> deg_vpc [z]" by simp
@@ -1808,27 +1808,27 @@ proof (rule NshiftsE_poly)
       hence *: "?p1 + ?n1 + ?p2 + ?n2 = 1" by (rule 1)
       from cases show "lookup (0 * f1 + monomial 1 t * f2) (to_nat_pm (snd z)) =
                         lookup (0 * f1 + monomial 1 t * f2) (to_nat_pm (fst z)) *
-                            (lc f1 / tc f1) ^ ?p1 * (tc f1 / lc f1) ^ ?n1 *
-                            (lc f2 / tc f2) ^ ?p2 * (tc f2 / lc f2) ^ ?n2"
+                            (lcf f1 / tcf f1) ^ ?p1 * (tcf f1 / lcf f1) ^ ?n1 *
+                            (lcf f2 / tcf f2) ^ ?p2 * (tcf f2 / lcf f2) ^ ?n2"
       proof
         assume z: "z = t +\<^sub>N poly_point f"
-        hence fst_z: "to_nat_pm (fst z) = t + lp f" and snd_z: "to_nat_pm (snd z) = t + tp f"
+        hence fst_z: "to_nat_pm (fst z) = t + lpp f" and snd_z: "to_nat_pm (snd z) = t + tpp f"
           by (simp_all add: nat_plus_point_pair_def poly_point_def flip: of_nat_pm_plus)
         have z_in: "z \<in> pn_Nshifts False {f}" by (simp add: pn_Nshifts_singleton z)
         hence "?n2 = 1" by (simp add: f num_shifts_singleton)
         moreover from * this have "?p1 = 0" and "?n1 = 0" and "?p2 = 0" by simp_all
-        moreover from f2_pbinomial have "lc f2 \<noteq> 0" by (intro punit.lc_not_0 proper_binomial_not_0)
+        moreover from f2_pbinomial have "lcf f2 \<noteq> 0" by (intro punit.lc_not_0 proper_binomial_not_0)
         ultimately show ?thesis
           by (simp add: f \<open>?p1 = 0\<close> \<open>?n1 = 0\<close> fst_z snd_z times_monomial_left
                   punit.lookup_monom_mult_plus[simplified] flip: punit.lc_def punit.tc_def)
       next
         assume z: "z = t +\<^sub>N prod.swap (poly_point f)"
-        hence fst_z: "to_nat_pm (fst z) = t + tp f" and snd_z: "to_nat_pm (snd z) = t + lp f"
+        hence fst_z: "to_nat_pm (fst z) = t + tpp f" and snd_z: "to_nat_pm (snd z) = t + lpp f"
           by (simp_all add: nat_plus_point_pair_def poly_point_def flip: of_nat_pm_plus)
         have z_in: "z \<in> pn_Nshifts True {f}" by (simp add: pn_Nshifts_singleton z)
         hence "?p2 = 1" by (simp add: f num_shifts_singleton)
         moreover from * this have "?p1 = 0" and "?n1 = 0" and "?n2 = 0" by simp_all
-        moreover from f2_pbinomial have "tc f2 \<noteq> 0" by (intro punit.tc_not_0 proper_binomial_not_0)
+        moreover from f2_pbinomial have "tcf f2 \<noteq> 0" by (intro punit.tc_not_0 proper_binomial_not_0)
         ultimately show ?thesis
           by (simp add: f \<open>?p1 = 0\<close> \<open>?n1 = 0\<close> fst_z snd_z times_monomial_left
                   punit.lookup_monom_mult_plus[simplified] flip: punit.lc_def punit.tc_def)
@@ -1844,8 +1844,8 @@ lemma vpcE_ideal:
     and "\<not> parallel_binomials f1 f2 \<Longrightarrow> distinct (map snd zs) \<Longrightarrow>
           lookup (q1 * f1 + q2 * f2) (to_nat_pm (snd (last zs))) =
             - ((- 1) ^ length zs * lookup (q1 * f1 + q2 * f2) (to_nat_pm (fst (hd zs))) *
-                (lc f1 / tc f1) ^ num_shifts True zs f1 * (tc f1 / lc f1) ^ num_shifts False zs f1 *
-                (lc f2 / tc f2) ^ num_shifts True zs f2 * (tc f2 / lc f2) ^ num_shifts False zs f2)"
+                (lcf f1 / tcf f1) ^ num_shifts True zs f1 * (tcf f1 / lcf f1) ^ num_shifts False zs f1 *
+                (lcf f2 / tcf f2) ^ num_shifts True zs f2 * (tcf f2 / lcf f2) ^ num_shifts False zs f2)"
   using assms
 proof (induct zs arbitrary: thesis rule: vpc_induct)
   case (single z)
@@ -1854,8 +1854,8 @@ proof (induct zs arbitrary: thesis rule: vpc_induct)
     and 3: "\<not> parallel_binomials f1 f2 \<Longrightarrow>
             lookup (q1 * f1 + q2 * f2) (to_nat_pm (snd z)) =
               lookup (q1 * f1 + q2 * f2) (to_nat_pm (fst z)) *
-              (lc f1 / tc f1) ^ num_shifts True [z] f1 * (tc f1 / lc f1) ^ num_shifts False [z] f1 *
-              (lc f2 / tc f2) ^ num_shifts True [z] f2 * (tc f2 / lc f2) ^ num_shifts False [z] f2"
+              (lcf f1 / tcf f1) ^ num_shifts True [z] f1 * (tcf f1 / lcf f1) ^ num_shifts False [z] f1 *
+              (lcf f2 / tcf f2) ^ num_shifts True [z] f2 * (tcf f2 / lcf f2) ^ num_shifts False [z] f2"
     by (rule vpcE_ideal_singleton) blast
   from this(1) have "of_nat_pm ` keys (q1 * f1 + q2 * f2) = {fst (hd [z]), snd (last [z])}"
     by simp
@@ -1898,8 +1898,8 @@ next
     and 30: "\<not> parallel_binomials f1 f2 \<Longrightarrow>
             lookup (q1 * f1 + q2 * f2) (to_nat_pm (snd z)) =
               lookup (q1 * f1 + q2 * f2) (to_nat_pm (fst z)) *
-              (lc f1 / tc f1) ^ ?p11 * (tc f1 / lc f1) ^ ?n11 *
-              (lc f2 / tc f2) ^ ?p21 * (tc f2 / lc f2) ^ ?n21"
+              (lcf f1 / tcf f1) ^ ?p11 * (tcf f1 / lcf f1) ^ ?n11 *
+              (lcf f2 / tcf f2) ^ ?p21 * (tcf f2 / lcf f2) ^ ?n21"
     by (rule vpcE_ideal_singleton) blast
   let ?f = "q1 * f1 + q2 * f2"
   from 10 deg_vpc_Cons_ge have 1: "rat (poly_deg (q1 * f1)) \<le> deg_vpc (z # zs)" by (rule order.trans)
@@ -1919,8 +1919,8 @@ next
       finally have False using \<open>zs \<noteq> []\<close> by auto
       thus "lookup (q1 * f1 + q2 * f2) (to_nat_pm (snd (last (z # zs)))) =
             - ((- 1) ^ length (z # zs) * lookup (q1 * f1 + q2 * f2) (to_nat_pm (fst (hd (z # zs)))) *
-               (lc f1 / tc f1) ^ ?p1 * (tc f1 / lc f1) ^ ?n1 *
-               (lc f2 / tc f2) ^ ?p2 * (tc f2 / lc f2) ^ ?n2)" ..
+               (lcf f1 / tcf f1) ^ ?p1 * (tcf f1 / lcf f1) ^ ?n1 *
+               (lcf f2 / tcf f2) ^ ?p2 * (tcf f2 / lcf f2) ^ ?n2)" ..
     qed
   next
     case False
@@ -1929,8 +1929,8 @@ next
       and 60: "\<not> parallel_binomials f1 f2 \<Longrightarrow> distinct (map snd zs) \<Longrightarrow>
                 lookup (q1' * f1 + q2' * f2) (to_nat_pm (snd (last zs))) =
                  - ((- 1) ^ length zs * lookup (q1' * f1 + q2' * f2) (to_nat_pm (fst (hd zs))) *
-                    (lc f1 / tc f1) ^ ?p10 * (tc f1 / lc f1) ^ ?n10 *
-                    (lc f2 / tc f2) ^ ?p20 * (tc f2 / lc f2) ^ ?n20)"
+                    (lcf f1 / tcf f1) ^ ?p10 * (tcf f1 / lcf f1) ^ ?n10 *
+                    (lcf f2 / tcf f2) ^ ?p20 * (tcf f2 / lcf f2) ^ ?n20)"
       using Cons.hyps(4) by blast
     from \<open>zs \<noteq> []\<close> 40 have 3: "rat (poly_deg (q1' * f1)) \<le> deg_vpc (z # zs)" by (simp add: deg_vpc_Cons)
     from \<open>zs \<noteq> []\<close> 50 have 4: "rat (poly_deg (q2' * f2)) \<le> deg_vpc (z # zs)" by (simp add: deg_vpc_Cons)
@@ -2024,37 +2024,37 @@ next
     next
       assume "\<not> parallel_binomials f1 f2"
       hence c: "c = lookup ?f (to_nat_pm (fst z)) *
-                    (lc f1 / tc f1) ^ ?p11 * (tc f1 / lc f1) ^ ?n11 *
-                    (lc f2 / tc f2) ^ ?p21 * (tc f2 / lc f2) ^ ?n21"
+                    (lcf f1 / tcf f1) ^ ?p11 * (tcf f1 / lcf f1) ^ ?n11 *
+                    (lcf f2 / tcf f2) ^ ?p21 * (tcf f2 / lcf f2) ^ ?n21"
         unfolding c_def by (rule 30)
       assume "distinct (map snd (z # zs))"
       hence "snd z \<notin> snd ` set zs" and "distinct (map snd zs)" by simp_all
       from this(1) have "z \<notin> set zs" by blast
       have eq5: "lookup ?g (to_nat_pm (snd (last zs))) =
-                    - ((- 1) ^ length zs * d * (lc f1 / tc f1) ^ ?p10 * (tc f1 / lc f1) ^ ?n10 *
-                       (lc f2 / tc f2) ^ ?p20 * (tc f2 / lc f2) ^ ?n20)"
+                    - ((- 1) ^ length zs * d * (lcf f1 / tcf f1) ^ ?p10 * (tcf f1 / lcf f1) ^ ?n10 *
+                       (lcf f2 / tcf f2) ^ ?p20 * (tcf f2 / lcf f2) ^ ?n20)"
         using \<open>\<not> parallel_binomials f1 f2\<close> \<open>distinct (map snd zs)\<close> unfolding Cons.hyps(3) d_def
         by (rule 60)
       have "lookup ((q1 + q1'') * f1 + (q2 + q2'') * f2) (to_nat_pm (snd (last (z # zs)))) =
               - (c / d) * lookup ?g (to_nat_pm (snd (last zs)))"
         using \<open>zs \<noteq> []\<close> \<open>to_nat_pm (snd (last zs)) \<notin> keys ?f\<close> by (simp add: eq4 lookup_add)
       also from \<open>d \<noteq> 0\<close> have "\<dots> = (- 1) ^ length zs * c *
-                                    (lc f1 / tc f1) ^ ?p10 * (tc f1 / lc f1) ^ ?n10 *
-                                    (lc f2 / tc f2) ^ ?p20 * (tc f2 / lc f2) ^ ?n20"
+                                    (lcf f1 / tcf f1) ^ ?p10 * (tcf f1 / lcf f1) ^ ?n10 *
+                                    (lcf f2 / tcf f2) ^ ?p20 * (tcf f2 / lcf f2) ^ ?n20"
         by (simp add: eq5)
       also have "\<dots> = (- 1) ^ length zs * lookup ?f (to_nat_pm (fst z)) *
-                          (lc f1 / tc f1) ^ (?p10 + ?p11) * (tc f1 / lc f1) ^ (?n10 + ?n11) *
-                          (lc f2 / tc f2) ^ (?p20 + ?p21) * (tc f2 / lc f2) ^ (?n20 + ?n21)"
+                          (lcf f1 / tcf f1) ^ (?p10 + ?p11) * (tcf f1 / lcf f1) ^ (?n10 + ?n11) *
+                          (lcf f2 / tcf f2) ^ (?p20 + ?p21) * (tcf f2 / lcf f2) ^ (?n20 + ?n21)"
         by (simp add: c power_add)
       term "()"
       also have "\<dots> = (- 1) ^ length zs * lookup ?f (to_nat_pm (fst z)) *
-                        (lc f1 / tc f1) ^ ?p1 * (tc f1 / lc f1) ^ ?n1 *
-                        (lc f2 / tc f2) ^ ?p2 * (tc f2 / lc f2) ^ ?n2"
+                        (lcf f1 / tcf f1) ^ ?p1 * (tcf f1 / lcf f1) ^ ?n1 *
+                        (lcf f2 / tcf f2) ^ ?p2 * (tcf f2 / lcf f2) ^ ?n2"
         using \<open>z \<notin> set zs\<close>
         by (simp add: num_shifts_Cons[where zs=zs] add.commute)
       also have "\<dots> = - ((- 1) ^ length (z # zs) * lookup ?f (to_nat_pm (fst z)) *
-                        (lc f1 / tc f1) ^ ?p1 * (tc f1 / lc f1) ^ ?n1 *
-                        (lc f2 / tc f2) ^ ?p2 * (tc f2 / lc f2) ^ ?n2)" by simp
+                        (lcf f1 / tcf f1) ^ ?p1 * (tcf f1 / lcf f1) ^ ?n1 *
+                        (lcf f2 / tcf f2) ^ ?p2 * (tcf f2 / lcf f2) ^ ?n2)" by simp
       also have "lookup ?f (to_nat_pm (fst z)) =
                   lookup ((q1 + q1'') * f1 + (q2 + q2'') * f2) (to_nat_pm (fst (hd (z # zs))))"
         using \<open>to_nat_pm (fst z) \<notin> keys ((- (c / d)) \<cdot> ?g)\<close>
@@ -2062,8 +2062,8 @@ next
       finally show "lookup ((q1 + q1'') * f1 + (q2 + q2'') * f2) (to_nat_pm (snd (last (z # zs)))) =
                     - ((- 1) ^ length (z # zs) *
                        lookup ((q1 + q1'') * f1 + (q2 + q2'') * f2) (to_nat_pm (fst (hd (z # zs)))) *
-                       (lc f1 / tc f1) ^ ?p1 * (tc f1 / lc f1) ^ ?n1 *
-                       (lc f2 / tc f2) ^ ?p2 * (tc f2 / lc f2) ^ ?n2)" .
+                       (lcf f1 / tcf f1) ^ ?p1 * (tcf f1 / lcf f1) ^ ?n1 *
+                       (lcf f2 / tcf f2) ^ ?p2 * (tcf f2 / lcf f2) ^ ?n2)" .
     qed
   qed
 qed
@@ -2077,16 +2077,16 @@ lemma thm_3_3_18:
 proof -
   from assms(3) obtain s where "zs ! i = s +\<^sub>N poly_point f \<or> zs ! i = s +\<^sub>N prod.swap (poly_point f)"
     by (rule NshiftsE_singleton)
-  hence *: "gcs (of_nat_pm (lp f)) (of_nat_pm (tp f)) \<unlhd> snd (zs ! i)"
+  hence *: "gcs (of_nat_pm (lpp f)) (of_nat_pm (tpp f)) \<unlhd> snd (zs ! i)"
     by (auto simp: poly_point_def nat_plus_point_pair_def of_nat_pm_plus
             intro!: le_pm_increasing gcs_le_pm zero_le_of_nat_pm)
   from assms(4) obtain t where "zs ! Suc i = t +\<^sub>N poly_point f' \<or> zs ! Suc i = t +\<^sub>N prod.swap (poly_point f')"
     by (rule NshiftsE_singleton)
-  hence "gcs (of_nat_pm (lp f')) (of_nat_pm (tp f')) \<unlhd> fst (zs ! Suc i)"
+  hence "gcs (of_nat_pm (lpp f')) (of_nat_pm (tpp f')) \<unlhd> fst (zs ! Suc i)"
     by (auto simp: poly_point_def nat_plus_point_pair_def of_nat_pm_plus
             intro!: le_pm_increasing gcs_le_pm zero_le_of_nat_pm)
   also from assms(1, 2) have "\<dots> = snd (zs ! i)" by (rule is_vpcD(2)[symmetric])
-  finally have "gcs (of_nat_pm (lp f')) (of_nat_pm (tp f')) \<unlhd> snd (zs ! i)" .
+  finally have "gcs (of_nat_pm (lpp f')) (of_nat_pm (tpp f')) \<unlhd> snd (zs ! i)" .
   moreover from assms(5) have "(f = f1 \<and> f' = f2) \<or> (f = f2 \<and> f' = f1)" by fastforce
   ultimately show ?thesis using * by (auto simp: overlap_alt intro: lcs_le_pm)
 qed
@@ -2775,18 +2775,18 @@ proof -
 qed
 
 lemma lem_3_3_21_aux:
-  assumes "of_nat_pm (tp f) \<unlhd> p" and "is_int_pm p" and "f \<in> {f1, f2}"
+  assumes "of_nat_pm (tpp f) \<unlhd> p" and "is_int_pm p" and "f \<in> {f1, f2}"
   obtains z where "z \<in> pn_Nshifts True {f}" and "is_vpc [z]" and "fst z = p" and "snd z = p + vect f"
 proof -
-  let ?t = "of_nat_pm (tp f) :: _ \<Rightarrow>\<^sub>0 rat"
+  let ?t = "of_nat_pm (tpp f) :: _ \<Rightarrow>\<^sub>0 rat"
   let ?p = "to_nat_pm p"
   from assms(2) of_nat_pm_is_nat_pm assms(1) have p_nat: "is_nat_pm p" by (rule int_pm_is_nat_pmI)
   from assms(1) have "to_nat_pm ?t \<unlhd> ?p" by (rule to_nat_pm_mono)
-  hence "tp f \<unlhd> ?p" by simp
-  hence "tp f adds ?p" by (rule adds_pmI)
-  with p_nat have eq: "of_nat_pm (?p - tp f) = p - ?t"
+  hence "tpp f \<unlhd> ?p" by simp
+  hence "tpp f adds ?p" by (rule adds_pmI)
+  with p_nat have eq: "of_nat_pm (?p - tpp f) = p - ?t"
     by (simp only: of_nat_pm_minus of_nat_pm_comp_to_nat_pm)
-  let ?z = "(?p - tp f) +\<^sub>N prod.swap (poly_point f)"
+  let ?z = "(?p - tpp f) +\<^sub>N prod.swap (poly_point f)"
   show ?thesis
   proof
     show "?z \<in> pn_Nshifts True {f}" by (simp add: pn_Nshifts_singleton_pos)
@@ -2800,7 +2800,7 @@ proof -
 qed
 
 lemma lem_3_3_21':
-  assumes "of_nat_pm (tp f) \<unlhd> p" and "of_nat_pm (lp f) \<unlhd> p + rat l \<cdot> vect f" and "is_int_pm p"
+  assumes "of_nat_pm (tpp f) \<unlhd> p" and "of_nat_pm (lpp f) \<unlhd> p + rat l \<cdot> vect f" and "is_int_pm p"
     and "f \<in> {f1, f2}" and "l \<noteq> 0"
   obtains zs where "is_vpc zs" and "length zs = l" and "set zs \<subseteq> pn_Nshifts True {f}"
     and "fst (hd zs) = p" and "snd (last zs) = p + rat l \<cdot> vect f"
@@ -2816,15 +2816,15 @@ proof -
     case (Suc k)
     have eq: "p + rat (Suc (Suc k)) \<cdot> vect f = p + vect f + rat (Suc k) \<cdot> vect f"
       by (simp add: algebra_simps map_scale_two_left)
-    from Suc.prems(1) have *: "of_nat_pm (tp f) \<unlhd> p + 0 \<cdot> vect f" by simp
-    have "of_nat_pm (tp f) = of_nat_pm (lp f) - vect f" by (simp add: vect_alt)
+    from Suc.prems(1) have *: "of_nat_pm (tpp f) \<unlhd> p + 0 \<cdot> vect f" by simp
+    have "of_nat_pm (tpp f) = of_nat_pm (lpp f) - vect f" by (simp add: vect_alt)
     also from Suc.prems(2) have "\<dots> \<unlhd> p + rat (Suc (Suc k)) \<cdot> vect f - vect f"
       by (rule le_pm_mono_minus)
     also have "\<dots> = p + rat (Suc k) \<cdot> vect f" by (simp add: eq del: of_nat_Suc)
-    finally have "of_nat_pm (tp f) \<unlhd> p + rat (Suc k) \<cdot> vect f" .
-    with * have "of_nat_pm (tp f) \<unlhd> p + 1 \<cdot> vect f" by (rule map_scale_le_interval) simp_all
-    hence "of_nat_pm (tp f) \<unlhd> p + vect f" (is "_ \<unlhd> ?p") by simp
-    moreover from Suc.prems(2) have "of_nat_pm (lp f) \<unlhd> ?p + rat (Suc k) \<cdot> vect f" by (simp only: eq)
+    finally have "of_nat_pm (tpp f) \<unlhd> p + rat (Suc k) \<cdot> vect f" .
+    with * have "of_nat_pm (tpp f) \<unlhd> p + 1 \<cdot> vect f" by (rule map_scale_le_interval) simp_all
+    hence "of_nat_pm (tpp f) \<unlhd> p + vect f" (is "_ \<unlhd> ?p") by simp
+    moreover from Suc.prems(2) have "of_nat_pm (lpp f) \<unlhd> ?p + rat (Suc k) \<cdot> vect f" by (simp only: eq)
     moreover from Suc.prems(3) have "is_int_pm ?p" by (intro plus_is_int_pm vect_is_int_pm)
     ultimately obtain zs where "is_vpc zs" and len_zs: "length zs = Suc k"
       and hd_zs: "fst (hd zs) = ?p" and last_zs: "snd (last zs) = ?p + rat (Suc k) \<cdot> vect f"
@@ -2864,7 +2864,7 @@ proof (rule linorder_cases)
   moreover from assms(1) have "overlap \<unlhd> ?p + rat k \<cdot> vect f" by (simp only: eq)
   moreover note assms(4)
   moreover from \<open>k \<noteq> 0\<close> have "1 \<le> rat k" by simp
-  ultimately have "of_nat_pm (tp f) \<unlhd> ?p" and "of_nat_pm (lp f) \<unlhd> ?p + rat k \<cdot> vect f"
+  ultimately have "of_nat_pm (tpp f) \<unlhd> ?p" and "of_nat_pm (lpp f) \<unlhd> ?p + rat k \<cdot> vect f"
     by (rule line_above_overlapD)+
   moreover from assms(3, 5) have "is_int_pm ?p"
     by (intro plus_is_int_pm map_scale_is_int_pm vect_is_int_pm)
@@ -2896,7 +2896,7 @@ next
   moreover from assms(2) have "overlap \<unlhd> p + rat k \<cdot> vect f" by (simp only: l)
   moreover note assms(4)
   moreover from \<open>k \<noteq> 0\<close> have "1 \<le> rat k" by simp
-  ultimately have "of_nat_pm (tp f) \<unlhd> p" and "of_nat_pm (lp f) \<unlhd> p + rat k \<cdot> vect f"
+  ultimately have "of_nat_pm (tpp f) \<unlhd> p" and "of_nat_pm (lpp f) \<unlhd> p + rat k \<cdot> vect f"
     by (rule line_above_overlapD)+
   moreover note assms(3, 4) \<open>k \<noteq> 0\<close>
   ultimately obtain zs where "is_vpc zs" and len: "length zs = k" and *: "set zs \<subseteq> pn_Nshifts True {f}"
@@ -5154,7 +5154,7 @@ text \<open>Probably the following theorems could be connected to partitions of 
 
 lemma thm_3_3_34_aux_1:
   assumes "min_length_vpc zs" and "fst (hd zs) = of_nat_pm A" and "snd (last zs) = of_nat_pm B"
-    and "A \<noteq> B" and "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lp f adds A" and "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lp f adds B"
+    and "A \<noteq> B" and "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lpp f adds A" and "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lpp f adds B"
   obtains f where "f \<in> {f1, f2}" and "step A < length zs"
     and "\<And>i. i < step A \<Longrightarrow> zs ! i \<in> pn_Nshifts True {f}" and "overlap \<unlhd> fst (zs ! step A)"
     and "of_nat_pm (overlapshift A) = fst (zs ! step A)"
@@ -5168,27 +5168,27 @@ proof -
   from assms(2, 3, 4) have hd_neq_last: "fst (hd zs) \<noteq> snd (last zs)" by simp
 
   from 0 obtain f where f_in: "f \<in> {f1, f2}" and "hd zs \<in> Nshifts {f}" by (rule NshiftsE_poly)
-  from this(2) have "tp f adds A \<and> hd zs \<in> pn_Nshifts True {f}" unfolding Nshifts_def
+  from this(2) have "tpp f adds A \<and> hd zs \<in> pn_Nshifts True {f}" unfolding Nshifts_def
   proof
     assume "hd zs \<in> pn_Nshifts False {f}"
     then obtain t where "hd zs = t +\<^sub>N poly_point f" unfolding pn_Nshifts_singleton_neg ..
-    hence "of_nat_pm (t + lp f) = fst (hd zs)"
+    hence "of_nat_pm (t + lpp f) = fst (hd zs)"
       by (simp add: nat_plus_point_pair_def poly_point_def of_nat_pm_plus)
     also have "\<dots> = of_nat_pm A" by fact
-    finally have "A = t + lp f" by simp
-    moreover from f_in have "\<not> lp f adds A" by (rule assms(5))
+    finally have "A = t + lpp f" by simp
+    moreover from f_in have "\<not> lpp f adds A" by (rule assms(5))
     ultimately show ?thesis by simp
   next
     assume *: "hd zs \<in> pn_Nshifts True {f}"
     then obtain t where "hd zs = t +\<^sub>N prod.swap (poly_point f)" unfolding pn_Nshifts_singleton_pos ..
-    hence "of_nat_pm (t + tp f) = fst (hd zs)"
+    hence "of_nat_pm (t + tpp f) = fst (hd zs)"
       by (simp add: nat_plus_point_pair_def poly_point_def of_nat_pm_plus)
     also have "\<dots> = of_nat_pm A" by fact
-    finally have "A = t + tp f" by simp
-    hence "tp f adds A" by simp
+    finally have "A = t + tpp f" by simp
+    hence "tpp f adds A" by simp
     thus ?thesis using * ..
   qed
-  hence adds: "tp f adds A" and "hd zs \<in> pn_Nshifts True {f}" by simp_all
+  hence adds: "tpp f adds A" and "hd zs \<in> pn_Nshifts True {f}" by simp_all
   from f_in f1_pbinomial f2_pbinomial have f_pbinomial: "is_proper_binomial f" by blast
 
   let ?K = "{i\<in>{..length zs}. \<forall>j<i. zs ! j \<in> pn_Nshifts True {f}}"
@@ -5206,11 +5206,11 @@ proof -
     with \<open>zs \<noteq> []\<close> have "length zs - 1 < k" by simp
     hence "last zs \<in> pn_Nshifts True {f}" unfolding last_zs by (rule k_pos)
     then obtain t where "last zs = t +\<^sub>N prod.swap (poly_point f)" unfolding pn_Nshifts_singleton_pos ..
-    hence "of_nat_pm (t + lp f) = snd (last zs)"
+    hence "of_nat_pm (t + lpp f) = snd (last zs)"
       by (simp add: nat_plus_point_pair_def poly_point_def of_nat_pm_plus)
     also have "\<dots> = of_nat_pm B" by fact
-    finally have "B = t + lp f" by simp
-    moreover from f_in have "\<not> lp f adds B" by (rule assms(6))
+    finally have "B = t + lpp f" by simp
+    moreover from f_in have "\<not> lpp f adds B" by (rule assms(6))
     ultimately show False by simp
   qed
   with \<open>k \<le> length zs\<close> have "k < length zs" by simp
@@ -5320,7 +5320,7 @@ qed
 
 lemma thm_3_3_34_aux_2:
   assumes "min_length_vpc zs" and "fst (hd zs) = of_nat_pm A" and "snd (last zs) = of_nat_pm B"
-    and "A \<noteq> B" and "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lp f adds A" and "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lp f adds B"
+    and "A \<noteq> B" and "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lpp f adds A" and "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lpp f adds B"
   obtains f where "f \<in> {f1, f2}" and "step B < length zs"
     and "\<And>i. length zs - Suc (step B) < i \<Longrightarrow> i < length zs \<Longrightarrow> zs ! i \<in> pn_Nshifts False {f}"
     and "overlap \<unlhd> snd (zs ! (length zs - Suc (step B)))"
@@ -5360,7 +5360,7 @@ qed
 
 theorem thm_3_3_34:
   assumes "is_vpc zs" and "fst (hd zs) = of_nat_pm A" and "snd (last zs) = of_nat_pm B"
-    and "A \<noteq> B" and "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lp f adds A" and "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lp f adds B"
+    and "A \<noteq> B" and "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lpp f adds A" and "\<And>f. f \<in> {f1, f2} \<Longrightarrow> \<not> lpp f adds B"
   obtains zs' where "is_vpc zs'" and "fst (hd zs') = of_nat_pm A" and "snd (last zs') = of_nat_pm B"
     and "deg_vpc zs' \<le> rat (Max {deg_pm A, deg_pm B,
                                   max (deg_pm (overlapshift A)) (deg_pm (overlapshift B)) +

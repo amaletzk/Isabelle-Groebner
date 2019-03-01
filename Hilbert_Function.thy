@@ -1239,29 +1239,28 @@ begin
 
 lemma image_lt_hom_deg_set:
   assumes "homogeneous_set A"
-  shows "punit.lt ` (hom_deg_set z A - {0}) = {t \<in> punit.lt ` (A - {0}). deg_pm t = z}"
-          (is "?B = ?A")
+  shows "lpp ` (hom_deg_set z A - {0}) = {t \<in> lpp ` (A - {0}). deg_pm t = z}" (is "?B = ?A")
 proof (intro set_eqI iffI)
   fix t
   assume "t \<in> ?A"
-  hence "t \<in> punit.lt ` (A - {0})" and deg_t[symmetric]: "deg_pm t = z" by simp_all
-  from this(1) obtain p where "p \<in> A - {0}" and t: "t = punit.lt p" ..
+  hence "t \<in> lpp ` (A - {0})" and deg_t[symmetric]: "deg_pm t = z" by simp_all
+  from this(1) obtain p where "p \<in> A - {0}" and t: "t = lpp p" ..
   from this(1) have "p \<in> A" and "p \<noteq> 0" by simp_all
   from this(1) have 1: "hom_component p z \<in> hom_deg_set z A" (is "?p \<in> _")
     unfolding hom_deg_set_def by (rule imageI)
-  from \<open>p \<noteq> 0\<close> have "?p \<noteq> 0" and "punit.lt ?p = t" unfolding t deg_t by (rule hom_component_lp)+
+  from \<open>p \<noteq> 0\<close> have "?p \<noteq> 0" and "lpp ?p = t" unfolding t deg_t by (rule hom_component_lpp)+
   note this(2)[symmetric]
   moreover from 1 \<open>?p \<noteq> 0\<close> have "?p \<in> hom_deg_set z A - {0}" by simp
   ultimately show "t \<in> ?B" by (rule image_eqI)
 next
   fix t
   assume "t \<in> ?B"
-  then obtain p where "p \<in> hom_deg_set z A - {0}" and t: "t = punit.lt p" ..
+  then obtain p where "p \<in> hom_deg_set z A - {0}" and t: "t = lpp p" ..
   from this(1) have "p \<in> hom_deg_set z A" and "p \<noteq> 0" by simp_all
   with assms have "p \<in> A" and "homogeneous p" and "poly_deg p = z"
     by (simp_all add: hom_deg_set_alt_homogeneous_set)
   from this(1) \<open>p \<noteq> 0\<close> have "p \<in> A - {0}" by simp
-  hence 1: "t \<in> punit.lt ` (A - {0})" using t by (rule rev_image_eqI)
+  hence 1: "t \<in> lpp ` (A - {0})" using t by (rule rev_image_eqI)
   from \<open>p \<noteq> 0\<close> have "t \<in> keys p" unfolding t by (rule punit.lt_in_keys)
   with \<open>homogeneous p\<close> have "deg_pm t = poly_deg p" by (rule homogeneousD_poly_deg)
   with 1 show "t \<in> ?A" by (simp add: \<open>poly_deg p = z\<close>)
@@ -1269,11 +1268,11 @@ qed
 
 lemma Hilbert_fun_alt:
   assumes "finite X" and "A \<subseteq> P[X]" and "phull.subspace A"
-  shows "Hilbert_fun A z = card (punit.lt ` (hom_deg_set z A - {0}))" (is "_ = card ?A")
+  shows "Hilbert_fun A z = card (lpp ` (hom_deg_set z A - {0}))" (is "_ = card ?A")
 proof -
-  have "?A \<subseteq> punit.lt ` (hom_deg_set z A - {0})" by simp
-  then obtain B where sub: "B \<subseteq> hom_deg_set z A - {0}" and eq1: "?A = punit.lt ` B"
-    and inj: "inj_on punit.lt B" by (rule subset_imageE_inj)
+  have "?A \<subseteq> lpp ` (hom_deg_set z A - {0})" by simp
+  then obtain B where sub: "B \<subseteq> hom_deg_set z A - {0}" and eq1: "?A = lpp ` B"
+    and inj: "inj_on lpp B" by (rule subset_imageE_inj)
   have "Hilbert_fun A z = phull.dim (hom_deg_set z A)" by (fact Hilbert_fun_def)
   also have "\<dots> = card B"
   proof (rule phull.dim_eq_card)
@@ -1299,9 +1298,9 @@ proof -
         from this(1) have "p \<in> hom_deg_set z A" and "p \<notin> phull.span B" by simp_all
         from phull.span_zero this(2) have "p \<noteq> 0" by blast
         with \<open>p \<in> hom_deg_set z A\<close> have "p \<in> hom_deg_set z A - {0}" by simp
-        hence "punit.lt p \<in> punit.lt ` (hom_deg_set z A - {0})" by (rule imageI)
-        also have "\<dots> = punit.lt ` B" by (simp only: eq1)
-        finally obtain b where "b \<in> B" and eq2: "punit.lt p = punit.lt b" ..
+        hence "lpp p \<in> lpp ` (hom_deg_set z A - {0})" by (rule imageI)
+        also have "\<dots> = lpp ` B" by (simp only: eq1)
+        finally obtain b where "b \<in> B" and eq2: "lpp p = lpp b" ..
         from this(1) sub have "b \<in> hom_deg_set z A - {0}" ..
         hence "b \<in> hom_deg_set z A" and "b \<noteq> 0" by simp_all
         from this(2) have lcb: "punit.lc b \<noteq> 0" by (rule punit.lc_not_0)
@@ -1309,10 +1308,10 @@ proof -
         from \<open>b \<in> B\<close> have "b \<in> phull.span B" by (rule phull.span_base)
         hence "(punit.lc p / punit.lc b) \<cdot> b \<in> phull.span B" (is "?b \<in> _") by (rule phull.span_scale)
         with \<open>p \<notin> phull.span B\<close> have "p - ?b \<noteq> 0" by auto
-        moreover from lcb lcp \<open>b \<noteq> 0\<close> have "punit.lt ?b = punit.lt p"
+        moreover from lcb lcp \<open>b \<noteq> 0\<close> have "lpp ?b = lpp p"
           by (simp add: punit.map_scale_eq_monom_mult punit.lt_monom_mult eq2)
         moreover from lcb have "punit.lc ?b = punit.lc p" by (simp add: punit.map_scale_eq_monom_mult)
-        ultimately have "punit.lt (p - ?b) \<prec> punit.lt p" by (rule punit.lt_minus_lessI)
+        ultimately have "lpp (p - ?b) \<prec> lpp p" by (rule punit.lt_minus_lessI)
         hence "punit.ord_strict_p (p - ?b) p" by (rule punit.lt_ord_p)
         hence "p - ?b \<notin> ?B" by (rule p_min)
         hence "p - ?b \<notin> hom_deg_set z A \<or> p - ?b \<in> phull.span B" by simp
@@ -1349,15 +1348,15 @@ proof -
         by (rule sum.mono_neutral_left) (simp add: B0_def)
       also have "\<dots> = 0" by fact
       finally have eq: "(\<Sum>b\<in>B0. u b \<cdot> b) = 0" .
-      define t where "t = ordered_powerprod_lin.Max (punit.lt ` B0)"
+      define t where "t = ordered_powerprod_lin.Max (lpp ` B0)"
       from \<open>b' \<in> B'\<close> \<open>u b' \<noteq> 0\<close> have "b' \<in> B0" by (simp add: B0_def)
-      hence "punit.lt b' \<in> punit.lt ` B0" by (rule imageI)
-      hence "punit.lt ` B0 \<noteq> {}" by blast
+      hence "lpp b' \<in> lpp ` B0" by (rule imageI)
+      hence "lpp ` B0 \<noteq> {}" by blast
       from \<open>B0 \<subseteq> B'\<close> \<open>finite B'\<close> have "finite B0" by (rule finite_subset)
-      hence "finite (punit.lt ` B0)" by (rule finite_imageI)
-      hence "t \<in> punit.lt ` B0" unfolding t_def using \<open>punit.lt ` B0 \<noteq> {}\<close>
+      hence "finite (lpp ` B0)" by (rule finite_imageI)
+      hence "t \<in> lpp ` B0" unfolding t_def using \<open>lpp ` B0 \<noteq> {}\<close>
         by (rule ordered_powerprod_lin.Max_in)
-      then obtain b0 where "b0 \<in> B0" and t: "t = punit.lt b0" ..
+      then obtain b0 where "b0 \<in> B0" and t: "t = lpp b0" ..
       note this(1)
       moreover from \<open>B0 \<subseteq> B'\<close> \<open>B' \<subseteq> B\<close> have "B0 \<subseteq> B" by (rule subset_trans)
       also have "\<dots> \<subseteq> hom_deg_set z A - {0}" by fact
@@ -1374,17 +1373,17 @@ proof -
           fix b
           assume "b \<in> B0 - {b0}"
           hence "b \<in> B0" and "b \<noteq> b0" by simp_all
-          from this(1) have "punit.lt b \<in> punit.lt ` B0" by (rule imageI)
-          with \<open>finite (punit.lt ` B0)\<close> have "punit.lt b \<preceq> t" unfolding t_def
+          from this(1) have "lpp b \<in> lpp ` B0" by (rule imageI)
+          with \<open>finite (lpp ` B0)\<close> have "lpp b \<preceq> t" unfolding t_def
             by (rule ordered_powerprod_lin.Max_ge)
           have "t \<notin> keys b"
           proof
             assume "t \<in> keys b"
-            hence "t \<preceq> punit.lt b" by (rule punit.lt_max_keys)
-            with \<open>punit.lt b \<preceq> t\<close> have "punit.lt b = punit.lt b0"
+            hence "t \<preceq> lpp b" by (rule punit.lt_max_keys)
+            with \<open>lpp b \<preceq> t\<close> have "lpp b = lpp b0"
               unfolding t by (rule ordered_powerprod_lin.antisym)
-            from inj \<open>B0 \<subseteq> B\<close> have "inj_on punit.lt B0" by (rule inj_on_subset)
-            hence "b = b0" using \<open>punit.lt b = punit.lt b0\<close> \<open>b \<in> B0\<close> \<open>b0 \<in> B0\<close> by (rule inj_onD)
+            from inj \<open>B0 \<subseteq> B\<close> have "inj_on lpp B0" by (rule inj_on_subset)
+            hence "b = b0" using \<open>lpp b = lpp b0\<close> \<open>b \<in> B0\<close> \<open>b0 \<in> B0\<close> by (rule inj_onD)
             with \<open>b \<noteq> b0\<close> show False ..
           qed
           thus "u b * lookup b t = 0" by simp

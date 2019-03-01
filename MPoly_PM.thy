@@ -3626,10 +3626,10 @@ subsection \<open>Locale @{term pm_powerprod}\<close>
 context ordered_powerprod
 begin
 
-abbreviation "lc \<equiv> punit.lc"
-abbreviation "tc \<equiv> punit.tc"
-abbreviation "lp \<equiv> punit.lt"
-abbreviation "tp \<equiv> punit.tt"
+abbreviation "lcf \<equiv> punit.lc"
+abbreviation "tcf \<equiv> punit.tc"
+abbreviation "lpp \<equiv> punit.lt"
+abbreviation "tpp \<equiv> punit.tt"
 
 end (* ordered_powerprod *)
 
@@ -3641,53 +3641,53 @@ begin
 
 sublocale gd_powerprod ..
 
-lemma PPs_closed_lp:
+lemma PPs_closed_lpp:
   assumes "p \<in> P[X]"
-  shows "lp p \<in> .[X]"
+  shows "lpp p \<in> .[X]"
 proof (cases "p = 0")
   case True
   thus ?thesis by (simp add: zero_in_PPs)
 next
   case False
-  hence "lp p \<in> keys p" by (rule punit.lt_in_keys)
+  hence "lpp p \<in> keys p" by (rule punit.lt_in_keys)
   also from assms have "\<dots> \<subseteq> .[X]" by (rule PolysD)
   finally show ?thesis .
 qed
 
-lemma PPs_closed_tp:
+lemma PPs_closed_tpp:
   assumes "p \<in> P[X]"
-  shows "tp p \<in> .[X]"
+  shows "tpp p \<in> .[X]"
 proof (cases "p = 0")
   case True
   thus ?thesis by (simp add: zero_in_PPs)
 next
   case False
-  hence "tp p \<in> keys p" by (rule punit.tt_in_keys)
+  hence "tpp p \<in> keys p" by (rule punit.tt_in_keys)
   also from assms have "\<dots> \<subseteq> .[X]" by (rule PolysD)
   finally show ?thesis .
 qed
 
-corollary PPs_closed_image_lp: "F \<subseteq> P[X] \<Longrightarrow> lp ` F \<subseteq> .[X]"
-  by (auto intro: PPs_closed_lp)
+corollary PPs_closed_image_lpp: "F \<subseteq> P[X] \<Longrightarrow> lpp ` F \<subseteq> .[X]"
+  by (auto intro: PPs_closed_lpp)
 
-corollary PPs_closed_image_tp: "F \<subseteq> P[X] \<Longrightarrow> tp ` F \<subseteq> .[X]"
-  by (auto intro: PPs_closed_tp)
+corollary PPs_closed_image_tpp: "F \<subseteq> P[X] \<Longrightarrow> tpp ` F \<subseteq> .[X]"
+  by (auto intro: PPs_closed_tpp)
 
-lemma hom_component_lp:
+lemma hom_component_lpp:
   assumes "p \<noteq> 0"
-  shows "hom_component p (deg_pm (lp p)) \<noteq> 0" (is "?p \<noteq> 0")
-    and "lp (hom_component p (deg_pm (lp p))) = lp p"
+  shows "hom_component p (deg_pm (lpp p)) \<noteq> 0" (is "?p \<noteq> 0")
+    and "lpp (hom_component p (deg_pm (lpp p))) = lpp p"
 proof -
-  from assms have "lp p \<in> keys p" by (rule punit.lt_in_keys)
-  hence *: "lp p \<in> keys ?p" by (simp add: keys_hom_component)
+  from assms have "lpp p \<in> keys p" by (rule punit.lt_in_keys)
+  hence *: "lpp p \<in> keys ?p" by (simp add: keys_hom_component)
   thus "?p \<noteq> 0" by auto
 
-  from * show "lp ?p = lp p"
+  from * show "lpp ?p = lpp p"
   proof (rule punit.lt_eqI_keys)
     fix t
     assume "t \<in> keys ?p"
     hence "t \<in> keys p" by (simp add: keys_hom_component)
-    thus "t \<preceq> lp p" by (rule punit.lt_max_keys)
+    thus "t \<preceq> lpp p" by (rule punit.lt_max_keys)
   qed
 qed
 

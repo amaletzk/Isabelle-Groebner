@@ -11,23 +11,23 @@ text \<open>Relationship between Gr\"obner bases and Macaulay matrices, followin
 
 subsection \<open>Gr\"obner Bases\<close>
 
-lemma (in gd_powerprod) Macaulay_list_is_GB:
-  assumes "punit.is_Groebner_basis G" and "ideal (set ps) = ideal G" and "G \<subseteq> phull (set ps)"
-  shows "punit.is_Groebner_basis (set (punit.Macaulay_list ps))"
-proof (simp only: punit.GB_alt_3_finite[OF finite_set] punit.pmdl_Macaulay_list, simp, intro ballI impI)
+lemma (in gd_term) Macaulay_list_is_GB:
+  assumes "is_Groebner_basis G" and "pmdl (set ps) = pmdl G" and "G \<subseteq> phull (set ps)"
+  shows "is_Groebner_basis (set (Macaulay_list ps))"
+proof (simp only: GB_alt_3_finite[OF finite_set] pmdl_Macaulay_list, intro ballI impI)
   fix f
-  assume "f \<in> ideal (set ps)"
-  also from assms(2) have "\<dots> = ideal G" .
-  finally have "f \<in> ideal G" .
+  assume "f \<in> pmdl (set ps)"
+  also from assms(2) have "\<dots> = pmdl G" .
+  finally have "f \<in> pmdl G" .
   assume "f \<noteq> 0"
-  with assms(1) \<open>f \<in> ideal G\<close> obtain g where "g \<in> G" and "g \<noteq> 0" and "lp g adds lp f"
-    by (rule punit.GB_adds_lt[simplified])
+  with assms(1) \<open>f \<in> pmdl G\<close> obtain g where "g \<in> G" and "g \<noteq> 0" and "lt g adds\<^sub>t lt f"
+    by (rule GB_adds_lt)
   from assms(3) \<open>g \<in> G\<close> have "g \<in> phull (set ps)" ..
-  from this \<open>g \<noteq> 0\<close> obtain g' where "g' \<in> set (punit.Macaulay_list ps)" and "g' \<noteq> 0" and "lp g = lp g'"
-    by (rule punit.Macaulay_list_lt)
-  show "\<exists>g\<in>set (punit.Macaulay_list ps). g \<noteq> 0 \<and> lp g adds lp f"
+  from this \<open>g \<noteq> 0\<close> obtain g' where "g' \<in> set (Macaulay_list ps)" and "g' \<noteq> 0" and "lt g = lt g'"
+    by (rule Macaulay_list_lt)
+  show "\<exists>g\<in>set (Macaulay_list ps). g \<noteq> 0 \<and> lt g adds\<^sub>t lt f"
   proof (rule, rule)
-    from \<open>lp g adds lp f\<close> show "lp g' adds lp f" by (simp only: \<open>lp g = lp g'\<close>)
+    from \<open>lt g adds\<^sub>t lt f\<close> show "lt g' adds\<^sub>t lt f" by (simp only: \<open>lt g = lt g'\<close>)
   qed fact+
 qed
 
@@ -95,7 +95,7 @@ proof -
     and 1: "\<And>g. g \<in> G \<Longrightarrow> \<exists>q. g = (\<Sum>f\<in>set fs. q f * f) \<and> (\<forall>f. q f \<in> P[X] \<and> poly_deg (q f * f) \<le> b)"
     by (rule is_GB_cofactor_boundE_finite_Polys) blast
   from this(1) show ?thesis
-  proof (rule Macaulay_list_is_GB)
+  proof (rule punit.Macaulay_list_is_GB)
     show "G \<subseteq> phull (set (deg_shifts b fs))" (is "_ \<subseteq> ?H")
     proof
       fix g
