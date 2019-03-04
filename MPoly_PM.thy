@@ -3621,6 +3621,9 @@ proof -
   qed
 qed
 
+lemma dgrad_set_varnum_wrt: "dgrad_set (varnum_wrt X) 0 = .[X]"
+  by (simp add: dgrad_set_def PPs_def varnum_wrt_eq_zero_iff)
+
 subsection \<open>Locale @{term pm_powerprod}\<close>
 
 context ordered_powerprod
@@ -3696,9 +3699,6 @@ definition is_hom_ord :: "'x \<Rightarrow> bool"
 
 lemma is_hom_ordD: "is_hom_ord x \<Longrightarrow> deg_pm s = deg_pm t \<Longrightarrow> s \<preceq> t \<longleftrightarrow> except s {x} \<preceq> except t {x}"
   by (simp add: is_hom_ord_def)
-
-lemma dgrad_set_varnum_wrt: "dgrad_set (varnum_wrt X) 0 = .[X]"
-  by (simp add: dgrad_set_def PPs_def varnum_wrt_eq_zero_iff)
 
 lemma dgrad_p_set_varnum_wrt: "punit.dgrad_p_set (varnum_wrt X) 0 = P[X]"
   by (simp add: punit.dgrad_p_set_def dgrad_set_varnum_wrt Polys_def)
