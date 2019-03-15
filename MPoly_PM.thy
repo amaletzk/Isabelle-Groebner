@@ -815,6 +815,9 @@ lemma PPsD: "t \<in> .[X] \<Longrightarrow> keys t \<subseteq> X"
 lemma PPs_empty [simp]: ".[{}] = {0}"
   by (simp add: PPs_def)
 
+lemma PPs_UNIV [simp]: ".[UNIV] = UNIV"
+  by (simp add: PPs_def)
+
 lemma PPs_singleton: ".[{x}] = range (Poly_Mapping.single x)"
 proof (rule set_eqI)
   fix t
@@ -998,6 +1001,9 @@ proof (rule set_eqI)
   qed
 qed
 
+lemma Polys_UNIV [simp]: "P[UNIV] = UNIV"
+  by (simp add: Polys_def)
+
 lemma zero_in_Polys: "0 \<in> P[X]"
   by (simp add: Polys_def)
 
@@ -1078,6 +1084,27 @@ proof -
     finally have "p * q \<notin> P[X]" using \<open>t \<notin> .[X]\<close> by (auto simp: Polys_def)
     thus ?thesis using assms(1) ..
   qed
+qed
+
+lemma poly_mapping_plus_induct_Polys [consumes 1, case_names 0 plus]:
+  assumes "p \<in> P[X]" and "P 0"
+    and "\<And>p c t. t \<in> .[X] \<Longrightarrow> p \<in> P[X] \<Longrightarrow> c \<noteq> 0 \<Longrightarrow> t \<notin> keys p \<Longrightarrow> P p \<Longrightarrow> P (monomial c t + p)"
+  shows "P p"
+  using assms(1)
+proof (induct p rule: poly_mapping_plus_induct)
+  case 1
+  show ?case by (fact assms(2))
+next
+  case step: (2 p c t)
+  from step.hyps(1) have 1: "keys (monomial c t) = {t}" by simp
+  also from step.hyps(2) have "\<dots> \<inter> keys p = {}" by simp
+  finally have "keys (monomial c t + p) = keys (monomial c t) \<union> keys p" by (rule keys_add[symmetric])
+  hence "keys (monomial c t + p) = insert t (keys p)" by (simp only: 1 flip: insert_is_Un)
+  moreover from step.prems(1) have "keys (monomial c t + p) \<subseteq> .[X]" by (rule PolysD)
+  ultimately have "t \<in> .[X]" and "keys p \<subseteq> .[X]" by blast+
+  from this(2) have "p \<in> P[X]" by (rule PolysI)
+  hence "P p" by (rule step.hyps)
+  with \<open>t \<in> .[X]\<close> \<open>p \<in> P[X]\<close> step.hyps(1, 2) show ?case by (rule assms(3))
 qed
 
 subsection \<open>Degree-Sections of Power-Products\<close>
@@ -3534,6 +3561,327 @@ next
     also have "\<dots> \<subseteq> ideal (restrict_indets ` G)" by (rule restrict_indets_ideal_subset)
     finally show "f \<in> ideal (restrict_indets ` G)" .
   qed
+qed
+
+subsection \<open>Canonical Isomorphisms between \<open>P[X,Y]\<close> and \<open>P[X][Y]\<close>: \<open>focus\<close> and \<open>flatten\<close>\<close>
+
+definition focus :: "'x set \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::comm_monoid_add)"
+  where "focus X p = (\<Sum>t\<in>keys p. monomial (monomial (lookup p t) (except t X)) (except t (- X)))"
+
+definition flatten :: "('a \<Rightarrow>\<^sub>0 'a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a::comm_powerprod \<Rightarrow>\<^sub>0 'b::semiring_1)"
+  where "flatten p = (\<Sum>t\<in>keys p. punit.monom_mult 1 t (lookup p t))"
+
+lemma focus_superset:
+  assumes "finite A" and "keys p \<subseteq> A"
+  shows "focus X p = (\<Sum>t\<in>A. monomial (monomial (lookup p t) (except t X)) (except t (- X)))"
+  unfolding focus_def using assms by (rule sum.mono_neutral_left) simp
+
+lemma keys_focus: "keys (focus X p) = (\<lambda>t. except t (- X)) ` keys p"
+proof
+  have "keys (focus X p) \<subseteq> (\<Union>t\<in>keys p. keys (monomial (monomial (lookup p t) (except t X)) (except t (- X))))"
+    unfolding focus_def by (rule keys_sum_subset)
+  also have "\<dots> \<subseteq> (\<Union>t\<in>keys p. {except t (- X)})" by (intro UN_mono subset_refl) simp
+  also have "\<dots> = (\<lambda>t. except t (- X)) ` keys p" by (rule UNION_singleton_eq_range)
+  finally show "keys (focus X p) \<subseteq> (\<lambda>t. except t (- X)) ` keys p" .
+next
+  {
+    fix s
+    assume "s \<in> keys p"
+    have "lookup (focus X p) (except s (- X)) =
+              (\<Sum>t\<in>keys p. monomial (lookup p t) (except t X) when except t (- X) = except s (- X))"
+      (is "_ = ?p")
+      by (simp only: focus_def lookup_sum lookup_single)
+    also have "\<dots> \<noteq> 0"
+    proof
+      have "lookup ?p (except s X) =
+              (\<Sum>t\<in>keys p. lookup p t when except t X = except s X \<and> except t (- X) = except s (- X))"
+        by (simp add: lookup_sum lookup_single when_def if_distrib if_distribR)
+            (metis (no_types, hide_lams) lookup_single_eq lookup_single_not_eq lookup_zero)
+      also have "\<dots> = (\<Sum>t\<in>{s}. lookup p t)"
+      proof (intro sum.mono_neutral_cong_right ballI)
+        fix t
+        assume "t \<in> keys p - {s}"
+        hence "t \<noteq> s" by simp
+        hence "except t X + except t (- X) \<noteq> except s X + except s (- X)"
+          by (simp flip: except_decomp)
+        thus "(lookup p t when except t X = except s X \<and> except t (- X) = except s (- X)) = 0"
+          by (auto simp: when_def)
+      next
+        from \<open>s \<in> keys p\<close> show "{s} \<subseteq> keys p" by simp
+      qed simp_all
+      also from \<open>s \<in> keys p\<close> have "\<dots> \<noteq> 0" by simp
+      finally have "except s X \<in> keys ?p" by simp
+      moreover assume "?p = 0"
+      ultimately show False by simp
+    qed
+    finally have "except s (- X) \<in> keys (focus X p)" by simp
+  }
+  thus "(\<lambda>t. except t (- X)) ` keys p \<subseteq> keys (focus X p)" by blast
+qed
+
+lemma keys_coeffs_focus_subset:
+  assumes "c \<in> lookup (focus X p) ` keys (focus X p)"
+  shows "keys c \<subseteq> (\<lambda>t. except t X) ` keys p"
+proof -
+  from assms obtain s where "s \<in> keys (focus X p)" and c: "c = lookup (focus X p) s" ..
+  have "keys c = keys (lookup (focus X p) s)" by (simp only: c)
+  also have "\<dots> \<subseteq> (\<Union>t\<in>keys p. keys (lookup (monomial (monomial (lookup p t) (except t X)) (except t (- X))) s))"
+    unfolding focus_def lookup_sum by (rule keys_sum_subset)
+  also from subset_refl have "\<dots> \<subseteq> (\<Union>t\<in>keys p. {except t X})"
+    by (rule UN_mono) (simp add: lookup_single when_def)
+  also have "\<dots> = (\<lambda>t. except t X) ` keys p" by (rule UNION_singleton_eq_range)
+  finally show ?thesis .
+qed
+
+lemma focus_in_Polys':
+  assumes "p \<in> P[Y]"
+  shows "focus X p \<in> P[Y \<inter> X]"
+proof (intro PolysI subsetI)
+  fix t
+  assume "t \<in> keys (focus X p)"
+  then obtain s where "s \<in> keys p" and t: "t = except s (- X)" unfolding keys_focus ..
+  note this(1)
+  also from assms have "keys p \<subseteq> .[Y]" by (rule PolysD)
+  finally have "keys s \<subseteq> Y" by (rule PPsD)
+  hence "keys t \<subseteq> Y \<inter> X" by (simp add: t keys_except le_infI1)
+  thus "t \<in> .[Y \<inter> X]" by (rule PPsI)
+qed
+
+corollary focus_in_Polys: "focus X p \<in> P[X]"
+proof -
+  have "p \<in> P[UNIV]" by simp
+  hence "focus X p \<in> P[UNIV \<inter> X]" by (rule focus_in_Polys')
+  thus ?thesis by simp
+qed
+
+lemma focus_coeffs_subset_Polys':
+  assumes "p \<in> P[Y]"
+  shows "lookup (focus X p) ` keys (focus X p) \<subseteq> P[Y - X]"
+proof (intro subsetI PolysI)
+  fix c t
+  assume "c \<in> lookup (focus X p) ` keys (focus X p)"
+  hence "keys c \<subseteq> (\<lambda>t. except t X) ` keys p" by (rule keys_coeffs_focus_subset)
+  moreover assume "t \<in> keys c"
+  ultimately have "t \<in> (\<lambda>t. except t X) ` keys p" ..
+  then obtain s where "s \<in> keys p" and t: "t = except s X" ..
+  note this(1)
+  also from assms have "keys p \<subseteq> .[Y]" by (rule PolysD)
+  finally have "keys s \<subseteq> Y" by (rule PPsD)
+  hence "keys t \<subseteq> Y - X" by (simp add: t keys_except Diff_mono)
+  thus "t \<in> .[Y - X]" by (rule PPsI)
+qed
+
+corollary focus_coeffs_subset_Polys: "lookup (focus X p) ` keys (focus X p) \<subseteq> P[- X]"
+proof -
+  have "p \<in> P[UNIV]" by simp
+  hence "lookup (focus X p) ` keys (focus X p) \<subseteq> P[UNIV - X]" by (rule focus_coeffs_subset_Polys')
+  thus ?thesis by (simp only: Compl_eq_Diff_UNIV)
+qed
+
+lemma focus_zero [simp]: "focus X 0 = 0"
+  by (simp add: focus_def)
+
+lemma focus_eq_zero_iff [iff]: "focus X p = 0 \<longleftrightarrow> p = 0"
+  by (simp add: keys_focus flip: keys_eq_empty_iff)
+
+lemma focus_one [simp]: "focus X 1 = 1"
+  by (simp add: focus_def)
+
+lemma focus_monomial: "focus X (monomial c t) = monomial (monomial c (except t X)) (except t (- X))"
+  by (simp add: focus_def)
+
+lemma focus_uminus [simp]: "focus X (- p) = - focus X p"
+  by (simp add: focus_def keys_uminus single_uminus sum_negf)
+
+lemma focus_plus: "focus X (p + q) = focus X p + focus X q"
+proof -
+  have "finite (keys p \<union> keys q)" by simp
+  moreover have "keys (p + q) \<subseteq> keys p \<union> keys q" by (rule keys_add_subset)
+  ultimately show ?thesis
+    by (simp add: focus_superset[where A="keys p \<union> keys q"] lookup_add single_add sum.distrib)
+qed
+
+lemma focus_minus: "focus X (p - q) = focus X p - focus X (q::_ \<Rightarrow>\<^sub>0 _::ab_group_add)"
+  by (simp only: diff_conv_add_uminus focus_plus focus_uminus)
+
+lemma focus_times: "focus X (p * q) = focus X p * focus X q"
+proof -
+  have eq: "focus X (monomial c s * q) = focus X (monomial c s) * focus X q" for c s
+  proof -
+    have "focus X (monomial c s * q) = focus X (punit.monom_mult c s q)"
+      by (simp only: times_monomial_left)
+    also have "\<dots> = (\<Sum>t\<in>(+) s ` keys q. monomial (monomial (lookup (punit.monom_mult c s q) t)
+                                            (except t X)) (except t (- X)))"
+      by (rule focus_superset) (simp_all add: punit.keys_monom_mult_subset[simplified])
+    also have "\<dots> = (\<Sum>t\<in>keys q. ((\<lambda>t. monomial (monomial (lookup (punit.monom_mult c s q) t)
+                                  (except t X)) (except t (- X))) \<circ> ((+) s)) t)"
+      by (rule sum.reindex) simp
+    also have "\<dots> = monomial (monomial c (except s X)) (except s (- X)) *
+                      (\<Sum>t\<in>keys q. monomial (monomial (lookup q t) (except t X)) (except t (- X)))"
+      by (simp add: o_def punit.lookup_monom_mult except_plus times_monomial_monomial sum_distrib_left)
+    also have "\<dots> = focus X (monomial c s) * focus X q"
+      by (simp only: focus_monomial focus_def[where p=q])
+    finally show ?thesis .
+  qed
+  show ?thesis by (induct p rule: poly_mapping_plus_induct) (simp_all add: ring_distribs focus_plus eq)
+qed
+
+lemma focus_Polys:
+  assumes "p \<in> P[X]"
+  shows "focus X p = (\<Sum>t\<in>keys p. monomial (monomial (lookup p t) 0) t)"
+  unfolding focus_def
+proof (rule sum.cong)
+  fix t
+  assume "t \<in> keys p"
+  also from assms have "\<dots> \<subseteq> .[X]" by (rule PolysD)
+  finally have "keys t \<subseteq> X" by (rule PPsD)
+  hence "except t X = 0" and "except t (- X) = t" by (rule except_eq_zeroI, auto simp: except_id_iff)
+  thus "monomial (monomial (lookup p t) (except t X)) (except t (- X)) =
+        monomial (monomial (lookup p t) 0) t" by simp
+qed (fact refl)
+
+lemma focus_Polys_Compl:
+  assumes "p \<in> P[- X]"
+  shows "focus X p = monomial p 0"
+proof -
+  have "focus X p = (\<Sum>t\<in>keys p. monomial (monomial (lookup p t) t) 0)" unfolding focus_def
+  proof (rule sum.cong)
+    fix t
+    assume "t \<in> keys p"
+    also from assms have "\<dots> \<subseteq> .[- X]" by (rule PolysD)
+    finally have "keys t \<subseteq> - X" by (rule PPsD)
+    hence "except t (- X) = 0" and "except t X = t" by (rule except_eq_zeroI, auto simp: except_id_iff)
+    thus "monomial (monomial (lookup p t) (except t X)) (except t (- X)) =
+          monomial (monomial (lookup p t) t) 0" by simp
+  qed (fact refl)
+  also have "\<dots> = monomial (\<Sum>t\<in>keys p. monomial (lookup p t) t) 0" by (simp only: monomial_sum)
+  also have "\<dots> = monomial p 0" by (simp only: poly_mapping_sum_monomials)
+  finally show ?thesis .
+qed
+
+corollary focus_empty [simp]: "focus {} p = monomial p 0"
+  by (rule focus_Polys_Compl) simp
+
+lemma flatten_superset:
+  assumes "finite A" and "keys p \<subseteq> A"
+  shows "flatten p = (\<Sum>t\<in>A. punit.monom_mult 1 t (lookup p t))"
+  unfolding flatten_def using assms by (rule sum.mono_neutral_left) simp
+
+lemma keys_flatten_subset: "keys (flatten p) \<subseteq> (\<Union>t\<in>keys p. (+) t ` keys (lookup p t))"
+proof -
+  have "keys (flatten p) \<subseteq> (\<Union>t\<in>keys p. keys (punit.monom_mult 1 t (lookup p t)))"
+    unfolding flatten_def by (rule keys_sum_subset)
+  also from subset_refl have "\<dots> \<subseteq> (\<Union>t\<in>keys p. (+) t ` keys (lookup p t))"
+    by (rule UN_mono) (rule punit.keys_monom_mult_subset[simplified])
+  finally show ?thesis .
+qed
+
+lemma flatten_in_Polys:
+  assumes "p \<in> P[X]" and "lookup p ` keys p \<subseteq> P[Y]"
+  shows "flatten p \<in> P[X \<union> Y]"
+proof (intro PolysI subsetI)
+  fix t
+  assume "t \<in> keys (flatten p)"
+  also have "\<dots> \<subseteq> (\<Union>t\<in>keys p. (+) t ` keys (lookup p t))" by (rule keys_flatten_subset)
+  finally obtain s where "s \<in> keys p" and "t \<in> (+) s ` keys (lookup p s)" ..
+  from this(2) obtain s' where "s' \<in> keys (lookup p s)" and t: "t = s + s'" ..
+  from assms(1) have "keys p \<subseteq> .[X]" by (rule PolysD)
+  with \<open>s \<in> keys p\<close> have "s \<in> .[X]" ..
+  also have "\<dots> \<subseteq> .[X \<union> Y]" by (rule PPs_mono) simp
+  finally have 1: "s \<in> .[X \<union> Y]" .
+  from \<open>s \<in> keys p\<close> have "lookup p s \<in> lookup p ` keys p" by (rule imageI)
+  also have "\<dots> \<subseteq> P[Y]" by fact
+  finally have "keys (lookup p s) \<subseteq> .[Y]" by (rule PolysD)
+  with \<open>s' \<in> _\<close> have "s' \<in> .[Y]" ..
+  also have "\<dots> \<subseteq> .[X \<union> Y]" by (rule PPs_mono) simp
+  finally have "s' \<in> .[X \<union> Y]" .
+  with 1 show "t \<in> .[X \<union> Y]" unfolding t by (rule PPs_closed_plus)
+qed
+
+lemma flatten_zero [simp]: "flatten 0 = 0"
+  by (simp add: flatten_def)
+
+lemma flatten_one [simp]: "flatten 1 = 1"
+  by (simp add: flatten_def)
+
+lemma flatten_monomial: "flatten (monomial c t) = punit.monom_mult 1 t c"
+  by (simp add: flatten_def)
+
+lemma flatten_uminus [simp]: "flatten (- p) = - flatten (p::_ \<Rightarrow>\<^sub>0 _ \<Rightarrow>\<^sub>0 _::ring)"
+  by (simp add: flatten_def keys_uminus punit.monom_mult_uminus_right sum_negf)
+
+lemma flatten_plus: "flatten (p + q) = flatten p + flatten q"
+proof -
+  have "finite (keys p \<union> keys q)" by simp
+  moreover have "keys (p + q) \<subseteq> keys p \<union> keys q" by (rule keys_add_subset)
+  ultimately show ?thesis
+    by (simp add: flatten_superset[where A="keys p \<union> keys q"] punit.monom_mult_dist_right lookup_add
+                  sum.distrib)
+qed
+
+lemma flatten_minus: "flatten (p - q) = flatten p - flatten (q::_ \<Rightarrow>\<^sub>0 _ \<Rightarrow>\<^sub>0 _::ring)"
+  by (simp only: diff_conv_add_uminus flatten_plus flatten_uminus)
+
+lemma flatten_times: "flatten (p * q) = flatten p * flatten (q::_ \<Rightarrow>\<^sub>0 _ \<Rightarrow>\<^sub>0 'b::comm_semiring_1)"
+proof -
+  have eq: "flatten (monomial c s * q) = flatten (monomial c s) * flatten q" for c s
+  proof -
+    have eq: "monomial 1 (t + s) = monomial 1 s * monomial (1::'b) t" for t
+      by (simp add: times_monomial_monomial add.commute)
+    have "flatten (monomial c s * q) = flatten (punit.monom_mult c s q)"
+      by (simp only: times_monomial_left)
+    also have "\<dots> = (\<Sum>t\<in>(+) s ` keys q. punit.monom_mult 1 t (lookup (punit.monom_mult c s q) t))"
+      by (rule flatten_superset) (simp_all add: punit.keys_monom_mult_subset[simplified])
+    also have "\<dots> = (\<Sum>t\<in>keys q. ((\<lambda>t. punit.monom_mult 1 t (lookup (punit.monom_mult c s q) t)) \<circ> (+) s) t)"
+      by (rule sum.reindex) simp
+    thm times_monomial_left
+    also have "\<dots> = punit.monom_mult 1 s c *
+                      (\<Sum>t\<in>keys q. punit.monom_mult 1 t (lookup q t))"
+      by (simp add: o_def punit.lookup_monom_mult sum_distrib_left)
+          (simp add: algebra_simps eq flip: times_monomial_left)
+    also have "\<dots> = flatten (monomial c s) * flatten q"
+      by (simp only: flatten_monomial flatten_def[where p=q])
+    finally show ?thesis .
+  qed
+  show ?thesis by (induct p rule: poly_mapping_plus_induct) (simp_all add: ring_distribs flatten_plus eq)
+qed
+
+lemma inj_focus: "inj ((focus X) :: (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::ab_group_add) \<Rightarrow> _)"
+proof (rule injI)
+  fix p q :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a"
+  assume "focus X p = focus X q"
+  hence "focus X (p - q) = 0" by (simp add: focus_minus)
+  thus "p = q" by simp
+qed
+
+lemma flatten_focus [simp]: "flatten (focus X p) = p"
+  by (induct p rule: poly_mapping_plus_induct)
+      (simp_all add: focus_plus flatten_plus focus_monomial flatten_monomial
+                      punit.monom_mult_monomial add.commute flip: except_decomp)
+
+lemma focus_flatten:
+  assumes "p \<in> P[X]" and "lookup p ` keys p \<subseteq> P[- X]"
+  shows "focus X (flatten p) = p"
+  using assms
+proof (induct p rule: poly_mapping_plus_induct_Polys)
+  case 0
+  show ?case by simp
+next
+  case (plus p c t)
+  from plus.hyps(3) have 1: "keys (monomial c t) = {t}" by simp
+  also from plus.hyps(4) have "\<dots> \<inter> keys p = {}" by simp
+  finally have "keys (monomial c t + p) = keys (monomial c t) \<union> keys p" by (rule keys_add[symmetric])
+  hence 2: "keys (monomial c t + p) = insert t (keys p)" by (simp only: 1 flip: insert_is_Un)
+  from \<open>t \<in> .[X]\<close> have "keys t \<subseteq> X" by (rule PPsD)
+  hence eq1: "except t X = 0" and eq2: "except t (- X) = t"
+    by (rule except_eq_zeroI, auto simp: except_id_iff)
+  from plus.hyps(3, 4) plus.prems have "c \<in> P[- X]" and "lookup p ` keys p \<subseteq> P[- X]"
+    by (simp_all add: 2 lookup_add lookup_single)
+        (smt add.commute add.right_neutral image_cong plus.hyps(4) when_simps(2))
+  from this(2) have "focus X (flatten p) = p" by (rule plus.hyps)
+  thus ?case
+    by (simp add: flatten_plus focus_plus flatten_monomial focus_times focus_monomial eq1 eq2
+                  focus_Polys_Compl[OF \<open>c \<in> _\<close>] times_monomial_monomial flip: times_monomial_left)
 qed
 
 subsection \<open>\<open>varnum_wrt\<close>\<close>
