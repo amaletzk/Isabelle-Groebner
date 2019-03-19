@@ -967,6 +967,12 @@ proof -
   thus ?thesis ..
 qed
 
+lemma PPs_Int: ".[X \<inter> Y] = .[X] \<inter> .[Y]"
+  by (auto simp: PPs_def)
+
+lemma PPs_INT: ".[\<Inter> X] = \<Inter> (PPs ` X)"
+  by (auto simp: PPs_def)
+
 subsubsection \<open>@{const Polys}\<close>
 
 lemma Polys_alt: "P[X] = {p. indets p \<subseteq> X}"
@@ -1106,6 +1112,12 @@ next
   hence "P p" by (rule step.hyps)
   with \<open>t \<in> .[X]\<close> \<open>p \<in> P[X]\<close> step.hyps(1, 2) show ?case by (rule assms(3))
 qed
+
+lemma Polys_Int: "P[X \<inter> Y] = P[X] \<inter> P[Y]"
+  by (auto simp: Polys_def PPs_Int)
+
+lemma Polys_INT: "P[\<Inter> X] = \<Inter> (Polys ` X)"
+  by (auto simp: Polys_def PPs_INT)
 
 subsection \<open>Degree-Sections of Power-Products\<close>
 
