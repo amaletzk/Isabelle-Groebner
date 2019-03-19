@@ -3738,6 +3738,15 @@ proof -
   show ?thesis by (induct p rule: poly_mapping_plus_induct) (simp_all add: ring_distribs focus_plus eq)
 qed
 
+lemma focus_sum: "focus X (sum f I) = (\<Sum>i\<in>I. focus X (f i))"
+  by (induct I rule: infinite_finite_induct) (simp_all add: focus_plus)
+
+lemma focus_prod: "focus X (prod f I) = (\<Prod>i\<in>I. focus X (f i))"
+  by (induct I rule: infinite_finite_induct) (simp_all add: focus_times)
+
+lemma focus_power [simp]: "focus X (f ^ m) = focus X f ^ m"
+  by (induct m) (simp_all add: focus_times)
+
 lemma focus_Polys:
   assumes "p \<in> P[X]"
   shows "focus X p = (\<Sum>t\<in>keys p. monomial (monomial (lookup p t) 0) t)"
@@ -3857,6 +3866,15 @@ proof -
   qed
   show ?thesis by (induct p rule: poly_mapping_plus_induct) (simp_all add: ring_distribs flatten_plus eq)
 qed
+
+lemma flatten_sum: "flatten (sum f I) = (\<Sum>i\<in>I. flatten (f i))"
+  by (induct I rule: infinite_finite_induct) (simp_all add: flatten_plus)
+
+lemma flatten_prod: "flatten (prod f I) = (\<Prod>i\<in>I. flatten (f i :: _ \<Rightarrow>\<^sub>0 _::comm_semiring_1))"
+  by (induct I rule: infinite_finite_induct) (simp_all add: flatten_times)
+
+lemma flatten_power [simp]: "flatten (f ^ m) = flatten (f:: _ \<Rightarrow>\<^sub>0 _::comm_semiring_1) ^ m"
+  by (induct m) (simp_all add: flatten_times)
 
 lemma inj_focus: "inj ((focus X) :: (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::ab_group_add) \<Rightarrow> _)"
 proof (rule injI)
