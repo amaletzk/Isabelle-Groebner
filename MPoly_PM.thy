@@ -3620,11 +3620,11 @@ next
 qed
 
 lemma keys_coeffs_focus_subset:
-  assumes "c \<in> lookup (focus X p) ` keys (focus X p)"
+  assumes "c \<in> range (lookup (focus X p))"
   shows "keys c \<subseteq> (\<lambda>t. except t X) ` keys p"
 proof -
-  from assms obtain s where "s \<in> keys (focus X p)" and c: "c = lookup (focus X p) s" ..
-  have "keys c = keys (lookup (focus X p) s)" by (simp only: c)
+  from assms obtain s where "c = lookup (focus X p) s" ..
+  hence "keys c = keys (lookup (focus X p) s)" by (simp only:)
   also have "\<dots> \<subseteq> (\<Union>t\<in>keys p. keys (lookup (monomial (monomial (lookup p t) (except t X)) (except t (- X))) s))"
     unfolding focus_def lookup_sum by (rule keys_sum_subset)
   also from subset_refl have "\<dots> \<subseteq> (\<Union>t\<in>keys p. {except t X})"
@@ -3656,10 +3656,10 @@ qed
 
 lemma focus_coeffs_subset_Polys':
   assumes "p \<in> P[Y]"
-  shows "lookup (focus X p) ` keys (focus X p) \<subseteq> P[Y - X]"
+  shows "range (lookup (focus X p)) \<subseteq> P[Y - X]"
 proof (intro subsetI PolysI)
   fix c t
-  assume "c \<in> lookup (focus X p) ` keys (focus X p)"
+  assume "c \<in> range (lookup (focus X p))"
   hence "keys c \<subseteq> (\<lambda>t. except t X) ` keys p" by (rule keys_coeffs_focus_subset)
   moreover assume "t \<in> keys c"
   ultimately have "t \<in> (\<lambda>t. except t X) ` keys p" ..
@@ -3671,10 +3671,10 @@ proof (intro subsetI PolysI)
   thus "t \<in> .[Y - X]" by (rule PPsI)
 qed
 
-corollary focus_coeffs_subset_Polys: "lookup (focus X p) ` keys (focus X p) \<subseteq> P[- X]"
+corollary focus_coeffs_subset_Polys: "range (lookup (focus X p)) \<subseteq> P[- X]"
 proof -
   have "p \<in> P[UNIV]" by simp
-  hence "lookup (focus X p) ` keys (focus X p) \<subseteq> P[UNIV - X]" by (rule focus_coeffs_subset_Polys')
+  hence "range (lookup (focus X p)) \<subseteq> P[UNIV - X]" by (rule focus_coeffs_subset_Polys')
   thus ?thesis by (simp only: Compl_eq_Diff_UNIV)
 qed
 
