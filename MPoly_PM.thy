@@ -1105,6 +1105,12 @@ proof -
   thus ?thesis by (simp add: gcs_plus_lcs[of s t, symmetric])
 qed
 
+lemma PPs_closed_except': "t \<in> .[X] \<Longrightarrow> except t Y \<in> .[X - Y]"
+  by (auto simp: keys_except PPs_def)
+
+lemma PPs_closed_except: "t \<in> .[X] \<Longrightarrow> except t Y \<in> .[X]"
+  by (auto simp: keys_except PPs_def)
+
 lemma PPs_UnI:
   assumes "tx \<in> .[X]" and "ty \<in> .[Y]" and "t = tx + ty"
   shows "t \<in> .[X \<union> Y]"
@@ -2086,8 +2092,27 @@ proof -
     unfolding rng by (rule ideal_induct_homomorphism) blast
 qed
 
+lemma image_poly_subst_ideal_subset: "poly_subst g ` ideal F \<subseteq> ideal (poly_subst g ` F)"
+proof (intro subsetI, elim imageE)
+  fix h f
+  assume h: "h = poly_subst g f"
+  assume "f \<in> ideal F"
+  thus "h \<in> ideal (poly_subst g ` F)" unfolding h
+  proof (induct f rule: ideal.span_induct_alt)
+    case base
+    show ?case by (simp add: ideal.span_zero)
+  next
+    case (step c f h)
+    from step.hyps(1) have "poly_subst g f \<in> ideal (poly_subst g ` F)"
+      by (intro ideal.span_base imageI)
+    hence "poly_subst g c * poly_subst g f \<in> ideal (poly_subst g ` F)" by (rule ideal.span_scale)
+    hence "poly_subst g c * poly_subst g f + poly_subst g h \<in> ideal (poly_subst g ` F)"
+      using step.hyps(2) by (rule ideal.span_add)
+    thus ?case by (simp only: poly_subst_plus poly_subst_times)
+  qed
+qed
+
 subsection \<open>Evaluating Polynomials\<close>
-(* TODO: Move into AFP; Replace insertion morphism in "Polynomials.MPoly_Type". *)
 
 lemma lookup_times_zero:
   "lookup (p * q) 0 = lookup p 0 * lookup q (0::'a::{comm_powerprod,ninv_comm_monoid_add})"
@@ -2127,6 +2152,10 @@ corollary lookup_power_zero:
 
 definition eval_pm :: "('x \<Rightarrow> 'a) \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<Rightarrow> 'a::comm_semiring_1"
   where "eval_pm a p = lookup (poly_subst (\<lambda>y. monomial (a y) (0::'x \<Rightarrow>\<^sub>0 nat)) p) 0"
+
+lemma eval_pm_alt: "eval_pm a p = (\<Sum>t\<in>keys p. lookup p t * (\<Prod>x\<in>keys t. a x ^ lookup t x))"
+  by (simp add: eval_pm_def poly_subst_def lookup_sum lookup_times_zero subst_pp_def
+          lookup_prod_zero lookup_power_zero flip: times_monomial_left)
 
 lemma eval_pm_monomial: "eval_pm a (monomial c t) = c * (\<Prod>x\<in>keys t. a x ^ lookup t x)"
   by (simp add: eval_pm_def poly_subst_monomial subst_pp_def punit.lookup_monom_mult
@@ -2200,6 +2229,12 @@ next
                     \<Union> (indets ` lookup (monomial c t + p) ` keys (monomial c t + p))"
     by (simp add: eq1 eq2 eq3 eq4 Un_commute Un_assoc Un_left_commute)
   finally show ?case .
+qed
+
+lemma image_eval_pm_ideal: "eval_pm a ` ideal F = ideal (eval_pm a ` F)"
+proof (intro image_ideal_eq_surj eval_pm_plus eval_pm_times surjI)
+  fix x
+  show "eval_pm a (monomial x 0) = x" by (simp add: eval_pm_monomial)
 qed
 
 subsection \<open>Homogeneity\<close>
@@ -4206,6 +4241,25 @@ qed
 corollary focus_empty [simp]: "focus {} p = monomial p 0"
   by (rule focus_Polys_Compl) simp
 
+lemma focus_Int:
+  assumes "p \<in> P[Y]"
+  shows "focus (X \<inter> Y) p = focus X p"
+  unfolding focus_def using refl
+proof (rule sum.cong)
+  fix t
+  assume "t \<in> keys p"
+  also from assms have "\<dots> \<subseteq> .[Y]" by (rule PolysD)
+  finally have "keys t \<subseteq> Y" by (rule PPsD)
+  hence "keys t \<subseteq> X \<union> Y" by blast
+  hence "except t (X \<inter> Y) = except t X + except t Y" by (rule except_Int)
+  also from \<open>keys t \<subseteq> Y\<close> have "except t Y = 0" by (rule except_eq_zeroI)
+  finally have eq: "except t (X \<inter> Y) = except t X" by simp
+  have "except t (- (X \<inter> Y)) = except (except t (- Y)) (- X)" by (simp add: except_except Un_commute)
+  also from \<open>keys t \<subseteq> Y\<close> have "except t (- Y) = t" by (auto simp: except_id_iff)
+  finally show "monomial (monomial (lookup p t) (except t (X \<inter> Y))) (except t (- (X \<inter> Y))) =
+                monomial (monomial (lookup p t) (except t X)) (except t (- X))" by (simp only: eq)
+qed
+
 lemma flatten_superset:
   assumes "finite A" and "keys p \<subseteq> A"
   shows "flatten p = (\<Sum>t\<in>A. punit.monom_mult 1 t (lookup p t))"
@@ -4289,6 +4343,10 @@ proof -
   qed
   show ?thesis by (induct p rule: poly_mapping_plus_induct) (simp_all add: ring_distribs flatten_plus eq)
 qed
+
+lemma flatten_monom_mult:
+  "flatten (punit.monom_mult c t p) = punit.monom_mult 1 t (c * flatten (p::_ \<Rightarrow>\<^sub>0 _ \<Rightarrow>\<^sub>0 'b::comm_semiring_1))"
+  by (simp only: flatten_times flatten_monomial mult.assoc flip: times_monomial_left)
 
 lemma flatten_sum: "flatten (sum f I) = (\<Sum>i\<in>I. flatten (f i))"
   by (induct I rule: infinite_finite_induct) (simp_all add: flatten_plus)
