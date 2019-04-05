@@ -472,4 +472,11 @@ proof -
   finally show ?thesis .
 qed
 
+lemma poly_poly_of_focus: "poly (poly_of_focus x p) a = eval_pm (\<lambda>_. a) (focus {x} p)"
+  by (simp add: poly_of_focus_def poly_eq_eval_pm' focus_in_Polys)
+
+corollary poly_poly_of_focus_monomial:
+  "poly (poly_of_focus x p) (monomial 1 (Poly_Mapping.single x 1)) = (p::_ \<Rightarrow>\<^sub>0 _::comm_semiring_1)"
+  unfolding poly_poly_of_focus eval_pm_focus by (rule poly_subst_id) simp
+
 end (* theory *)
