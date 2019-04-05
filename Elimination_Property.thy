@@ -1,7 +1,9 @@
+(* Author: Alexander Maletzky *)
+
 section \<open>Elimination Property\<close>
 
 theory Elimination_Property
-  imports MPoly_PM Groebner_Bases.Syzygy
+  imports Lex_Order_PP MPoly_PM Groebner_Bases.Syzygy
 begin
 
 text \<open>We prove the so-called \<^emph>\<open>elimination property\<close> of Gr\"obner bases: Roughly, if \<open>G\<close> is a
@@ -206,73 +208,21 @@ lemma is_elim_ord_UNIV: "is_elim_ord ord UNIV"
   by (simp add: is_elim_ord_def PPs_def)
 
 lemma lex_is_elim_ord: "is_elim_ord (lex_pm::('x::linorder \<Rightarrow>\<^sub>0 nat) \<Rightarrow> _) {x..}"
-proof (rule is_elim_ordI)
-  fix s t :: "'x \<Rightarrow>\<^sub>0 nat"
-  assume 1: "s \<in> .[{x..}]"
-  assume "lex_pm t s"
-  thus "t \<in> .[{x..}]" unfolding lex_pm_alt
-  proof (elim disjE exE conjE)
-    assume "t = s"
-    with 1 show ?thesis by simp
-  next
-    fix y
-    assume "lookup t y < lookup s y"
-    with zero_min have "0 < lookup s y" by (rule le_less_trans)
-    hence "y \<in> keys s" by (simp add: dual_order.strict_implies_not_eq in_keys_iff)
-    with 1 have "y \<in> {x..}" using PPsD by blast
-    hence "x \<le> y" by simp
-    assume 2: "\<forall>y'<y. lookup t y' = lookup s y'"
-    show ?thesis
-    proof (intro PPsI subsetI)
-      fix y'
-      assume "y' \<in> keys t"
-      show "y' \<in> {x..}"
-      proof (rule ccontr)
-        assume "y' \<notin> {x..}"
-        with 1 have "y' \<notin> keys s" and "y' < x" by (auto simp: PPs_def)
-        from this(2) \<open>x \<le> y\<close> have "y' < y" by (rule less_le_trans)
-        with 2 have "lookup t y' = lookup s y'" by simp
-        also from \<open>y' \<notin> keys s\<close> have "\<dots> = 0" by simp
-        finally have "y' \<notin> keys t" by simp
-        thus False using \<open>y' \<in> keys t\<close> ..
-      qed
-    qed
-  qed
+proof (intro is_elim_ordI PPsI subsetI)
+  fix s t :: "'x \<Rightarrow>\<^sub>0 nat" and y
+  assume "lex_pm t s" and "y \<in> keys t"
+  then obtain z where "z \<in> keys s" and "z \<le> y" by (rule lex_pm_keys_leE)
+  moreover assume "s \<in> .[{x..}]"
+  ultimately show "y \<in> {x..}" by (auto dest!: PPsD)
 qed
 
 lemma lex_is_elim_ord': "is_elim_ord (lex_pm::('x::linorder \<Rightarrow>\<^sub>0 nat) \<Rightarrow> _) {x<..}"
-proof (rule is_elim_ordI)
-  fix s t :: "'x \<Rightarrow>\<^sub>0 nat"
-  assume 1: "s \<in> .[{x<..}]"
-  assume "lex_pm t s"
-  thus "t \<in> .[{x<..}]" unfolding lex_pm_alt
-  proof (elim disjE exE conjE)
-    assume "t = s"
-    with 1 show ?thesis by simp
-  next
-    fix y
-    assume "lookup t y < lookup s y"
-    with zero_min have "0 < lookup s y" by (rule le_less_trans)
-    hence "y \<in> keys s" by (simp add: dual_order.strict_implies_not_eq in_keys_iff)
-    with 1 have "y \<in> {x<..}" using PPsD by blast
-    hence "x < y" by simp
-    assume 2: "\<forall>y'<y. lookup t y' = lookup s y'"
-    show ?thesis
-    proof (intro PPsI subsetI)
-      fix y'
-      assume "y' \<in> keys t"
-      show "y' \<in> {x<..}"
-      proof (rule ccontr)
-        assume "y' \<notin> {x<..}"
-        with 1 have "y' \<notin> keys s" and "y' \<le> x" by (auto simp: PPs_def)
-        from this(2) \<open>x < y\<close> have "y' < y" by (rule le_less_trans)
-        with 2 have "lookup t y' = lookup s y'" by simp
-        also from \<open>y' \<notin> keys s\<close> have "\<dots> = 0" by simp
-        finally have "y' \<notin> keys t" by simp
-        thus False using \<open>y' \<in> keys t\<close> ..
-      qed
-    qed
-  qed
+proof (intro is_elim_ordI PPsI subsetI)
+  fix s t :: "'x \<Rightarrow>\<^sub>0 nat" and y
+  assume "lex_pm t s" and "y \<in> keys t"
+  then obtain z where "z \<in> keys s" and "z \<le> y" by (rule lex_pm_keys_leE)
+  moreover assume "s \<in> .[{x<..}]"
+  ultimately show "y \<in> {x<..}" by (auto dest!: PPsD)
 qed
 
 subsection \<open>Eliminating Indeterminates\<close>
@@ -401,11 +351,11 @@ lemma PolysV_eq_Polys [simp]: "punit.PolysV X = P[X]"
 lemma punit_is_top_ord: "punit.is_top_ord"
   by (simp add: punit.is_top_ord_def)
 
-lemmas pmdl_Int_Polys_Polys =
+lemmas ideal_Int_Polys_Polys =
   punit.pmdl_Int_PolysV_PolysV[OF punit_is_top_ord, simplified]
 lemmas Int_Polys_isGB_Polys =
   punit.Int_PolysV_isGB_PolysV[OF punit_is_top_ord, simplified]
-lemmas pmdl_Int_Polys_finite =
+lemmas ideal_Int_Polys_finite =
   punit.pmdl_Int_PolysV_finite[OF punit_is_top_ord, simplified]
 lemmas Int_Polys_isGB_finite =
   punit.Int_PolysV_isGB_finite[OF punit_is_top_ord, simplified]
