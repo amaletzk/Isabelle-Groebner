@@ -4395,31 +4395,152 @@ next
                   focus_Polys_Compl[OF \<open>c \<in> _\<close>] times_monomial_monomial flip: times_monomial_left)
 qed
 
-lemma indets_eval_pm_focus_subset: "indets (eval_pm a (focus X p)) \<subseteq> \<Union> (indets ` a ` X) \<union> (indets p - X)"
+lemma eval_pm_focus:
+  "eval_pm a (focus X p) = poly_subst (\<lambda>x. if x \<in> X then a x else monomial 1 (Poly_Mapping.single x 1)) p"
 proof -
-  let ?p = "focus X p"
-  have "indets (eval_pm a ?p) \<subseteq> \<Union> (indets ` a ` indets ?p) \<union> \<Union> (indets ` lookup ?p ` keys ?p)"
-    by (fact indets_eval_pm_subset)
-  also have "\<dots> \<subseteq> \<Union> (indets ` a ` X) \<union> (indets p - X)"
-  proof (rule Un_mono)
-    from focus_in_Polys have "indets (focus X p) \<subseteq> X" by (rule PolysD)
-    thus "\<Union> (indets ` a ` indets (focus X p)) \<subseteq> \<Union> (indets ` a ` X)" by blast
-  next
-    show "\<Union> (indets ` lookup ?p ` keys ?p) \<subseteq> indets p - X"
-    proof (intro subsetI, elim UN_E)
-      fix x c
-      from subset_refl have "p \<in> P[indets p]" by (rule PolysI_alt)
-      hence "range (lookup (focus X p)) \<subseteq> P[indets p - X]"
-        by (rule focus_coeffs_subset_Polys')
-      with image_mono have "lookup (focus X p) ` keys ?p \<subseteq> P[indets p - X]"
-        by (rule subset_trans) simp
-      moreover assume "c \<in> lookup (focus X p) ` keys (focus X p)"
-      ultimately have "c \<in> P[indets p - X]" ..
-      hence "indets c \<subseteq> indets p - X" by (rule PolysD)
-      moreover assume "x \<in> indets c"
-      ultimately show "x \<in> indets p - X" ..
-    qed
+  let ?b = "\<lambda>x. if x \<in> X then a x else monomial 1 (Poly_Mapping.single x 1)"
+  have *: "lookup (punit.monom_mult (monomial (lookup p t) (except t X)) 0
+              (subst_pp (\<lambda>x. monomial (a x) 0) (except t (- X)))) 0 =
+            punit.monom_mult (lookup p t) 0 (subst_pp ?b t)" for t
+  proof -
+    have 1: "subst_pp ?b (except t X) = monomial 1 (except t X)"
+      by (rule subst_pp_id) (simp add: keys_except)
+    from refl have 2: "subst_pp ?b (except t (- X)) = subst_pp a (except t (-X))"
+      by (rule subst_pp_cong) (simp add: keys_except)
+    have "lookup (punit.monom_mult (monomial (lookup p t) (except t X)) 0
+                      (subst_pp (\<lambda>x. monomial (a x) 0) (except t (- X)))) 0 =
+          punit.monom_mult (lookup p t) (except t X) (subst_pp a (except t (- X)))"
+      by (simp add: lookup_times_zero subst_pp_def lookup_prod_zero lookup_power_zero
+                flip: times_monomial_left)
+    also have "\<dots> = punit.monom_mult (lookup p t) 0 (monomial 1 (except t X) * subst_pp a (except t (- X)))"
+      by (simp add: times_monomial_monomial flip: times_monomial_left mult.assoc)
+    also have "\<dots> = punit.monom_mult (lookup p t) 0 (subst_pp ?b (except t X + except t (- X)))"
+      by (simp only: subst_pp_plus 1 2)
+    also have "\<dots> = punit.monom_mult (lookup p t) 0 (subst_pp ?b t)" by (simp flip: except_decomp)
+    finally show ?thesis .
   qed
+  show ?thesis by (simp add: eval_pm_def focus_def poly_subst_sum lookup_sum poly_subst_monomial *
+                        flip: poly_subst_def)
+qed
+
+corollary eval_pm_eval_pm_focus:
+  "eval_pm a (eval_pm b (focus X p)) = eval_pm (\<lambda>x::'x. if x \<in> X then eval_pm a (b x) else a x) p"
+proof -
+  have eq: "monomial (lookup (poly_subst (\<lambda>y. monomial (a y) (0::'x \<Rightarrow>\<^sub>0 nat)) q) 0) 0 =
+              poly_subst (\<lambda>y. monomial (a y) (0::'x \<Rightarrow>\<^sub>0 nat)) q" for q
+    by (intro poly_deg_zero_imp_monomial poly_deg_poly_subst_eq_zeroI) simp
+  show ?thesis unfolding eval_pm_focus
+    by (simp add: eval_pm_def poly_subst_poly_subst if_distrib poly_subst_monomial subst_pp_single eq
+            cong: if_cong)
+qed
+
+lemma indets_eval_pm_focus_subset:
+  "indets (eval_pm a (focus X p)) \<subseteq> \<Union> (indets ` a ` X) \<union> (indets p - X)"
+proof
+  fix x
+  assume "x \<in> indets (eval_pm a (focus X p))"
+  also have "\<dots> = indets (poly_subst (\<lambda>x. if x \<in> X then a x else monomial 1 (Poly_Mapping.single x 1)) p)"
+    (is "_ = indets (poly_subst ?f _)") by (simp only: eval_pm_focus)
+  finally obtain y where "y \<in> indets p" and "x \<in> indets (?f y)" by (rule in_indets_poly_substE)
+  from this(2) have "(x \<notin> X \<and> x = y) \<or> (y \<in> X \<and> x \<in> indets (a y))"
+    by (simp add: indets_monomial split: if_split_asm)
+  thus "x \<in> \<Union> (indets ` a ` X) \<union> (indets p - X)"
+  proof (elim disjE conjE)
+    assume "x \<notin> X" and "x = y"
+    with \<open>y \<in> indets p\<close> have "x \<in> indets p - X" by simp
+    thus ?thesis ..
+  next
+    assume "y \<in> X" and "x \<in> indets (a y)"
+    hence "x \<in> \<Union> (indets ` a ` X)" by blast
+    thus ?thesis ..
+  qed
+qed
+
+lemma lookup_eval_pm_focus:
+  "lookup (eval_pm (\<lambda>x. monomial (a x) 0) (focus X p)) t = eval_pm a (lookup (focus (- X) p) t)"
+proof -
+  let ?f = "\<lambda>x. if x \<in> X then monomial (a x) 0 else monomial 1 (Poly_Mapping.single x 1)"
+  have eq: "subst_pp ?f s = monomial (\<Prod>x\<in>keys s \<inter> X. a x ^ lookup s x) (except s X)" for s
+  proof -
+    have "subst_pp ?f s = (\<Prod>x\<in>(keys s \<inter> X) \<union> (keys s - X). ?f x ^ lookup s x)"
+      unfolding subst_pp_def by (rule prod.cong) blast+
+    also have "\<dots> = (\<Prod>x\<in>keys s \<inter> X. ?f x ^ lookup s x) * (\<Prod>x\<in>keys s - X. ?f x ^ lookup s x)"
+      by (rule prod.union_disjoint) auto
+    also have "\<dots> = monomial (\<Prod>x\<in>keys s \<inter> X. a x ^ lookup s x)
+                              (\<Sum>x\<in>keys s - X. Poly_Mapping.single x (lookup s x))"
+      by (simp add: monomial_power_map_scale times_monomial_monomial flip: punit.monomial_prod_sum)
+    also have "(\<Sum>x\<in>keys s - X. Poly_Mapping.single x (lookup s x)) = except s X"
+      by (metis (mono_tags, lifting) DiffD2 keys_except lookup_except_eq_idI
+              poly_mapping_sum_monomials sum.cong)
+    finally show ?thesis .
+  qed
+  show ?thesis
+    by (simp add: eval_pm_focus poly_subst_def lookup_sum eq flip: punit.map_scale_eq_monom_mult)
+       (simp add: focus_def lookup_sum eval_pm_sum lookup_single when_distrib eval_pm_monomial
+                  keys_except lookup_except_when)
+qed
+
+lemma keys_eval_pm_focus_subset:
+  "keys (eval_pm (\<lambda>x. monomial (a x) 0) (focus X p)) \<subseteq> (\<lambda>t. except t X) ` keys p"
+proof
+  fix t
+  assume "t \<in> keys (eval_pm (\<lambda>x. monomial (a x) 0) (focus X p))"
+  hence "lookup (eval_pm (\<lambda>x. monomial (a x) 0) (focus X p)) t \<noteq> 0" by simp
+  hence "eval_pm a (lookup (focus (- X) p) t) \<noteq> 0" by (simp add: lookup_eval_pm_focus)
+  hence "t \<in> keys (focus (- X) p)" by (auto simp flip: lookup_not_eq_zero_eq_in_keys)
+  thus "t \<in> (\<lambda>t. except t X) ` keys p" by (simp add: keys_focus)
+qed
+
+lemma eval_pm_focus_in_Polys:
+  assumes "p \<in> P[X]"
+  shows "eval_pm (\<lambda>x. monomial (a x) 0) (focus Y p) \<in> P[X - Y]"
+proof (rule PolysI_alt)
+  have "indets (eval_pm (\<lambda>x. monomial (a x) 0) (focus Y p)) \<subseteq>
+          \<Union> (indets ` (\<lambda>x. monomial (a x) 0) ` Y) \<union> (indets p - Y)"
+    by (fact indets_eval_pm_focus_subset)
+  also have "\<dots> = indets p - Y" by simp
+  also from assms have "\<dots> \<subseteq> X - Y" by (auto dest: PolysD)
+  finally show "indets (eval_pm (\<lambda>x. monomial (a x) 0) (focus Y p)) \<subseteq> X - Y" .
+qed
+
+lemma image_eval_pm_focus_ideal:
+  "eval_pm (\<lambda>x. monomial (a x) 0) ` focus X ` ideal F =
+    ideal (eval_pm (\<lambda>x. monomial (a x) 0) ` focus X ` F) \<inter>
+      (P[- X]::(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::comm_ring_1) set)"
+proof -
+  let ?h = "\<lambda>f. eval_pm (\<lambda>x. monomial (a x) 0) (focus X f)"
+  have h_id: "?h p = p" if "p \<in> P[- X]" for p
+  proof -
+    from that have "focus X p \<in> P[- X \<inter> X]" by (rule focus_in_Polys')
+    also have "\<dots> = P[{}]" by simp
+    finally obtain c where eq: "focus X p = monomial c 0" unfolding Polys_empty ..
+    hence "flatten (focus X p) = flatten (monomial c 0)" by (rule arg_cong)
+    hence "c = p" by (simp add: flatten_monomial)
+    thus "?h p = p" by (simp add: eq eval_pm_monomial)
+  qed
+  have rng: "range ?h = P[- X]"
+  proof (intro subset_antisym subsetI, elim rangeE)
+    fix b f
+    assume b: "b = ?h f"
+    have "?h f \<in> P[UNIV - X]" by (rule eval_pm_focus_in_Polys) simp
+    thus "b \<in> P[- X]" by (simp add: b Compl_eq_Diff_UNIV)
+  next
+    fix p :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a"
+    assume "p \<in> P[- X]"
+    hence "?h p = p" by (rule h_id)
+    hence "p = ?h p" by (rule sym)
+    thus "p \<in> range ?h" by (rule range_eqI)
+  qed
+  have "eval_pm (\<lambda>x. monomial (a x) 0) ` focus X ` ideal F = ?h ` ideal F" by (fact image_image)
+  also have "\<dots> = ideal (?h ` F) \<inter> range ?h"
+  proof (rule image_ideal_eq_Int)
+    fix p
+    have "?h p \<in> range ?h" by (fact rangeI)
+    also have "\<dots> = P[- X]" by fact
+    finally show "?h (?h p) = ?h p" by (rule h_id)
+  qed (simp_all only: focus_plus eval_pm_plus focus_times eval_pm_times)
+  also have "\<dots> = ideal (eval_pm (\<lambda>x. monomial (a x) 0) ` focus X ` F) \<inter> P[- X]"
+    by (simp only: image_image rng)
   finally show ?thesis .
 qed
 
