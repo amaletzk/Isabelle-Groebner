@@ -3752,6 +3752,31 @@ lemma
 lemma extend_indets_zero_iff [simp]: "extend_indets p = 0 \<longleftrightarrow> p = 0"
   by (simp add: keys_extend_indets flip: keys_eq_empty_iff)
 
+lemma extend_indets_inject:
+  assumes "extend_indets p = extend_indets (q::_ \<Rightarrow>\<^sub>0 _::comm_ring_1)"
+  shows "p = q"
+proof -
+  from assms have "extend_indets (p - q) = 0" by (simp add: extend_indets_minus)
+  thus ?thesis by simp
+qed
+
+corollary inj_extend_indets: "inj (extend_indets::_ \<Rightarrow> _ \<Rightarrow>\<^sub>0 _::comm_ring_1)"
+  using extend_indets_inject by (intro injI)
+
+lemma poly_subst_extend_indets: "poly_subst f (extend_indets p) = poly_subst (f \<circ> Some) p"
+  by (simp add: extend_indets_def poly_subst_poly_subst extend_indets_subst_def poly_subst_monomial
+          subst_pp_single o_def)
+
+lemma eval_pm_extend_indets: "eval_pm a (extend_indets p) = eval_pm (a \<circ> Some) p"
+proof -
+  have eq: "eval_pm a (extend_indets (monomial c t)) = eval_pm (\<lambda>x. a (Some x)) (monomial c t)"
+    for c t
+    by (simp add: extend_indets_monomial eval_pm_times eval_pm_monomial eval_pm_prod eval_pm_power
+                subst_pp_def extend_indets_subst_def flip: times_monomial_left)
+  show ?thesis
+    by (induct p rule: poly_mapping_plus_induct) (simp_all add: extend_indets_plus eval_pm_plus eq)
+qed
+
 lemma lookup_restrict_indets_pp: "lookup (restrict_indets_pp t) = (\<lambda>x. lookup t (Some x))"
 proof -
   let ?f = "\<lambda>z x. lookup t x * lookup (case x of None \<Rightarrow> 0 | Some y \<Rightarrow> Poly_Mapping.single y 1) z"
@@ -3969,76 +3994,30 @@ proof -
   finally show ?thesis .
 qed
 
-lemma extend_indets_ideal_subset: "extend_indets ` ideal F \<subseteq> ideal (extend_indets ` F)"
-proof
-  fix q
-  assume "q \<in> extend_indets ` ideal F"
-  then obtain p where "p \<in> ideal F" and q: "q = extend_indets p" ..
-  from this(1) show "q \<in> ideal (extend_indets ` F)" unfolding q
-  proof (induct p rule: ideal.span_induct')
-    case base
-    show ?case by (simp add: ideal.span_zero)
-  next
-    case (step a q p)
-    have "extend_indets (a + q * p) = extend_indets a + extend_indets q * extend_indets p"
-      by (simp only: extend_indets_plus extend_indets_times)
-    also from step.hyps(2, 3) have "\<dots> \<in> ideal (extend_indets ` F)"
-      by (intro ideal.span_add ideal.span_scale ideal.span_base[of "extend_indets p"] imageI)
-    finally show ?case .
-  qed
-qed
+lemma dehomogenize_extend_indets [simp]: "dehomogenize None (extend_indets p) = extend_indets p"
+  by (simp add: indets_extend_indets)
 
-lemma restrict_indets_ideal_subset: "restrict_indets ` ideal F \<subseteq> ideal (restrict_indets ` F)"
-proof
-  fix q
-  assume "q \<in> restrict_indets ` ideal F"
-  then obtain p where "p \<in> ideal F" and q: "q = restrict_indets p" ..
-  from this(1) show "q \<in> ideal (restrict_indets ` F)" unfolding q
-  proof (induct p rule: ideal.span_induct')
-    case base
-    show ?case by (simp add: ideal.span_zero)
-  next
-    case (step a q p)
-    have "restrict_indets (a + q * p) = restrict_indets a + restrict_indets q * restrict_indets p"
-      by (simp only: restrict_indets_plus restrict_indets_times)
-    also from step.hyps(2, 3) have "\<dots> \<in> ideal (restrict_indets ` F)"
-      by (intro ideal.span_add ideal.span_scale ideal.span_base[of "restrict_indets p"] imageI)
-    finally show ?case .
-  qed
+lemma restrict_indets_ideal: "restrict_indets ` ideal F = ideal (restrict_indets ` F)"
+  using restrict_indets_plus restrict_indets_times
+proof (rule image_ideal_eq_surj)
+  from restrict_extend_indets show "surj restrict_indets" by (rule surjI)
 qed
 
 lemma ideal_restrict_indets:
-  assumes "ideal G = ideal (homogenize None ` extend_indets ` F)" (is "_ = ideal ?F")
-  shows "ideal (restrict_indets ` G) = ideal F"
-proof (intro Set.equalityI ideal.span_subset_spanI)
-  show "restrict_indets ` G \<subseteq> ideal F"
-  proof
-    fix q
-    assume "q \<in> restrict_indets ` G"
-    then obtain g where "g \<in> G" and q: "q = restrict_indets g" ..
-    from this(1) have "g \<in> ideal G" by (rule ideal.span_base)
-    also have "\<dots> = ideal ?F" by fact
-    finally have "q \<in> restrict_indets ` ideal ?F" using q by (rule rev_image_eqI)
-    also have "\<dots> \<subseteq> ideal (restrict_indets ` ?F)" by (rule restrict_indets_ideal_subset)
-    also have "restrict_indets ` ?F = F"
-      by (auto simp: image_image simp del: dehomogenize_homogenize)
-    finally show "q \<in> ideal F" .
-  qed
-next
-  show "F \<subseteq> ideal (restrict_indets ` G)"
-  proof
-    fix f
-    assume "f \<in> F"
-    hence "homogenize None (extend_indets f) \<in> ?F" by (intro imageI)
-    also have "\<dots> \<subseteq> ideal ?F" by (rule ideal.span_superset)
-    also from assms(1) have "\<dots> = ideal G" by (rule sym)
-    finally have "restrict_indets (homogenize None (extend_indets f)) \<in> restrict_indets ` ideal G"
-      by (rule imageI)
-    with \<open>f \<in> F\<close> have "f \<in> restrict_indets ` ideal G" by simp
-    also have "\<dots> \<subseteq> ideal (restrict_indets ` G)" by (rule restrict_indets_ideal_subset)
-    finally show "f \<in> ideal (restrict_indets ` G)" .
-  qed
+  "ideal G = ideal (homogenize None ` extend_indets ` F) \<Longrightarrow> ideal (restrict_indets ` G) = ideal F"
+  by (simp flip: restrict_indets_ideal) (simp add: restrict_indets_ideal image_image)
+
+lemma extend_indets_ideal: "extend_indets ` ideal F = ideal (extend_indets ` F) \<inter> P[- {None}]"
+proof -
+  have "extend_indets ` ideal F = extend_indets ` restrict_indets ` ideal (extend_indets ` F)"
+    by (simp add: restrict_indets_ideal image_image)
+  also have "\<dots> = ideal (extend_indets ` F) \<inter> P[- {None}]"
+    by (simp add: extend_restrict_indets_eq_dehomogenize dehomogenize_ideal image_image)
+  finally show ?thesis .
 qed
+
+corollary extend_indets_ideal_subset: "extend_indets ` ideal F \<subseteq> ideal (extend_indets ` F)"
+  by (simp add: extend_indets_ideal)
 
 subsection \<open>Canonical Isomorphisms between \<open>P[X,Y]\<close> and \<open>P[X][Y]\<close>: \<open>focus\<close> and \<open>flatten\<close>\<close>
 
