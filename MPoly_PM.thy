@@ -1261,6 +1261,9 @@ corollary Polys_closed_map_scale: "p \<in> P[X] \<Longrightarrow> (c::_::semirin
 lemma Polys_closed_times: "p \<in> P[X] \<Longrightarrow> q \<in> P[X] \<Longrightarrow> p * q \<in> P[X]"
   using indets_times_subset[of p q] by (auto simp: Polys_alt PPs_def)
 
+lemma Polys_closed_power: "p \<in> P[X] \<Longrightarrow> p ^ m \<in> P[X]"
+  by (induct m) (auto intro: one_in_Polys Polys_closed_times)
+
 lemma Polys_closed_sum: "(\<And>a. a \<in> A \<Longrightarrow> f a \<in> P[X]) \<Longrightarrow> sum f A \<in> P[X]"
   by (induct A rule: infinite_finite_induct) (auto intro: zero_in_Polys Polys_closed_plus)
 
