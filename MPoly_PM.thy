@@ -3347,6 +3347,22 @@ qed
 corollary dehomogenize_homogenize_id: "x \<notin> indets p \<Longrightarrow> dehomogenize x (homogenize x p) = p"
   by simp
 
+lemma range_dehomogenize: "range (dehomogenize x) = (P[- {x}] :: (_ \<Rightarrow>\<^sub>0 'a::comm_semiring_1) set)"
+proof (intro subset_antisym subsetI PolysI_alt range_eqI)
+  fix p::"_ \<Rightarrow>\<^sub>0 'a" and y
+  assume "p \<in> range (dehomogenize x)"
+  then obtain q where p: "p = dehomogenize x q" ..
+  assume "y \<in> indets p"
+  hence "y \<in> indets (dehomogenize x q)" by (simp only: p)
+  with indets_dehomogenize have "y \<in> indets q - {x}" ..
+  thus "y \<in> - {x}" by simp
+next
+  fix p::"_ \<Rightarrow>\<^sub>0 'a"
+  assume "p \<in> P[- {x}]"
+  hence "x \<notin> indets p" by (auto dest: PolysD)
+  thus "p = dehomogenize x (homogenize x p)" by (rule dehomogenize_homogenize_id[symmetric])
+qed
+
 lemma dehomogenize_alt: "dehomogenize x p = (\<Sum>t\<in>keys p. monomial (lookup p t) (except t {x}))"
 proof -
   have "dehomogenize x p = dehomogenize x (\<Sum>t\<in>keys p. monomial (lookup p t) t)"
@@ -3529,24 +3545,12 @@ proof -
   thus ?thesis by (simp add: assms(1))
 qed
 
-lemma dehomogenize_ideal_subset: "dehomogenize x ` ideal F \<subseteq> ideal (dehomogenize x ` F)"
-proof
-  fix q
-  assume "q \<in> dehomogenize x ` ideal F"
-  then obtain p where "p \<in> ideal F" and q: "q = dehomogenize x p" ..
-  from this(1) show "q \<in> ideal (dehomogenize x ` F)" unfolding q
-  proof (induct p rule: ideal.span_induct')
-    case base
-    show ?case by (simp add: ideal.span_zero)
-  next
-    case (step a q p)
-    have "dehomogenize x (a + q * p) = dehomogenize x a + dehomogenize x q * dehomogenize x p"
-      by (simp only: dehomogenize_plus dehomogenize_times)
-    also from step.hyps(2, 3) have "\<dots> \<in> ideal (dehomogenize x ` F)"
-      by (intro ideal.span_add ideal.span_scale ideal.span_base[of "dehomogenize x p"] imageI)
-    finally show ?case .
-  qed
-qed
+lemma dehomogenize_ideal: "dehomogenize x ` ideal F = ideal (dehomogenize x ` F) \<inter> P[- {x}]"
+  unfolding range_dehomogenize[symmetric]
+  using dehomogenize_plus dehomogenize_times dehomogenize_dehomogenize by (rule image_ideal_eq_Int)
+
+corollary dehomogenize_ideal_subset: "dehomogenize x ` ideal F \<subseteq> ideal (dehomogenize x ` F)"
+  by (simp add: dehomogenize_ideal)
 
 lemma ideal_dehomogenize:
   assumes "ideal G = ideal (homogenize x ` F)" and "F \<subseteq> P[UNIV - {x}]"
