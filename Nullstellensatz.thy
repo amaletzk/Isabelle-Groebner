@@ -3,7 +3,11 @@
 section \<open>Hilbert's Nullstellensatz\<close>
 
 theory Nullstellensatz
-  imports "HOL-Computational_Algebra.Fundamental_Theorem_Algebra" Lex_Order_PP Univariate_PM Groebner_PM
+  imports "HOL-Computational_Algebra.Fundamental_Theorem_Algebra"
+          "HOL-Computational_Algebra.Fraction_Field"
+          Lex_Order_PP
+          Univariate_PM
+          Groebner_PM
 begin
 
 text \<open>We prove the geometric version of Hilbert's Nullstellensatz, i.e. the precise correspondence
@@ -44,6 +48,12 @@ proof -
   qed
 qed
 
+lemma Fract_same: "Fract a a = (1 when a \<noteq> 0)"
+  by (simp add: One_fract_def Zero_fract_def eq_fract when_def)
+
+lemma Fract_eq_zero_iff: "Fract a b = 0 \<longleftrightarrow> a = 0 \<or> b = 0"
+  by (metis (no_types, lifting) Zero_fract_def eq_fract(1) eq_fract(2) mult_eq_0_iff one_neq_zero)
+
 lemma poly_plus_rightE:
   obtains c where "poly p (x + y) = poly p x + c * y"
 proof (induct p arbitrary: thesis)
@@ -62,6 +72,62 @@ lemma poly_minus_rightE:
   obtains c where "poly p (x - y) = poly p x - c * (y::_::comm_ring)"
   by (metis (no_types, hide_lams) add_uminus_conv_diff linordered_field_class.sign_simps(5)
       mult_minus_left poly_plus_rightE)
+
+lemma map_poly_plus:
+  assumes "f 0 = 0" and "\<And>a b. f (a + b) = f a + f b"
+  shows "map_poly f (p + q) = map_poly f p + map_poly f q"
+  by (rule Polynomial.poly_eqI) (simp add: coeff_map_poly assms)
+
+lemma map_poly_minus:
+  assumes "f 0 = 0" and "\<And>a b. f (a - b) = f a - f b"
+  shows "map_poly f (p - q) = map_poly f p - map_poly f q"
+  by (rule Polynomial.poly_eqI) (simp add: coeff_map_poly assms)
+
+lemma map_poly_sum:
+  assumes "f 0 = 0" and "\<And>a b. f (a + b) = f a + f b"
+  shows "map_poly f (sum g A) = (\<Sum>a\<in>A. map_poly f (g a))"
+  by (induct A rule: infinite_finite_induct) (simp_all add: map_poly_plus assms)
+
+lemma map_poly_times:
+  assumes "f 0 = 0" and "\<And>a b. f (a + b) = f a + f b" and "\<And>a b. f (a * b) = f a * f b"
+  shows "map_poly f (p * q) = map_poly f p * map_poly f q"
+proof (induct p)
+  case 0
+  show ?case by simp
+next
+  case (pCons c p)
+  show ?case by (simp add: assms map_poly_plus map_poly_smult map_poly_pCons pCons)
+qed
+
+lemma poly_Fract:
+  assumes "set (Polynomial.coeffs p) \<subseteq> range (\<lambda>x. Fract x 1)"
+  obtains q m where "poly p (Fract a b) = Fract q (b ^ m)"
+  using assms
+proof (induct p arbitrary: thesis)
+  case 0
+  have "poly 0 (Fract a b) = Fract 0 (b ^ 1)" by (simp add: fract_collapse)
+  thus ?case by (rule 0)
+next
+  case (pCons c p)
+  from pCons.hyps(1) have "insert c (set (Polynomial.coeffs p)) = set (Polynomial.coeffs (pCons c p))"
+    by auto
+  with pCons.prems(2) have "c \<in> range (\<lambda>x. Fract x 1)" and "set (Polynomial.coeffs p) \<subseteq> range (\<lambda>x. Fract x 1)"
+    by blast+
+  from this(2) obtain q0 m0 where poly_p: "poly p (Fract a b) = Fract q0 (b ^ m0)"
+    using pCons.hyps(2) by blast
+  from \<open>c \<in> _\<close> obtain c0 where c: "c = Fract c0 1" ..
+  show ?case
+  proof (cases "b = 0")
+    case True
+    hence "poly (pCons c p) (Fract a b) = Fract c0 (b ^ 0)" by (simp add: c fract_collapse)
+    thus ?thesis by (rule pCons.prems)
+  next
+    case False
+    hence "poly (pCons c p) (Fract a b) = Fract (c0 * b ^ Suc m0 + a * q0) (b ^ Suc m0)"
+      by (simp add: poly_p c)
+    thus ?thesis by (rule pCons.prems)
+  qed
+qed
 
 lemma (in ordered_term) lt_sum_le_Max: "lt (sum f A) \<preceq>\<^sub>t ord_term_lin.Max {lt (f a) | a. a \<in> A}"
 proof (induct A rule: infinite_finite_induct)
@@ -1116,6 +1182,17 @@ lemma radicalE:
   obtains m where "f ^ m \<in> F"
   using assms by (auto simp: radical_def)
 
+lemma radical_empty [simp]: "\<surd>{} = {}"
+  by (simp add: radical_def)
+
+lemma radical_UNIV [simp]: "\<surd>UNIV = UNIV"
+  by (simp add: radical_def)
+
+lemma zero_in_radical_ideal [simp]: "0 \<in> \<surd>ideal F"
+proof (rule radicalI)
+  show "0 ^ 1 \<in> ideal F" by (simp add: ideal.span_zero)
+qed
+
 lemma radical_mono: "F \<subseteq> G \<Longrightarrow> \<surd>F \<subseteq> \<surd>G"
   by (auto elim!: radicalE intro: radicalI)
 
@@ -1855,23 +1932,257 @@ proof (rule ccontr)
   thus False by (simp add: assms(3))
 qed
 
+lemma radical_idealI:
+  assumes "finite X" and "F \<subseteq> P[X]" and "f \<in> P[X]" and "x \<notin> X"
+    and "\<V> (insert (1 - punit.monom_mult 1 (Poly_Mapping.single x 1) f) F) = {}"
+  shows "(f::('x::{countable,linorder} \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::alg_closed_field) \<in> \<surd>ideal F"
+proof (cases "f = 0")
+  case True
+  thus ?thesis by simp
+next
+  case False
+  from assms(4) have "P[X] \<subseteq> P[- {x}]" by (auto simp: Polys_alt)
+  with assms(3) have "f \<in> P[- {x}]" ..
+  let ?x = "Poly_Mapping.single x 1"
+  let ?f = "punit.monom_mult 1 ?x f"
+  from assms(1) have "finite (insert x X)" by simp
+  moreover have "insert (1 - ?f) F \<subseteq> P[insert x X]" unfolding insert_subset
+  proof (intro conjI Polys_closed_minus one_in_Polys Polys_closed_monom_mult PPs_closed_single)
+    have "P[X] \<subseteq> P[insert x X]" by (rule Polys_mono) blast
+    with assms(2, 3) show "f \<in> P[insert x X]" and "F \<subseteq> P[insert x X]" by blast+
+  qed simp
+  ultimately have "ideal (insert (1 - ?f) F) = UNIV"
+    using assms(5) by (rule weak_Nullstellensatz)
+  hence "1 \<in> ideal (insert (1 - ?f) F)" by simp
+  then obtain F' q where fin': "finite F'" and F'_sub: "F' \<subseteq> insert (1 - ?f) F"
+    and eq: "1 = (\<Sum>f'\<in>F'. q f' * f')" by (rule ideal.spanE)
+  show "f \<in> \<surd>ideal F"
+  proof (cases "1 - ?f \<in> F'")
+    case True
+    define g where "g = (\<lambda>x::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a. Fract x 1)"
+    define F'' where "F'' = F' - {1 - ?f}"
+    define q0 where "q0 = q (1 - ?f)"
+    have g_0: "g 0 = 0" by (simp add: g_def fract_collapse)
+    have g_1: "g 1 = 1" by (simp add: g_def fract_collapse)
+    have g_plus: "g (a + b) = g a + g b" for a b by (simp add: g_def)
+    have g_minus: "g (a - b) = g a - g b" for a b by (simp add: g_def)
+    have g_times: "g (a * b) = g a * g b" for a b by (simp add: g_def)
+    from fin' have fin'': "finite F''" by (simp add: F''_def)
+    from F'_sub have F''_sub: "F'' \<subseteq> F" by (auto simp: F''_def)
+
+    have "focus {x} ?f = monomial 1 ?x * focus {x} f"
+      by (simp add: focus_times focus_monomial except_single flip: times_monomial_left)
+    also from \<open>f \<in> P[- {x}]\<close> have "focus {x} f = monomial f 0" by (rule focus_Polys_Compl)
+    finally have "focus {x} ?f = monomial f ?x" by (simp add: times_monomial_monomial)
+    hence eq1: "poly (map_poly g (poly_of_focus x (1 - ?f))) (Fract 1 f) = 0"
+      by (simp add: poly_of_focus_def focus_minus poly_of_pm_minus poly_of_pm_monomial
+                PPs_closed_single map_poly_minus g_0 g_1 g_minus map_poly_monom poly_monom)
+         (simp add: g_def Fract_same \<open>f \<noteq> 0\<close>)
+    have eq2: "poly (map_poly g (poly_of_focus x f')) (Fract 1 f) = Fract f' 1" if "f' \<in> F''" for f'
+    proof -
+      from that F''_sub have "f' \<in> F" ..
+      with assms(2) have "f' \<in> P[X]" ..
+      with \<open>P[X] \<subseteq> _\<close> have "f' \<in> P[- {x}]" ..
+      hence "focus {x} f' = monomial f' 0" by (rule focus_Polys_Compl)
+      thus ?thesis
+        by (simp add: poly_of_focus_def focus_minus poly_of_pm_minus poly_of_pm_monomial
+                zero_in_PPs map_poly_minus g_0 g_1 g_minus map_poly_monom poly_monom)
+           (simp only: g_def)
+    qed
+
+    define p0m0 where "p0m0 = (\<lambda>f'. SOME z. poly (map_poly g (poly_of_focus x (q f'))) (Fract 1 f) =
+                                              Fract (fst z) (f ^ snd z))"
+    define p0 where "p0 = fst \<circ> p0m0"
+    define m0 where "m0 = snd \<circ> p0m0"
+    define m where "m = Max (m0 ` F'')"
+    have eq3: "poly (map_poly g (poly_of_focus x (q f'))) (Fract 1 f) = Fract (p0 f') (f ^ m0 f')"
+      for f'
+    proof -
+      have "g a = 0 \<longleftrightarrow> a = 0" for a by (simp add: g_def Fract_eq_zero_iff)
+      hence "set (Polynomial.coeffs (map_poly g (poly_of_focus x (q f')))) \<subseteq> range (\<lambda>x. Fract x 1)"
+        by (auto simp: set_coeffs_map_poly g_def)
+      then obtain p m' where "poly (map_poly g (poly_of_focus x (q f'))) (Fract 1 f) = Fract p (f ^ m')"
+        by (rule poly_Fract)
+      hence "poly (map_poly g (poly_of_focus x (q f'))) (Fract 1 f) = Fract (fst (p, m')) (f ^ snd (p, m'))"
+        by simp
+      thus ?thesis unfolding p0_def m0_def p0m0_def o_def by (rule someI)
+    qed
+    
+    note eq
+    also from True fin' have "(\<Sum>f'\<in>F'. q f' * f') = q0 * (1 - ?f) + (\<Sum>f'\<in>F''. q f' * f')"
+      by (simp add: q0_def F''_def sum.remove)
+    finally have "poly_of_focus x 1 = poly_of_focus x (q0 * (1 - ?f) + (\<Sum>f'\<in>F''. q f' * f'))"
+      by (rule arg_cong)
+    hence "1 = poly (map_poly g (poly_of_focus x (q0 * (1 - ?f) + (\<Sum>f'\<in>F''. q f' * f')))) (Fract 1 f)"
+      by (simp add: g_1)
+    also have "\<dots> = poly (map_poly g (poly_of_focus x (\<Sum>f'\<in>F''. q f' * f'))) (Fract 1 f)"
+      by (simp only: poly_of_focus_plus map_poly_plus g_0 g_plus g_times poly_add
+                poly_of_focus_times map_poly_times poly_mult eq1 mult_zero_right add_0_left)
+    also have "\<dots> = (\<Sum>f'\<in>F''. Fract (p0 f') (f ^ m0 f') * Fract f' 1)"
+      by (simp only: poly_of_focus_sum poly_of_focus_times map_poly_sum map_poly_times
+                g_0 g_plus g_times poly_sum poly_mult eq2 eq3 cong: sum.cong)
+    finally have "Fract (f ^ m) 1 = Fract (f ^ m) 1 * (\<Sum>f'\<in>F''. Fract (p0 f' * f') (f ^ m0 f'))"
+      by simp
+    also have "\<dots> = (\<Sum>f'\<in>F''. Fract (f ^ m * (p0 f' * f')) (f ^ m0 f'))"
+      by (simp add: sum_distrib_left)
+    also from refl have "\<dots> = (\<Sum>f'\<in>F''. Fract ((f ^ (m - m0 f') * p0 f') * f') 1)"
+    proof (rule sum.cong)
+      fix f'
+      assume "f' \<in> F''"
+      hence "m0 f' \<in> m0 ` F''" by (rule imageI)
+      with _ have "m0 f' \<le> m" unfolding m_def by (rule Max_ge) (simp add: fin'')
+      hence "f ^ m = f ^ (m0 f') * f ^ (m - m0 f')" by (simp flip: power_add)
+      hence "Fract (f ^ m * (p0 f' * f')) (f ^ m0 f') = Fract (f ^ m0 f') (f ^ m0 f') *
+                                                        Fract (f ^ (m - m0 f') * (p0 f' * f')) 1"
+        by (simp add: ac_simps)
+      also from \<open>f \<noteq> 0\<close> have "Fract (f ^ m0 f') (f ^ m0 f') = 1" by (simp add: Fract_same)
+      finally show "Fract (f ^ m * (p0 f' * f')) (f ^ m0 f') = Fract (f ^ (m - m0 f') * p0 f' * f') 1"
+        by (simp add: ac_simps)
+    qed
+    also from fin'' have "\<dots> = Fract (\<Sum>f'\<in>F''. (f ^ (m - m0 f') * p0 f') * f') 1"
+      by (induct F'') (simp_all add: fract_collapse)
+    finally have "f ^ m = (\<Sum>f'\<in>F''. (f ^ (m - m0 f') * p0 f') * f')"
+      by (simp add: eq_fract)
+    also have "\<dots> \<in> ideal F''" by (rule ideal.sum_in_spanI)
+    also from \<open>F'' \<subseteq> F\<close> have "\<dots> \<subseteq> ideal F" by (rule ideal.span_mono)
+    finally show "f \<in> \<surd>ideal F" by (rule radicalI)
+  next
+    case False
+    with F'_sub have "F' \<subseteq> F" by blast
+    have "1 \<in> ideal F'" unfolding eq by (rule ideal.sum_in_spanI)
+    also from \<open>F' \<subseteq> F\<close> have "\<dots> \<subseteq> ideal F" by (rule ideal.span_mono)
+    finally have "ideal F = UNIV" by (simp only: ideal_eq_UNIV_iff_contains_one)
+    thus ?thesis by simp
+  qed
+qed
+
+corollary radical_idealI_extend_indets:
+  assumes "finite X" and "F \<subseteq> P[X]"
+    and "\<V> (insert (1 - punit.monom_mult 1 (Poly_Mapping.single None 1) (extend_indets f))
+                            (extend_indets ` F)) = {}"
+  shows "(f::(_::{countable,linorder} \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 _::alg_closed_field) \<in> \<surd>ideal F"
+proof -
+  define Y where "Y = X \<union> indets f"
+  from assms(1) have fin_Y: "finite Y" by (simp add: Y_def finite_indets)
+  have "P[X] \<subseteq> P[Y]" by (rule Polys_mono) (simp add: Y_def)
+  with assms(2) have F_sub: "F \<subseteq> P[Y]" by (rule subset_trans)
+  have f_in: "f \<in> P[Y]" by (simp add: Y_def Polys_alt)
+
+  let ?F = "extend_indets ` F"
+  let ?f = "extend_indets f"
+  let ?X = "Some ` Y"
+  from fin_Y have "finite ?X" by (rule finite_imageI)
+  moreover from F_sub have "?F \<subseteq> P[?X]"
+    by (auto simp: indets_extend_indets intro!: PolysI_alt imageI dest!: PolysD(2) subsetD[of F])
+  moreover from f_in have "?f \<in> P[?X]"
+    by (auto simp: indets_extend_indets intro!: PolysI_alt imageI dest!: PolysD(2))
+  moreover have "None \<notin> ?X" by simp
+  ultimately have "?f \<in> \<surd>ideal ?F" using assms(3) by (rule radical_idealI)
+  also have "?f \<in> \<surd>ideal ?F \<longleftrightarrow> f \<in> \<surd>ideal F"
+  proof
+    assume "f \<in> \<surd>ideal F"
+    then obtain m where "f ^ m \<in> ideal F" by (rule radicalE)
+    hence "extend_indets (f ^ m) \<in> extend_indets ` ideal F" by (rule imageI)
+    with extend_indets_ideal_subset have "?f ^ m \<in> ideal ?F" unfolding extend_indets_power ..
+    thus "?f \<in> \<surd>ideal ?F" by (rule radicalI)
+  next
+    assume "?f \<in> \<surd>ideal ?F"
+    then obtain m where "?f ^ m \<in> ideal ?F" by (rule radicalE)
+    moreover have "?f ^ m \<in> P[- {None}]"
+      by (rule Polys_closed_power) (auto intro!: PolysI_alt simp: indets_extend_indets)
+    ultimately have "extend_indets (f ^ m) \<in> extend_indets ` ideal F"
+      by (simp add: extend_indets_ideal extend_indets_power)
+    hence "f ^ m \<in> ideal F" by (simp only: inj_image_mem_iff[OF inj_extend_indets])
+    thus "f \<in> \<surd>ideal F" by (rule radicalI)
+  qed
+  finally show ?thesis .
+qed
+
 theorem Nullstellensatz:
-  assumes "finite X" and "F \<subseteq> P[X]" and "(f::_ \<Rightarrow>\<^sub>0 _::alg_closed_field) \<in> \<I> (\<V> F)"
+  assumes "finite X" and "F \<subseteq> P[X]"
+    and "(f::(_::{countable,linorder} \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 _::alg_closed_field) \<in> \<I> (\<V> F)"
   shows "f \<in> \<surd>ideal F"
-  sorry
+  using assms(1, 2)
+proof (rule radical_idealI_extend_indets)
+  let ?f = "punit.monom_mult 1 (monomial 1 None) (extend_indets f)"
+  show "\<V> (insert (1 - ?f) (extend_indets ` F)) = {}"
+  proof (intro subset_antisym subsetI)
+    fix a
+    assume "a \<in> \<V> (insert (1 - ?f) (extend_indets ` F))"
+    moreover have "1 - ?f \<in> insert (1 - ?f) (extend_indets ` F)" by simp
+    ultimately have "eval_pm a (1 - ?f) = 0" by (rule variety_ofD)
+    hence "eval_pm a (extend_indets f) \<noteq> 0"
+      by (auto simp: eval_pm_minus eval_pm_times simp flip: times_monomial_left)
+    hence "eval_pm (a \<circ> Some) f \<noteq> 0" by (simp add: eval_pm_extend_indets)
+    have "a \<circ> Some \<in> \<V> F"
+    proof (rule variety_ofI)
+      fix f'
+      assume "f' \<in> F"
+      hence "extend_indets f' \<in> insert (1 - ?f) (extend_indets ` F)" by simp
+      with \<open>a \<in> _\<close> have "eval_pm a (extend_indets f') = 0" by (rule variety_ofD)
+      thus "eval_pm (a \<circ> Some) f' = 0" by (simp only: eval_pm_extend_indets)
+    qed
+    with assms(3) have "eval_pm (a \<circ> Some) f = 0" by (rule ideal_ofD)
+    with \<open>eval_pm (a \<circ> Some) f \<noteq> 0\<close> show "a \<in> {}" ..
+  qed simp
+qed
 
 theorem strong_Nullstellensatz:
   assumes "finite X" and "F \<subseteq> P[X]"
-  shows "\<I> (\<V> F) = \<surd>ideal (F::(_ \<Rightarrow>\<^sub>0 _::alg_closed_field) set)"
+  shows "\<I> (\<V> F) = \<surd>ideal (F::((_::{countable,linorder} \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 _::alg_closed_field) set)"
 proof (intro subset_antisym subsetI)
   fix f
   assume "f \<in> \<I> (\<V> F)"
   with assms show "f \<in> \<surd>ideal F" by (rule Nullstellensatz)
 qed (metis ideal_ofI variety_ofD variety_of_radical_ideal)
 
+text \<open>The following lemma can be used for actually \<^emph>\<open>deciding\<close> whether a polynomial is contained in
+  the radical of an ideal or not.\<close>
+
 lemma radical_ideal_iff:
-  assumes "finite X" and "F \<subseteq> P[X]" and "y \<notin> X" and "y \<notin> indets f"
-  shows "f \<in> \<surd>ideal F \<longleftrightarrow> 1 \<in> ideal (insert (1 - punit.monom_mult 1 (Poly_Mapping.single y 1) f) F)"
-  sorry
+  assumes "finite X" and "F \<subseteq> P[X]" and "f \<in> P[X]" and "x \<notin> X"
+  shows "(f::(_::{countable,linorder} \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 _::alg_closed_field) \<in> \<surd>ideal F \<longleftrightarrow>
+            1 \<in> ideal (insert (1 - punit.monom_mult 1 (Poly_Mapping.single x 1) f) F)"
+proof -
+  let ?f = "punit.monom_mult 1 (Poly_Mapping.single x 1) f"
+  show ?thesis
+  proof
+    assume "f \<in> \<surd>ideal F"
+    then obtain m where "f ^ m \<in> ideal F" by (rule radicalE)
+    from assms(1) have "finite (insert x X)" by simp
+    moreover have "insert (1 - ?f) F \<subseteq> P[insert x X]" unfolding insert_subset
+    proof (intro conjI Polys_closed_minus one_in_Polys Polys_closed_monom_mult PPs_closed_single)
+      have "P[X] \<subseteq> P[insert x X]" by (rule Polys_mono) blast
+      with assms(2, 3) show "f \<in> P[insert x X]" and "F \<subseteq> P[insert x X]" by blast+
+    qed simp
+    moreover have "\<V> (insert (1 - ?f) F) = {}"
+    proof (intro subset_antisym subsetI)
+      fix a
+      assume "a \<in> \<V> (insert (1 - ?f) F)"
+      moreover have "1 - ?f \<in> insert (1 - ?f) F" by simp
+      ultimately have "eval_pm a (1 - ?f) = 0" by (rule variety_ofD)
+      hence "eval_pm a (f ^ m) \<noteq> 0"
+        by (auto simp: eval_pm_minus eval_pm_times eval_pm_power simp flip: times_monomial_left)
+      from \<open>a \<in> _\<close> have "a \<in> \<V> (ideal (insert (1 - ?f) F))" by (simp only: variety_of_ideal)
+      moreover from \<open>f ^ m \<in> ideal F\<close> ideal.span_mono have "f ^ m \<in> ideal (insert (1 - ?f) F)"
+        by (rule rev_subsetD) blast
+      ultimately have "eval_pm a (f ^ m) = 0" by (rule variety_ofD)
+      with \<open>eval_pm a (f ^ m) \<noteq> 0\<close> show "a \<in> {}" ..
+    qed simp
+    ultimately have "ideal (insert (1 - ?f) F) = UNIV" by (rule weak_Nullstellensatz)
+    thus "1 \<in> ideal (insert (1 - ?f) F)" by simp
+  next
+    assume "1 \<in> ideal (insert (1 - ?f) F)"
+    have "\<V> (insert (1 - ?f) F) = {}"
+    proof (intro subset_antisym subsetI)
+      fix a
+      assume "a \<in> \<V> (insert (1 - ?f) F)"
+      hence "a \<in> \<V> (ideal (insert (1 - ?f) F))" by (simp only: variety_of_ideal)
+      hence "eval_pm a 1 = 0" using \<open>1 \<in> _\<close> by (rule variety_ofD)
+      thus "a \<in> {}" by simp
+    qed simp
+    with assms show "f \<in> \<surd>ideal F" by (rule radical_idealI)
+  qed
+qed
 
 end (* theory *)
