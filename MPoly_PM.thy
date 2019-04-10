@@ -1,3 +1,5 @@
+(* Author: Alexander Maletzky *)
+
 section \<open>Multivariate Polynomials with Power-Products Represented by Polynomial Mappings\<close>
 
 theory MPoly_PM
@@ -4134,6 +4136,9 @@ proof -
   thus ?thesis by (simp only: Compl_eq_Diff_UNIV)
 qed
 
+corollary lookup_focus_in_Polys: "lookup (focus X p) t \<in> P[- X]"
+  using focus_coeffs_subset_Polys by blast
+
 lemma focus_zero [simp]: "focus X 0 = 0"
   by (simp add: focus_def)
 
@@ -4205,6 +4210,9 @@ proof (rule sum.cong)
         monomial (monomial (lookup p t) 0) t" by simp
 qed (fact refl)
 
+corollary lookup_focus_Polys: "p \<in> P[X] \<Longrightarrow> lookup (focus X p) t = monomial (lookup p t) 0"
+  by (simp add: focus_Polys lookup_sum lookup_single when_def)
+
 lemma focus_Polys_Compl:
   assumes "p \<in> P[- X]"
   shows "focus X p = monomial p 0"
@@ -4244,6 +4252,46 @@ proof (rule sum.cong)
   also from \<open>keys t \<subseteq> Y\<close> have "except t (- Y) = t" by (auto simp: except_id_iff)
   finally show "monomial (monomial (lookup p t) (except t (X \<inter> Y))) (except t (- (X \<inter> Y))) =
                 monomial (monomial (lookup p t) (except t X)) (except t (- X))" by (simp only: eq)
+qed
+
+lemma range_focusD:
+  assumes "p \<in> range (focus X)"
+  shows "p \<in> P[X]" and "range (lookup p) \<subseteq> P[- X]" and "lookup p t \<in> P[- X]"
+  using assms by (auto intro: focus_in_Polys lookup_focus_in_Polys)
+
+lemma range_focusI:
+  assumes "p \<in> P[X]" and "lookup p ` keys (p::_ \<Rightarrow>\<^sub>0 _ \<Rightarrow>\<^sub>0 _::semiring_1) \<subseteq> P[- X]"
+  shows "p \<in> range (focus X)"
+  using assms
+proof (induct p rule: poly_mapping_plus_induct_Polys)
+  case 0
+  show ?case by simp
+next
+  case (plus p c t)
+  from plus.hyps(3) have 1: "keys (monomial c t) = {t}" by simp
+  also from plus.hyps(4) have "\<dots> \<inter> keys p = {}" by simp
+  finally have "keys (monomial c t + p) = keys (monomial c t) \<union> keys p" by (rule keys_add[symmetric])
+  hence 2: "keys (monomial c t + p) = insert t (keys p)" by (simp only: 1 flip: insert_is_Un)
+  from \<open>t \<in> .[X]\<close> have "keys t \<subseteq> X" by (rule PPsD)
+  hence eq1: "except t X = 0" and eq2: "except t (- X) = t"
+    by (rule except_eq_zeroI, auto simp: except_id_iff)
+  from plus.hyps(3, 4) plus.prems have "c \<in> P[- X]" and "lookup p ` keys p \<subseteq> P[- X]"
+    by (simp_all add: 2 lookup_add lookup_single)
+        (smt add.commute add.right_neutral image_cong plus.hyps(4) when_simps(2))
+  from this(2) have "p \<in> range (focus X)" by (rule plus.hyps)
+  then obtain q where p: "p = focus X q" ..
+  moreover from \<open>c \<in> P[- X]\<close> have "monomial c t = focus X (monomial 1 t * c)"
+    by (simp add: focus_times focus_monomial eq1 eq2 focus_Polys_Compl times_monomial_monomial)
+  ultimately have "monomial c t + p = focus X (monomial 1 t * c + q)" by (simp only: focus_plus)
+  thus ?case by (rule range_eqI)
+qed
+
+lemma inj_focus: "inj ((focus X) :: (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::ab_group_add) \<Rightarrow> _)"
+proof (rule injI)
+  fix p q :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a"
+  assume "focus X p = focus X q"
+  hence "focus X (p - q) = 0" by (simp add: focus_minus)
+  thus "p = q" by simp
 qed
 
 lemma flatten_superset:
@@ -4343,12 +4391,10 @@ lemma flatten_prod: "flatten (prod f I) = (\<Prod>i\<in>I. flatten (f i :: _ \<R
 lemma flatten_power [simp]: "flatten (f ^ m) = flatten (f:: _ \<Rightarrow>\<^sub>0 _::comm_semiring_1) ^ m"
   by (induct m) (simp_all add: flatten_times)
 
-lemma inj_focus: "inj ((focus X) :: (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::ab_group_add) \<Rightarrow> _)"
-proof (rule injI)
-  fix p q :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a"
-  assume "focus X p = focus X q"
-  hence "focus X (p - q) = 0" by (simp add: focus_minus)
-  thus "p = q" by simp
+lemma surj_flatten: "surj flatten"
+proof (rule surjI)
+  fix p
+  show "flatten (monomial p 0) = p" by (simp add: flatten_monomial)
 qed
 
 lemma flatten_focus [simp]: "flatten (focus X p) = p"
@@ -4359,27 +4405,45 @@ lemma flatten_focus [simp]: "flatten (focus X p) = p"
 lemma focus_flatten:
   assumes "p \<in> P[X]" and "lookup p ` keys p \<subseteq> P[- X]"
   shows "focus X (flatten p) = p"
-  using assms
-proof (induct p rule: poly_mapping_plus_induct_Polys)
-  case 0
-  show ?case by simp
-next
-  case (plus p c t)
-  from plus.hyps(3) have 1: "keys (monomial c t) = {t}" by simp
-  also from plus.hyps(4) have "\<dots> \<inter> keys p = {}" by simp
-  finally have "keys (monomial c t + p) = keys (monomial c t) \<union> keys p" by (rule keys_add[symmetric])
-  hence 2: "keys (monomial c t + p) = insert t (keys p)" by (simp only: 1 flip: insert_is_Un)
-  from \<open>t \<in> .[X]\<close> have "keys t \<subseteq> X" by (rule PPsD)
-  hence eq1: "except t X = 0" and eq2: "except t (- X) = t"
-    by (rule except_eq_zeroI, auto simp: except_id_iff)
-  from plus.hyps(3, 4) plus.prems have "c \<in> P[- X]" and "lookup p ` keys p \<subseteq> P[- X]"
-    by (simp_all add: 2 lookup_add lookup_single)
-        (smt add.commute add.right_neutral image_cong plus.hyps(4) when_simps(2))
-  from this(2) have "focus X (flatten p) = p" by (rule plus.hyps)
-  thus ?case
-    by (simp add: flatten_plus focus_plus flatten_monomial focus_times focus_monomial eq1 eq2
-                  focus_Polys_Compl[OF \<open>c \<in> _\<close>] times_monomial_monomial flip: times_monomial_left)
+proof -
+  from assms have "p \<in> range (focus X)" by (rule range_focusI)
+  then obtain q where "p = focus X q" ..
+  thus ?thesis by simp
 qed
+
+lemma image_focus_ideal: "focus X ` ideal F = ideal (focus X ` F) \<inter> range (focus X)"
+proof
+  from focus_plus focus_times have "focus X ` ideal F \<subseteq> ideal (focus X ` F)"
+    by (rule image_ideal_subset)
+  moreover from subset_UNIV have "focus X ` ideal F \<subseteq> range (focus X)" by (rule image_mono)
+  ultimately show "focus X ` ideal F \<subseteq> ideal (focus X ` F) \<inter> range (focus X)" by blast
+next
+  show "ideal (focus X ` F) \<inter> range (focus X) \<subseteq> focus X ` ideal F"
+  proof
+    fix p
+    assume "p \<in> ideal (focus X ` F) \<inter> range (focus X)"
+    hence "p \<in> ideal (focus X ` F)" and "p \<in> range (focus X)" by simp_all
+    from this(1) obtain F0 q where "F0 \<subseteq> focus X ` F" and p: "p = (\<Sum>f'\<in>F0. q f' * f')"
+      by (rule ideal.spanE)
+    from this(1) obtain F' where "F' \<subseteq> F" and F0: "F0 = focus X ` F'" by (rule subset_imageE)
+    from inj_focus subset_UNIV have "inj_on (focus X) F'" by (rule inj_on_subset)
+    from \<open>p \<in> range _\<close> obtain p' where "p = focus X p'" ..
+    hence "p = focus X (flatten p)" by simp
+    also from \<open>inj_on _ F'\<close> have "\<dots> = focus X (\<Sum>f'\<in>F'. flatten (q (focus X f')) * f')"
+      by (simp add: p F0 sum.reindex flatten_sum flatten_times)
+    finally have "p = focus X (\<Sum>f'\<in>F'. flatten (q (focus X f')) * f')" .
+    moreover have "(\<Sum>f'\<in>F'. flatten (q (focus X f')) * f') \<in> ideal F"
+    proof
+      show "(\<Sum>f'\<in>F'. flatten (q (focus X f')) * f') \<in> ideal F'" by (rule ideal.sum_in_spanI)
+    next
+      from \<open>F' \<subseteq> F\<close> show "ideal F' \<subseteq> ideal F" by (rule ideal.span_mono)
+    qed
+    ultimately show "p \<in> focus X ` ideal F" by (rule image_eqI)
+  qed
+qed
+
+lemma image_flatten_ideal: "flatten ` ideal F = ideal (flatten ` F)"
+  using flatten_plus flatten_times surj_flatten by (rule image_ideal_eq_surj)
 
 lemma eval_pm_focus:
   "eval_pm a (focus X p) = poly_subst (\<lambda>x. if x \<in> X then a x else monomial 1 (Poly_Mapping.single x 1)) p"
