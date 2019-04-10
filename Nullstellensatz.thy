@@ -865,24 +865,21 @@ end
 subsection \<open>Ideals and Varieties\<close>
 
 definition variety_of :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) set \<Rightarrow> ('x \<Rightarrow> 'a::comm_semiring_1) set"
-  where "variety_of F = {a. \<forall>f\<in>F. eval_pm a f = 0}"
+  where "variety_of F = {a. \<forall>f\<in>F. poly_eval a f = 0}"
 
 definition ideal_of :: "('x \<Rightarrow> 'a::comm_semiring_1) set \<Rightarrow> (('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) set"
-  where "ideal_of A = {f. \<forall>a\<in>A. eval_pm a f = 0}"
-
-definition radical :: "('a \<Rightarrow>\<^sub>0 'b) set \<Rightarrow> ('a::comm_powerprod \<Rightarrow>\<^sub>0 'b::semiring_1) set" ("\<surd>(_)" [999] 999)
-  where "radical F = {f. \<exists>m. f ^ m \<in> F}"
+  where "ideal_of A = {f. \<forall>a\<in>A. poly_eval a f = 0}"
 
 abbreviation "\<V> \<equiv> variety_of"
 abbreviation "\<I> \<equiv> ideal_of"
 
-lemma variety_ofI: "(\<And>f. f \<in> F \<Longrightarrow> eval_pm a f = 0) \<Longrightarrow> a \<in> \<V> F"
+lemma variety_ofI: "(\<And>f. f \<in> F \<Longrightarrow> poly_eval a f = 0) \<Longrightarrow> a \<in> \<V> F"
   by (simp add: variety_of_def)
 
-lemma variety_ofI_alt: "eval_pm a ` F \<subseteq> {0} \<Longrightarrow> a \<in> \<V> F"
+lemma variety_ofI_alt: "poly_eval a ` F \<subseteq> {0} \<Longrightarrow> a \<in> \<V> F"
   by (auto intro: variety_ofI)
 
-lemma variety_ofD: "a \<in> \<V> F \<Longrightarrow> f \<in> F \<Longrightarrow> eval_pm a f = 0"
+lemma variety_ofD: "a \<in> \<V> F \<Longrightarrow> f \<in> F \<Longrightarrow> poly_eval a f = 0"
   by (simp add: variety_of_def)
 
 lemma variety_of_antimono: "F \<subseteq> G \<Longrightarrow> \<V> G \<subseteq> \<V> F"
@@ -896,21 +893,21 @@ next
   proof (intro subsetI variety_ofI)
     fix a f
     assume "a \<in> \<V> F" and "f \<in> ideal F"
-    from this(2) show "eval_pm a f = 0"
+    from this(2) show "poly_eval a f = 0"
     proof (induct f rule: ideal.span_induct_alt)
       case base
       show ?case by simp
     next
       case (step c f g)
-      with \<open>a \<in> \<V> F\<close> show ?case by (auto simp: eval_pm_plus eval_pm_times dest: variety_ofD)
+      with \<open>a \<in> \<V> F\<close> show ?case by (auto simp: poly_eval_plus poly_eval_times dest: variety_ofD)
     qed
   qed
 qed
 
-lemma ideal_ofI: "(\<And>a. a \<in> A \<Longrightarrow> eval_pm a f = 0) \<Longrightarrow> f \<in> \<I> A"
+lemma ideal_ofI: "(\<And>a. a \<in> A \<Longrightarrow> poly_eval a f = 0) \<Longrightarrow> f \<in> \<I> A"
   by (simp add: ideal_of_def)
 
-lemma ideal_ofD: "f \<in> \<I> A \<Longrightarrow> a \<in> A \<Longrightarrow> eval_pm a f = 0"
+lemma ideal_ofD: "f \<in> \<I> A \<Longrightarrow> a \<in> A \<Longrightarrow> poly_eval a f = 0"
   by (simp add: ideal_of_def)
 
 lemma ideal_of_antimono: "A \<subseteq> B \<Longrightarrow> \<I> B \<subseteq> \<I> A"
@@ -923,15 +920,15 @@ proof (rule ideal.subspaceI)
 next
   fix f g
   assume "f \<in> \<I> A"
-  hence f: "eval_pm a f = 0" if "a \<in> A" for a using that by (rule ideal_ofD)
+  hence f: "poly_eval a f = 0" if "a \<in> A" for a using that by (rule ideal_ofD)
   assume "g \<in> \<I> A"
-  hence g: "eval_pm a g = 0" if "a \<in> A" for a using that by (rule ideal_ofD)
-  show "f + g \<in> \<I> A" by (rule ideal_ofI) (simp add: eval_pm_plus f g)
+  hence g: "poly_eval a g = 0" if "a \<in> A" for a using that by (rule ideal_ofD)
+  show "f + g \<in> \<I> A" by (rule ideal_ofI) (simp add: poly_eval_plus f g)
 next
   fix c f
   assume "f \<in> \<I> A"
-  hence f: "eval_pm a f = 0" if "a \<in> A" for a using that by (rule ideal_ofD)
-  show "c * f \<in> \<I> A" by (rule ideal_ofI) (simp add: eval_pm_times f)
+  hence f: "poly_eval a f = 0" if "a \<in> A" for a using that by (rule ideal_ofD)
+  show "c * f \<in> \<I> A" by (rule ideal_ofI) (simp add: poly_eval_times f)
 qed
 
 lemma variety_of_ideal_of_variety [simp]: "\<V> (\<I> (\<V> F)) = \<V> F" (is "_ = ?V")
@@ -973,6 +970,11 @@ proof (rule inj_onI)
   hence "\<I> (\<V> F) = \<I> (\<V> G)" by simp
   thus "F = G" by (simp add: F G)
 qed
+
+subsection \<open>Radical Ideals\<close>
+
+definition radical :: "'a::monoid_mult set \<Rightarrow> 'a set" ("\<surd>(_)" [999] 999)
+  where "radical F = {f. \<exists>m. f ^ m \<in> F}"
 
 lemma radicalI: "f ^ m \<in> F \<Longrightarrow> f \<in> \<surd>F"
   by (auto simp: radical_def)
@@ -1058,7 +1060,7 @@ qed
 
 lemma radical_ideal_of [simp]: "\<surd>\<I> A = \<I> (A::(_ \<Rightarrow> _::semiring_1_no_zero_divisors) set)"
 proof
-  show "\<surd>\<I> A \<subseteq> \<I> A" by (auto elim!: radicalE dest!: ideal_ofD intro!: ideal_ofI simp: eval_pm_power)
+  show "\<surd>\<I> A \<subseteq> \<I> A" by (auto elim!: radicalE dest!: ideal_ofD intro!: ideal_ofI simp: poly_eval_power)
 qed (fact radical_superset)
 
 lemma variety_of_radical_ideal [simp]: "\<V> (\<surd>ideal F) = \<V> (F::(_ \<Rightarrow>\<^sub>0 _::semiring_1_no_zero_divisors) set)"
@@ -1074,8 +1076,8 @@ next
     hence "a \<in> \<V> (ideal F)" by simp
     assume "f \<in> \<surd>ideal F"
     then obtain m where "f ^ m \<in> ideal F" by (rule radicalE)
-    with \<open>a \<in> \<V> (ideal F)\<close> have "eval_pm a (f ^ m) = 0" by (rule variety_ofD)
-    thus "eval_pm a f = 0" by (simp add: eval_pm_power)
+    with \<open>a \<in> \<V> (ideal F)\<close> have "poly_eval a (f ^ m) = 0" by (rule variety_ofD)
+    thus "poly_eval a f = 0" by (simp add: poly_eval_power)
   qed
 qed
 
@@ -1122,7 +1124,7 @@ qed
 lemma weak_Nullstellensatz_aux_2:
   assumes "finite X" and "F \<subseteq> P[insert x X]" and "X \<subseteq> {..<x::'x::{countable,linorder}}"
     and "1 \<notin> ideal F" and "ideal F \<inter> P[{x}] \<subseteq> {0}"
-  obtains a::"'a::alg_closed_field" where "1 \<notin> ideal (eval_pm (\<lambda>_. monomial a 0) ` focus {x} ` F)"
+  obtains a::"'a::alg_closed_field" where "1 \<notin> ideal (poly_eval (\<lambda>_. monomial a 0) ` focus {x} ` F)"
 proof -
   let ?x = "monomial 1 (Poly_Mapping.single x 1)"
   from assms(3) have "x \<notin> X" by blast
@@ -1226,28 +1228,28 @@ proof -
   with infinite_UNIV[where 'a='a] have "- Z \<noteq> {}" using finite_compl by fastforce
   then obtain a where "a \<notin> Z" by blast
 
-  have a_nz: "eval_pm (\<lambda>_. a) (i.lcf (focus X g)) \<noteq> 0" if "g \<in> G" for g
+  have a_nz: "poly_eval (\<lambda>_. a) (i.lcf (focus X g)) \<noteq> 0" if "g \<in> G" for g
   proof -
     from that G_sub have "g \<in> P[insert x X]" ..
-    have "eval_pm (\<lambda>_. a) (i.lcf (focus X g)) = poly (poly_of_pm x (i.lcf (focus X g))) a"
-      by (rule sym, intro poly_eq_eval_pm' lcf_in that)
+    have "poly_eval (\<lambda>_. a) (i.lcf (focus X g)) = poly (poly_of_pm x (i.lcf (focus X g))) a"
+      by (rule sym, intro poly_eq_poly_eval' lcf_in that)
     moreover have "poly_of_pm x (i.lcf (focus X g)) \<in> P"
       by (auto simp: P_def G''_def G'_def that intro!: imageI)
     ultimately show ?thesis using \<open>a \<notin> Z\<close> by (simp add: Z_def)
   qed
 
-  let ?e = "eval_pm (\<lambda>_. monomial a 0)"
-  have lookup_e_focus: "lookup (?e (focus {x} g)) t = eval_pm (\<lambda>_. a) (lookup (focus X g) t)"
+  let ?e = "poly_eval (\<lambda>_. monomial a 0)"
+  have lookup_e_focus: "lookup (?e (focus {x} g)) t = poly_eval (\<lambda>_. a) (lookup (focus X g) t)"
     if "g \<in> P[insert x X]" for g t
   proof -
     have "focus (- {x}) g = focus (- {x} \<inter> insert x X) g" by (rule sym) (rule focus_Int, fact)
     also have "\<dots> = focus X g" by (simp add: Int_commute eq1 flip: Diff_eq)
-    finally show ?thesis by (simp add: lookup_eval_pm_focus)
+    finally show ?thesis by (simp add: lookup_poly_eval_focus)
   qed
   have lpp_e_focus: "i.lpp (?e (focus {x} g)) = except (i.lpp g) {x}" if "g \<in> G" for g
   proof (rule i.punit.lt_eqI_keys)
     from that G_sub have "g \<in> P[insert x X]" ..
-    hence "lookup (?e (focus {x} g)) (except (i.lpp g) {x}) = eval_pm (\<lambda>_. a) (i.lcf (focus X g))"
+    hence "lookup (?e (focus {x} g)) (except (i.lpp g) {x}) = poly_eval (\<lambda>_. a) (i.lcf (focus X g))"
       by (simp only: lookup_e_focus lpp_focus i.punit.lc_def)
     also from that have "\<dots> \<noteq> 0" by (rule a_nz)
     finally show "except (i.lpp g) {x} \<in> keys (?e (focus {x} g))" by simp
@@ -1255,7 +1257,7 @@ proof -
     fix t
     assume "t \<in> keys (?e (focus {x} g))"
     hence "0 \<noteq> lookup (?e (focus {x} g)) t" by simp
-    also from \<open>g \<in> P[_]\<close> have "lookup (?e (focus {x} g)) t = eval_pm (\<lambda>_. a) (lookup (focus X g) t)"
+    also from \<open>g \<in> P[_]\<close> have "lookup (?e (focus {x} g)) t = poly_eval (\<lambda>_. a) (lookup (focus X g) t)"
       by (rule lookup_e_focus)
     finally have "t \<in> keys (focus X g)" by (auto simp flip: lookup_not_eq_zero_eq_in_keys)
     hence "lex_pm t (i.lpp (focus X g))" by (rule i.punit.lt_max_keys)
@@ -1271,15 +1273,15 @@ proof -
       assume "h \<in> G3"
       then obtain h0 where "h0 \<in> G" and h: "h = ?e (focus {x} h0)" by (auto simp: G3_def)
       from this(1) G_sub have "h0 \<in> P[insert x X]" ..
-      hence "h \<in> P[insert x X - {x}]" unfolding h by (rule eval_pm_focus_in_Polys)
+      hence "h \<in> P[insert x X - {x}]" unfolding h by (rule poly_eval_focus_in_Polys)
       thus "h \<in> P[X]" by (simp only: eq1)
     qed
     from fin_G have "finite G3" by (simp add: G3_def)
     
     have "ideal G3 \<inter> P[- {x}] = ?e ` focus {x} ` ideal G"
-      by (simp only: G3_def image_eval_pm_focus_ideal)
+      by (simp only: G3_def image_poly_eval_focus_ideal)
     also have "\<dots> = ideal (?e ` focus {x} ` F) \<inter> P[- {x}]"
-      by (simp only: ideal_G image_eval_pm_focus_ideal)
+      by (simp only: ideal_G image_poly_eval_focus_ideal)
     finally have eq3: "ideal G3 \<inter> P[- {x}] = ideal (?e ` focus {x} ` F) \<inter> P[- {x}]" .
     from assms(1) \<open>G3 \<subseteq> P[X]\<close> \<open>finite G3\<close> have G3_isGB: "i.punit.is_Groebner_basis G3"
     proof (rule i.punit.isGB_I_spoly_rep[simplified, OF dickson_grading_varnum_wrt,
@@ -1299,25 +1301,25 @@ proof -
       define l where "l = lcs (except (i.lpp g1') {x}) (except (i.lpp g2') {x})"
       define c1 where "c1 = i.lcf (focus X g1')"
       define c2 where "c2 = i.lcf (focus X g2')"
-      define c where "c = eval_pm (\<lambda>_. a) c1 * eval_pm (\<lambda>_. a) c2"
+      define c where "c = poly_eval (\<lambda>_. a) c1 * poly_eval (\<lambda>_. a) c2"
       define s where "s = c2 * punit.monom_mult 1 (l - except (i.lpp g1') {x}) g1' -
                           c1 * punit.monom_mult 1 (l - except (i.lpp g2') {x}) g2'"
       have "c1 \<in> P[{x}]" unfolding c1_def using \<open>g1' \<in> G\<close> by (rule lcf_in)
-      hence eval_c1: "eval_pm (\<lambda>_. monomial a 0) (focus {x} c1) = monomial (eval_pm (\<lambda>_. a) c1) 0"
-        by (simp add: focus_Polys eval_pm_sum eval_pm_monomial monomial_power_map_scale
+      hence eval_c1: "poly_eval (\<lambda>_. monomial a 0) (focus {x} c1) = monomial (poly_eval (\<lambda>_. a) c1) 0"
+        by (simp add: focus_Polys poly_eval_sum poly_eval_monomial monomial_power_map_scale
                   times_monomial_monomial flip: punit.monomial_prod_sum monomial_sum)
-           (simp add: eval_pm_alt)
+           (simp add: poly_eval_alt)
       have "c2 \<in> P[{x}]" unfolding c2_def using \<open>g2' \<in> G\<close> by (rule lcf_in)
-      hence eval_c2: "eval_pm (\<lambda>_. monomial a 0) (focus {x} c2) = monomial (eval_pm (\<lambda>_. a) c2) 0"
-        by (simp add: focus_Polys eval_pm_sum eval_pm_monomial monomial_power_map_scale
+      hence eval_c2: "poly_eval (\<lambda>_. monomial a 0) (focus {x} c2) = monomial (poly_eval (\<lambda>_. a) c2) 0"
+        by (simp add: focus_Polys poly_eval_sum poly_eval_monomial monomial_power_map_scale
                   times_monomial_monomial flip: punit.monomial_prod_sum monomial_sum)
-           (simp add: eval_pm_alt)
+           (simp add: poly_eval_alt)
 
       assume spoly_nz: "i.punit.spoly g1 g2 \<noteq> 0"
       assume "g1 \<noteq> 0" and "g2 \<noteq> 0"
       hence "g1' \<noteq> 0" and "g2' \<noteq> 0" by (auto simp: g1 g2)
-      have c1_nz: "eval_pm (\<lambda>_. a) c1 \<noteq> 0" unfolding c1_def using \<open>g1' \<in> G\<close> by (rule a_nz)
-      moreover have c2_nz: "eval_pm (\<lambda>_. a) c2 \<noteq> 0" unfolding c2_def using \<open>g2' \<in> G\<close> by (rule a_nz)
+      have c1_nz: "poly_eval (\<lambda>_. a) c1 \<noteq> 0" unfolding c1_def using \<open>g1' \<in> G\<close> by (rule a_nz)
+      moreover have c2_nz: "poly_eval (\<lambda>_. a) c2 \<noteq> 0" unfolding c2_def using \<open>g2' \<in> G\<close> by (rule a_nz)
       ultimately have "c \<noteq> 0" by (simp add: c_def)
       hence "inverse c \<noteq> 0" by simp
       from \<open>g1' \<in> P[_]\<close> have "except (i.lpp g1') {x} \<in> .[insert x X - {x}]"
@@ -1350,24 +1352,24 @@ proof -
           hence ".[X] \<subseteq> .[- {x}]" by (rule PPs_mono)
           with \<open>l \<in> .[X]\<close> show "l \<in> .[- {x}]" ..
         qed
-        thus ?thesis by (simp add: eval_pm_monomial)
+        thus ?thesis by (simp add: poly_eval_monomial)
       qed
-      from c2_nz have eq5: "inverse c * eval_pm (\<lambda>_. a) c2 = 1 / lookup g1 (i.lpp g1)"
+      from c2_nz have eq5: "inverse c * poly_eval (\<lambda>_. a) c2 = 1 / lookup g1 (i.lpp g1)"
         unfolding lpp1 using \<open>g1' \<in> P[_]\<close>
         by (simp add: c_def mult.assoc divide_inverse_commute g1 lookup_e_focus
                 flip: lpp_focus i.punit.lc_def c1_def)
-      from c1_nz have eq6: "inverse c * eval_pm (\<lambda>_. a) c1 = 1 / lookup g2 (i.lpp g2)"
+      from c1_nz have eq6: "inverse c * poly_eval (\<lambda>_. a) c1 = 1 / lookup g2 (i.lpp g2)"
         unfolding lpp2 using \<open>g2' \<in> P[_]\<close>
-        by (simp add: c_def mult.assoc mult.left_commute[of "inverse (eval_pm (\<lambda>_. a) c1)"]
+        by (simp add: c_def mult.assoc mult.left_commute[of "inverse (poly_eval (\<lambda>_. a) c1)"]
                     divide_inverse_commute g2 lookup_e_focus flip: lpp_focus i.punit.lc_def c2_def)
       have l_alt: "l = lcs (i.lpp g1) (i.lpp g2)" by (simp only: l_def lpp1 lpp2)
       have spoly_eq: "i.punit.spoly g1 g2 = (inverse c) \<cdot> ?e (focus {x} s)"
-        by (simp add: s_def focus_minus focus_times eval_pm_minus eval_pm_times eval_c1 eval_c2
+        by (simp add: s_def focus_minus focus_times poly_eval_minus poly_eval_times eval_c1 eval_c2
                       eq4 eq5 eq6 map_scale_eq_times times_monomial_monomial right_diff_distrib
                       i.punit.spoly_def Let_def
                  flip: mult.assoc times_monomial_left g1 g2 lpp1 lpp2 l_alt)
       also have "\<dots> = (\<Sum>g\<in>G. inverse c \<cdot> (?e (focus {x} (q0 g)) * ?e (focus {x} g)))"
-        by (simp add: 1 focus_sum eval_pm_sum focus_times eval_pm_times map_scale_sum_distrib_left)
+        by (simp add: 1 focus_sum poly_eval_sum focus_times poly_eval_times map_scale_sum_distrib_left)
       also have "\<dots> = (\<Sum>g\<in>G3. \<Sum>h\<in>{y\<in>G. ?e (focus{x} y) = g}.
                                       inverse c \<cdot> (?e (focus {x} (q0 h)) * ?e (focus {x} h)))"
         unfolding G3_def image_image using fin_G by (rule sum.image_gen)
@@ -1383,7 +1385,7 @@ proof -
         proof (intro Polys_closed_map_scale Polys_closed_sum)
           fix g0
           from \<open>q0 g0 \<in> P[insert x X]\<close> have "?e (focus {x} (q0 g0)) \<in> P[insert x X - {x}]"
-            by (rule eval_pm_focus_in_Polys)
+            by (rule poly_eval_focus_in_Polys)
           thus "?e (focus {x} (q0 g0)) \<in> P[X]" by (simp only: eq1)
         qed
 
@@ -1413,7 +1415,7 @@ proof -
           note this(3)
           also have "i.lpp (inverse c \<cdot> ?e (focus {x} (q0 h)) * g) =
                       i.lpp (inverse c \<cdot> (?e (focus {x} (q0 h * h))))"
-            by (simp only: map_scale_eq_times mult.assoc g eval_pm_times focus_times)
+            by (simp only: map_scale_eq_times mult.assoc g poly_eval_times focus_times)
           also from \<open>inverse c \<noteq> 0\<close> have "\<dots> = i.lpp (?e (focus {x} (q0 h * h)))"
             by (rule i.punit.lt_map_scale)
           also have "lex_pm \<dots> (i.lpp (q0 h * h))"
@@ -1421,7 +1423,7 @@ proof -
             fix u
             assume "lookup (?e (focus {x} (q0 h * h))) u \<noteq> 0"
             hence "u \<in> keys (?e (focus {x} (q0 h * h)))" by simp
-            with keys_eval_pm_focus_subset have "u \<in> (\<lambda>v. except v {x}) ` keys (q0 h * h)" ..
+            with keys_poly_eval_focus_subset have "u \<in> (\<lambda>v. except v {x}) ` keys (q0 h * h)" ..
             then obtain v where "v \<in> keys (q0 h * h)" and u: "u = except v {x}" ..
             have "lex_pm u (Poly_Mapping.single x (lookup v x) + u)"
               by (metis add.commute add.right_neutral i.plus_monotone_left lex_pm_zero_min)
@@ -1595,7 +1597,7 @@ qed
 
 lemma weak_Nullstellensatz_aux_3:
   assumes "F \<subseteq> P[insert x X]" and "x \<notin> X" and "1 \<notin> ideal F" and "\<not> ideal F \<inter> P[{x}] \<subseteq> {0}"
-  obtains a::"'a::alg_closed_field" where "1 \<notin> ideal (eval_pm (\<lambda>_. monomial a 0) ` focus {x} ` F)"
+  obtains a::"'a::alg_closed_field" where "1 \<notin> ideal (poly_eval (\<lambda>_. monomial a 0) ` focus {x} ` F)"
 proof -
   let ?x = "monomial 1 (Poly_Mapping.single x 1)"
   from assms(4) obtain f where "f \<in> ideal F" and "f \<in> P[{x}]" and "f \<noteq> 0" by blast
@@ -1606,9 +1608,9 @@ proof -
     and "\<And>x. m x = 0 \<longleftrightarrow> x \<notin> A" and "c = 0 \<longleftrightarrow> p = 0" and "\<And>z. poly p z = 0 \<longleftrightarrow> (c = 0 \<or> z \<in> A)"
     by (rule linear_factorsE) blast
   from this(4, 5) have "c \<noteq> 0" and "\<And>z. poly p z = 0 \<longleftrightarrow> z \<in> A" by (simp_all add: \<open>p \<noteq> 0\<close>)
-  have "\<exists>a\<in>A. 1 \<notin> ideal (eval_pm (\<lambda>_. monomial a 0) ` focus {x} ` F)"
+  have "\<exists>a\<in>A. 1 \<notin> ideal (poly_eval (\<lambda>_. monomial a 0) ` focus {x} ` F)"
   proof (rule ccontr)
-    assume asm: "\<not> (\<exists>a\<in>A. 1 \<notin> ideal (eval_pm (\<lambda>_. monomial a 0) ` focus {x} ` F))"
+    assume asm: "\<not> (\<exists>a\<in>A. 1 \<notin> ideal (poly_eval (\<lambda>_. monomial a 0) ` focus {x} ` F))"
     obtain g h where "g a \<in> ideal F" and 1: "h a * (?x - monomial a 0) + g a = 1"
       if "a \<in> A" for a
     proof -
@@ -1618,13 +1620,13 @@ proof -
       proof
         fix a
         assume "a \<in> A"
-        with asm have "1 \<in> ideal (eval_pm (\<lambda>_. monomial a 0) ` focus {x} ` F)" by blast
-        hence "1 \<in> eval_pm (\<lambda>_. monomial a 0) ` focus {x} ` ideal F"
-          by (simp add: image_eval_pm_focus_ideal one_in_Polys)
-        then obtain g where "g \<in> ideal F" and "1 = eval_pm (\<lambda>_. monomial a 0) (focus {x} g)"
+        with asm have "1 \<in> ideal (poly_eval (\<lambda>_. monomial a 0) ` focus {x} ` F)" by blast
+        hence "1 \<in> poly_eval (\<lambda>_. monomial a 0) ` focus {x} ` ideal F"
+          by (simp add: image_poly_eval_focus_ideal one_in_Polys)
+        then obtain g where "g \<in> ideal F" and "1 = poly_eval (\<lambda>_. monomial a 0) (focus {x} g)"
           unfolding image_image ..
         note this(2)
-        also have "eval_pm (\<lambda>_. monomial a 0) (focus {x} g) = poly (poly_of_focus x g) (monomial a 0)"
+        also have "poly_eval (\<lambda>_. monomial a 0) (focus {x} g) = poly (poly_of_focus x g) (monomial a 0)"
           by (simp only: poly_poly_of_focus)
         also have "\<dots> = poly (poly_of_focus x g) (?x - (?x - monomial a 0))" by simp
         also obtain h where "\<dots> = poly (poly_of_focus x g) ?x - h * (?x - monomial a 0)"
@@ -1658,7 +1660,7 @@ proof -
     finally have "1 \<in> ideal F" .
     with assms(3) show False ..
   qed
-  then obtain a where "1 \<notin> ideal (eval_pm (\<lambda>_. monomial a 0) ` focus {x} ` F)" ..
+  then obtain a where "1 \<notin> ideal (poly_eval (\<lambda>_. monomial a 0) ` focus {x} ` F)" ..
   thus ?thesis ..
 qed
 
@@ -1668,7 +1670,7 @@ theorem weak_Nullstellensatz:
   unfolding ideal_eq_UNIV_iff_contains_one
 proof (rule ccontr)
   assume "1 \<notin> ideal F"
-  with assms(1, 2) obtain a where "1 \<notin> ideal (eval_pm a ` F)"
+  with assms(1, 2) obtain a where "1 \<notin> ideal (poly_eval a ` F)"
   proof (induct X arbitrary: F thesis rule: finite_linorder_induct)
     case empty
     have "F \<subseteq> {0}"
@@ -1687,23 +1689,23 @@ proof (rule ccontr)
       qed
       finally show "f \<in> {0}" by simp
     qed
-    hence "eval_pm 0 ` F \<subseteq> {0}" by auto
-    hence "ideal (eval_pm 0 ` F) = {0}" by simp
-    hence "1 \<notin> ideal (eval_pm 0 ` F)" by (simp del: ideal_eq_zero_iff)
+    hence "poly_eval 0 ` F \<subseteq> {0}" by auto
+    hence "ideal (poly_eval 0 ` F) = {0}" by simp
+    hence "1 \<notin> ideal (poly_eval 0 ` F)" by (simp del: ideal_eq_zero_iff)
     thus ?case by (rule empty.prems)
   next
     case (insert x X)
-    obtain a0 where "1 \<notin> ideal (eval_pm (\<lambda>_. monomial a0 0) ` focus {x} ` F)" (is "_ \<notin> ideal ?F")
+    obtain a0 where "1 \<notin> ideal (poly_eval (\<lambda>_. monomial a0 0) ` focus {x} ` F)" (is "_ \<notin> ideal ?F")
     proof (cases "ideal F \<inter> P[{x}] \<subseteq> {0}")
       case True
       with insert.hyps(1) insert.prems(2) insert.hyps(2) insert.prems(3) obtain a0
-        where "1 \<notin> ideal (eval_pm (\<lambda>_. monomial a0 0) ` focus {x} ` F)"
+        where "1 \<notin> ideal (poly_eval (\<lambda>_. monomial a0 0) ` focus {x} ` F)"
         by (rule weak_Nullstellensatz_aux_2)
       thus ?thesis ..
     next
       case False
       from insert.hyps(2) have "x \<notin> X" by blast
-      with insert.prems(2) obtain a0 where "1 \<notin> ideal (eval_pm (\<lambda>_. monomial a0 0) ` focus {x} ` F)"
+      with insert.prems(2) obtain a0 where "1 \<notin> ideal (poly_eval (\<lambda>_. monomial a0 0) ` focus {x} ` F)"
         using insert.prems(3) False by (rule weak_Nullstellensatz_aux_3)
       thus ?thesis ..
     qed
@@ -1713,21 +1715,21 @@ proof (rule ccontr)
         fix f
         assume "f \<in> F"
         with insert.prems(2) have "f \<in> P[insert x X]" ..
-        hence "eval_pm (\<lambda>_. monomial a0 0) (focus {x} f) \<in> P[insert x X - {x}]"
-          by (rule eval_pm_focus_in_Polys)
+        hence "poly_eval (\<lambda>_. monomial a0 0) (focus {x} f) \<in> P[insert x X - {x}]"
+          by (rule poly_eval_focus_in_Polys)
         also have "\<dots> \<subseteq> P[X]" by (rule Polys_mono) simp
-        finally have "eval_pm (\<lambda>_. monomial a0 0) (focus {x} f) \<in> P[X]" .
+        finally have "poly_eval (\<lambda>_. monomial a0 0) (focus {x} f) \<in> P[X]" .
       }
       thus ?thesis by blast
     qed
-    ultimately obtain a1 where "1 \<notin> ideal (eval_pm a1 ` ?F)" using insert.hyps(3) by blast
-    also have "eval_pm a1 ` ?F = eval_pm (a1(x := eval_pm a1 (monomial a0 0))) ` F"
-      by (simp add: image_image eval_pm_eval_pm_focus fun_upd_def)
+    ultimately obtain a1 where "1 \<notin> ideal (poly_eval a1 ` ?F)" using insert.hyps(3) by blast
+    also have "poly_eval a1 ` ?F = poly_eval (a1(x := poly_eval a1 (monomial a0 0))) ` F"
+      by (simp add: image_image poly_eval_poly_eval_focus fun_upd_def)
     finally show ?case by (rule insert.prems)
   qed
-  hence "ideal (eval_pm a ` F) \<noteq> UNIV" by (simp add: ideal_eq_UNIV_iff_contains_one)
-  hence "ideal (eval_pm a ` F) = {0}" using ideal_field_disj[of "eval_pm a ` F"] by blast
-  hence "eval_pm a ` F \<subseteq> {0}" by simp
+  hence "ideal (poly_eval a ` F) \<noteq> UNIV" by (simp add: ideal_eq_UNIV_iff_contains_one)
+  hence "ideal (poly_eval a ` F) = {0}" using ideal_field_disj[of "poly_eval a ` F"] by blast
+  hence "poly_eval a ` F \<subseteq> {0}" by simp
   hence "a \<in> \<V> F" by (rule variety_ofI_alt)
   thus False by (simp add: assms(3))
 qed
@@ -1910,20 +1912,20 @@ proof (rule radical_idealI_extend_indets)
     fix a
     assume "a \<in> \<V> (insert (1 - ?f) (extend_indets ` F))"
     moreover have "1 - ?f \<in> insert (1 - ?f) (extend_indets ` F)" by simp
-    ultimately have "eval_pm a (1 - ?f) = 0" by (rule variety_ofD)
-    hence "eval_pm a (extend_indets f) \<noteq> 0"
-      by (auto simp: eval_pm_minus eval_pm_times simp flip: times_monomial_left)
-    hence "eval_pm (a \<circ> Some) f \<noteq> 0" by (simp add: eval_pm_extend_indets)
+    ultimately have "poly_eval a (1 - ?f) = 0" by (rule variety_ofD)
+    hence "poly_eval a (extend_indets f) \<noteq> 0"
+      by (auto simp: poly_eval_minus poly_eval_times simp flip: times_monomial_left)
+    hence "poly_eval (a \<circ> Some) f \<noteq> 0" by (simp add: poly_eval_extend_indets)
     have "a \<circ> Some \<in> \<V> F"
     proof (rule variety_ofI)
       fix f'
       assume "f' \<in> F"
       hence "extend_indets f' \<in> insert (1 - ?f) (extend_indets ` F)" by simp
-      with \<open>a \<in> _\<close> have "eval_pm a (extend_indets f') = 0" by (rule variety_ofD)
-      thus "eval_pm (a \<circ> Some) f' = 0" by (simp only: eval_pm_extend_indets)
+      with \<open>a \<in> _\<close> have "poly_eval a (extend_indets f') = 0" by (rule variety_ofD)
+      thus "poly_eval (a \<circ> Some) f' = 0" by (simp only: poly_eval_extend_indets)
     qed
-    with assms(3) have "eval_pm (a \<circ> Some) f = 0" by (rule ideal_ofD)
-    with \<open>eval_pm (a \<circ> Some) f \<noteq> 0\<close> show "a \<in> {}" ..
+    with assms(3) have "poly_eval (a \<circ> Some) f = 0" by (rule ideal_ofD)
+    with \<open>poly_eval (a \<circ> Some) f \<noteq> 0\<close> show "a \<in> {}" ..
   qed simp
 qed
 
@@ -1960,14 +1962,14 @@ proof -
       fix a
       assume "a \<in> \<V> (insert (1 - ?f) F)"
       moreover have "1 - ?f \<in> insert (1 - ?f) F" by simp
-      ultimately have "eval_pm a (1 - ?f) = 0" by (rule variety_ofD)
-      hence "eval_pm a (f ^ m) \<noteq> 0"
-        by (auto simp: eval_pm_minus eval_pm_times eval_pm_power simp flip: times_monomial_left)
+      ultimately have "poly_eval a (1 - ?f) = 0" by (rule variety_ofD)
+      hence "poly_eval a (f ^ m) \<noteq> 0"
+        by (auto simp: poly_eval_minus poly_eval_times poly_eval_power simp flip: times_monomial_left)
       from \<open>a \<in> _\<close> have "a \<in> \<V> (ideal (insert (1 - ?f) F))" by (simp only: variety_of_ideal)
       moreover from \<open>f ^ m \<in> ideal F\<close> ideal.span_mono have "f ^ m \<in> ideal (insert (1 - ?f) F)"
         by (rule rev_subsetD) blast
-      ultimately have "eval_pm a (f ^ m) = 0" by (rule variety_ofD)
-      with \<open>eval_pm a (f ^ m) \<noteq> 0\<close> show "a \<in> {}" ..
+      ultimately have "poly_eval a (f ^ m) = 0" by (rule variety_ofD)
+      with \<open>poly_eval a (f ^ m) \<noteq> 0\<close> show "a \<in> {}" ..
     qed simp
     ultimately have "ideal (insert (1 - ?f) F) = UNIV" by (rule weak_Nullstellensatz)
     thus "1 \<in> ideal (insert (1 - ?f) F)" by simp
@@ -1978,7 +1980,7 @@ proof -
       fix a
       assume "a \<in> \<V> (insert (1 - ?f) F)"
       hence "a \<in> \<V> (ideal (insert (1 - ?f) F))" by (simp only: variety_of_ideal)
-      hence "eval_pm a 1 = 0" using \<open>1 \<in> _\<close> by (rule variety_ofD)
+      hence "poly_eval a 1 = 0" using \<open>1 \<in> _\<close> by (rule variety_ofD)
       thus "a \<in> {}" by simp
     qed simp
     with assms show "f \<in> \<surd>ideal F" by (rule radical_idealI)

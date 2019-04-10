@@ -303,7 +303,7 @@ lemma poly_of_pm_power [simp]: "poly_of_pm x (p ^ m) = poly_of_pm x p ^ m"
 
 subsection \<open>Evaluating Polynomials\<close>
 
-lemma poly_eq_eval_pm: "poly (poly_of_pm x p) a = eval_pm (\<lambda>y. a when y = x) p"
+lemma poly_eq_poly_eval: "poly (poly_of_pm x p) a = poly_eval (\<lambda>y. a when y = x) p"
 proof (induction p rule: poly_mapping_plus_induct)
   case 1
   show ?case by simp
@@ -312,17 +312,17 @@ next
   show ?case
   proof (cases "t \<in> .[{x}]")
     case True
-    have "eval_pm (\<lambda>y. a when y = x) (monomial c t) = c * (\<Prod>y\<in>keys t. (a when y = x) ^ lookup t y)"
-      by (simp only: eval_pm_monomial)
+    have "poly_eval (\<lambda>y. a when y = x) (monomial c t) = c * (\<Prod>y\<in>keys t. (a when y = x) ^ lookup t y)"
+      by (simp only: poly_eval_monomial)
     also from True have "(\<Prod>y\<in>keys t. (a when y = x) ^ lookup t y) = (\<Prod>y\<in>{x}. (a when y = x) ^ lookup t y)"
       by (intro prod.mono_neutral_left ballI) (auto dest: PPsD)
     also have "\<dots> = a ^ lookup t x" by simp
     finally show ?thesis
-      by (simp add: poly_of_pm_plus poly_of_pm_monomial poly_monom eval_pm_plus True 2(3))
+      by (simp add: poly_of_pm_plus poly_of_pm_monomial poly_monom poly_eval_plus True 2(3))
   next
     case False
-    have "eval_pm (\<lambda>y. a when y = x) (monomial c t) = c * (\<Prod>y\<in>keys t. (a when y = x) ^ lookup t y)"
-      by (simp only: eval_pm_monomial)
+    have "poly_eval (\<lambda>y. a when y = x) (monomial c t) = c * (\<Prod>y\<in>keys t. (a when y = x) ^ lookup t y)"
+      by (simp only: poly_eval_monomial)
     also from finite_keys have "(\<Prod>y\<in>keys t. (a when y = x) ^ lookup t y) = 0"
     proof (rule prod_zero)
       from False obtain y where "y \<in> keys t" and "y \<noteq> x" by (auto simp: PPs_def)
@@ -333,24 +333,24 @@ next
       qed
     qed
     finally show ?thesis
-      by (simp add: poly_of_pm_plus poly_of_pm_monomial poly_monom eval_pm_plus False 2(3))
+      by (simp add: poly_of_pm_plus poly_of_pm_monomial poly_monom poly_eval_plus False 2(3))
   qed
 qed
 
-corollary poly_eq_eval_pm':
+corollary poly_eq_poly_eval':
   assumes "p \<in> P[{x}]"
-  shows "poly (poly_of_pm x p) a = eval_pm (\<lambda>_. a) p"
-  unfolding poly_eq_eval_pm using refl
-proof (rule eval_pm_cong)
+  shows "poly (poly_of_pm x p) a = poly_eval (\<lambda>_. a) p"
+  unfolding poly_eq_poly_eval using refl
+proof (rule poly_eval_cong)
   fix y
   assume "y \<in> indets p"
   also from assms have "\<dots> \<subseteq> {x}" by (rule PolysD)
   finally show "(a when y = x) = a" by simp
 qed
 
-lemma eval_pm_eq_poly: "eval_pm a (pm_of_poly x p) = poly p (a x)"
+lemma poly_eval_eq_poly: "poly_eval a (pm_of_poly x p) = poly p (a x)"
   by (induct p)
-    (simp_all add: pm_of_poly_pCons eval_pm_plus eval_pm_times eval_pm_monomial
+    (simp_all add: pm_of_poly_pCons poly_eval_plus poly_eval_times poly_eval_monomial
               flip: times_monomial_left)
 
 subsection \<open>Morphisms \<open>flat_pm_of_poly\<close> and \<open>poly_of_focus\<close>\<close>
@@ -472,11 +472,11 @@ proof -
   finally show ?thesis .
 qed
 
-lemma poly_poly_of_focus: "poly (poly_of_focus x p) a = eval_pm (\<lambda>_. a) (focus {x} p)"
-  by (simp add: poly_of_focus_def poly_eq_eval_pm' focus_in_Polys)
+lemma poly_poly_of_focus: "poly (poly_of_focus x p) a = poly_eval (\<lambda>_. a) (focus {x} p)"
+  by (simp add: poly_of_focus_def poly_eq_poly_eval' focus_in_Polys)
 
 corollary poly_poly_of_focus_monomial:
   "poly (poly_of_focus x p) (monomial 1 (Poly_Mapping.single x 1)) = (p::_ \<Rightarrow>\<^sub>0 _::comm_semiring_1)"
-  unfolding poly_poly_of_focus eval_pm_focus by (rule poly_subst_id) simp
+  unfolding poly_poly_of_focus poly_eval_focus by (rule poly_subst_id) simp
 
 end (* theory *)
