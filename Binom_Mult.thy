@@ -1045,7 +1045,7 @@ lemma associated_poly_times_binomial_associated:
   assumes "q \<noteq> 0" and "associated_poly p q"
   shows "associated p (lpp q + lpp p) (tpp q + tpp p) (card (keys q))"
 proof -
-  from keys_eq_empty_iff[of q] assms(1) have "keys q \<noteq> {}" by auto
+  from assms(1) have "keys q \<noteq> {}" by auto
   with finite_keys[of q] have "card (keys q) \<noteq> 0" by simp
   hence eq: "associated p (lpp q + lpp p) (tpp q + tpp p) (card (keys q)) \<longleftrightarrow>
               associated p (lpp q + lpp p) (tpp q + tpp p) ((card (keys q) - 1) + 1)" by force

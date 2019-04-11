@@ -18,7 +18,7 @@ proof -
       
   define r where "r = binomial c s d t"
   have sr: "keys r = {s, t}" unfolding r_def by (rule keys_binomial_pbd, rule obd_imp_pbd, fact)
-  hence "r \<noteq> 0" using keys_eq_empty_iff[of r] by simp
+  hence "r \<noteq> 0" using keys_eq_empty[of r] by simp
   have ltr: "lt r = s" unfolding r_def by (rule lt_binomial, fact)
   have lcr: "lc r = c" unfolding r_def by (rule lc_binomial, fact)
   
@@ -42,7 +42,7 @@ proof -
   have pbd_r': "is_pbd cpv v ((cpv / c) * d) w" by (rule obd_imp_pbd, fact)
       
   have sr': "keys r' = {v, w}" unfolding r'_def by (rule keys_binomial_pbd, rule obd_imp_pbd, fact)
-  hence "r' \<noteq> 0" using keys_eq_empty_iff[of r'] by simp
+  hence "r' \<noteq> 0" using keys_eq_empty[of r'] by simp
   have ltr': "lt r' = v" unfolding r'_def by (rule lt_binomial, fact)
   have lcr': "lc r' = cpv" unfolding r'_def by (rule lc_binomial, fact)
       
@@ -144,8 +144,7 @@ proof -
   thus ?thesis
   proof
     assume "card (keys b) = 0"
-    hence "keys b = {}" using finite_keys[of b] by simp
-    hence "b = 0" using keys_eq_empty_iff[of b] by simp
+    hence "b = 0" by simp
     with \<open>red {b} p q\<close> have "red {0} p q" by simp
     thus ?thesis unfolding red_singleton by (metis red_single_nonzero2)
   next

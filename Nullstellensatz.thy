@@ -1603,7 +1603,7 @@ proof -
   from assms(4) obtain f where "f \<in> ideal F" and "f \<in> P[{x}]" and "f \<noteq> 0" by blast
   define p where "p = poly_of_pm x f"
   from \<open>f \<in> P[{x}]\<close> \<open>f \<noteq> 0\<close> have "p \<noteq> 0"
-    by (auto simp: p_def poly_of_pm_eq_zero_iff simp flip: keys_eq_empty keys_eq_empty_iff dest!: PolysD(1))
+    by (auto simp: p_def poly_of_pm_eq_zero_iff simp flip: keys_eq_empty dest!: PolysD(1))
   obtain c A m where A: "finite A" and p: "p = Polynomial.smult c (\<Prod>a\<in>A. [:- a, 1:] ^ m a)"
     and "\<And>x. m x = 0 \<longleftrightarrow> x \<notin> A" and "c = 0 \<longleftrightarrow> p = 0" and "\<And>z. poly p z = 0 \<longleftrightarrow> (c = 0 \<or> z \<in> A)"
     by (rule linear_factorsE) blast

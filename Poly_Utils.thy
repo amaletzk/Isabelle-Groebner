@@ -283,7 +283,7 @@ proof -
   proof
     assume "card (keys p) = 0"
     hence "keys p = {}" using finite_keys[of p] by simp
-    thus ?thesis unfolding keys_eq_empty_iff ..
+    thus ?thesis unfolding keys_eq_empty ..
   next
     assume "card (keys p) = 1"
     thus ?thesis ..
@@ -720,8 +720,7 @@ proof
     hence "lt p = tt p"
     proof
       assume "card (keys p) = 0"
-      hence "keys p = {}" using finite_keys[of p] by simp
-      hence "p = 0" using keys_eq_empty_iff[of p] by simp
+      hence "p = 0" by simp
       show ?thesis unfolding \<open>p = 0\<close> lt_def tt_def by simp
     next
       assume "card (keys p) = 1"
