@@ -604,7 +604,7 @@ proof (rule ccontr)
       also from \<open>g1 \<noteq> g2\<close> have "\<dots> = keys ((punit.tail (q g1) + mu * q' g1) \<odot> g1)"
         by (simp add: q''_def)
       also have "\<dots> \<subseteq> keys (punit.tail (q g1) \<odot> g1) \<union> keys ((mu * q' g1) \<odot> g1)"
-        unfolding mult_scalar_distrib_right by (fact keys_add_subset)
+        unfolding mult_scalar_distrib_right by (fact Poly_Mapping.keys_add)
       finally show False
       proof
         assume "u \<in> keys (punit.tail (q g1) \<odot> g1)"
@@ -626,7 +626,7 @@ proof (rule ccontr)
         finally show ?thesis using \<open>v \<preceq>\<^sub>t u\<close> by simp
       qed
     qed
-    thus "lookup (q'' g1 \<odot> g1) u = 0" by simp
+    thus "lookup (q'' g1 \<odot> g1) u = 0" by (simp add: in_keys_iff)
   qed
 
   have 3: "lt (q'' g2 \<odot> g2) \<preceq>\<^sub>t v"
@@ -638,11 +638,11 @@ proof (rule ccontr)
       assume "u \<in> keys (q'' g2 \<odot> g2)"
       also have "\<dots> = keys ((q g2 + mu * q' g2 + mu * mu2) \<odot> g2)" by (simp add: q''_def)
       also have "\<dots> \<subseteq> keys (q g2 \<odot> g2 + (mu * q' g2) \<odot> g2) \<union> keys ((mu * mu2) \<odot> g2)"
-        unfolding mult_scalar_distrib_right by (fact keys_add_subset)
+        unfolding mult_scalar_distrib_right by (fact Poly_Mapping.keys_add)
       finally show False
       proof
         assume "u \<in> keys (q g2 \<odot> g2 + (mu * q' g2) \<odot> g2)"
-        also have "\<dots> \<subseteq> keys (q g2 \<odot> g2) \<union> keys ((mu * q' g2) \<odot> g2)" by (fact keys_add_subset)
+        also have "\<dots> \<subseteq> keys (q g2 \<odot> g2) \<union> keys ((mu * q' g2) \<odot> g2)" by (fact Poly_Mapping.keys_add)
         finally show ?thesis
         proof
           assume "u \<in> keys (q g2 \<odot> g2)"
@@ -665,7 +665,7 @@ proof (rule ccontr)
         finally show ?thesis using \<open>v \<prec>\<^sub>t u\<close> by (simp add: v2')
       qed
     qed
-    thus "lookup (q'' g2 \<odot> g2) u = 0" by simp
+    thus "lookup (q'' g2 \<odot> g2) u = 0" by (simp add: in_keys_iff)
   qed
 
   have 4: "lt (q'' g \<odot> g) \<preceq>\<^sub>t v" if "g \<in> M" for g
@@ -699,7 +699,7 @@ proof (rule ccontr)
       proof
         assume "u \<in> keys (q'' g \<odot> g)"
         also have "\<dots> \<subseteq> keys (q g \<odot> g) \<union> keys ((mu * q' g) \<odot> g)"
-          unfolding q'' mult_scalar_distrib_right by (fact keys_add_subset)
+          unfolding q'' mult_scalar_distrib_right by (fact Poly_Mapping.keys_add)
         finally show False
         proof
           assume "u \<in> keys (q g \<odot> g)"
@@ -713,7 +713,7 @@ proof (rule ccontr)
           finally show ?thesis using \<open>v \<prec>\<^sub>t u\<close> by simp
         qed
       qed
-      thus "lookup (q'' g \<odot> g) u = 0" by simp
+      thus "lookup (q'' g \<odot> g) u = 0" by (simp add: in_keys_iff)
     qed
   qed
 
@@ -727,7 +727,7 @@ proof (rule ccontr)
     proof
       assume "u \<in> keys (q'' g \<odot> g)"
       also have "\<dots> \<subseteq> keys (q g \<odot> g) \<union> keys ((mu * q' g) \<odot> g)"
-        unfolding q'' mult_scalar_distrib_right by (fact keys_add_subset)
+        unfolding q'' mult_scalar_distrib_right by (fact Poly_Mapping.keys_add)
       finally show False
       proof
         assume "u \<in> keys (q g \<odot> g)"
@@ -743,7 +743,7 @@ proof (rule ccontr)
         finally show ?thesis using \<open>v \<preceq>\<^sub>t u\<close> by simp
       qed
     qed
-    thus "lookup (q'' g \<odot> g) u = 0" by simp
+    thus "lookup (q'' g \<odot> g) u = 0" by (simp add: in_keys_iff)
   qed
 
   define u where "u = mlt q''"
@@ -1252,11 +1252,11 @@ proof -
     hence "lookup (?e (focus {x} g)) (except (i.lpp g) {x}) = poly_eval (\<lambda>_. a) (i.lcf (focus X g))"
       by (simp only: lookup_e_focus lpp_focus i.punit.lc_def)
     also from that have "\<dots> \<noteq> 0" by (rule a_nz)
-    finally show "except (i.lpp g) {x} \<in> keys (?e (focus {x} g))" by simp
+    finally show "except (i.lpp g) {x} \<in> keys (?e (focus {x} g))" by (simp add: in_keys_iff)
 
     fix t
     assume "t \<in> keys (?e (focus {x} g))"
-    hence "0 \<noteq> lookup (?e (focus {x} g)) t" by simp
+    hence "0 \<noteq> lookup (?e (focus {x} g)) t" by (simp add: in_keys_iff)
     also from \<open>g \<in> P[_]\<close> have "lookup (?e (focus {x} g)) t = poly_eval (\<lambda>_. a) (lookup (focus X g) t)"
       by (rule lookup_e_focus)
     finally have "t \<in> keys (focus X g)" by (auto simp flip: lookup_not_eq_zero_eq_in_keys)
@@ -1422,7 +1422,7 @@ proof -
           proof (rule i.punit.lt_le, rule ccontr)
             fix u
             assume "lookup (?e (focus {x} (q0 h * h))) u \<noteq> 0"
-            hence "u \<in> keys (?e (focus {x} (q0 h * h)))" by simp
+            hence "u \<in> keys (?e (focus {x} (q0 h * h)))" by (simp add: in_keys_iff)
             with keys_poly_eval_focus_subset have "u \<in> (\<lambda>v. except v {x}) ` keys (q0 h * h)" ..
             then obtain v where "v \<in> keys (q0 h * h)" and u: "u = except v {x}" ..
             have "lex_pm u (Poly_Mapping.single x (lookup v x) + u)"
@@ -1526,7 +1526,7 @@ proof -
           show "lookup s t = 0"
           proof (rule ccontr)
             assume "lookup s t \<noteq> 0"
-            hence "t \<in> keys s" by simp
+            hence "t \<in> keys s" by (simp add: in_keys_iff)
             also have "\<dots> = keys (?a - ?b)" by (simp add: s_def a b)
             also have "\<dots> \<subseteq> keys ?a \<union> keys ?b" by (fact keys_minus)
             finally show False
@@ -1603,7 +1603,7 @@ proof -
   from assms(4) obtain f where "f \<in> ideal F" and "f \<in> P[{x}]" and "f \<noteq> 0" by blast
   define p where "p = poly_of_pm x f"
   from \<open>f \<in> P[{x}]\<close> \<open>f \<noteq> 0\<close> have "p \<noteq> 0"
-    by (auto simp: p_def poly_of_pm_eq_zero_iff simp flip: keys_eq_empty_iff dest!: PolysD(1))
+    by (auto simp: p_def poly_of_pm_eq_zero_iff simp flip: keys_eq_empty keys_eq_empty_iff dest!: PolysD(1))
   obtain c A m where A: "finite A" and p: "p = Polynomial.smult c (\<Prod>a\<in>A. [:- a, 1:] ^ m a)"
     and "\<And>x. m x = 0 \<longleftrightarrow> x \<notin> A" and "c = 0 \<longleftrightarrow> p = 0" and "\<And>z. poly p z = 0 \<longleftrightarrow> (c = 0 \<or> z \<in> A)"
     by (rule linear_factorsE) blast

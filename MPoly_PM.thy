@@ -269,7 +269,7 @@ lemma le_pm_refl [simp]: "s \<unlhd> (s::_ \<Rightarrow>\<^sub>0 _::preorder)"
   by (simp add: le_pm_def)
 
 lemma le_pm_antisym: "s \<unlhd> t \<Longrightarrow> t \<unlhd> s \<Longrightarrow> s = (t::_ \<Rightarrow>\<^sub>0 _::order)"
-  by (simp add: le_pm_def poly_mapping_eq_iff)
+  by (simp only: le_pm_def poly_mapping_eq_iff in_keys_iff)
 
 lemma le_pm_trans [trans]: "s \<unlhd> t \<Longrightarrow> t \<unlhd> u \<Longrightarrow> s \<unlhd> (u::_ \<Rightarrow>\<^sub>0 _::preorder)"
   by (auto simp: le_pm_def dest: order_trans)
@@ -354,10 +354,10 @@ proof (rule ccontr)
     from assms(1) show "\<forall>x\<in>keys s \<union> keys t. lookup s x \<le> lookup t x"
       by (auto dest: le_pmD)
   next
-    from \<open>s \<noteq> t\<close> obtain x where neq: "lookup s x \<noteq> lookup t x" by (auto simp: poly_mapping_eq_iff)
+    from \<open>s \<noteq> t\<close> obtain x where neq: "lookup s x \<noteq> lookup t x" by (auto simp flip: lookup_inject)
     moreover from assms(1) have "lookup s x \<le> lookup t x" by (rule le_pmD)
     ultimately have "lookup s x < lookup t x" by simp
-    moreover from neq have "x \<in> keys s \<union> keys t" by auto
+    moreover from neq have "x \<in> keys s \<union> keys t" by (auto simp: in_keys_iff)
     ultimately show "\<exists>x\<in>keys s \<union> keys t. lookup s x < lookup t x" ..
   qed
   also from _ fin have "\<dots> = deg_pm t" by (rule deg_pm_superset[symmetric]) simp
@@ -381,9 +381,9 @@ proof (rule poly_mapping_eqI)
       by (simp add: plus_minus_assoc_pm_nat_1 lookup_add lookup_minus lookup_except)
   next
     case False
-    hence "lookup s x = 0" by simp
+    hence "lookup s x = 0" by (simp add: in_keys_iff)
     with False show ?thesis
-      by (simp add: lookup_add lookup_minus lookup_except del: not_in_keys_iff_lookup_eq_zero)
+      by (simp add: lookup_add lookup_minus lookup_except)
   qed
 qed
 
@@ -442,10 +442,10 @@ next
     proof (cases "x \<in> keys t")
       case True
       with * have "x \<notin> keys s" by blast
-      thus ?thesis by simp
+      thus ?thesis by (simp add: in_keys_iff)
     next
       case False
-      thus ?thesis by simp
+      thus ?thesis by (simp add: in_keys_iff)
     qed
     thus "lookup (t - s) x = lookup t x" by (simp only: lookup_minus)
   qed
@@ -544,7 +544,7 @@ lemma poly_deg_plus_le:
 proof (rule poly_deg_leI)
   fix t
   assume "t \<in> keys (p + q)"
-  also have "... \<subseteq> keys p \<union> keys q" by (fact keys_add_subset)
+  also have "... \<subseteq> keys p \<union> keys q" by (fact Poly_Mapping.keys_add)
   finally show "deg_pm t \<le> max (poly_deg p) (poly_deg q)"
   proof
     assume "t \<in> keys p"
@@ -641,7 +641,7 @@ proof (rule antisym)
     have "u \<notin> keys (p1 * q2 + p2 * q)"
     proof
       assume "u \<in> keys (p1 * q2 + p2 * q)"
-      also have "\<dots> \<subseteq> keys (p1 * q2) \<union> keys (p2 * q)" by (rule keys_add_subset)
+      also have "\<dots> \<subseteq> keys (p1 * q2) \<union> keys (p2 * q)" by (rule Poly_Mapping.keys_add)
       finally have "deg_pm u < poly_deg p + poly_deg q"
       proof
         assume "u \<in> keys (p1 * q2)"
@@ -894,7 +894,7 @@ proof
   fix x
   assume "x \<in> indets (p + q)"
   then obtain t where "x \<in> keys t" and "t \<in> keys (p + q)" by (metis UN_E indets_def)
-  hence "t \<in> keys p \<union> keys q" by (metis keys_add_subset subsetCE)
+  hence "t \<in> keys p \<union> keys q" by (metis Poly_Mapping.keys_add subsetCE)
   thus "x \<in> indets p \<union> indets q" using indets_def \<open>x \<in> keys t\<close> by fastforce
 qed
 
@@ -916,7 +916,7 @@ proof
   assume "x \<in> indets (p * q)"
   then obtain t where "t \<in> keys (p * q)" and "x \<in> keys t" unfolding indets_def by blast
   from this(1) obtain u v where "u \<in> keys p" "v \<in> keys q" and "t = u + v" by (rule in_keys_timesE)
-  hence "x \<in> keys u \<union> keys v" by (metis \<open>x \<in> keys t\<close> keys_add_subset subsetCE)
+  hence "x \<in> keys u \<union> keys v" by (metis \<open>x \<in> keys t\<close> Poly_Mapping.keys_add subsetCE)
   thus "x \<in> indets p \<union> indets q" unfolding indets_def using \<open>u \<in> keys p\<close> \<open>v \<in> keys q\<close> by blast
 qed
 
@@ -1070,7 +1070,7 @@ lemma PPs_closed_plus:
   assumes "s \<in> .[X]" and "t \<in> .[X]"
   shows "s + t \<in> .[X]"
 proof -
-  have "keys (s + t) \<subseteq> keys s \<union> keys t" by (fact keys_add_subset)
+  have "keys (s + t) \<subseteq> keys s \<union> keys t" by (fact Poly_Mapping.keys_add)
   also from assms have "... \<subseteq> X" by (simp add: PPs_def)
   finally show ?thesis by (rule PPsI)
 qed
@@ -1141,7 +1141,7 @@ proof -
     finally show "x \<in> Y"
     proof
       assume "x \<in> X"
-      hence "x \<notin> keys (t - tx)" by (simp add: tx_def lookup_except lookup_minus)
+      hence "x \<notin> keys (t - tx)" by (simp add: tx_def lookup_except lookup_minus in_keys_iff)
       thus ?thesis using \<open>x \<in> keys (t - tx)\<close> ..
     qed
   qed
@@ -1575,11 +1575,11 @@ next
       from t1 obtain s1 where "s1 \<in> deg_sect X d1" and s1: "t = ?f d1 + s1" ..
       from this(1) have "s1 \<in> .[X]" by (rule deg_sectD)
       hence "keys s1 \<subseteq> X" by (rule PPsD)
-      with insert.hyps(2) have eq3: "lookup s1 x = 0" by auto
+      with insert.hyps(2) have eq3: "lookup s1 x = 0" by (auto simp: in_keys_iff)
       from t2 obtain s2 where "s2 \<in> deg_sect X d2" and s2: "t = ?f d2 + s2" ..
       from this(1) have "s2 \<in> .[X]" by (rule deg_sectD)
       hence "keys s2 \<subseteq> X" by (rule PPsD)
-      with insert.hyps(2) have eq4: "lookup s2 x = 0" by auto
+      with insert.hyps(2) have eq4: "lookup s2 x = 0" by (auto simp: in_keys_iff)
       from s2 have "lookup (?f d1 + s1) x = lookup (?f d2 + s2) x" by (simp only: s1)
       hence "d - d1 = d - d2" by (simp add: lookup_add eq3 eq4)
       moreover assume "d1 \<in> {..d}" and "d2 \<in> {..d}"
@@ -1659,7 +1659,7 @@ lemma subst_pp_alt: "subst_pp f t = (\<Prod>x. (f x) ^ (lookup t x))"
 proof -
   from finite_keys have "subst_pp f t = (\<Prod>x. if x \<in> keys t then (f x) ^ (lookup t x) else 1)"
     unfolding subst_pp_def by (rule Prod_any.conditionalize)
-  also have "... = (\<Prod>x. (f x) ^ (lookup t x))" by (rule Prod_any.cong, simp)
+  also have "... = (\<Prod>x. (f x) ^ (lookup t x))" by (rule Prod_any.cong) (simp add: in_keys_iff)
   finally show ?thesis .
 qed
 
@@ -1777,12 +1777,13 @@ lemma poly_subst_alt: "poly_subst f p = (\<Sum>t. punit.monom_mult (lookup p t) 
 proof -
   from finite_keys have "poly_subst f p = (\<Sum>t. if t \<in> keys p then punit.monom_mult (lookup p t) 0 (subst_pp f t) else 0)"
     unfolding poly_subst_def by (rule Sum_any.conditionalize)
-  also have "... = (\<Sum>t. punit.monom_mult (lookup p t) 0 (subst_pp f t))" by (rule Sum_any.cong, simp)
+  also have "\<dots> = (\<Sum>t. punit.monom_mult (lookup p t) 0 (subst_pp f t))"
+    by (rule Sum_any.cong) (simp add: in_keys_iff)
   finally show ?thesis .
 qed
 
 lemma poly_subst_trivial [simp]: "poly_subst (\<lambda>_. 0) p = monomial (lookup p 0) 0"
-  by (simp add: poly_subst_def subst_pp_trivial if_distrib cong: if_cong)
+  by (simp add: poly_subst_def subst_pp_trivial if_distrib in_keys_iff cong: if_cong)
       (metis mult.right_neutral times_monomial_left)
 
 lemma poly_subst_zero [simp]: "poly_subst f 0 = 0"
@@ -1832,12 +1833,12 @@ proof -
   have fin_1: "finite {l. lookup p l * (\<Sum>qa. lookup q qa when t = l + qa) \<noteq> 0}" for t
   proof (rule finite_subset)
     show "{l. lookup p l * (\<Sum>qa. lookup q qa when t = l + qa) \<noteq> 0} \<subseteq> keys p"
-      by (rule, auto simp add: in_keys_iff simp del: lookup_not_eq_zero_eq_in_keys)
+      by (rule, auto simp: in_keys_iff)
   qed (fact finite_keys)
   have fin_2: "finite {v. (lookup q v when t = u + v) \<noteq> 0}" for t u
   proof (rule finite_subset)
     show "{v. (lookup q v when t = u + v) \<noteq> 0} \<subseteq> keys q"
-      by (rule, auto simp add: in_keys_iff simp del: lookup_not_eq_zero_eq_in_keys)
+      by (rule, auto simp: in_keys_iff)
   qed (fact finite_keys)
   have fin_3: "finite {v. (lookup p u * lookup q v when t = u + v) \<noteq> 0}" for t u
   proof (rule finite_subset)
@@ -1850,27 +1851,23 @@ proof -
   also have "\<dots> = (\<Sum>t. \<Sum>u. \<Sum>v. (punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f t)) when t = u + v)"
     by (simp add: Sum_any_right_distrib[OF fin_2] punit.monom_mult_Sum_any_left[OF fin_3] mult_when punit.when_monom_mult)
   also have "\<dots> = (\<Sum>t. (\<Sum>(u, v). (punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f t)) when t = u + v))"
-    apply (subst (2) Sum_any.cartesian_product [of "?P \<times> ?Q"])
-    apply (auto simp add: in_keys_iff simp del: lookup_not_eq_zero_eq_in_keys)
-    done
+    by (subst (2) Sum_any.cartesian_product [of "?P \<times> ?Q"]) (auto simp: in_keys_iff)
   also have "\<dots> = (\<Sum>(t, u, v). punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f t) when t = u + v)"
     apply (subst Sum_any.cartesian_product [of "?PQ \<times> (?P \<times> ?Q)"])
-    apply (auto simp add: fin_PQ in_keys_iff simp del: lookup_not_eq_zero_eq_in_keys)
+    apply (auto simp: fin_PQ in_keys_iff)
     apply (metis monomial_0I mult_not_zero times_monomial_left)
     done
   also have "\<dots> = (\<Sum>(u, v, t). punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f t) when t = u + v)"
     using bij by (rule Sum_any.reindex_cong [of "\<lambda>(u, v, t). (t, u, v)"]) (simp add: fun_eq_iff)
   also have "\<dots> = (\<Sum>(u, v). \<Sum>t. punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f t) when t = u + v)"
     apply (subst Sum_any.cartesian_product2 [of "(?P \<times> ?Q) \<times> ?PQ"])
-    apply (auto simp add: fin_PQ in_keys_iff simp del: lookup_not_eq_zero_eq_in_keys)
+    apply (auto simp: fin_PQ in_keys_iff)
     apply (metis monomial_0I mult_not_zero times_monomial_left)
     done
   also have "\<dots> = (\<Sum>(u, v). punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f u * subst_pp f v))"
     by (simp add: subst_pp_plus)
   also have "\<dots> = (\<Sum>u. \<Sum>v. punit.monom_mult (lookup p u * lookup q v) 0 (subst_pp f u * subst_pp f v))"
-    apply (subst Sum_any.cartesian_product [of "?P \<times> ?Q"])
-    apply (auto simp add: in_keys_iff simp del: lookup_not_eq_zero_eq_in_keys)
-    done
+    by (subst Sum_any.cartesian_product [of "?P \<times> ?Q"]) (auto simp: in_keys_iff)
   also have "\<dots> = (\<Sum>u. \<Sum>v. (punit.monom_mult (lookup p u) 0 (subst_pp f u)) * (punit.monom_mult (lookup q v) 0 (subst_pp f v)))"
     by (simp add: times_monomial_left[symmetric] ac_simps mult_single)
   also have "\<dots> = (\<Sum>t. punit.monom_mult (lookup p t) 0 (subst_pp f t)) *
@@ -2132,7 +2129,7 @@ proof -
       hence "t + v \<noteq> 0" using plus_eq_zero_2 by blast
       thus "(lookup q v when t + v = 0) = 0" by simp
     qed simp_all
-    also have "\<dots> = (lookup q 0 when t = 0)" by (cases "0 \<in> keys q") simp_all
+    also have "\<dots> = (lookup q 0 when t = 0)" by (cases "0 \<in> keys q") (simp_all add: in_keys_iff)
     finally show ?thesis .
   qed
   have "(\<Sum>t\<in>keys p. lookup p t * lookup q 0 when t = 0) =
@@ -2143,7 +2140,7 @@ proof -
     hence "t \<noteq> 0" by blast
     thus "(lookup p t * lookup q 0 when t = 0) = 0" by simp
   qed simp_all
-  also have "\<dots> = lookup p 0 * lookup q 0" by (cases "0 \<in> keys p") simp_all
+  also have "\<dots> = lookup p 0 * lookup q 0" by (cases "0 \<in> keys p") (simp_all add: in_keys_iff)
   finally show ?thesis by (simp add: lookup_times eq when_distrib)
 qed
 
@@ -2210,7 +2207,7 @@ next
     by (rule keys_plus_eqI) (simp add: 2(2))
   with 2(1) have eq1: "keys (monomial c t + p) = insert t (keys p)" by simp
   hence eq2: "indets (monomial c t + p) = keys t \<union> indets p" by (simp add: indets_def)
-  from 2(2) have eq3: "lookup (monomial c t + p) t = c" by (simp add: lookup_add)
+  from 2(2) have eq3: "lookup (monomial c t + p) t = c" by (simp add: lookup_add in_keys_iff)
   have eq4: "lookup (monomial c t + p) s = lookup p s" if "s \<in> keys p" for s
     using that 2(2) by (auto simp: lookup_add lookup_single when_def)
   have "indets (poly_eval a (monomial c t + p)) =
@@ -2358,7 +2355,7 @@ lemma hom_component_inject:
   shows "deg_pm t = n"
 proof -
   from assms(1) have "t \<in> keys (hom_component p (deg_pm t))" by (simp add: keys_hom_component)
-  hence "0 \<noteq> lookup (hom_component p (deg_pm t)) t" by simp
+  hence "0 \<noteq> lookup (hom_component p (deg_pm t)) t" by (simp add: in_keys_iff)
   also have "lookup (hom_component p (deg_pm t)) t = lookup (hom_component p n) t"
     by (simp only: assms(2))
   also have "\<dots> = (lookup p t when deg_pm t = n)" by (simp only: lookup_hom_component)
@@ -2381,7 +2378,7 @@ proof (cases "n = poly_deg p")
     next
       case False
       moreover from this have "t \<notin> keys (hom_component p n)" by (simp add: keys_hom_component)
-      ultimately show ?thesis by simp
+      ultimately show ?thesis by (simp add: in_keys_iff)
     qed
   qed
   with True show ?thesis by simp
@@ -2538,15 +2535,15 @@ proof (rule poly_mapping_eqI)
       hence "q0 \<in> hom_components p" and "q \<noteq> q0" by blast+
       with q have "keys q \<inter> keys q0 = {}" by (rule hom_components_keys_disjoint)
       with t have "t \<notin> keys q0" by blast
-      thus "lookup q0 t = 0" by simp
+      thus "lookup q0 t = 0" by (simp add: in_keys_iff)
     qed
     finally show "(\<Sum>q\<in>hom_components p. lookup q t) = lookup p t" by simp
   next
     case False
     hence "t \<notin> Keys (hom_components p)" by (simp add: Keys_hom_components)
-    hence "\<forall>q\<in>hom_components p. lookup q t = 0" by (simp add: Keys_def)
+    hence "\<forall>q\<in>hom_components p. lookup q t = 0" by (simp add: Keys_def in_keys_iff)
     hence "(\<Sum>q\<in>hom_components p. lookup q t) = 0" by (rule sum.neutral)
-    also from False have "\<dots> = lookup p t" by simp
+    also from False have "\<dots> = lookup p t" by (simp add: in_keys_iff)
     finally show "(\<Sum>q\<in>hom_components p. lookup q t) = lookup p t" .
   qed
 qed
@@ -2588,7 +2585,7 @@ proof -
   have "lookup a t = 0" if "deg_pm t = Suc (poly_deg a)" for t
   proof (rule ccontr)
     assume "lookup a t \<noteq> 0"
-    hence "t \<in> keys a" by simp
+    hence "t \<in> keys a" by (simp add: in_keys_iff)
     hence "deg_pm t \<le> poly_deg a" by (rule poly_deg_max_keys)
     thus False by (simp add: that)
   qed
@@ -3082,7 +3079,7 @@ proof
     and t: "t = Poly_Mapping.single x (poly_deg p - deg_pm t') + t'" by (rule keys_homogenizeE)
   note \<open>y \<in> keys t\<close>
   also have "keys t \<subseteq> keys (Poly_Mapping.single x (poly_deg p - deg_pm t')) \<union> keys t'"
-    unfolding t by (rule keys_add_subset)
+    unfolding t by (rule Poly_Mapping.keys_add)
   finally show "y \<in> insert x (indets p)"
   proof
     assume "y \<in> keys (Poly_Mapping.single x (poly_deg p - deg_pm t'))"
@@ -3115,8 +3112,8 @@ proof -
       assume a: "?t = Poly_Mapping.single x (poly_deg p - deg_pm s) + s"
       hence "lookup ?t x = lookup (Poly_Mapping.single x (poly_deg p - deg_pm s) + s) x"
         by simp
-      moreover from assms(2) have "lookup t x = 0" by simp
-      moreover from \<open>x \<notin> keys s\<close> have "lookup s x = 0" by simp
+      moreover from assms(2) have "lookup t x = 0" by (simp add: in_keys_iff)
+      moreover from \<open>x \<notin> keys s\<close> have "lookup s x = 0" by (simp add: in_keys_iff)
       ultimately have "poly_deg p - deg_pm t = poly_deg p - deg_pm s" by (simp add: lookup_add)
       with a have "s = t" by simp
       with \<open>s \<noteq> t\<close> show False ..
@@ -3140,7 +3137,7 @@ proof -
     have "lookup ?p ?t = (\<Sum>s\<in>keys p - {t}. lookup (monomial (lookup p s) (Poly_Mapping.single x (poly_deg p - deg_pm s) + s)) ?t)"
       by (simp add: homogenize_def lookup_sum 1)
     also have "\<dots> = 0" by (simp only: eq)
-    also from False have "\<dots> = lookup p t" by simp
+    also from False have "\<dots> = lookup p t" by (simp add: in_keys_iff)
     finally show ?thesis .
   qed
 qed
@@ -3152,8 +3149,8 @@ proof -
   from assms(2) have "keys t \<subseteq> indets p" by (simp add: in_indetsI subsetI)
   with assms(1) have "x \<notin> keys t" by blast
   with assms(1) have "lookup ?p ?t = lookup p t" by (rule lookup_homogenize)
-  also from assms(2) have "\<dots> \<noteq> 0" by simp
-  finally show ?thesis by simp
+  also from assms(2) have "\<dots> \<noteq> 0" by (simp add: in_keys_iff)
+  finally show ?thesis by (simp add: in_keys_iff)
 qed
 
 lemma keys_homogenize:
@@ -3172,7 +3169,7 @@ proof (intro card_image inj_onI)
   let ?t = "Poly_Mapping.single x (poly_deg p - deg_pm t)"
   assume "?s + s = ?t + t"
   hence "lookup (?s + s) x = lookup (?t + t) x" by simp
-  with \<open>x \<notin> keys s\<close> \<open>x \<notin> keys t\<close> have "?s = ?t" by (simp add: lookup_add)
+  with \<open>x \<notin> keys s\<close> \<open>x \<notin> keys t\<close> have "?s = ?t" by (simp add: lookup_add in_keys_iff)
   with \<open>?s + s = ?t + t\<close> show "s = t" by simp
 qed
 
@@ -3276,7 +3273,7 @@ proof -
     next
       case False
       hence "(\<Sum>z\<in>keys t - {x}. lookup t z when z = y) = 0" by (auto simp: when_def)
-      also from False have "\<dots> = lookup t y" by simp
+      also from False have "\<dots> = lookup t y" by (simp add: in_keys_iff)
       finally show ?thesis .
     qed
   qed
@@ -3449,8 +3446,8 @@ lemma keys_dehomogenizeI:
   shows "except t {x} \<in> keys (dehomogenize x p)"
 proof -
   from assms have "lookup (dehomogenize x p) (except t {x}) = lookup p t" by (rule lookup_dehomogenize)
-  also from assms(2) have "\<dots> \<noteq> 0" by simp
-  finally show ?thesis by simp
+  also from assms(2) have "\<dots> \<noteq> 0" by (simp add: in_keys_iff)
+  finally show ?thesis by (simp add: in_keys_iff)
 qed
 
 lemma homogeneous_homogenize_dehomogenize:
@@ -3501,7 +3498,7 @@ next
         then obtain s where "s \<in> keys p" and "t = except s {x}" by (rule keys_dehomogenizeE)
         thus "t \<in> (\<lambda>s. except s {x}) ` keys p" by (rule rev_image_eqI)
       qed
-    qed simp_all
+    qed (simp_all add: in_keys_iff)
     also from assms have "\<dots> = (\<Sum>t\<in>keys p. monomial (lookup ?q (except t {x}))
                 (Poly_Mapping.single x (poly_deg p - deg_pm (except t {x})) + except t {x}))"
       by (intro sum.reindex[unfolded comp_def] except_inj_on_keys_homogeneous)
@@ -3630,7 +3627,7 @@ proof -
   next
     case False
     hence "(\<Sum>x\<in>keys t. lookup t x when x = y) = 0" by (auto simp: when_def intro: sum.neutral)
-    with False show ?thesis by simp
+    with False show ?thesis by (simp add: in_keys_iff)
   qed
   thus ?thesis by (auto simp: lookup_sum lookup_single split: option.split)
 qed
@@ -3752,7 +3749,8 @@ lemma
       poly_subst_minus poly_subst_times poly_subst_power poly_subst_sum poly_subst_prod)
 
 lemma extend_indets_zero_iff [simp]: "extend_indets p = 0 \<longleftrightarrow> p = 0"
-  by (simp add: keys_extend_indets flip: keys_eq_empty_iff)
+  by (metis (no_types, lifting) imageE imageI keys_extend_indets lookup_zero
+      not_in_keys_iff_lookup_eq_zero poly_deg_extend_indets poly_deg_zero poly_deg_zero_imp_monomial)
 
 lemma extend_indets_inject:
   assumes "extend_indets p = extend_indets (q::_ \<Rightarrow>\<^sub>0 _::comm_ring_1)"
@@ -3796,7 +3794,7 @@ proof -
     case False
     hence "sum (?f z) (keys t) = 0"
       by (auto simp: when_def lookup_single intro: sum.neutral split: option.splits)
-    with False show ?thesis by simp
+    with False show ?thesis by (simp add: in_keys_iff)
   qed
   thus ?thesis by (auto simp: restrict_indets_pp_def restrict_indets_subst_def lookup_sum)
 qed
@@ -3879,7 +3877,7 @@ proof -
     proof
       assume "x = None"
       with \<open>None \<notin> keys s\<close> and \<open>None \<notin> keys t\<close> have "x \<notin> keys s" and "x \<notin> keys t" by blast+
-      with neq show False by simp
+      with neq show False by (simp add: in_keys_iff)
     qed
     then obtain y where x: "x = Some y" by blast
     have "restrict_indets_pp t \<noteq> restrict_indets_pp s"
@@ -4032,7 +4030,7 @@ definition flatten :: "('a \<Rightarrow>\<^sub>0 'a \<Rightarrow>\<^sub>0 'b) \<
 lemma focus_superset:
   assumes "finite A" and "keys p \<subseteq> A"
   shows "focus X p = (\<Sum>t\<in>A. monomial (monomial (lookup p t) (except t X)) (except t (- X)))"
-  unfolding focus_def using assms by (rule sum.mono_neutral_left) simp
+  unfolding focus_def using assms by (rule sum.mono_neutral_left) (simp add: in_keys_iff)
 
 lemma keys_focus: "keys (focus X p) = (\<lambda>t. except t (- X)) ` keys p"
 proof
@@ -4067,12 +4065,12 @@ next
       next
         from \<open>s \<in> keys p\<close> show "{s} \<subseteq> keys p" by simp
       qed simp_all
-      also from \<open>s \<in> keys p\<close> have "\<dots> \<noteq> 0" by simp
-      finally have "except s X \<in> keys ?p" by simp
+      also from \<open>s \<in> keys p\<close> have "\<dots> \<noteq> 0" by (simp add: in_keys_iff)
+      finally have "except s X \<in> keys ?p" by (simp add: in_keys_iff)
       moreover assume "?p = 0"
       ultimately show False by simp
     qed
-    finally have "except s (- X) \<in> keys (focus X p)" by simp
+    finally have "except s (- X) \<in> keys (focus X p)" by (simp add: in_keys_iff)
   }
   thus "(\<lambda>t. except t (- X)) ` keys p \<subseteq> keys (focus X p)" by blast
 qed
@@ -4143,7 +4141,7 @@ lemma focus_zero [simp]: "focus X 0 = 0"
   by (simp add: focus_def)
 
 lemma focus_eq_zero_iff [iff]: "focus X p = 0 \<longleftrightarrow> p = 0"
-  by (simp add: keys_focus flip: keys_eq_empty_iff)
+  by (simp only: keys_focus flip: keys_eq_empty_iff) simp
 
 lemma focus_one [simp]: "focus X 1 = 1"
   by (simp add: focus_def)
@@ -4157,7 +4155,7 @@ lemma focus_uminus [simp]: "focus X (- p) = - focus X p"
 lemma focus_plus: "focus X (p + q) = focus X p + focus X q"
 proof -
   have "finite (keys p \<union> keys q)" by simp
-  moreover have "keys (p + q) \<subseteq> keys p \<union> keys q" by (rule keys_add_subset)
+  moreover have "keys (p + q) \<subseteq> keys p \<union> keys q" by (rule Poly_Mapping.keys_add)
   ultimately show ?thesis
     by (simp add: focus_superset[where A="keys p \<union> keys q"] lookup_add single_add sum.distrib)
 qed
@@ -4211,7 +4209,7 @@ proof (rule sum.cong)
 qed (fact refl)
 
 corollary lookup_focus_Polys: "p \<in> P[X] \<Longrightarrow> lookup (focus X p) t = monomial (lookup p t) 0"
-  by (simp add: focus_Polys lookup_sum lookup_single when_def)
+  by (simp add: focus_Polys lookup_sum lookup_single when_def in_keys_iff)
 
 lemma focus_Polys_Compl:
   assumes "p \<in> P[- X]"
@@ -4276,7 +4274,7 @@ next
   hence eq1: "except t X = 0" and eq2: "except t (- X) = t"
     by (rule except_eq_zeroI, auto simp: except_id_iff)
   from plus.hyps(3, 4) plus.prems have "c \<in> P[- X]" and "lookup p ` keys p \<subseteq> P[- X]"
-    by (simp_all add: 2 lookup_add lookup_single)
+    by (simp_all add: 2 lookup_add lookup_single in_keys_iff)
         (smt add.commute add.right_neutral image_cong plus.hyps(4) when_simps(2))
   from this(2) have "p \<in> range (focus X)" by (rule plus.hyps)
   then obtain q where p: "p = focus X q" ..
@@ -4297,7 +4295,7 @@ qed
 lemma flatten_superset:
   assumes "finite A" and "keys p \<subseteq> A"
   shows "flatten p = (\<Sum>t\<in>A. punit.monom_mult 1 t (lookup p t))"
-  unfolding flatten_def using assms by (rule sum.mono_neutral_left) simp
+  unfolding flatten_def using assms by (rule sum.mono_neutral_left) (simp add: in_keys_iff)
 
 lemma keys_flatten_subset: "keys (flatten p) \<subseteq> (\<Union>t\<in>keys p. (+) t ` keys (lookup p t))"
 proof -
@@ -4345,7 +4343,7 @@ lemma flatten_uminus [simp]: "flatten (- p) = - flatten (p::_ \<Rightarrow>\<^su
 lemma flatten_plus: "flatten (p + q) = flatten p + flatten q"
 proof -
   have "finite (keys p \<union> keys q)" by simp
-  moreover have "keys (p + q) \<subseteq> keys p \<union> keys q" by (rule keys_add_subset)
+  moreover have "keys (p + q) \<subseteq> keys p \<union> keys q" by (rule Poly_Mapping.keys_add)
   ultimately show ?thesis
     by (simp add: flatten_superset[where A="keys p \<union> keys q"] punit.monom_mult_dist_right lookup_add
                   sum.distrib)
@@ -4535,7 +4533,7 @@ lemma keys_poly_eval_focus_subset:
 proof
   fix t
   assume "t \<in> keys (poly_eval (\<lambda>x. monomial (a x) 0) (focus X p))"
-  hence "lookup (poly_eval (\<lambda>x. monomial (a x) 0) (focus X p)) t \<noteq> 0" by simp
+  hence "lookup (poly_eval (\<lambda>x. monomial (a x) 0) (focus X p)) t \<noteq> 0" by (simp add: in_keys_iff)
   hence "poly_eval a (lookup (focus (- X) p) t) \<noteq> 0" by (simp add: lookup_poly_eval_focus)
   hence "t \<in> keys (focus (- X) p)" by (auto simp flip: lookup_not_eq_zero_eq_in_keys)
   thus "t \<in> (\<lambda>t. except t X) ` keys p" by (simp add: keys_focus)

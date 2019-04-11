@@ -42,7 +42,7 @@ proof -
   from assms(1, 2) have "monomial (lookup p v) v \<in> pmdl B" by (rule monomial_pmdl)
   hence "monom_mult (c / lookup p v) 0 (monomial (lookup p v) v) \<in> pmdl B"
     by (rule pmdl_closed_monom_mult)
-  with assms(3) show ?thesis by (simp add: monom_mult_monomial splus_zero)
+  with assms(3) show ?thesis by (simp add: monom_mult_monomial splus_zero in_keys_iff)
 qed
 
 end (* term_powerprod *)
@@ -61,7 +61,7 @@ next
   case step: (module_plus p f0 c s)
   from assms(1) step(3) have "is_monomial f0" unfolding is_monomial_set_def ..
   hence "keys f0 = {lt f0}" and "f0 \<noteq> 0" by (rule keys_monomial, rule monomial_not_0)
-  from keys_add_subset step(6) have "t \<in> keys p \<union> keys (monom_mult c s f0)" ..
+  from Poly_Mapping.keys_add step(6) have "t \<in> keys p \<union> keys (monom_mult c s f0)" ..
   thus ?case
   proof
     assume "t \<in> keys p"
@@ -106,19 +106,19 @@ proof -
   also have "... = p - monomial ((lookup p u / c) * c) u" unfolding u_def r_def monom_mult_monomial ..
   finally have q_def: "q = p - monomial (lookup p u) u" using \<open>c \<noteq> 0\<close> by simp
   from cp0 have "lookup p u \<noteq> 0" unfolding u_def ltr .
-  hence "u \<in> keys p" by simp
+  hence "u \<in> keys p" by (simp add: in_keys_iff)
       
   have "keys q = keys p - {u}" unfolding q_def
   proof (rule, rule)
     fix x
     assume "x \<in> keys (p - monomial (lookup p u) u)"
-    hence "lookup (p - monomial (lookup p u) u) x \<noteq> 0" by simp
+    hence "lookup (p - monomial (lookup p u) u) x \<noteq> 0" by (simp add: in_keys_iff)
     hence a: "lookup p x - lookup (monomial (lookup p u) u) x \<noteq> 0" unfolding lookup_minus .
     hence "x \<noteq> u" unfolding lookup_single by auto
     with a have "lookup p x \<noteq> 0" unfolding lookup_single by auto
     show "x \<in> keys p - {u}"
     proof
-      from \<open>lookup p x \<noteq> 0\<close> show "x \<in> keys p" by simp
+      from \<open>lookup p x \<noteq> 0\<close> show "x \<in> keys p" by (simp add: in_keys_iff)
     next
       from \<open>x \<noteq> u\<close> show "x \<notin> {u}" by simp
     qed
@@ -128,9 +128,9 @@ proof -
       fix x
       assume "x \<in> keys p - {u}"
       hence "x \<in> keys p" and "x \<noteq> u" by auto
-      from \<open>x \<in> keys p\<close> have "lookup p x \<noteq> 0" by simp
+      from \<open>x \<in> keys p\<close> have "lookup p x \<noteq> 0" by (simp add: in_keys_iff)
       with \<open>x \<noteq> u\<close> have "lookup (p - monomial (lookup p u) u) x \<noteq> 0" by (simp add: lookup_minus lookup_single)
-      thus "x \<in> keys (p - monomial (lookup p u) u)" by simp
+      thus "x \<in> keys (p - monomial (lookup p u) u)" by (simp add: in_keys_iff)
     qed
   qed
       
@@ -247,7 +247,7 @@ proof
         by (simp_all add: adds_term_def)
       from this have eq: "(pp_of_term t - lp g) \<oplus> lt g = t"
         by (simp add: adds_minus splus_def term_of_pair_pair)
-      moreover from 2(2) have "lookup ?f t = c" by (simp add: lookup_add)
+      moreover from 2(2) have "lookup ?f t = c" by (simp add: lookup_add in_keys_iff)
       ultimately show "red_single (monomial c t + f) f g (pp_of_term t - lp g)"
       proof (simp add: red_single_def \<open>g \<noteq> 0\<close> \<open>t \<in> keys ?f\<close> 2(1))
         from \<open>g \<noteq> 0\<close> have "lc g \<noteq> 0" by (rule lc_not_0)

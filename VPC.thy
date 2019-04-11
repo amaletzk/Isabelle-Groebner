@@ -419,12 +419,12 @@ proof -
   moreover have "s1 \<in> keys f1" and "t1 \<in> keys f1" by (simp_all add: assms(1))
   ultimately have f1: "binomial ?c1 s1 ?d1 t1 = f1"
     using assms(3) by (rule is_proper_binomial_eq_binomial[symmetric])
-  from \<open>s1 \<in> keys f1\<close> \<open>t1 \<in> keys f1\<close> have "?c1 \<noteq> 0" and "?d1 \<noteq> 0" by simp_all
+  from \<open>s1 \<in> keys f1\<close> \<open>t1 \<in> keys f1\<close> have "?c1 \<noteq> 0" and "?d1 \<noteq> 0" by (simp_all add: in_keys_iff)
   from assms(4) have "is_proper_binomial f2" by (simp add: is_proper_binomial_def assms(2))
   moreover have "s2 \<in> keys f2" and "t2 \<in> keys f2" by (simp_all add: assms(2))
   ultimately have f2: "binomial ?c2 s2 ?d2 t2 = f2"
     using assms(4) by (rule is_proper_binomial_eq_binomial[symmetric])
-  from \<open>s2 \<in> keys f2\<close> \<open>t2 \<in> keys f2\<close> have "?c2 \<noteq> 0" and "?d2 \<noteq> 0" by simp_all
+  from \<open>s2 \<in> keys f2\<close> \<open>t2 \<in> keys f2\<close> have "?c2 \<noteq> 0" and "?d2 \<noteq> 0" by (simp_all add: in_keys_iff)
   show ?thesis
   proof (rule ordered_powerprod_lin.linorder_cases)
     assume "s1 \<prec> t1"
@@ -1625,10 +1625,10 @@ proof -
     with \<open>lpp f \<in> keys ?f\<close> * have keys_f': "keys ?f = {lpp f}" by blast
     moreover define c where "c = lookup ?f (lpp f)"
     ultimately have "monomial c (lpp f) = ?f"
-      by (auto intro!: poly_mapping_eqI simp: lookup_single when_def)
+      by (auto intro!: poly_mapping_eqI simp: lookup_single when_def simp flip: in_keys_iff)
     also have "\<dots> \<in> ideal F" by (rule ideal.sum_in_spanI)
     finally have "monomial (1 / c) 0 * monomial c (lpp f) \<in> ideal F" by (rule ideal.span_scale)
-    moreover have "c \<noteq> 0" by (simp add: c_def keys_f')
+    moreover have "c \<noteq> 0" by (simp add: c_def keys_f' flip: in_keys_iff)
     ultimately have "monomial 1 (lpp f) \<in> ideal {f1, f2}" by (simp add: times_monomial_monomial F_def)
     with assms(3) show False ..
   qed
@@ -1942,11 +1942,11 @@ next
     have "keys ?f = to_nat_pm ` (of_nat_pm::_ \<Rightarrow> ('x \<Rightarrow>\<^sub>0 rat)) ` keys ?f" by (simp add: image_image)
     also have "\<dots> = {to_nat_pm (fst z), to_nat_pm (snd z)}" by (simp add: eq1)
     finally have keys_f: "keys ?f = {to_nat_pm (fst z), to_nat_pm (snd z)}" .
-    hence "c \<noteq> 0" by (simp add: c_def)
+    hence "c \<noteq> 0" by (simp add: c_def flip: in_keys_iff)
     have "keys ?g = to_nat_pm ` (of_nat_pm::_ \<Rightarrow> ('x \<Rightarrow>\<^sub>0 rat)) ` keys ?g" by (simp add: image_image)
     also have "\<dots> = {to_nat_pm (snd z), to_nat_pm (snd (last zs))}" by (simp add: eq3)
     finally have keys_g: "keys ?g = {to_nat_pm (snd z), to_nat_pm (snd (last zs))}" .
-    hence "d \<noteq> 0" by (simp add: d_def)
+    hence "d \<noteq> 0" by (simp add: d_def flip: in_keys_iff)
     with \<open>c \<noteq> 0\<close> have "- (c / d) \<noteq> 0" by simp
     hence keys_g': "keys ((- (c / d)) \<cdot> ?g) = {to_nat_pm (snd z), to_nat_pm (snd (last zs))}"
       by (simp add: keys_map_scale keys_g)
@@ -1978,12 +1978,12 @@ next
       proof (intro subset_antisym insert_subsetI empty_subsetI, rule subsetI)
         fix t
         assume "t \<in> ?A"
-        also have "\<dots> \<subseteq> keys ?f \<union> keys ((- (c / d)) \<cdot> ?g)" by (rule keys_add_subset)
+        also have "\<dots> \<subseteq> keys ?f \<union> keys ((- (c / d)) \<cdot> ?g)" by (rule Poly_Mapping.keys_add)
         finally have "t \<in> insert (to_nat_pm (snd z)) ?B" by (auto simp: keys_f keys_g')
         moreover have "t \<noteq> to_nat_pm (snd z)"
         proof
           assume "t = to_nat_pm (snd z)"
-          with \<open>d \<noteq> 0\<close> have "t \<notin> ?A" by (simp add: lookup_add c_def d_def)
+          with \<open>d \<noteq> 0\<close> have "t \<notin> ?A" by (simp add: lookup_add c_def d_def in_keys_iff)
           thus False using \<open>t \<in> ?A\<close> ..
         qed
         ultimately show "t \<in> ?B" by simp
@@ -2037,7 +2037,7 @@ next
         by (rule 60)
       have "lookup ((q1 + q1'') * f1 + (q2 + q2'') * f2) (to_nat_pm (snd (last (z # zs)))) =
               - (c / d) * lookup ?g (to_nat_pm (snd (last zs)))"
-        using \<open>zs \<noteq> []\<close> \<open>to_nat_pm (snd (last zs)) \<notin> keys ?f\<close> by (simp add: eq4 lookup_add)
+        using \<open>zs \<noteq> []\<close> \<open>to_nat_pm (snd (last zs)) \<notin> keys ?f\<close> by (simp add: eq4 lookup_add in_keys_iff)
       also from \<open>d \<noteq> 0\<close> have "\<dots> = (- 1) ^ length zs * c *
                                     (lcf f1 / tcf f1) ^ ?p10 * (tcf f1 / lcf f1) ^ ?n10 *
                                     (lcf f2 / tcf f2) ^ ?p20 * (tcf f2 / lcf f2) ^ ?n20"
@@ -2058,7 +2058,7 @@ next
       also have "lookup ?f (to_nat_pm (fst z)) =
                   lookup ((q1 + q1'') * f1 + (q2 + q2'') * f2) (to_nat_pm (fst (hd (z # zs))))"
         using \<open>to_nat_pm (fst z) \<notin> keys ((- (c / d)) \<cdot> ?g)\<close>
-        by (simp add: eq4 lookup_add del: lookup_map_scale)
+        by (simp add: eq4 lookup_add in_keys_iff del: lookup_map_scale)
       finally show "lookup ((q1 + q1'') * f1 + (q2 + q2'') * f2) (to_nat_pm (snd (last (z # zs)))) =
                     - ((- 1) ^ length (z # zs) *
                        lookup ((q1 + q1'') * f1 + (q2 + q2'') * f2) (to_nat_pm (fst (hd (z # zs)))) *

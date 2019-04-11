@@ -121,7 +121,8 @@ proof -
             by (rule keys_subset_deg_le_sectI)
           with finite_deg_le_sect[OF fin_X]
           have "q f * f = (\<Sum>t\<in>deg_le_sect X (b - poly_deg f). punit.monom_mult (lookup (q f) t) t f)"
-            unfolding punit.mult_scalar_sum_monomials[simplified] by (rule sum.mono_neutral_left) simp
+            unfolding punit.mult_scalar_sum_monomials[simplified]
+            by (rule sum.mono_neutral_left) (simp add: in_keys_iff)
           also have "\<dots> = (\<Sum>t\<in>deg_le_sect X (b - poly_deg f).
                               (lookup (q f) t) \<cdot> (punit.monom_mult 1 t f))"
             by (simp add: punit.monom_mult_assoc punit.map_scale_eq_monom_mult)
@@ -171,7 +172,7 @@ proof
       case False
       with zero_min[of t] have "\<not> t \<preceq> punit.lt g" by (simp add: lp_g)
       with punit.lt_max_keys have "t \<notin> keys g" by blast
-      with False show ?thesis by (simp add: lookup_one)
+      with False show ?thesis by (simp add: lookup_one in_keys_iff)
     qed
   qed
   with \<open>g \<in> ?G\<close> show "1 \<in> ?G" by simp

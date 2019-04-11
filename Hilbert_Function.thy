@@ -1386,10 +1386,10 @@ proof -
             hence "b = b0" using \<open>lpp b = lpp b0\<close> \<open>b \<in> B0\<close> \<open>b0 \<in> B0\<close> by (rule inj_onD)
             with \<open>b \<noteq> b0\<close> show False ..
           qed
-          thus "u b * lookup b t = 0" by simp
+          thus "u b * lookup b t = 0" by (simp add: in_keys_iff)
         qed
       qed
-      also from \<open>t \<in> keys b0\<close> \<open>b0 \<in> B0\<close> have "\<dots> \<noteq> 0" by (simp add: B0_def)
+      also from \<open>t \<in> keys b0\<close> \<open>b0 \<in> B0\<close> have "\<dots> \<noteq> 0" by (simp add: B0_def in_keys_iff)
       finally show False by (simp add: eq)
     qed
   qed

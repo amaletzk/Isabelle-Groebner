@@ -31,7 +31,7 @@ proof -
   define r' where "r' = binomial cpv v ((cpv / c) * d) w"
   from cp0 have "cpv \<noteq> 0" unfolding cpv_def v_def ltr .
   with \<open>c \<noteq> 0\<close> have "cpv / c \<noteq> 0" by simp
-  from \<open>cpv \<noteq> 0\<close> have "v \<in> keys p" unfolding cpv_def by simp
+  from \<open>cpv \<noteq> 0\<close> have "v \<in> keys p" unfolding cpv_def by (simp add: in_keys_iff)
   from q_def0 have "q = p - monom_mult (cpv / c) u r" unfolding cpv_def ltr lcr v_def .
   also have "... = p - binomial ((cpv / c) * c) v ((cpv / c) * d) w"
     unfolding r_def monom_mult_binomial v_def w_def ..
@@ -50,7 +50,7 @@ proof -
   proof
     fix x
     assume "x \<in> keys q"
-    hence "lookup q x \<noteq> 0" by simp
+    hence "lookup q x \<noteq> 0" by (simp add: in_keys_iff)
     hence "lookup p x - lookup r' x \<noteq> 0" unfolding q_def by (simp add: lookup_minus)
     hence "lookup p x \<noteq> lookup r' x" by simp
     have "x \<noteq> v"
@@ -65,9 +65,9 @@ proof -
     proof (intro disjCI)
       assume "x \<noteq> w"
       with \<open>x \<noteq> v\<close> have "x \<notin> keys r'" unfolding sr' by simp
-      hence "lookup r' x = 0" by simp
+      hence "lookup r' x = 0" by (simp add: in_keys_iff)
       with \<open>lookup p x \<noteq> lookup r' x\<close> have "lookup p x \<noteq> 0" by simp
-      thus "x \<in> keys p" by simp
+      thus "x \<in> keys p" by (simp add: in_keys_iff)
     qed
     thus "x \<in> (keys p - {v}) \<union> {w}"
     proof
@@ -98,7 +98,8 @@ proof -
     thus ?thesis by simp
   next
     assume "is_proper_binomial r"
-    then obtain c s d t where pbd: "is_pbd c s d t" and r_def: "r = binomial c s d t" by (rule is_proper_binomial_binomial)
+    then obtain c s d t where pbd: "is_pbd c s d t" and r_def: "r = binomial c s d t"
+      by (rule is_proper_binomial_binomial)
     from pbd have "is_obd c s d t \<or> is_obd d t c s" by (rule pbd_imp_obd)
     thus ?thesis
     proof

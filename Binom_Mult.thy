@@ -92,7 +92,7 @@ proof -
 qed
 
 lemma associated_0: "associated q s t 0 \<longleftrightarrow> (s = t)"
-  by (auto simp add: associated_def poly_mapping_eq_iff)
+  by (auto simp: associated_def)
 
 lemma associated_1: "associated q s t 1 \<longleftrightarrow> (s + tpp q = t + lpp q)"
   by (simp only: associated_def map_scale_one_left, auto)
@@ -206,8 +206,8 @@ proof -
   let ?lpp = "lookup (lpp q)"
   let ?tpp = "lookup (tpp q)"
   from assms(1) have "lpp q \<noteq> tpp q" by (simp add: punit.lt_eq_tt_iff)
-  hence "?lpp \<noteq> ?tpp" by (simp add: lookup_inject)
-  then obtain x where "?lpp x \<noteq> ?tpp x" by auto
+  hence "?lpp \<noteq> ?tpp" by simp
+  then obtain x where "?lpp x \<noteq> ?tpp x" by fastforce
   from assms(2) have 1: "lookup t x + k1 * ?lpp x = lookup s x + k1 * ?tpp x" by (rule associatedD_lookup)
   from assms(3) have 2: "lookup t x + k2 * ?lpp x = lookup s x + k2 * ?tpp x" by (rule associatedD_lookup)
   show ?thesis
@@ -576,7 +576,7 @@ proof -
   let ?p = "q' * p"
   define a where "a = lookup ?p s"
   define b where "b = lookup ?p t"
-  have "a \<noteq> 0" and "b \<noteq> 0" by (simp_all add: a_def b_def eq1)
+  have "a \<noteq> 0" and "b \<noteq> 0" by (simp_all add: a_def b_def eq1 flip: in_keys_iff)
   with \<open>t \<noteq> s\<close> have "is_pbd a s b t" by (simp add: is_pbd_def)
   have eq: "?p = binomial a s b t"
     by (rule poly_mapping_keys_eqI, simp only: eq1 keys_binomial_pbd[OF \<open>is_pbd a s b t\<close>], simp add: eq1, elim disjE,
@@ -732,14 +732,15 @@ next
     by (rule associated_polyD2)
   from \<open>v \<prec> s\<close> have eq1: "lookup (punit.higher q v) s = lookup q s" by (simp add: punit.lookup_higher)
   have "punit.lower (punit.higher q v) s \<noteq> 0"
-  proof (simp add: punit.lower_eq_zero_iff del: lookup_not_eq_zero_eq_in_keys, rule, rule conjI)
+  proof (simp add: punit.lower_eq_zero_iff, rule, rule conjI)
     have "tcf (punit.higher q v) \<noteq> 0"
       by (rule punit.tc_not_0, auto simp: punit.higher_eq_zero_iff intro: \<open>s \<in> keys q\<close> \<open>v \<prec> s\<close>)
     thus "lookup (punit.higher q v) (tpp (punit.higher q v)) \<noteq> 0" by (simp add: punit.tc_def)
   qed fact
   hence "keys (punit.lower (punit.higher q v) s) \<noteq> {}" by simp
   then obtain u where "u \<in> keys (punit.lower (punit.higher q v) s)" by blast
-  hence "lookup (punit.lower (punit.higher q v) s) u \<noteq> 0" and "u \<prec> s" by (simp, simp add: punit.keys_lower)
+  hence "lookup (punit.lower (punit.higher q v) s) u \<noteq> 0" and "u \<prec> s"
+    by (simp add: in_keys_iff, simp add: punit.keys_lower)
   hence "lookup (punit.higher q v) u \<noteq> 0" by (simp add: punit.lookup_lower)
   have "v \<prec> lpp (punit.lower q s)"
   proof (rule punit.lt_gr, rule)
@@ -957,7 +958,7 @@ proof -
       next
         assume ?R
         hence "x \<in> keys q" and "x \<noteq> lpp q" by simp_all
-        from \<open>x \<in> keys q\<close> have "lookup q x \<noteq> 0" by simp
+        from \<open>x \<in> keys q\<close> have "lookup q x \<noteq> 0" by (simp add: in_keys_iff)
         hence "x \<preceq> lpp q" and "tpp q \<preceq> x" by (rule punit.lt_max, rule punit.tt_min)
         from \<open>x \<preceq> lpp q\<close> \<open>x \<noteq> lpp q\<close> have "x \<prec> lpp q" by simp
         from \<open>x \<in> keys q\<close> this \<open>tpp q \<preceq> x\<close> show ?L by simp
@@ -1095,17 +1096,16 @@ next
     hence tpp_tail: "tpp (punit.tail q) = tpp q" by (simp only: punit.tail_def, rule punit.tt_lower)
     show ?thesis unfolding times_tail_rec_left[of q p]
     proof
-      have "keys (?m + ?q * p) \<subseteq> keys ?m \<union> keys (?q * p)" by (rule keys_add_subset)
+      have "keys (?m + ?q * p) \<subseteq> keys ?m \<union> keys (?q * p)" by (rule Poly_Mapping.keys_add)
       also have "\<dots> = {lpp q + lpp p, lpp ?q + lpp p, tpp ?q + tpp p}" by (auto simp only: keys_m eq2 eq1)
       finally have "keys (?m + ?q * p) \<subseteq> {lpp q + lpp p, lpp ?q + lpp p, tpp ?q + tpp p}" .
-      moreover from eq3 have "lpp ?q + lpp p \<notin> keys (?m + ?q * p)" by (simp add: lookup_add eq1)
+      moreover from eq3 have "lpp ?q + lpp p \<notin> keys (?m + ?q * p)" by (simp add: lookup_add eq1 in_keys_iff)
       ultimately show "keys (?m + ?q * p) \<subseteq> ?A" by (auto simp only: tpp_tail)
     next
       show "?A \<subseteq> keys (?m + ?q * p)"
       proof (rule, simp, elim disjE, simp_all)
         show "lpp q + lpp p \<in> keys (?m + ?q * p)"
-        proof (rule in_keys_plusI1,
-              simp add: in_keys_iff punit.lookup_monom_mult \<open>lcf q \<noteq> 0\<close> del: lookup_not_eq_zero_eq_in_keys)
+        proof (rule in_keys_plusI1, simp add: in_keys_iff punit.lookup_monom_mult \<open>lcf q \<noteq> 0\<close>)
           from \<open>p \<noteq> 0\<close> have "lcf p \<noteq> 0" by (rule punit.lc_not_0)
           thus "lookup p (lpp p) \<noteq> 0" by (simp add: punit.lc_def)
         next
@@ -1268,7 +1268,7 @@ proof (cases "\<exists>u. u + tpp p = v + lpp p")
     with u have "\<exists>u\<in>(keys q). u + tpp p = v + lpp p" ..
     with assms(2) show False ..
   qed
-  hence "lookup q u = 0" by simp
+  hence "lookup q u = 0" by (simp add: in_keys_iff)
   thus ?thesis unfolding eq by simp
 next
   case False
@@ -1306,7 +1306,7 @@ proof (cases "\<exists>v. v + lpp p = u + tpp p")
     with v have "\<exists>v\<in>(keys q). v + lpp p = u + tpp p" ..
     with assms(2) show False ..
   qed
-  hence "lookup q v = 0" by simp
+  hence "lookup q v = 0" by (simp add: in_keys_iff)
   thus ?thesis unfolding u eq by simp
 next
   case False
@@ -1344,19 +1344,19 @@ proof (cases "\<exists>v'\<in>(keys q). v' + tpp p = v + lpp p")
   next
     from assms(1) v' have "lookup (q * p) (v + lpp p) = lookup q v * lcf p + lookup q v' * tcf p"
       by (rule lookup_times_binomial_1)
-    moreover from assms(3) have "lookup (q * p) (v + lpp p) = 0" by simp
+    moreover from assms(3) have "lookup (q * p) (v + lpp p) = 0" by (simp add: in_keys_iff)
     ultimately show "lookup q v' * tcf p = - (lookup q v * lcf p)" by (simp add: add_eq_0_iff) 
   qed
 next
   case False
   with assms(1) have "lookup (q * p) (v + lpp p) = lookup q v * lcf p" by (rule lookup_times_binomial_2)
-  moreover from assms(3) have "lookup (q * p) (v + lpp p) = 0" by simp
+  moreover from assms(3) have "lookup (q * p) (v + lpp p) = 0" by (simp add: in_keys_iff)
   ultimately have "lookup q v * lcf p = 0" by simp
   hence "lookup q v = 0 \<or> lcf p = 0" by simp
   thus ?thesis
   proof
     assume "lookup q v = 0"
-    hence "v \<notin> keys q" by simp
+    hence "v \<notin> keys q" by (simp add: in_keys_iff)
     from this assms(2) show ?thesis ..
   next
     assume "lcf p = 0"
@@ -1381,19 +1381,19 @@ proof (cases "\<exists>v'\<in>(keys q). v' + lpp p = v + tpp p")
   next
     from assms(1) v'[symmetric] have "lookup (q * p) (v' + lpp p) = lookup q v' * lcf p + lookup q v * tcf p"
       by (rule lookup_times_binomial_1)
-    moreover from assms(3) have "lookup (q * p) (v' + lpp p) = 0" by (simp add: v'[symmetric])
+    moreover from assms(3) have "lookup (q * p) (v' + lpp p) = 0" by (simp add: v'[symmetric] in_keys_iff)
     ultimately show "lookup q v' * lcf p = - (lookup q v * tcf p)" by (simp add: add_eq_0_iff) 
   qed
 next
   case False
   with assms(1) have "lookup (q * p) (v + tpp p) = lookup q v * tcf p" by (rule lookup_times_binomial_3)
-  moreover from assms(3) have "lookup (q * p) (v + tpp p) = 0" by simp
+  moreover from assms(3) have "lookup (q * p) (v + tpp p) = 0" by (simp add: in_keys_iff)
   ultimately have "lookup q v * tcf p = 0" by simp
   hence "lookup q v = 0 \<or> tcf p = 0" by simp
   thus ?thesis
   proof
     assume "lookup q v = 0"
-    hence "v \<notin> keys q" by simp
+    hence "v \<notin> keys q" by (simp add: in_keys_iff)
     from this assms(2) show ?thesis ..
   next
     assume "tcf p = 0"
@@ -1411,7 +1411,7 @@ proof (induct q arbitrary: thesis v rule: poly_mapping_except_induct')
   case step: (1 q)
   from \<open>is_proper_binomial p\<close> have "p \<noteq> 0" by (rule proper_binomial_not_0)
   let ?c = "lookup q v"
-  from \<open>v \<in> keys q\<close> have "?c \<noteq> 0" by simp
+  from \<open>v \<in> keys q\<close> have "?c \<noteq> 0" by (simp add: in_keys_iff)
   have q_rec: "q = monomial ?c v + except q {v}" (is "q = ?m + ?q") by (rule plus_except)
   hence "q * p = (?m + ?q) * p" by simp
   also have "\<dots> = ?m * p + ?q * p" by (rule algebra_simps(17))
@@ -1454,7 +1454,7 @@ proof (induct q arbitrary: thesis v rule: poly_mapping_except_induct')
     text \<open>Properties of @{term ?q'}:\<close>
     have "v \<notin> keys ?q" by (simp add: keys_except)
     hence "v \<notin> keys q'" using subpoly_keys[OF \<open>subpoly q' ?q\<close>] by auto
-    hence "keys ?m \<inter> keys q' = {}" and "lookup q' v = 0" by (simp add: keys_m, simp)
+    hence "keys ?m \<inter> keys q' = {}" and "lookup q' v = 0" by (simp add: keys_m, simp add: in_keys_iff)
     from this(1) have keys_q': "keys ?q' = {v} \<union> keys q'" unfolding keys_m[symmetric] by (rule keys_plus_eqI)
     have tpp_q': "tpp ?q' = tpp q'"
     proof (simp only: add.commute, rule punit.tt_plus_eqI, fact, simp only: tpp_m)
@@ -1534,7 +1534,7 @@ next
   case ind: (Suc n)
   from \<open>is_proper_binomial p\<close> have "p \<noteq> 0" by (rule proper_binomial_not_0)
   let ?c = "lookup q v"
-  from \<open>v \<in> keys q\<close> have "?c \<noteq> 0" by simp
+  from \<open>v \<in> keys q\<close> have "?c \<noteq> 0" by (simp add: in_keys_iff)
   have q_rec: "q = monomial ?c v + except q {v}" (is "q = ?m + ?q") by (rule plus_except)
   hence "q * p = (?m + ?q) * p" by simp
   also have "\<dots> = ?m * p + ?q * p" by (rule algebra_simps(17))
@@ -1619,11 +1619,11 @@ next
       finally have "0 = lookup (q' * p) (v' + tpp p) + ?c * lcf p" by simp
       also have "\<dots> = lookup (?q' * p) ?s" unfolding eq1 eq2 lookup_add \<open>v' + tpp p = ?s\<close> ..
       finally have "lookup (?q' * p) ?s = 0" by simp
-      hence "?s \<notin> keys (?q' * p)" by simp
+      hence "?s \<notin> keys (?q' * p)" by (simp add: in_keys_iff)
       show "keys (?q' * p) = {lpp ?q' + lpp p, ?t}" unfolding lpp_q'
       proof
         have "keys (?q' * p) \<subseteq> keys (q' * p) \<union> keys (punit.monom_mult ?c v p)" unfolding eq1
-          by (rule keys_add_subset)
+          by (rule Poly_Mapping.keys_add)
         also have "\<dots> = {lpp q' + lpp p, ?s} \<union> {?s, ?t}"
           by (simp add: punit.keys_monom_mult[OF \<open>?c \<noteq> 0\<close>] *** keys_p)
         finally have "keys (?q' * p) \<subseteq> {lpp q' + lpp p, ?s, ?t}" by auto

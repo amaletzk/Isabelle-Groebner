@@ -16,7 +16,7 @@ proof (induct ps)
 next
   case (Cons p ps)
   have "keys (sum_list (p # ps)) = keys (p + sum_list ps)" by simp
-  also have "\<dots> \<subseteq> keys p \<union> keys (sum_list ps)" by (fact keys_add_subset)
+  also have "\<dots> \<subseteq> keys p \<union> keys (sum_list ps)" by (fact Poly_Mapping.keys_add)
   also from Cons have "\<dots> \<subseteq> keys p \<union> Keys (set ps)" by blast
   also have "\<dots> = Keys (set (p # ps))" by (simp add: Keys_insert)
   finally show ?case .
@@ -33,13 +33,13 @@ proof -
               (\<Sum>t. lookup p t * (Sum_any (?f t)))"
     by (fact lookup_mult)
   also from finite_keys have "\<dots> = (\<Sum>t\<in>keys p. lookup p t * (Sum_any (?f t)))"
-    by (rule Sum_any.expand_superset) (auto dest: mult_not_zero)
+    by (rule Sum_any.expand_superset) (auto simp: in_keys_iff dest: mult_not_zero)
   also from refl have "\<dots> = (\<Sum>t\<in>keys p. lookup p t * (\<Sum>v\<in>keys q. lookup q v when u = t \<oplus> v))"
   proof (rule sum.cong)
     fix t
     assume "t \<in> keys p"
     from finite_keys have "Sum_any (?f t) = (\<Sum>s\<in>keys (proj_poly (component_of_term u) q). ?f t s)"
-      by (rule Sum_any.expand_superset) auto
+      by (rule Sum_any.expand_superset) (auto simp: in_keys_iff)
     also have "\<dots> = (\<Sum>v\<in>{x \<in> keys q. component_of_term x = component_of_term u}. ?f t (pp_of_term v))"
       unfolding keys_proj_poly
     proof (intro sum.reindex[simplified o_def] inj_onI)
@@ -411,7 +411,7 @@ lemma keys_binomial_subset: "keys (binomial c s d t) \<subseteq> {s, t}"
 proof
   fix u
   assume "u \<in> keys (binomial c s d t)"
-  hence "lookup (binomial c s d t) u \<noteq> 0" by simp
+  hence "lookup (binomial c s d t) u \<noteq> 0" by (simp add: in_keys_iff)
   hence "u = s \<or> u = t" unfolding binomial_def lookup_add lookup_single Poly_Mapping.when_def
     by (metis (full_types) add.comm_neutral)
   thus "u \<in> {s, t}" by simp
@@ -431,17 +431,17 @@ lemma keys_binomial_pbd:
 proof -
   from assms have "c \<noteq> 0" and "d \<noteq> 0" and "s \<noteq> t" by (rule is_pbdD)+
   have "keys (monomial c s + monomial d t) = (keys (monomial c s)) \<union> (keys (monomial d t))"
-  proof (rule, rule keys_add_subset, rule)
+  proof (rule, rule Poly_Mapping.keys_add, rule)
     fix x
     assume "x \<in> keys (monomial c s) \<union> keys (monomial d t)"
     hence "x \<in> {s} \<union> {t}" unfolding keys_of_monomial[OF \<open>c \<noteq> 0\<close>] keys_of_monomial[OF \<open>d \<noteq> 0\<close>] .
     hence c: "x = s \<or> x = t" by auto
     from \<open>s \<noteq> t\<close> \<open>c \<noteq> 0\<close> have "lookup (monomial c s + monomial d t) s \<noteq> 0"
       unfolding lookup_add lookup_single by simp
-    hence s: "s \<in> keys (monomial c s + monomial d t)" by simp
+    hence s: "s \<in> keys (monomial c s + monomial d t)" by (simp add: in_keys_iff)
     from \<open>s \<noteq> t\<close> \<open>d \<noteq> 0\<close> have "lookup (monomial c s + monomial d t) t \<noteq> 0"
       unfolding lookup_add lookup_single by simp
-    hence t: "t \<in> keys (monomial c s + monomial d t)" by simp
+    hence t: "t \<in> keys (monomial c s + monomial d t)" by (simp add: in_keys_iff)
     from c show "x \<in> keys (monomial c s + monomial d t)" using s t by auto
   qed
   thus ?thesis unfolding binomial_def keys_of_monomial[OF \<open>c \<noteq> 0\<close>] keys_of_monomial[OF \<open>d \<noteq> 0\<close>] by auto
@@ -503,7 +503,7 @@ proof (rule poly_mapping_eqI)
     with assms(4) have eq: "card {s, t, u} = 3" by auto
     with assms(1) have "\<not> card {s, t, u} \<le> card (keys p)" by (auto simp: is_binomial_def)
     with finite_keys card_mono have "\<not> {s, t, u} \<subseteq> keys p" by blast
-    with assms(2, 3) show "lookup p u = 0" by simp
+    with assms(2, 3) show "lookup p u = 0" by (simp add: in_keys_iff)
   qed
 qed
 
@@ -608,7 +608,7 @@ proof (cases "finite B")
         thus "t' = t" by simp
       qed
       with * have "lookup (q b) t \<noteq> 0" by simp
-      hence "t \<in> keys (q b)" by simp
+      hence "t \<in> keys (q b)" by (simp add: in_keys_iff)
       show "\<exists>b2\<in>B - {0}. \<exists>t. a = monom_mult 1 t b2 \<and> t \<in> keys (q b2)" by (rule, rule, rule, fact+)
     qed
   next
@@ -661,7 +661,7 @@ proof (cases "finite B")
         have "(THE t. a = monom_mult 1 t b) = t" unfolding a
           by (rule, rule, elim monom_mult_inj_2[symmetric], simp, rule \<open>b \<noteq> 0\<close>)
         with \<open>t \<notin> keys (q b)\<close> show "monom_mult (lookup (q b) (THE t. a = monom_mult 1 t b)) 0 a = 0"
-          by simp
+          by (simp add: in_keys_iff)
       qed (simp only: monom_mult_zero_left)
     next
       fix a
@@ -685,7 +685,7 @@ proof (cases "finite B")
             with \<open>a \<notin> A\<close> show "lookup (q b) t = 0" ..
           next
             case False
-            thus "lookup (q b) t = 0" by simp
+            thus "lookup (q b) t = 0" by (simp add: in_keys_iff)
           qed
         qed rule
       next
@@ -822,7 +822,7 @@ proof (rule poly_mapping_eqI)
       hence "v \<preceq>\<^sub>t lt p" by (rule lt_max_keys)
       with \<open>min_term \<prec>\<^sub>t v\<close> show False by (simp add: assms)
     qed
-    ultimately show ?thesis by (simp add: lookup_single)
+    ultimately show ?thesis by (simp add: lookup_single in_keys_iff)
   qed
 qed
 
@@ -943,7 +943,7 @@ proof -
   next
     fix u
     assume "lookup (binomial c s d t) u \<noteq> 0"
-    hence "u \<in> keys (binomial c s d t)" by simp
+    hence "u \<in> keys (binomial c s d t)" by (simp add: in_keys_iff)
     hence "u \<in> {s, t}" unfolding keys_binomial_pbd[OF pbd] .
     hence "u = s \<or> u = t" by simp
     thus "u \<preceq>\<^sub>t s"
@@ -1013,10 +1013,10 @@ lemma keys_2_plus:
   shows "keys (p + q) = {s, u}"
 proof -
   have "lookup (p + q) t = 0" by (simp only: lookup_add assms(5))
-  hence "t \<notin> keys (p + q)" by simp
+  hence "t \<notin> keys (p + q)" by (simp add: in_keys_iff)
   show ?thesis
   proof
-    have "keys (p + q) \<subseteq> keys p \<union> keys q" by (rule keys_add_subset)
+    have "keys (p + q) \<subseteq> keys p \<union> keys q" by (rule Poly_Mapping.keys_add)
     also have "... = {s, t} \<union> {t, u}" by (simp only: assms(1) assms(2))
     finally have "keys (p + q) \<subseteq> {s, t, u}" by auto
     with \<open>t \<notin> keys (p + q)\<close> show "keys (p + q) \<subseteq> {s, u}" by auto

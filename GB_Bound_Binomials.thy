@@ -533,7 +533,7 @@ next
         by (rule associated_adds_obtains_cofactor_keys)
       define c where "c = - lookup (q * f1) (to_nat_pm Q) / lcf f2"
       from f2_monomial have "lcf f2 \<noteq> 0" by (intro punit.lc_not_0 monomial_not_0)
-      with keys_q have "c \<noteq> 0" by (simp add: c_def)
+      with keys_q have "c \<noteq> 0" by (simp add: c_def flip: in_keys_iff)
 
       have "lpp f2 = gcs (lpp f2) (tpp f2)" by (simp add: lp_f2)
       also have "of_nat_pm \<dots> \<unlhd> overlap" by (fact gcs_le_overlap')
@@ -545,13 +545,13 @@ next
       moreover from f2_monomial have "keys f2 = {lpp f2}" by (rule punit.keys_monomial)
       ultimately have keys_b: "keys b = {to_nat_pm Q}"
         using \<open>c \<noteq> 0\<close> by (simp add: punit.keys_monom_mult t)
-      have "keys (q * f1 + b) \<subseteq> keys (q * f1) \<union> keys b" by (fact keys_add_subset)
+      have "keys (q * f1 + b) \<subseteq> keys (q * f1) \<union> keys b" by (fact Poly_Mapping.keys_add)
       also have "\<dots> = {to_nat_pm Q, to_nat_pm Q'}" by (simp add: keys_q keys_b)
       finally have sub1: "keys (q * f1 + b) \<subseteq> {to_nat_pm Q, to_nat_pm Q'}" .
       from \<open>c \<noteq> 0\<close> have "lookup b (to_nat_pm Q) = c * lcf f2"
         by (simp add: b_def t punit.lookup_monom_mult_plus[simplified] punit.lc_def)
       also from \<open>lcf f2 \<noteq> 0\<close> have "\<dots> = - lookup (q * f1) (to_nat_pm Q)" by (simp add: c_def)
-      finally have "to_nat_pm Q \<notin> keys (q * f1 + b)" by (simp add: lookup_add)
+      finally have "to_nat_pm Q \<notin> keys (q * f1 + b)" by (simp add: lookup_add in_keys_iff)
       moreover have "to_nat_pm Q' \<in> keys (q * f1 + b)"
       proof (intro in_keys_plusI1 notI)
         assume "to_nat_pm Q' \<in> keys b"
@@ -759,12 +759,12 @@ proof -
           unfolding t by (rule 2)
         with * show False by blast
       qed
-      ultimately have "t \<notin> keys (q1 * f1 + q2 * f2)" by (simp add: lookup_add)
+      ultimately have "t \<notin> keys (q1 * f1 + q2 * f2)" by (simp add: lookup_add in_keys_iff)
       thus False using that ..
     qed
     have eq1: "lookup (q1 * f1 + q2 * f2) (tpp g) = lookup g (tpp g)" by (rule 3[of _ 0]) simp
     also have "\<dots> \<noteq> 0" unfolding punit.tc_def[symmetric] using \<open>g \<noteq> 0\<close> by (rule punit.tc_not_0)
-    finally have "tpp g \<in> keys (q1 * f1 + q2 * f2)" by simp
+    finally have "tpp g \<in> keys (q1 * f1 + q2 * f2)" by (simp add: in_keys_iff)
     have "keys (q1 * f1 + q2 * f2) \<subseteq> keys g"
     proof
       fix t
@@ -792,7 +792,7 @@ proof -
         with \<open>tpp g \<in> keys (q1 * f1 + q2 * f2)\<close> show "t \<in> keys (q1 * f1 + q2 * f2)" by simp
       qed
       moreover define c where "c = lookup (q1 * f1 + q2 * f2) (tpp g)"
-      moreover have "c \<noteq> 0" by (simp add: c_def eq0)
+      moreover have "c \<noteq> 0" by (simp add: c_def eq0 flip: in_keys_iff)
       ultimately have "q1 * f1 + q2 * f2 = monomial c (tpp g)"
         by (metis (mono_tags, lifting) keys_single lookup_not_eq_zero_eq_in_keys lookup_single_eq
             lookup_single_not_eq poly_mapping_keys_eqI)
@@ -810,7 +810,7 @@ proof -
     also have "\<dots> \<noteq> 0" unfolding punit.lc_def[symmetric] using \<open>g \<noteq> 0\<close> by (rule punit.lc_not_0)
     finally have "keys g = keys (q1 * f1 + q2 * f2)"
       using \<open>tpp g \<in> keys (q1 * f1 + q2 * f2)\<close> \<open>keys (q1 * f1 + q2 * f2) \<subseteq> keys g\<close>
-      by (auto simp: keys_g)
+      by (auto simp: keys_g in_keys_iff)
     thus "g = q1 * f1 + q2 * f2"
     proof (rule poly_mapping_keys_eqI)
       fix t

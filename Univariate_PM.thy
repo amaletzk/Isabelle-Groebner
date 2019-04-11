@@ -16,7 +16,7 @@ lemma pm_of_poly_aux:
 proof (intro subset_antisym subsetI)
   fix t
   assume "t \<in> ?M"
-  hence "\<And>y. y \<noteq> x \<Longrightarrow> Poly_Mapping.lookup t y = 0" by (fastforce simp: PPs_def)
+  hence "\<And>y. y \<noteq> x \<Longrightarrow> Poly_Mapping.lookup t y = 0" by (fastforce simp: PPs_def in_keys_iff)
   hence "t = Poly_Mapping.single x (lookup t x)"
     using poly_mapping_eqI by (metis (full_types) lookup_single_eq lookup_single_not_eq)
   then show "t \<in> (Poly_Mapping.single x) ` {d. poly.coeff p d \<noteq> 0}" using \<open>t \<in> ?M\<close> by auto
@@ -70,7 +70,7 @@ proof (rule poly_mapping_eqI)
   next
     assume "t \<notin> .[{x}]"
     with assms PolysD have "t \<notin> keys p" by blast
-    thus "lookup p t = 0" by simp
+    thus "lookup p t = 0" by (simp add: in_keys_iff)
   qed
 qed
 
@@ -193,7 +193,7 @@ proof
     assume "t \<in> .[{x}]"
     then obtain d where "t = Poly_Mapping.single x d" unfolding PPs_singleton ..
     moreover assume "t \<in> keys p"
-    ultimately have "0 \<noteq> lookup p (Poly_Mapping.single x d)" by simp
+    ultimately have "0 \<noteq> lookup p (Poly_Mapping.single x d)" by (simp add: in_keys_iff)
     also have "lookup p (Poly_Mapping.single x d) = Polynomial.coeff (poly_of_pm x p) d"
       by simp
     also have "\<dots> = 0" by (simp add: eq)
@@ -206,7 +206,7 @@ next
     fix d
     have "Poly_Mapping.single x d \<in> .[{x}]" (is "?x \<in> _") by (rule PPs_closed_single) simp
     with * have "?x \<notin> keys p" by blast
-    hence "Polynomial.coeff (poly_of_pm x p) d = 0" by simp
+    hence "Polynomial.coeff (poly_of_pm x p) d = 0" by (simp add: in_keys_iff)
   }
   thus "poly_of_pm x p = 0" using leading_coeff_0_iff by blast
 qed
@@ -315,7 +315,7 @@ next
     have "poly_eval (\<lambda>y. a when y = x) (monomial c t) = c * (\<Prod>y\<in>keys t. (a when y = x) ^ lookup t y)"
       by (simp only: poly_eval_monomial)
     also from True have "(\<Prod>y\<in>keys t. (a when y = x) ^ lookup t y) = (\<Prod>y\<in>{x}. (a when y = x) ^ lookup t y)"
-      by (intro prod.mono_neutral_left ballI) (auto dest: PPsD)
+      by (intro prod.mono_neutral_left ballI) (auto simp: in_keys_iff dest: PPsD)
     also have "\<dots> = a ^ lookup t x" by simp
     finally show ?thesis
       by (simp add: poly_of_pm_plus poly_of_pm_monomial poly_monom poly_eval_plus True 2(3))

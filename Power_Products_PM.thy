@@ -125,7 +125,7 @@ proof (rule is_nat_funI)
     thus ?thesis by (rule assms)
   next
     case False
-    thus ?thesis by simp
+    thus ?thesis by (simp add: in_keys_iff)
   qed
 qed
 
@@ -144,7 +144,7 @@ proof (rule is_int_funI)
     thus ?thesis by (rule assms)
   next
     case False
-    thus ?thesis by simp
+    thus ?thesis by (simp add: in_keys_iff)
   qed
 qed
 
@@ -174,7 +174,7 @@ proof (rule is_nat_funI)
     ultimately show ?thesis by (rule Ints_imp_Nats)
   next
     case False
-    thus ?thesis by simp
+    thus ?thesis by (simp add: in_keys_iff)
   qed
 qed
 
@@ -344,8 +344,7 @@ proof -
   also have "to_nat \<dots> \<le> (\<Sum>x\<in>keys t. to_nat (lookup t x))" by (intro to_nat_sum_le is_int_pmD assms)
   also have "\<dots> = sum (lookup (to_nat_pm t)) (keys t)" by (simp flip: lookup_to_nat_pm)
   also have "\<dots> = deg_pm (to_nat_pm t)"
-    by (rule sym, rule deg_pm_superset)
-        (auto simp add: in_keys_iff lookup_to_nat_pm simp del: lookup_not_eq_zero_eq_in_keys)
+    by (rule sym, rule deg_pm_superset) (auto simp: in_keys_iff lookup_to_nat_pm)
   finally show ?thesis .
 qed
 

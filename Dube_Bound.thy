@@ -409,7 +409,7 @@ proof -
     by (simp only: sum_tail_nat[OF \<open>0 < n\<close> \<open>1 \<le> n\<close>])
   also have "\<dots> = ?f (\<b> ps (Suc n)) n - ?f (\<b> ps 1) 1 +
                   ((\<Sum>j=1..n-1. ?f (\<b> ps (Suc j)) j) - (\<Sum>j=1..n-1. ?f (\<b> ps (Suc j)) (Suc j)))"
-    by (simp only: sum_head_Suc[OF \<open>1 \<le> n\<close>] sum_atLeast_Suc_shift[OF \<open>0 < n\<close> \<open>1 \<le> n\<close>])
+    by (simp only: sum.atLeast_Suc_atMost[OF \<open>1 \<le> n\<close>] sum_atLeast_Suc_shift[OF \<open>0 < n\<close> \<open>1 \<le> n\<close>])
   also have "\<dots> = ?f (\<b> ps (Suc n)) n - ?f (\<b> ps 1) 1 -
                   (\<Sum>j=1..n-1. ?f (\<b> ps (Suc j)) (Suc j) - ?f (\<b> ps (Suc j)) j)"
     by (simp only: sum_subtractf)
@@ -424,9 +424,9 @@ proof -
     ultimately show ?thesis by (simp only:)
   qed
   also have "\<dots> = ?f (\<b> ps (Suc n)) n - 1 - (\<Sum>j=0..n-1. (int d - \<b> ps (Suc j) + j) gchoose (Suc j))"
-    by (simp only: sum_head_Suc[OF le0], simp)
+    by (simp only: sum.atLeast_Suc_atMost[OF le0], simp)
   also have "\<dots> = ?f (\<b> ps (Suc n)) n - 1 - (\<Sum>j=Suc 0..Suc (n-1). (int d - \<b> ps j + j - 1) gchoose j)"
-    by (simp only: sum_shift_bounds_cl_Suc_ivl, simp add: ac_simps)
+    by (simp only: sum.shift_bounds_cl_Suc_ivl, simp add: ac_simps)
   also have "\<dots> = Hilbert_poly (\<b> ps) d" using \<open>0 < n\<close> by (simp add: Hilbert_poly_def Let_def n_def)
   finally have eq2: "int (\<Sum>hU\<in>set (ps\<^sub>+). Hilbert_fun (cone hU) d) = Hilbert_poly (\<b> ps) (int d)" .
 
@@ -1089,7 +1089,7 @@ proof -
     by (rule dube_eq_4)
   also have "\<dots> = cc (Suc j) - 2 * (- 1)^(n - j) * ((int d - 1) gchoose (n - Suc j)) - 1 -
              (\<Sum>i=j+2..n-1. (- 1)^(i - j) * ((int (aa i) gchoose (i - j)) + (int (bb i) gchoose (i - j))))"
-    using \<open>Suc j \<le> n - 1\<close> by (simp add: sum_head_Suc eq)
+    using \<open>Suc j \<le> n - 1\<close> by (simp add: sum.atLeast_Suc_atMost eq)
   finally show ?thesis by simp
 qed
 
@@ -1248,12 +1248,12 @@ proof -
     qed
     also have "\<dots> = 2 + (int (cc (n - 1)) gchoose ((n - 1) - j)) + ((int (aa (j + 2)) gchoose 2) +
                     (int (bb (j + 2)) gchoose 2)) + ?S 3 2"
-      using \<open>j + 2 \<le> n - 2\<close> by (simp add: sum_head_Suc numeral_3_eq_3)
+      using \<open>j + 2 \<le> n - 2\<close> by (simp add: sum.atLeast_Suc_atMost numeral_3_eq_3)
     also have "\<dots> \<le> 2 + (int (cc (n - 1)) gchoose ((n - 1) - j)) + ((int (aa (j + 2)) gchoose 2) +
                     (int (bb (j + 2)) gchoose 2)) + ?S3 4 2"
     proof (rule add_left_mono)
       from \<open>j + 4 \<le> n - 1\<close> have "j + 3 \<le> n - 2" by simp
-      hence "?S 3 2 = ?S 4 2 - ?f (j + 3) j" by (simp add: sum_head_Suc add.commute)
+      hence "?S 3 2 = ?S 4 2 - ?f (j + 3) j" by (simp add: sum.atLeast_Suc_atMost add.commute)
       hence "?S 3 2 \<le> ?S 4 2" using f_nonneg[of "j + 3"] by simp
       also have "\<dots> \<le> ?S3 4 2"
       proof (rule sum_mono)

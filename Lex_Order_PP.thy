@@ -69,7 +69,7 @@ proof -
           assume "y < z"
           hence "z \<notin> {..x}" by (simp add: y)
           with assms(2) have "z \<notin> keys s" and "z \<notin> keys t" by blast+
-          with \<open>y < z\<close> show ?thesis by (simp add: y lookup_except)
+          with \<open>y < z\<close> show ?thesis by (simp add: y lookup_except in_keys_iff)
         next
           assume "z = y"
           thus ?thesis by (simp add: y lookup_except)
@@ -103,7 +103,7 @@ proof -
   have lookup_u: "lookup u z = 0" if "z \<le> x" for z
   proof (rule ccontr)
     assume "lookup u z \<noteq> 0"
-    hence "z \<in> keys u" by simp
+    hence "z \<in> keys u" by (simp add: in_keys_iff)
     with \<open>x \<in> keys t\<close> have "x < z" by (rule assms(2))
     with that show False by simp
   qed

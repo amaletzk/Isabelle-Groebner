@@ -110,7 +110,7 @@ proof (induct g arbitrary: thesis rule: ideal.span_induct')
   from base(2) show ?case unfolding keys_zero ..
 next
   case (step g c f')
-  from step(6) keys_add_subset have "t \<in> keys g \<union> keys (c * f')" ..
+  from step(6) Poly_Mapping.keys_add have "t \<in> keys g \<union> keys (c * f')" ..
   thus ?case
   proof
     assume "t \<in> keys g"
@@ -294,7 +294,7 @@ proof -
   qed
 
   from 1 have "0 = lookup (q1 * f1) (lpp (q1 * f1)) + lookup (q2 * f2) (lpp (q1 * f1))"
-    by (simp add: assms(2) lookup_add)
+    by (simp add: assms(2) lookup_add in_keys_iff)
   also have "\<dots> = lookup (q1 * f1) (lpp (q1 * f1)) + lookup (q2 * f2) (lpp (q2 * f2))"
     by (simp only: 3)
   also have "\<dots> = lcf (q1 * f1) + lcf (q2 * f2)" by (simp only: punit.lc_def)
@@ -342,7 +342,7 @@ proof -
     and t_in: "t \<in> keys (q * f)"
   proof -
     from assms(3) obtain q1 q2 where g: "g = q1 * f1 + q2 * f2" by (rule idealE_2)
-    hence "keys g \<subseteq> keys (q1 * f1) \<union> keys (q2 * f2)" by (simp only: keys_add_subset)
+    hence "keys g \<subseteq> keys (q1 * f1) \<union> keys (q2 * f2)" by (simp only: Poly_Mapping.keys_add)
     with assms(5) have "t \<in> keys (q1 * f1) \<union> keys (q2 * f2)" ..
     thus ?thesis
     proof
@@ -449,7 +449,7 @@ proof -
       ultimately show False ..
     qed
   qed
-  hence 2: "keys g \<subseteq> keys (q1 * f1)" using keys_add_subset[of "q1 * f1" "q2 * f2"] unfolding g_eq
+  hence 2: "keys g \<subseteq> keys (q1 * f1)" using Poly_Mapping.keys_add[of "q1 * f1" "q2 * f2"] unfolding g_eq
     by auto
     
   with g_eq show ?thesis using 1
@@ -605,12 +605,14 @@ proof -
       let ?q2 = "monomial (-(lookup (q1' * f1) (lpp q1' + lpp f1)) / c2) x"
       from \<open>c2 \<noteq> 0\<close> have "?q2 * f2 = monomial (- (lookup (q1' * f1) (lpp q1' + lpp f1))) (lpp q1' + lpp f1)" (is "_ = ?p")
         by (simp add: times_monomial_left \<open>lpp q1' + lpp f1 = x + y\<close> \<open>y = t2\<close> f2_eq punit.monom_mult_monomial)
-      have keys_p: "keys ?p = {lpp q1' + lpp f1}" by (rule keys_of_monomial, simp add: keys_q1'f1)
+      have keys_p: "keys ?p = {lpp q1' + lpp f1}"
+        by (rule keys_of_monomial) (simp add: keys_q1'f1 flip: in_keys_iff)
       have "keys (q1' * f1 + ?q2 * f2) = {t}" unfolding \<open>?q2 * f2 = ?p\<close> v
       proof
-        from keys_add_subset[of "q1' * f1" ?p] have "keys (q1' * f1 + ?p) \<subseteq> {lpp q1' + lpp f1, v + tpp f1}"
+        from Poly_Mapping.keys_add[of "q1' * f1" ?p] have "keys (q1' * f1 + ?p) \<subseteq> {lpp q1' + lpp f1, v + tpp f1}"
           unfolding keys_q1'f1 keys_p by simp
-        moreover have "lpp q1' + lpp f1 \<notin> keys (q1' * f1 + ?p)" by (simp add: lookup_add lookup_single)
+        moreover have "lpp q1' + lpp f1 \<notin> keys (q1' * f1 + ?p)"
+          by (simp add: lookup_add lookup_single in_keys_iff)
         ultimately show "keys (q1' * f1 + ?p) \<subseteq> {v + tpp f1}" by auto
       next
         have "v + tpp f1 \<in> keys (q1' * f1 + ?p)"
@@ -980,7 +982,7 @@ proof -
         fix t
         assume "t \<in> keys q1''"
         also have "\<dots> \<subseteq> keys (punit.tail q1) \<union> keys (monomial ?c1 ?t1)"
-          unfolding q1''_def by (rule keys_add_subset)
+          unfolding q1''_def by (rule Poly_Mapping.keys_add)
         finally show "t \<in> insert ?t1 (keys q1 - {lpp q1})"
         proof
           assume "t \<in> keys (punit.tail q1)"
@@ -995,7 +997,7 @@ proof -
         fix t
         assume "t \<in> keys q2''"
         also have "\<dots> \<subseteq> keys (punit.tail q2) \<union> keys (monomial ?c2 ?t2)"
-          unfolding q2''_def by (rule keys_add_subset)
+          unfolding q2''_def by (rule Poly_Mapping.keys_add)
         finally show "t \<in> insert ?t2 (keys q2 - {lpp q2})"
         proof
           assume "t \<in> keys (punit.tail q2)"
@@ -1293,7 +1295,7 @@ proof -
             unfolding t by (rule 2)
           with False show False by blast
         qed
-        ultimately show ?thesis by (simp add: lookup_add)
+        ultimately show ?thesis by (simp add: lookup_add in_keys_iff)
       qed
     qed
   next
@@ -1390,7 +1392,7 @@ proof -
 
   note \<open>lpp g \<in> keys g\<close>
   also have "keys g \<subseteq> keys (q1 * f1) \<union> keys (q2 * f2)" (is "_ \<subseteq> ?A")
-    unfolding g by (rule keys_add_subset)
+    unfolding g by (rule Poly_Mapping.keys_add)
   finally have "lpp g \<preceq> lpp (q2 * f2)" by (auto dest: punit.lt_max_keys simp only: eq0)
   moreover have "of_nat_pm (lpp g) = of_nat_pm (lpp g) + 0 \<cdot> vect f2" by simp
   moreover obtain k2 where eq: "of_nat_pm (lpp (q2 * f2)) = of_nat_pm (lpp g) + k2 \<cdot> vect f2"
@@ -1773,7 +1775,7 @@ proof -
   proof (intro exI conjI)
     from assms(2) have "g \<noteq> 0" by (rule proper_binomial_not_0)
     hence "tcf g \<noteq> 0" by (rule punit.tc_not_0)
-    moreover have **: "lookup ?g (tpp g) \<noteq> 0" by (simp add: keys_g')
+    moreover have **: "lookup ?g (tpp g) \<noteq> 0" by (simp add: keys_g' flip: in_keys_iff)
     ultimately have "c \<noteq> 0" by (simp add: c_def)
     have "?g \<in> ideal {f1, f2}" by (fact idealI_2)
     hence "c \<cdot> ?g \<in> ideal {f1, f2}" unfolding map_scale_eq_times by (rule ideal.span_scale)
@@ -1782,12 +1784,12 @@ proof -
     also from \<open>c \<noteq> 0\<close> have "\<dots> = {lpp g, tpp g}" by (simp add: keys_map_scale keys_g' keys_g)
     finally have "keys (g - c \<cdot> ?g) \<subseteq> {lpp g, tpp g}" .
     moreover from ** have "tpp g \<notin> keys (g - c \<cdot> ?g)"
-      by (simp add: lookup_minus c_def flip: punit.tc_def)
+      by (simp add: lookup_minus c_def in_keys_iff flip: punit.tc_def)
     moreover have "keys (g - c \<cdot> ?g) \<noteq> {lpp g}"
     proof
       assume a: "keys (g - c \<cdot> ?g) = {lpp g}"
       moreover define d where "d = lookup (g - c \<cdot> ?g) (lpp g)"
-      ultimately have "d \<noteq> 0" by simp
+      ultimately have "d \<noteq> 0" by (simp flip: in_keys_iff)
       have "monomial d (lpp g) = g - c \<cdot> ?g"
         by (rule poly_mapping_keys_eqI) (simp_all add: \<open>d \<noteq> 0\<close> a, simp only: d_def)
       also have "\<dots> \<in> ideal {f1, f2}" by fact

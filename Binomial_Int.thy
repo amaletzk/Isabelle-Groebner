@@ -1,3 +1,5 @@
+(* Author: Alexander Maletzky *)
+
 section \<open>Integer Binomial Coefficients\<close>
 
 theory Binomial_Int
@@ -60,18 +62,23 @@ next
 qed
 
 lemma falling_fact_pochhammer: "prod (\<lambda>i. a - int i) {0..<k} = (- 1) ^ k * pochhammer (- a) k"
-  by (cases k)
-    (simp_all add: pochhammer_minus,
-     simp_all add: pochhammer_prod_rev
-       power_mult_distrib [symmetric] atLeastLessThanSuc_atLeastAtMost
-       prod.atLeast_Suc_atMost_Suc_shift of_nat_diff)
+proof -
+  have eq: "z ^ Suc n * prod f {0..n} = prod (\<lambda>x. z * f x) {0..n}" for z::int and n f
+    by (induct n) (simp_all add: ac_simps)
+  show ?thesis
+  proof (cases k)
+    case 0
+    thus ?thesis by (simp add: pochhammer_minus)
+  next
+    case (Suc n)
+    thus ?thesis
+      by (simp only: pochhammer_prod atLeastLessThanSuc_atLeastAtMost
+          prod.atLeast_Suc_atMost_Suc_shift eq flip: power_mult_distrib) (simp add: of_nat_diff)
+  qed
+qed
 
 lemma falling_fact_pochhammer': "prod (\<lambda>i. a - int i) {0..<k} = pochhammer (a - int k + 1) k"
-  by (cases k)
-    (simp_all add: pochhammer_minus,
-     simp_all add: pochhammer_prod_rev
-       power_mult_distrib [symmetric] atLeastLessThanSuc_atLeastAtMost
-       prod.atLeast_Suc_atMost_Suc_shift of_nat_diff)
+  by (simp add: falling_fact_pochhammer pochhammer_minus')
 
 lemma gbinomial_int_pochhammer: "(a::int) gchoose k = (- 1) ^ k * pochhammer (- a) k div fact k"
   by (simp only: gbinomial_prod_rev falling_fact_pochhammer)

@@ -206,22 +206,20 @@ lemma sum_tail_int: "a \<le> (b::int) \<Longrightarrow> sum f {a..b} = f b + sum
   by (smt Icc_eq_Icc atLeastAtMostPlus1_int_conv finite_atLeastAtMost_int insert_absorb sum.insert)
 
 lemma sum_tail_nat: "0 < b \<Longrightarrow> a \<le> (b::nat) \<Longrightarrow> sum f {a..b} = f b + sum f {a..b - 1}"
-  by (metis One_nat_def Suc_pred add.commute not_le sum_cl_ivl_Suc)
+  by (metis One_nat_def Suc_pred add.commute not_le sum.cl_ivl_Suc)
 
 corollary sum_tail_nat': "a < (b::nat) \<Longrightarrow> sum f {a..b} = f b + sum f {a..b - 1}"
   by (simp add: sum_tail_nat)
 
 lemma sum_atLeast_Suc_shift: "0 < b \<Longrightarrow> a \<le> b \<Longrightarrow> sum f {Suc a..b} = (\<Sum>i=a..b - 1. f (Suc i))"
-  by (metis Suc_diff_1 sum_shift_bounds_cl_Suc_ivl)
+  by (metis Suc_pred' sum.shift_bounds_cl_Suc_ivl)
 
 corollary sum_atLeast_Suc_shift': "a < b \<Longrightarrow> sum f {Suc a..b} = (\<Sum>i=a..b - 1. f (Suc i))"
   by (simp add: sum_atLeast_Suc_shift)
 
-thm sum_head_Suc
-
 lemma sum_split_nat_ivl:
   "a \<le> Suc j \<Longrightarrow> j \<le> b \<Longrightarrow> sum f {a..j} + sum f {Suc j..b} = sum f {a..b}"
-  by (metis Suc_eq_plus1 le_Suc_ex sum_ub_add_nat)
+  by (metis Suc_eq_plus1 le_Suc_ex sum.ub_add_nat)
 
 lemma sum_nat_int_conv: "sum f {a..b} = (\<Sum>i=int a..int b. f (nat i))"
   by (metis (mono_tags, lifting) comp_def nat_int sum.atLeast_int_atMost_int_shift sum.cong)

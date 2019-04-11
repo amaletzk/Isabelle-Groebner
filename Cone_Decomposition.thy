@@ -858,7 +858,7 @@ proof (cases "t \<in> keys a")
   ultimately show ?thesis unfolding hU by (rule coneI)
 next
   case False
-  thus ?thesis by (simp add: zero_in_cone)
+  thus ?thesis by (simp add: zero_in_cone in_keys_iff)
 qed
 
 lemma monomial_decomp_sum_list_monomial_in_cone:
@@ -880,7 +880,7 @@ proof -
   proof
     from \<open>ps ! i \<in> set ps\<close> show "(h, U) \<in> set ps" by (simp only: psi)
   next
-    from \<open>t \<in> keys q\<close> show "lookup q t \<noteq> 0" by simp
+    from \<open>t \<in> keys q\<close> show "lookup q t \<noteq> 0" by (simp add: in_keys_iff)
   next
     from * show "monomial (lookup q t) t \<in> cone (h, U)" by (simp only: psi)
   qed
@@ -2151,8 +2151,7 @@ proof -
                     by (simp only: deg_pm_minus_id_iff)
                   hence "x \<notin> keys s" by simp
                   moreover assume "s \<in> .[insert x S]"
-                  ultimately have "s \<in> .[S]"
-                  by (fastforce simp add: PPs_def simp del: not_in_keys_iff_lookup_eq_zero)
+                  ultimately have "s \<in> .[S]" by (fastforce simp: PPs_def)
                   with \<open>s \<in> F\<close> \<open>F \<inter> .[S] = {}\<close> have False by blast
                 }
                 thus ?thesis by blast

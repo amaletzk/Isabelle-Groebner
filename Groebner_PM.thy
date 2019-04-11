@@ -65,7 +65,7 @@ next
       with 1 show ?thesis by simp
     next
       case False
-      thus ?thesis by simp
+      thus ?thesis by (simp add: in_keys_iff)
     qed
   qed
   thus ?thesis ..
@@ -481,7 +481,7 @@ proof -
       finally show "restrict_indets g \<in> restrict_indets ` ?G" .
     next
       assume "restrict_indets g = 0"
-      with \<open>None \<notin> indets g\<close> have "g = 0" by (simp add: keys_restrict_indets flip: keys_eq_empty_iff)
+      with \<open>None \<notin> indets g\<close> extend_restrict_indets have "g = 0" by fastforce
       with \<open>g \<noteq> 0\<close> show False ..
     qed
   qed (fact assms(1))

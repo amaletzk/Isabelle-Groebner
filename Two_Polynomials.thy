@@ -118,7 +118,8 @@ next
   proof -
     from \<open>keys f = {lpp f, tpp f}\<close> that(2) \<open>lpp f \<noteq> tpp f\<close> have "u \<noteq> v" by auto
     hence "monomial (lookup f u) u + monomial (lookup f v) v = f"
-      by (auto intro!: poly_mapping_eqI simp: lookup_add lookup_single when_def \<open>keys f = {u, v}\<close>)
+      by (auto intro!: poly_mapping_eqI simp: lookup_add lookup_single when_def \<open>keys f = {u, v}\<close>
+              simp flip: in_keys_iff)
     moreover define c where "c = lookup f u"
     moreover define d where "d = lookup f v"
     ultimately have f: "f = monomial c u + punit.monom_mult d 0 (monomial 1 v)"
@@ -129,7 +130,7 @@ next
     hence "monomial c u \<in> ideal F" by (simp add: f)
     hence "punit.monom_mult (1 / c) 0 (monomial c u) \<in> ideal F"
       by (rule punit.pmdl_closed_monom_mult[simplified])
-    moreover have "c \<noteq> 0" by (simp add: c_def \<open>keys f = {u, v}\<close>)
+    moreover have "c \<noteq> 0" by (simp add: c_def \<open>keys f = {u, v}\<close> flip: in_keys_iff)
     ultimately show ?thesis by (simp add: punit.monom_mult_monomial)
   qed
   ultimately show ?thesis by blast
@@ -664,7 +665,7 @@ proof (rule finite_subset)
     fix x
     assume "0 < lookup (vect f) x"
     hence "lookup (vect f) x \<noteq> 0" by simp
-    thus "x \<in> keys (vect f)" by simp
+    thus "x \<in> keys (vect f)" by (simp add: in_keys_iff)
   qed
 qed (fact finite_keys)
 
@@ -965,7 +966,7 @@ proof (cases "\<exists>f\<in>{f1, f2}. is_proper_binomial f \<and> tpp f \<unlhd
   also have "lookup \<dots> = to_nat \<circ> lookup (of_nat_pm p + rat (step' f p) \<cdot> vect f)"
     by (fact overlapshift'_alt)
   also have "\<dots> = to_nat \<circ> lookup ((of_nat_pm p)::_ \<Rightarrow>\<^sub>0 rat)" by (simp add: eq[symmetric] assms)
-  finally show ?thesis by (simp add: poly_mapping_eq_iff to_nat_comp_of_nat_fun of_nat_pm.rep_eq)
+  finally show ?thesis by (simp add: to_nat_comp_of_nat_fun of_nat_pm.rep_eq)
 next
   case False
   thus ?thesis by (rule overlapshift_alt2)

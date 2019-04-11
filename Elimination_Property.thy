@@ -60,7 +60,7 @@ proof -
       from module_plus.hyps(3) have "p \<in> PolysC k" ..
       let ?q = "a + monom_mult c t p"
       from module_plus.prems have "lt ?q \<in> keys ?q" by (rule lt_in_keys)
-      also have "\<dots> \<subseteq> keys a \<union> keys (monom_mult c t p)" by (rule keys_add_subset)
+      also have "\<dots> \<subseteq> keys a \<union> keys (monom_mult c t p)" by (rule Poly_Mapping.keys_add)
       finally show ?case
       proof
         assume *: "lt ?q \<in> keys a"
