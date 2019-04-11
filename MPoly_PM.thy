@@ -539,9 +539,6 @@ lemma mindeg_min:
 
 subsection \<open>Scalar Multiplication of Polynomial Mappings\<close>
 
-lemma map_scale_eq_0_iff: "c \<cdot> t = 0 \<longleftrightarrow> ((c::_::semiring_no_zero_divisors) = 0 \<or> t = 0)"
-  by (metis aux lookup_map_scale mult_eq_0_iff)
-
 lemma monomial_power_map_scale: "(monomial c t) ^ n = monomial (c ^ n) (n \<cdot> t)"
 proof -
   have "(\<Sum>i = 0..<n. t) = (\<Sum>i = 0..<n. 1) \<cdot> t"
