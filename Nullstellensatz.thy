@@ -316,6 +316,14 @@ lemma radical_empty [simp]: "\<surd>{} = {}"
 lemma radical_UNIV [simp]: "\<surd>UNIV = UNIV"
   by (simp add: radical_def)
 
+lemma radical_ideal_eq_UNIV_iff: "\<surd>ideal F = UNIV \<longleftrightarrow> ideal F = UNIV"
+proof
+  assume "\<surd>ideal F = UNIV"
+  hence "1 \<in> \<surd>ideal F" by simp
+  then obtain m where "1 ^ m \<in> ideal F" by (rule radicalE)
+  thus "ideal F = UNIV" by (simp add: ideal_eq_UNIV_iff_contains_one)
+qed simp
+
 lemma zero_in_radical_ideal [simp]: "0 \<in> \<surd>ideal F"
 proof (rule radicalI)
   show "0 ^ 1 \<in> ideal F" by (simp add: ideal.span_zero)

@@ -162,45 +162,6 @@ next
   qed
 qed
 
-(*
-lemma image_map_indets_ideal_of_variety_of:
-  assumes "inj f"
-  shows "map_indets f ` \<I> (\<V> F) = \<I> (\<V> (map_indets f ` (F::(_ \<Rightarrow>\<^sub>0 'a::comm_ring_1) set))) \<inter> P[range f]"
-proof
-  show "map_indets f ` \<I> (\<V> F) \<subseteq> \<I> (\<V> (map_indets f ` F)) \<inter> P[range f]"
-    by (auto simp: ideal_of_def variety_of_def poly_eval_map_indets simp flip: range_map_indets)
-next
-  show "\<I> (\<V> (map_indets f ` F)) \<inter> P[range f] \<subseteq> map_indets f ` \<I> (\<V> F)"
-  proof
-    fix p
-    assume "p \<in> \<I> (\<V> (map_indets f ` F)) \<inter> P[range f]"
-    hence "p \<in> \<I> (\<V> (map_indets f ` F))" and "p \<in> range (map_indets f)"
-      by (simp_all add: range_map_indets)
-    from assms obtain g where "g \<circ> f = id" and "map_indets g \<circ> map_indets f = (id::_ \<Rightarrow> _ \<Rightarrow>\<^sub>0 'a)"
-      by (rule map_indets_inverseE)
-    hence eq: "map_indets g (map_indets f p') = p'" for p'::"_ \<Rightarrow>\<^sub>0 'a"
-      by (simp add: pointfree_idE)
-    from \<open>p \<in> range _\<close> obtain p' where "p = map_indets f p'" ..
-    hence "p = map_indets f (map_indets g p)" by (simp add: eq)
-    moreover have "map_indets g p \<in> \<I> (\<V> F)"
-    proof (rule ideal_ofI)
-      fix a
-      assume "a \<in> \<V> F"
-      have "a \<circ> g \<in> \<V> (map_indets f ` F)"
-      proof (rule variety_ofI)
-        fix q
-        assume "q \<in> map_indets f ` F"
-        then obtain r where "r \<in> F" and q: "q = map_indets f r" ..
-        from \<open>a \<in> _\<close> this(1) have "poly_eval a r = 0" by (rule variety_ofD)
-        thus "poly_eval (a \<circ> g) q = 0" by (simp add: q poly_eval_map_indets comp_assoc \<open>g \<circ> f = id\<close>)
-      qed
-      with \<open>p \<in> \<I> _\<close> have "poly_eval (a \<circ> g) p = 0" by (rule ideal_ofD)
-      thus "poly_eval a (map_indets g p) = 0" by (simp add: poly_eval_map_indets)
-    qed
-    ultimately show "p \<in> map_indets f ` \<I> (\<V> F)" by (rule image_eqI)
-  qed
-qed
-
 lemma image_map_indets_radical:
   assumes "inj f"
   shows "map_indets f ` \<surd>F = \<surd>(map_indets f ` (F::(_ \<Rightarrow>\<^sub>0 'a::comm_ring_1) set)) \<inter> P[range f]"
@@ -231,26 +192,30 @@ next
     ultimately show "p \<in> map_indets f ` \<surd>F" by (rule image_eqI)
   qed
 qed
-*)
+
+lemma variety_of_map_indets: "\<V> (map_indets f ` F) = (\<lambda>a. a \<circ> f) -` \<V> F"
+  by (auto simp: variety_of_def poly_eval_map_indets)
 
 subsection \<open>Getting Rid of Sort Constraints in Geometric Version\<close>
 
 text \<open>We can use the `types to sets' approach to get rid of the @{class countable} and @{class linorder}
-  sort constraints on the type of indeterminates in the geometric version of the Nullstellensatz.\<close>
+  sort constraints on the type of indeterminates in the geometric version of the Nullstellensatz.
+  Once the `types to sets' methodology is integrated as a standard component into the main library of
+  Isabelle, the theorems in @{theory Draft.Nullstellensatz} could be replaced by their counterparts
+  in this section.\<close>
 
-lemmas weak_Nullstellensatz_internalized = weak_Nullstellensatz[unoverload_type 'x]
-lemmas strong_Nullstellensatz_internalized = strong_Nullstellensatz[unoverload_type 'x]
-thm radical_ideal_iff[unoverload_type 'x]
+lemmas radical_idealI_internalized = radical_idealI[unoverload_type 'x]
 
-lemma weak_Nullstellensatz':
-  assumes "finite X" and "F \<subseteq> P[X]" and "\<V> F = ({}::('x \<Rightarrow> 'a::alg_closed_field) set)"
-  shows "ideal F = UNIV"
+lemma radical_idealI:
+  assumes "finite X" and "F \<subseteq> P[X]" and "f \<in> P[X]" and "x \<notin> X"
+    and "\<V> (insert (1 - punit.monom_mult 1 (Poly_Mapping.single x 1) f) F) = {}"
+  shows "(f::('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::alg_closed_field) \<in> \<surd>ideal F"
 proof -
-  define Y where "Y = insert undefined X"
+  define Y where "Y = insert x X"
   from assms(1) have fin_Y: "finite Y" by (simp add: Y_def)
   have "X \<subseteq> Y" by (auto simp: Y_def)
   hence "P[X] \<subseteq> P[Y]" by (rule Polys_mono)
-  with assms(2) have F_sub: "F \<subseteq> P[Y]" by (rule subset_trans)
+  with assms(2, 3) have F_sub: "F \<subseteq> P[Y]" and "f \<in> P[Y]" by auto
   {
     text \<open>We define the type @{typ 'y} to be isomorphic to @{term Y}.\<close>
     assume "\<exists>(Rep :: 'y \<Rightarrow> 'x) Abs. type_definition Rep Abs Y"
@@ -262,12 +227,14 @@ proof -
       and wo: "Well_order le_y'" by meson
     define le_y where "le_y = (\<lambda>a b::'y. (a, b) \<in> le_y')"
 
-    have 1: "map_indets (rep \<circ> abs) ` A = A" if "A \<subseteq> P[Y]" for A::"(_ \<Rightarrow>\<^sub>0 'a) set"
+    from \<open>f \<in> P[Y]\<close> have 0: "map_indets rep (map_indets abs f) = f" unfolding map_indets_map_indets
+      by (intro map_indets_id) (auto intro!: y.Abs_inverse dest: PolysD)
+    have 1: "map_indets (rep \<circ> abs) ` F = F"
     proof
-      from that show "map_indets (rep \<circ> abs) ` A \<subseteq> A"
+      from F_sub show "map_indets (rep \<circ> abs) ` F \<subseteq> F"
         by (smt PolysD(2) comp_apply image_subset_iff map_indets_id subsetD y.Abs_inverse)
     next
-      from that show "A \<subseteq> map_indets (rep \<circ> abs) ` A"
+      from F_sub show "F \<subseteq> map_indets (rep \<circ> abs) ` F"
         by (smt PolysD(2) comp_apply image_eqI map_indets_id subsetD subsetI y.Abs_inverse)
     qed
     have 2: "inj rep" by (meson inj_onI y.Rep_inject)
@@ -301,91 +268,175 @@ proof -
                       preorder_on_def antisym_def fld)
       subgoal by (fact le_y_total)
       done
-    moreover note 4
-    moreover have "map_indets abs ` F \<subseteq> P[abs ` Y]"
+    moreover from assms(1) have "finite (abs ` X)" by (rule finite_imageI)
+    moreover have "map_indets abs ` F \<subseteq> P[abs ` X]"
     proof (rule subset_trans)
-      from F_sub show "map_indets abs ` F \<subseteq> map_indets abs ` P[Y]" by (rule image_mono)
+      from assms(2) show "map_indets abs ` F \<subseteq> map_indets abs ` P[X]" by (rule image_mono)
     qed (simp only: image_map_indets_Polys)
-    moreover have "\<V> (map_indets abs ` F) = {}"
+    moreover have "map_indets abs f \<in> P[abs ` X]"
+    proof
+      from assms(3) show "map_indets abs f \<in> map_indets abs ` P[X]" by (rule imageI)
+    qed (simp only: image_map_indets_Polys)
+    moreover from assms(4) y.Abs_inject have "abs x \<notin> abs ` X" unfolding Y_def by blast
+    moreover have "\<V> (insert (1 - punit.monom_mult 1 (Poly_Mapping.single (abs x) (Suc 0))
+                                    (map_indets abs f)) (map_indets abs ` F)) = {}"
     proof (intro set_eqI iffI)
       fix a
-      assume "a \<in> \<V> (map_indets abs ` F)"
-      also have "\<dots> = (\<lambda>b. b \<circ> abs) -` \<V> F"
-        by (auto simp: variety_of_def poly_eval_map_indets)
-      finally show "a \<in> {}" by (simp add: assms(3))
+      assume "a \<in> \<V> (insert (1 - punit.monom_mult 1 (Poly_Mapping.single (abs x) (Suc 0))
+                                    (map_indets abs f)) (map_indets abs ` F))"
+      also have "\<dots> = (\<lambda>b. b \<circ> abs) -` \<V> (insert (1 - punit.monom_mult 1 (Poly_Mapping.single x 1) f) F)"
+        by (simp add: map_indets_minus map_indets_times map_indets_monomial
+                flip: variety_of_map_indets times_monomial_left)
+      finally show "a \<in> {}" by (simp only: assms(5) vimage_empty)
     qed simp
-    ultimately have "ideal (map_indets abs ` F) = UNIV"
-      by (rule weak_Nullstellensatz_internalized[where 'x='y, untransferred, simplified])
-    hence "map_indets rep ` ideal (map_indets abs ` F) = P[range rep]"
-      by (simp add: range_map_indets)
-    with 2 F_sub have "ideal F \<inter> P[Y] = P[Y]"
-      by (simp add: image_map_indets_ideal image_image map_indets_map_indets 1 y.Rep_range)
-    with one_in_Polys have ?thesis by (auto simp: ideal_eq_UNIV_iff_contains_one)
+    ultimately have "map_indets abs f \<in> \<surd>ideal (map_indets abs ` F)"
+      by (rule radical_idealI_internalized[where 'x='y, untransferred, simplified])
+    hence "map_indets rep (map_indets abs f) \<in> map_indets rep ` \<surd>ideal (map_indets abs ` F)"
+      by (rule imageI)
+    also from 2 have "\<dots> = \<surd>(ideal F \<inter> P[Y]) \<inter> P[Y]"
+      by (simp add: image_map_indets_ideal image_map_indets_radical image_image map_indets_map_indets
+                    1 y.Rep_range)
+    also have "\<dots> \<subseteq> \<surd>ideal F" using radical_mono by blast
+    finally have ?thesis by (simp only: 0)
   }
   note rl = this[cancel_type_definition]
   have "Y \<noteq> {}" by (simp add: Y_def)
   thus ?thesis by (rule rl)
 qed
 
-(*
-lemma strong_Nullstellensatz':
+corollary radical_idealI_extend_indets:
   assumes "finite X" and "F \<subseteq> P[X]"
-  shows "\<I> (\<V> F) = \<surd>ideal (F::(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 _::alg_closed_field) set)"
+    and "\<V> (insert (1 - punit.monom_mult 1 (Poly_Mapping.single None 1) (extend_indets f))
+                            (extend_indets ` F)) = {}"
+  shows "(f::_ \<Rightarrow>\<^sub>0 _::alg_closed_field) \<in> \<surd>ideal F"
 proof -
-  define Y where "Y = insert undefined X"
-  from assms(1) have fin_Y: "finite Y" by (simp add: Y_def)
-  have "X \<subseteq> Y" by (auto simp: Y_def)
-  hence "P[X] \<subseteq> P[Y]" by (rule Polys_mono)
+  define Y where "Y = X \<union> indets f"
+  from assms(1) have fin_Y: "finite Y" by (simp add: Y_def finite_indets)
+  have "P[X] \<subseteq> P[Y]" by (rule Polys_mono) (simp add: Y_def)
   with assms(2) have F_sub: "F \<subseteq> P[Y]" by (rule subset_trans)
-  {
-    text \<open>We define the type @{typ 'y} to be isomorphic to @{term Y}.\<close>
-    assume "\<exists>(Rep :: 'y \<Rightarrow> 'x) Abs. type_definition Rep Abs Y"
-    then obtain rep :: "'y \<Rightarrow> 'x" and abs :: "'x \<Rightarrow> 'y" where t: "type_definition rep abs Y"
-      by blast
-    then interpret y: type_definition rep abs Y .
+  have f_in: "f \<in> P[Y]" by (simp add: Y_def Polys_alt)
 
-    from well_ordering obtain le_y'::"('y \<times> 'y) set" where "Well_order le_y'" by auto
-    define le_y where "le_y = (\<lambda>a b::'y. (a, b) \<in> le_y')"
-
-    have 1: "map_indets (rep \<circ> abs) ` A = A" if "A \<subseteq> P[Y]" for A::"(_ \<Rightarrow>\<^sub>0 'a) set"
-    proof
-      from that show "map_indets (rep \<circ> abs) ` A \<subseteq> A"
-        by (smt PolysD(2) comp_apply image_subset_iff map_indets_id subsetD y.Abs_inverse)
-    next
-      from that show "A \<subseteq> map_indets (rep \<circ> abs) ` A"
-        by (smt PolysD(2) comp_apply image_eqI map_indets_id subsetD subsetI y.Abs_inverse)
-    qed
-    have 2: "inj rep" by (meson inj_onI y.Rep_inject)
-    hence 3: "inj (map_indets rep)" by (rule inj_map_indetsI)
-    from fin_Y have 4: "finite (abs ` Y)" by (rule finite_imageI)
-
-    have "class.countable TYPE('y)"
-    proof
-      from 4 show "\<exists>to_nat::'y \<Rightarrow> nat. inj to_nat" sorry
-    qed
-    moreover have "class.linorder le_y (strict le_y)" sorry
-    moreover note 4
-    moreover have "map_indets abs ` F \<subseteq> P[abs ` Y]" sorry
-    ultimately have eq: "\<I> (\<V> (map_indets abs ` F)) = \<surd>ideal (map_indets abs ` F)"
-      by (rule strong_Nullstellensatz_internalized[where 'x='y, untransferred, simplified])
-
-    from 2 F_sub have "\<I> (\<V> F) \<inter> P[Y] = map_indets rep ` \<I> (\<V> (map_indets abs ` F))"
-      by (simp add: image_map_indets_ideal_of_variety_of image_image map_indets_map_indets 1 y.Rep_range)
-    also from 2 F_sub have "\<dots> = \<surd>(ideal F \<inter> P[Y]) \<inter> P[Y]"
-      by (simp add: eq image_map_indets_radical image_map_indets_ideal image_image map_indets_map_indets
-              1 y.Rep_range)
-    finally have "\<I> (\<V> F) \<inter> P[Y] \<subseteq> \<surd>ideal F"
-      using radical_mono[where F="ideal F \<inter> P[Y]" and G="ideal F"] by auto
-    have "\<I> (\<V> F) \<subseteq> \<surd>ideal F" sorry
-    moreover have "\<surd>ideal F \<subseteq> \<I> (\<V> F)"
-      by (metis subsetI ideal_ofI variety_ofD variety_of_radical_ideal)
-    ultimately have ?thesis ..
-  }
-  note rl = this[cancel_type_definition]
-  have "Y \<noteq> {}" by (simp add: Y_def)
-  thus ?thesis by (rule rl)
+  let ?F = "extend_indets ` F"
+  let ?f = "extend_indets f"
+  let ?X = "Some ` Y"
+  from fin_Y have "finite ?X" by (rule finite_imageI)
+  moreover from F_sub have "?F \<subseteq> P[?X]"
+    by (auto simp: indets_extend_indets intro!: PolysI_alt imageI dest!: PolysD(2) subsetD[of F])
+  moreover from f_in have "?f \<in> P[?X]"
+    by (auto simp: indets_extend_indets intro!: PolysI_alt imageI dest!: PolysD(2))
+  moreover have "None \<notin> ?X" by simp
+  ultimately have "?f \<in> \<surd>ideal ?F" using assms(3) by (rule radical_idealI)
+  also have "?f \<in> \<surd>ideal ?F \<longleftrightarrow> f \<in> \<surd>ideal F"
+  proof
+    assume "f \<in> \<surd>ideal F"
+    then obtain m where "f ^ m \<in> ideal F" by (rule radicalE)
+    hence "extend_indets (f ^ m) \<in> extend_indets ` ideal F" by (rule imageI)
+    with extend_indets_ideal_subset have "?f ^ m \<in> ideal ?F" unfolding extend_indets_power ..
+    thus "?f \<in> \<surd>ideal ?F" by (rule radicalI)
+  next
+    assume "?f \<in> \<surd>ideal ?F"
+    then obtain m where "?f ^ m \<in> ideal ?F" by (rule radicalE)
+    moreover have "?f ^ m \<in> P[- {None}]"
+      by (rule Polys_closed_power) (auto intro!: PolysI_alt simp: indets_extend_indets)
+    ultimately have "extend_indets (f ^ m) \<in> extend_indets ` ideal F"
+      by (simp add: extend_indets_ideal extend_indets_power)
+    hence "f ^ m \<in> ideal F" by (simp only: inj_image_mem_iff[OF inj_extend_indets])
+    thus "f \<in> \<surd>ideal F" by (rule radicalI)
+  qed
+  finally show ?thesis .
 qed
-*)
+
+theorem Nullstellensatz:
+  assumes "finite X" and "F \<subseteq> P[X]"
+    and "(f::_ \<Rightarrow>\<^sub>0 _::alg_closed_field) \<in> \<I> (\<V> F)"
+  shows "f \<in> \<surd>ideal F"
+  using assms(1, 2)
+proof (rule radical_idealI_extend_indets)
+  let ?f = "punit.monom_mult 1 (monomial 1 None) (extend_indets f)"
+  show "\<V> (insert (1 - ?f) (extend_indets ` F)) = {}"
+  proof (intro subset_antisym subsetI)
+    fix a
+    assume "a \<in> \<V> (insert (1 - ?f) (extend_indets ` F))"
+    moreover have "1 - ?f \<in> insert (1 - ?f) (extend_indets ` F)" by simp
+    ultimately have "poly_eval a (1 - ?f) = 0" by (rule variety_ofD)
+    hence "poly_eval a (extend_indets f) \<noteq> 0"
+      by (auto simp: poly_eval_minus poly_eval_times simp flip: times_monomial_left)
+    hence "poly_eval (a \<circ> Some) f \<noteq> 0" by (simp add: poly_eval_extend_indets)
+    have "a \<circ> Some \<in> \<V> F"
+    proof (rule variety_ofI)
+      fix f'
+      assume "f' \<in> F"
+      hence "extend_indets f' \<in> insert (1 - ?f) (extend_indets ` F)" by simp
+      with \<open>a \<in> _\<close> have "poly_eval a (extend_indets f') = 0" by (rule variety_ofD)
+      thus "poly_eval (a \<circ> Some) f' = 0" by (simp only: poly_eval_extend_indets)
+    qed
+    with assms(3) have "poly_eval (a \<circ> Some) f = 0" by (rule ideal_ofD)
+    with \<open>poly_eval (a \<circ> Some) f \<noteq> 0\<close> show "a \<in> {}" ..
+  qed simp
+qed
+
+theorem strong_Nullstellensatz:
+  assumes "finite X" and "F \<subseteq> P[X]"
+  shows "\<I> (\<V> F) = \<surd>ideal (F::(_ \<Rightarrow>\<^sub>0 _::alg_closed_field) set)"
+proof (intro subset_antisym subsetI)
+  fix f
+  assume "f \<in> \<I> (\<V> F)"
+  with assms show "f \<in> \<surd>ideal F" by (rule Nullstellensatz)
+qed (metis ideal_ofI variety_ofD variety_of_radical_ideal)
+
+theorem weak_Nullstellensatz:
+  assumes "finite X" and "F \<subseteq> P[X]" and "\<V> F = ({}::(_ \<Rightarrow> _::alg_closed_field) set)"
+  shows "ideal F = UNIV"
+proof -
+  from assms(1, 2) have "\<I> (\<V> F) = \<surd>ideal F" by (rule strong_Nullstellensatz)
+  thus ?thesis by (simp add: assms(3) flip: radical_ideal_eq_UNIV_iff)
+qed
+
+lemma radical_ideal_iff:
+  assumes "finite X" and "F \<subseteq> P[X]" and "f \<in> P[X]" and "x \<notin> X"
+  shows "(f::_ \<Rightarrow>\<^sub>0 _::alg_closed_field) \<in> \<surd>ideal F \<longleftrightarrow>
+            1 \<in> ideal (insert (1 - punit.monom_mult 1 (Poly_Mapping.single x 1) f) F)"
+proof -
+  let ?f = "punit.monom_mult 1 (Poly_Mapping.single x 1) f"
+  show ?thesis
+  proof
+    assume "f \<in> \<surd>ideal F"
+    then obtain m where "f ^ m \<in> ideal F" by (rule radicalE)
+    from assms(1) have "finite (insert x X)" by simp
+    moreover have "insert (1 - ?f) F \<subseteq> P[insert x X]" unfolding insert_subset
+    proof (intro conjI Polys_closed_minus one_in_Polys Polys_closed_monom_mult PPs_closed_single)
+      have "P[X] \<subseteq> P[insert x X]" by (rule Polys_mono) blast
+      with assms(2, 3) show "f \<in> P[insert x X]" and "F \<subseteq> P[insert x X]" by blast+
+    qed simp
+    moreover have "\<V> (insert (1 - ?f) F) = {}"
+    proof (intro subset_antisym subsetI)
+      fix a
+      assume "a \<in> \<V> (insert (1 - ?f) F)"
+      moreover have "1 - ?f \<in> insert (1 - ?f) F" by simp
+      ultimately have "poly_eval a (1 - ?f) = 0" by (rule variety_ofD)
+      hence "poly_eval a (f ^ m) \<noteq> 0"
+        by (auto simp: poly_eval_minus poly_eval_times poly_eval_power simp flip: times_monomial_left)
+      from \<open>a \<in> _\<close> have "a \<in> \<V> (ideal (insert (1 - ?f) F))" by (simp only: variety_of_ideal)
+      moreover from \<open>f ^ m \<in> ideal F\<close> ideal.span_mono have "f ^ m \<in> ideal (insert (1 - ?f) F)"
+        by (rule rev_subsetD) blast
+      ultimately have "poly_eval a (f ^ m) = 0" by (rule variety_ofD)
+      with \<open>poly_eval a (f ^ m) \<noteq> 0\<close> show "a \<in> {}" ..
+    qed simp
+    ultimately have "ideal (insert (1 - ?f) F) = UNIV" by (rule weak_Nullstellensatz)
+    thus "1 \<in> ideal (insert (1 - ?f) F)" by simp
+  next
+    assume "1 \<in> ideal (insert (1 - ?f) F)"
+    have "\<V> (insert (1 - ?f) F) = {}"
+    proof (intro subset_antisym subsetI)
+      fix a
+      assume "a \<in> \<V> (insert (1 - ?f) F)"
+      hence "a \<in> \<V> (ideal (insert (1 - ?f) F))" by (simp only: variety_of_ideal)
+      hence "poly_eval a 1 = 0" using \<open>1 \<in> _\<close> by (rule variety_ofD)
+      thus "a \<in> {}" by simp
+    qed simp
+    with assms show "f \<in> \<surd>ideal F" by (rule radical_idealI)
+  qed
+qed
 
 subsection \<open>Field-Theoretic Version of the Nullstellensatz\<close>
 
@@ -525,7 +576,7 @@ text \<open>We first prove the following lemma assuming that the type of indeter
   This approach facilitates the proof considerably.\<close>
 
 lemma max_ideal_shapeD_finite:
-  assumes "generates_max_ideal UNIV (F::(('x::{finite,linorder} \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::alg_closed_field) set)"
+  assumes "generates_max_ideal UNIV (F::(('x::finite \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::alg_closed_field) set)"
   obtains a where "ideal F = ideal (range (\<lambda>x. monomial 1 (Poly_Mapping.single x 1) - monomial (a x) 0))"
 proof -
   have fin: "finite (UNIV::'x set)" by simp
@@ -623,10 +674,6 @@ next
       by blast
     then interpret y: type_definition rep abs X .
 
-    from well_ordering obtain le_y'::"('y \<times> 'y) set" where fld: "Field le_y' = UNIV"
-      and wo: "Well_order le_y'" by meson
-    define le_y where "le_y = (\<lambda>a b::'y. (a, b) \<in> le_y')"
-
     have 1: "map_indets (rep \<circ> abs) ` A = A" if "A \<subseteq> P[X]" for A::"(_ \<Rightarrow>\<^sub>0 'a) set"
     proof
       from that show "map_indets (rep \<circ> abs) ` A \<subseteq> A"
@@ -637,37 +684,12 @@ next
     qed
     have 2: "inj rep" by (meson inj_onI y.Rep_inject)
     hence 3: "inj (map_indets rep)" by (rule inj_map_indetsI)
-    from wo have le_y_refl: "le_y x x" for x
-      by (simp add: le_y_def well_order_on_def linear_order_on_def partial_order_on_def
-                    preorder_on_def refl_on_def fld)
-    have le_y_total: "le_y x y \<or> le_y y x" for x y
-    proof (cases "x = y")
-      case True
-      thus ?thesis by (simp add: le_y_refl)
-    next
-      case False
-      with wo show ?thesis
-        by (simp add: le_y_def well_order_on_def linear_order_on_def total_on_def
-                      Relation.total_on_def fld)
-    qed
 
     have "class.finite TYPE('y)"
     proof
       from assms(1) have "finite (abs ` X)" by (rule finite_imageI)
       thus "finite (UNIV::'y set)" by (simp only: y.Abs_image)
     qed
-    moreover have "class.linorder le_y (strict le_y)"
-      apply standard
-      subgoal by (fact refl)
-      subgoal by (fact le_y_refl)
-      subgoal using wo
-        by (auto simp: le_y_def well_order_on_def linear_order_on_def partial_order_on_def
-                      preorder_on_def fld dest: transD)
-      subgoal using wo
-        by (simp add: le_y_def well_order_on_def linear_order_on_def partial_order_on_def
-                      preorder_on_def antisym_def fld)
-      subgoal by (fact le_y_total)
-      done
     moreover have "generates_max_ideal UNIV (map_indets abs ` F)"
     proof (intro generates_max_idealI notI)
       assume "ideal (map_indets abs ` F) = UNIV"
