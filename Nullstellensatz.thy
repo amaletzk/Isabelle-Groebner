@@ -16,9 +16,6 @@ text \<open>We prove the geometric version of Hilbert's Nullstellensatz, i.e. th
 
 subsection \<open>Preliminaries\<close>
 
-lemma inj_alt: "inj f \<longleftrightarrow> (\<exists>g. g \<circ> f = id)"
-  by (metis inj_on_id inj_on_imageI2 inv_o_cancel)
-
 lemma finite_linorder_induct [consumes 1, case_names empty insert]:
   assumes "finite (A::'a::linorder set)" and "P {}"
     and "\<And>a A. finite A \<Longrightarrow> A \<subseteq> {..<a} \<Longrightarrow> P A \<Longrightarrow> P (insert a A)"
@@ -297,6 +294,28 @@ proof (rule inj_onI)
   thus "F = G" by (simp add: F G)
 qed
 
+lemma image_map_indets_ideal_of:
+  assumes "inj f"
+  shows "map_indets f ` \<I> A = \<I> ((\<lambda>a. a \<circ> f) -` (A::('x \<Rightarrow> 'a::comm_semiring_1) set)) \<inter> P[range f]"
+proof -
+  {
+    fix p and a::"'x \<Rightarrow> 'a"
+    assume "\<forall>a\<in>(\<lambda>a. a \<circ> f) -` A. poly_eval (a \<circ> f) p = 0"
+    hence eq: "poly_eval (a \<circ> f) p = 0" if "a \<circ> f \<in> A" for a using that by simp
+    have "the_inv f \<circ> f = id" by (rule ext) (simp add: assms the_inv_f_f)
+    hence a: "a = a \<circ> the_inv f \<circ> f" by (simp add: comp_assoc)
+    moreover assume "a \<in> A"
+    ultimately have "(a \<circ> the_inv f) \<circ> f \<in> A" by simp
+    hence "poly_eval ((a \<circ> the_inv f) \<circ> f) p = 0" by (rule eq)
+    hence "poly_eval a p = 0" by (simp flip: a)
+  }
+  thus ?thesis
+    by (auto simp: ideal_of_def poly_eval_map_indets simp flip: range_map_indets intro!: imageI)
+qed
+
+lemma variety_of_map_indets: "\<V> (map_indets f ` F) = (\<lambda>a. a \<circ> f) -` \<V> F"
+  by (auto simp: variety_of_def poly_eval_map_indets)
+
 subsection \<open>Radical Ideals\<close>
 
 definition radical :: "'a::monoid_mult set \<Rightarrow> 'a set" ("\<surd>(_)" [999] 999)
@@ -412,6 +431,37 @@ next
     then obtain m where "f ^ m \<in> ideal F" by (rule radicalE)
     with \<open>a \<in> \<V> (ideal F)\<close> have "poly_eval a (f ^ m) = 0" by (rule variety_ofD)
     thus "poly_eval a f = 0" by (simp add: poly_eval_power)
+  qed
+qed
+
+lemma image_map_indets_radical:
+  assumes "inj f"
+  shows "map_indets f ` \<surd>F = \<surd>(map_indets f ` (F::(_ \<Rightarrow>\<^sub>0 'a::comm_ring_1) set)) \<inter> P[range f]"
+proof
+  show "map_indets f ` \<surd>F \<subseteq> \<surd>(map_indets f ` F) \<inter> P[range f]"
+    by (auto simp: radical_def simp flip: map_indets_power range_map_indets intro!: imageI)
+next
+  show "\<surd>(map_indets f ` F) \<inter> P[range f] \<subseteq> map_indets f ` \<surd>F"
+  proof
+    fix p
+    assume "p \<in> \<surd>(map_indets f ` F) \<inter> P[range f]"
+    hence "p \<in> \<surd>(map_indets f ` F)" and "p \<in> range (map_indets f)"
+      by (simp_all add: range_map_indets)
+    from this(1) obtain m where "p ^ m \<in> map_indets f ` F" by (rule radicalE)
+    then obtain q where "q \<in> F" and p_m: "p ^ m = map_indets f q" ..
+    from assms obtain g where "g \<circ> f = id" and "map_indets g \<circ> map_indets f = (id::_ \<Rightarrow> _ \<Rightarrow>\<^sub>0 'a)"
+      by (rule map_indets_inverseE)
+    hence eq: "map_indets g (map_indets f p') = p'" for p'::"_ \<Rightarrow>\<^sub>0 'a"
+      by (simp add: pointfree_idE)
+    from p_m have "map_indets g (p ^ m) = map_indets g (map_indets f q)" by (rule arg_cong)
+    hence "(map_indets g p) ^ m = q" by (simp add: eq)
+    from \<open>p \<in> range _\<close> obtain p' where "p = map_indets f p'" ..
+    hence "p = map_indets f (map_indets g p)" by (simp add: eq)
+    moreover have "map_indets g p \<in> \<surd>F"
+    proof (rule radicalI)
+      from \<open>q \<in> F\<close> show "map_indets g p ^ m \<in> F" by (simp add: p_m eq flip: map_indets_power)
+    qed
+    ultimately show "p \<in> map_indets f ` \<surd>F" by (rule image_eqI)
   qed
 qed
 

@@ -10,192 +10,6 @@ text \<open>Building upon the geometric version of Hilbert's Nullstellensatz in
   @{theory Draft.Nullstellensatz}, we prove its field-theoretic version here. To that end we employ
   the `types to sets' methodology.\<close>
 
-subsection \<open>Function \<open>map_indets\<close>\<close>
-
-definition map_indets where "map_indets f = poly_subst (\<lambda>x. monomial 1 (Poly_Mapping.single (f x) 1))"
-
-lemma
-  shows map_indets_zero [simp]: "map_indets f 0 = 0"
-    and map_indets_one [simp]: "map_indets f 1 = 1"
-    and map_indets_uminus [simp]: "map_indets f (- r) = - map_indets f (r::_ \<Rightarrow>\<^sub>0 _::comm_ring_1)"
-    and map_indets_plus: "map_indets f (p + q) = map_indets f p + map_indets f q"
-    and map_indets_minus: "map_indets f (r - s) = map_indets f r - map_indets f s"
-    and map_indets_times: "map_indets f (p * q) = map_indets f p * map_indets f q"
-    and map_indets_power [simp]: "map_indets f (p ^ m) = map_indets f p ^ m"
-    and map_indets_sum: "map_indets f (sum g A) = (\<Sum>a\<in>A. map_indets f (g a))"
-    and map_indets_prod: "map_indets f (prod g A) = (\<Prod>a\<in>A. map_indets f (g a))"
-  by (simp_all add: map_indets_def poly_subst_uminus poly_subst_plus poly_subst_minus poly_subst_times
-      poly_subst_power poly_subst_sum poly_subst_prod)
-
-lemma map_indets_monomial:
-  "map_indets f (monomial c t) = monomial c (\<Sum>x\<in>keys t. Poly_Mapping.single (f x) (lookup t x))"
-  by (simp add: map_indets_def poly_subst_monomial subst_pp_def monomial_power_map_scale
-      punit.monom_mult_monomial flip: punit.monomial_prod_sum)
-
-lemma map_indets_id: "(\<And>x. x \<in> indets p \<Longrightarrow> f x = x) \<Longrightarrow> map_indets f p = p"
-  by (simp add: map_indets_def poly_subst_id)
-
-lemma map_indets_map_indets: "map_indets f (map_indets g p) = map_indets (f \<circ> g) p"
-  by (simp add: map_indets_def poly_subst_poly_subst poly_subst_monomial subst_pp_single)
-
-lemma map_indets_cong: "p = q \<Longrightarrow> (\<And>x. x \<in> indets q \<Longrightarrow> f x = g x) \<Longrightarrow> map_indets f p = map_indets g q"
-  unfolding map_indets_def by (simp cong: poly_subst_cong)
-
-lemma poly_subst_map_indets: "poly_subst f (map_indets g p) = poly_subst (f \<circ> g) p"
-  by (simp add: map_indets_def poly_subst_poly_subst poly_subst_monomial subst_pp_single comp_def)
-
-lemma poly_eval_map_indets: "poly_eval a (map_indets g p) = poly_eval (a \<circ> g) p"
-  by (simp add: poly_eval_def poly_subst_map_indets comp_def)
-      (simp add: poly_subst_def lookup_sum lookup_times_zero subst_pp_def lookup_prod_zero
-          lookup_power_zero flip: times_monomial_left)
-
-lemma map_indets_in_Polys: "map_indets f (p::_ \<Rightarrow>\<^sub>0 'a::comm_semiring_1) \<in> P[f ` indets p]"
-proof (intro PolysI_alt subsetI)
-  fix x
-  assume "x \<in> indets (map_indets f p)"
-  then obtain y where "y \<in> indets p" and "x \<in> indets (monomial (1::'a) (Poly_Mapping.single (f y) 1))"
-    unfolding map_indets_def by (rule in_indets_poly_substE)
-  from this(2) have x: "x = f y" by (simp add: indets_monomial)
-  from \<open>y \<in> indets p\<close> show "x \<in> f ` indets p" unfolding x by (rule imageI)
-qed
-
-lemma image_map_indets_Polys: "map_indets f ` P[X] = (P[f ` X]::(_ \<Rightarrow>\<^sub>0 'a::comm_semiring_1) set)"
-proof (intro set_eqI iffI)
-  fix p :: "_ \<Rightarrow>\<^sub>0 'a"
-  assume "p \<in> map_indets f ` P[X]"
-  then obtain q where "q \<in> P[X]" and "p = map_indets f q" ..
-  note this(2)
-  also have "map_indets f q \<in> P[f ` indets q]" by (fact map_indets_in_Polys)
-  also from \<open>q \<in> _\<close> have "\<dots> \<subseteq> P[f ` X]" by (auto intro!: Polys_mono imageI dest: PolysD)
-  finally show "p \<in> P[f ` X]" .
-next
-  fix p :: "_ \<Rightarrow>\<^sub>0 'a"
-  assume "p \<in> P[f ` X]"
-  define g where "g = (\<lambda>y. SOME x. x \<in> X \<and> f x = y)"
-  have "g y \<in> X \<and> f (g y) = y" if "y \<in> indets p" for y
-  proof -
-    note that
-    also from \<open>p \<in> _\<close> have "indets p \<subseteq> f ` X" by (rule PolysD)
-    finally obtain x where "x \<in> X" and "y = f x" ..
-    hence "x \<in> X \<and> f x = y" by simp
-    thus ?thesis unfolding g_def by (rule someI)
-  qed
-  hence 1: "g y \<in> X" and 2: "f (g y) = y" if "y \<in> indets p" for y using that by simp_all
-  show "p \<in> map_indets f ` P[X]"
-  proof
-    show "p = map_indets f (map_indets g p)"
-      by (rule sym) (simp add: map_indets_map_indets map_indets_id 2)
-  next
-    have "map_indets g p \<in> P[g ` indets p]" by (fact map_indets_in_Polys)
-    also have "\<dots> \<subseteq> P[X]" by (auto intro!: Polys_mono 1)
-    finally show "map_indets g p \<in> P[X]" .
-  qed
-qed
-
-corollary range_map_indets: "range (map_indets f) = P[range f]"
-proof -
-  have "range (map_indets f) = map_indets f ` P[UNIV]" by simp
-  also have "\<dots> = P[range f]" by (simp only: image_map_indets_Polys)
-  finally show ?thesis .
-qed
-
-lemma map_indets_inverseE:
-  assumes "inj (f::'x \<Rightarrow> 'y)"
-  obtains g where "g \<circ> f = id" and "map_indets g \<circ> map_indets f = (id::_ \<Rightarrow> _ \<Rightarrow>\<^sub>0 'a::comm_semiring_1)"
-proof -
-  from assms obtain g where eq: "g \<circ> f = id" unfolding inj_alt ..
-  have "map_indets g \<circ> map_indets f = (id::_ \<Rightarrow> _ \<Rightarrow>\<^sub>0 'a::comm_semiring_1)"
-  proof
-    fix p :: "('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a"
-    show "(map_indets g \<circ> map_indets f) p = id p"
-      by (simp add: map_indets_map_indets eq map_indets_id)
-  qed
-  with eq show ?thesis ..
-qed
-
-lemma inj_map_indetsI:
-  assumes "inj (f::'x \<Rightarrow> 'y)"
-  shows "inj ((map_indets f)::_ \<Rightarrow> _ \<Rightarrow>\<^sub>0 'a::comm_semiring_1)"
-proof -
-  from assms obtain g where "map_indets g \<circ> map_indets f = (id::_ \<Rightarrow> _ \<Rightarrow>\<^sub>0 'a::comm_semiring_1)"
-    by (rule map_indets_inverseE)
-  thus ?thesis by (auto simp: inj_alt)
-qed
-
-lemma image_map_indets_ideal:
-  assumes "inj f"
-  shows "map_indets f ` ideal F = ideal (map_indets f ` (F::(_ \<Rightarrow>\<^sub>0 'a::comm_ring_1) set)) \<inter> P[range f]"
-proof
-  from map_indets_plus map_indets_times have "map_indets f ` ideal F \<subseteq> ideal (map_indets f ` F)"
-    by (rule image_ideal_subset)
-  moreover from subset_UNIV have "map_indets f ` ideal F \<subseteq> range (map_indets f)" by (rule image_mono)
-  ultimately show "map_indets f ` ideal F \<subseteq> ideal (map_indets f ` F) \<inter> P[range f]"
-    unfolding range_map_indets by blast
-next
-  show "ideal (map_indets f ` F) \<inter> P[range f] \<subseteq> map_indets f ` ideal F"
-  proof
-    fix p
-    assume "p \<in> ideal (map_indets f ` F) \<inter> P[range f]"
-    hence "p \<in> ideal (map_indets f ` F)" and "p \<in> range (map_indets f)"
-      by (simp_all add: range_map_indets)
-    from this(1) obtain F0 q where "F0 \<subseteq> map_indets f ` F" and p: "p = (\<Sum>f'\<in>F0. q f' * f')"
-      by (rule ideal.spanE)
-    from this(1) obtain F' where "F' \<subseteq> F" and F0: "F0 = map_indets f ` F'" by (rule subset_imageE)
-    from assms obtain g where "map_indets g \<circ> map_indets f = (id::_ \<Rightarrow> _ \<Rightarrow>\<^sub>0 'a)"
-      by (rule map_indets_inverseE)
-    hence eq: "map_indets g (map_indets f p') = p'" for p'::"_ \<Rightarrow>\<^sub>0 'a"
-      by (simp add: pointfree_idE)
-    from assms have "inj (map_indets f)" by (rule inj_map_indetsI)
-    from this subset_UNIV have "inj_on (map_indets f) F'" by (rule inj_on_subset)
-    from \<open>p \<in> range _\<close> obtain p' where "p = map_indets f p'" ..
-    hence "p = map_indets f (map_indets g p)" by (simp add: eq)
-    also from \<open>inj_on _ F'\<close> have "\<dots> = map_indets f (\<Sum>f'\<in>F'. map_indets g (q (map_indets f f')) * f')"
-      by (simp add: p F0 sum.reindex map_indets_sum map_indets_times eq)
-    finally have "p = map_indets f (\<Sum>f'\<in>F'. map_indets g (q (map_indets f f')) * f')" .
-    moreover have "(\<Sum>f'\<in>F'. map_indets g (q (map_indets f f')) * f') \<in> ideal F"
-    proof
-      show "(\<Sum>f'\<in>F'. map_indets g (q (map_indets f f')) * f') \<in> ideal F'" by (rule ideal.sum_in_spanI)
-    next
-      from \<open>F' \<subseteq> F\<close> show "ideal F' \<subseteq> ideal F" by (rule ideal.span_mono)
-    qed
-    ultimately show "p \<in> map_indets f ` ideal F" by (rule image_eqI)
-  qed
-qed
-
-lemma image_map_indets_radical:
-  assumes "inj f"
-  shows "map_indets f ` \<surd>F = \<surd>(map_indets f ` (F::(_ \<Rightarrow>\<^sub>0 'a::comm_ring_1) set)) \<inter> P[range f]"
-proof
-  show "map_indets f ` \<surd>F \<subseteq> \<surd>(map_indets f ` F) \<inter> P[range f]"
-    by (auto simp: radical_def simp flip: map_indets_power range_map_indets intro!: imageI)
-next
-  show "\<surd>(map_indets f ` F) \<inter> P[range f] \<subseteq> map_indets f ` \<surd>F"
-  proof
-    fix p
-    assume "p \<in> \<surd>(map_indets f ` F) \<inter> P[range f]"
-    hence "p \<in> \<surd>(map_indets f ` F)" and "p \<in> range (map_indets f)"
-      by (simp_all add: range_map_indets)
-    from this(1) obtain m where "p ^ m \<in> map_indets f ` F" by (rule radicalE)
-    then obtain q where "q \<in> F" and p_m: "p ^ m = map_indets f q" ..
-    from assms obtain g where "g \<circ> f = id" and "map_indets g \<circ> map_indets f = (id::_ \<Rightarrow> _ \<Rightarrow>\<^sub>0 'a)"
-      by (rule map_indets_inverseE)
-    hence eq: "map_indets g (map_indets f p') = p'" for p'::"_ \<Rightarrow>\<^sub>0 'a"
-      by (simp add: pointfree_idE)
-    from p_m have "map_indets g (p ^ m) = map_indets g (map_indets f q)" by (rule arg_cong)
-    hence "(map_indets g p) ^ m = q" by (simp add: eq)
-    from \<open>p \<in> range _\<close> obtain p' where "p = map_indets f p'" ..
-    hence "p = map_indets f (map_indets g p)" by (simp add: eq)
-    moreover have "map_indets g p \<in> \<surd>F"
-    proof (rule radicalI)
-      from \<open>q \<in> F\<close> show "map_indets g p ^ m \<in> F" by (simp add: p_m eq flip: map_indets_power)
-    qed
-    ultimately show "p \<in> map_indets f ` \<surd>F" by (rule image_eqI)
-  qed
-qed
-
-lemma variety_of_map_indets: "\<V> (map_indets f ` F) = (\<lambda>a. a \<circ> f) -` \<V> F"
-  by (auto simp: variety_of_def poly_eval_map_indets)
-
 subsection \<open>Getting Rid of Sort Constraints in Geometric Version\<close>
 
 text \<open>We can use the `types to sets' approach to get rid of the @{class countable} and @{class linorder}
@@ -238,7 +52,7 @@ proof -
         by (smt PolysD(2) comp_apply image_eqI map_indets_id subsetD subsetI y.Abs_inverse)
     qed
     have 2: "inj rep" by (meson inj_onI y.Rep_inject)
-    hence 3: "inj (map_indets rep)" by (rule inj_map_indetsI)
+    hence 3: "inj (map_indets rep)" by (rule map_indets_injI)
     from fin_Y have 4: "finite (abs ` Y)" by (rule finite_imageI)
     from wo have le_y_refl: "le_y x x" for x
       by (simp add: le_y_def well_order_on_def linear_order_on_def partial_order_on_def
@@ -683,7 +497,7 @@ next
         by (smt PolysD(2) comp_apply image_eqI map_indets_id subsetD subsetI y.Abs_inverse)
     qed
     have 2: "inj rep" by (meson inj_onI y.Rep_inject)
-    hence 3: "inj (map_indets rep)" by (rule inj_map_indetsI)
+    hence 3: "inj (map_indets rep)" by (rule map_indets_injI)
 
     have "class.finite TYPE('y)"
     proof

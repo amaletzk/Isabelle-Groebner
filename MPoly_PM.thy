@@ -1425,11 +1425,11 @@ next
   finally show ?case .
 qed
 
-subsection \<open>Substitution Homomorphisms\<close>
+subsection \<open>Substitution Homomorphism\<close>
 
-text \<open>The substitution homomorphisms defined here are more general than @{const insertion} etc., since
-  they replace indeterminates by @{emph \<open>polynomials\<close>} rather than coefficients, and therefore
-  construct new polynomials.\<close>
+text \<open>The substitution homomorphism defined here is more general than @{const insertion}, since
+  it replaces indeterminates by @{emph \<open>polynomials\<close>} rather than coefficients, and therefore
+  constructs new polynomials.\<close>
 
 definition subst_pp :: "('x \<Rightarrow> (('y \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a)) \<Rightarrow> ('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow> (('y \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a::comm_semiring_1)"
   where "subst_pp f t = (\<Prod>x\<in>keys t. (f x) ^ (lookup t x))"
@@ -1704,6 +1704,21 @@ proof -
   qed
   also have "... = p" by (simp only: poly_mapping_sum_monomials)
   finally show ?thesis .
+qed
+
+lemma in_keys_poly_substE:
+  assumes "t \<in> keys (poly_subst f p)"
+  obtains s where "s \<in> keys p" and "t \<in> keys (subst_pp f s)"
+proof -
+  note assms
+  also have "keys (poly_subst f p) \<subseteq> (\<Union>t\<in>keys p. keys (punit.monom_mult (lookup p t) 0 (subst_pp f t)))"
+    unfolding poly_subst_def by (rule keys_sum_subset)
+  finally obtain s where "s \<in> keys p" and "t \<in> keys (punit.monom_mult (lookup p s) 0 (subst_pp f s))" ..
+  note this(2)
+  also have "\<dots> \<subseteq> (+) 0 ` keys (subst_pp f s)" by (rule punit.keys_monom_mult_subset[simplified])
+  also have "\<dots> = keys (subst_pp f s)" by simp
+  finally have "t \<in> keys (subst_pp f s)" .
+  with \<open>s \<in> keys p\<close> show ?thesis ..
 qed
 
 lemma in_indets_poly_substE:
@@ -2019,6 +2034,304 @@ lemma image_poly_eval_ideal: "poly_eval a ` ideal F = ideal (poly_eval a ` F)"
 proof (intro image_ideal_eq_surj poly_eval_plus poly_eval_times surjI)
   fix x
   show "poly_eval a (monomial x 0) = x" by (simp add: poly_eval_monomial)
+qed
+
+subsection \<open>Replacing Indeterminates\<close>
+
+definition map_indets where "map_indets f = poly_subst (\<lambda>x. monomial 1 (Poly_Mapping.single (f x) 1))"
+
+lemma
+  shows map_indets_zero [simp]: "map_indets f 0 = 0"
+    and map_indets_one [simp]: "map_indets f 1 = 1"
+    and map_indets_uminus [simp]: "map_indets f (- r) = - map_indets f (r::_ \<Rightarrow>\<^sub>0 _::comm_ring_1)"
+    and map_indets_plus: "map_indets f (p + q) = map_indets f p + map_indets f q"
+    and map_indets_minus: "map_indets f (r - s) = map_indets f r - map_indets f s"
+    and map_indets_times: "map_indets f (p * q) = map_indets f p * map_indets f q"
+    and map_indets_power [simp]: "map_indets f (p ^ m) = map_indets f p ^ m"
+    and map_indets_sum: "map_indets f (sum g A) = (\<Sum>a\<in>A. map_indets f (g a))"
+    and map_indets_prod: "map_indets f (prod g A) = (\<Prod>a\<in>A. map_indets f (g a))"
+  by (simp_all add: map_indets_def poly_subst_uminus poly_subst_plus poly_subst_minus poly_subst_times
+      poly_subst_power poly_subst_sum poly_subst_prod)
+
+lemma map_indets_monomial:
+  "map_indets f (monomial c t) = monomial c (\<Sum>x\<in>keys t. Poly_Mapping.single (f x) (lookup t x))"
+  by (simp add: map_indets_def poly_subst_monomial subst_pp_def monomial_power_map_scale
+      punit.monom_mult_monomial flip: punit.monomial_prod_sum)
+
+lemma map_indets_id: "(\<And>x. x \<in> indets p \<Longrightarrow> f x = x) \<Longrightarrow> map_indets f p = p"
+  by (simp add: map_indets_def poly_subst_id)
+
+lemma map_indets_map_indets: "map_indets f (map_indets g p) = map_indets (f \<circ> g) p"
+  by (simp add: map_indets_def poly_subst_poly_subst poly_subst_monomial subst_pp_single)
+
+lemma map_indets_cong: "p = q \<Longrightarrow> (\<And>x. x \<in> indets q \<Longrightarrow> f x = g x) \<Longrightarrow> map_indets f p = map_indets g q"
+  unfolding map_indets_def by (simp cong: poly_subst_cong)
+
+lemma poly_subst_map_indets: "poly_subst f (map_indets g p) = poly_subst (f \<circ> g) p"
+  by (simp add: map_indets_def poly_subst_poly_subst poly_subst_monomial subst_pp_single comp_def)
+
+lemma poly_eval_map_indets: "poly_eval a (map_indets g p) = poly_eval (a \<circ> g) p"
+  by (simp add: poly_eval_def poly_subst_map_indets comp_def)
+      (simp add: poly_subst_def lookup_sum lookup_times_zero subst_pp_def lookup_prod_zero
+          lookup_power_zero flip: times_monomial_left)
+
+lemma map_indets_inverseE_Polys:
+  assumes "inj_on f X" and "p \<in> P[X]"
+  shows "map_indets (the_inv_into X f) (map_indets f p) = p"
+  unfolding map_indets_map_indets
+proof (rule map_indets_id)
+  fix x
+  assume "x \<in> indets p"
+  also from assms(2) have "\<dots> \<subseteq> X" by (rule PolysD)
+  finally show "(the_inv_into X f \<circ> f) x = x" using assms(1) by (auto intro: the_inv_into_f_f)
+qed
+
+lemma map_indets_inverseE:
+  assumes "inj f"
+  obtains g where "g = the_inv f" and "g \<circ> f = id" and "map_indets g \<circ> map_indets f = id"
+proof -
+  define g where "g = the_inv f"
+  moreover from assms have eq: "g \<circ> f = id" by (auto intro!: ext the_inv_f_f simp: g_def)
+  moreover have "map_indets g \<circ> map_indets f = id"
+    by (rule ext) (simp add: map_indets_map_indets eq map_indets_id)
+  ultimately show ?thesis ..
+qed
+
+lemma indets_map_indets_subset: "indets (map_indets f (p::_ \<Rightarrow>\<^sub>0 'a::comm_semiring_1)) \<subseteq> f ` indets p"
+proof
+  fix x
+  assume "x \<in> indets (map_indets f p)"
+  then obtain y where "y \<in> indets p" and "x \<in> indets (monomial (1::'a) (Poly_Mapping.single (f y) 1))"
+    unfolding map_indets_def by (rule in_indets_poly_substE)
+  from this(2) have x: "x = f y" by (simp add: indets_monomial)
+  from \<open>y \<in> indets p\<close> show "x \<in> f ` indets p" unfolding x by (rule imageI)
+qed
+
+corollary map_indets_in_Polys: "map_indets f p \<in> P[f ` indets p]"
+  using indets_map_indets_subset by (rule PolysI_alt)
+
+lemma indets_map_indets:
+  assumes "inj_on f (indets p)"
+  shows "indets (map_indets f p) = f ` indets p"
+  using indets_map_indets_subset
+proof (rule subset_antisym)
+  let ?g = "the_inv_into (indets p) f"
+  have "p = map_indets ?g (map_indets f p)" unfolding map_indets_map_indets
+    by (rule sym, rule map_indets_id) (simp add: assms the_inv_into_f_f)
+  also have "indets \<dots> \<subseteq> ?g ` indets (map_indets f p)" by (fact indets_map_indets_subset)
+  finally have "f ` indets p \<subseteq> f ` ?g ` indets (map_indets f p)" by (rule image_mono)
+  also have "\<dots> = (\<lambda>x. x) ` indets (map_indets f p)" unfolding image_image using refl
+  proof (rule image_cong)
+    fix x
+    assume "x \<in> indets (map_indets f p)"
+    with indets_map_indets_subset have "x \<in> f ` indets p" ..
+    with assms show "f (?g x) = x" by (rule f_the_inv_into_f)
+  qed
+  finally show "f ` indets p \<subseteq> indets (map_indets f p)" by simp
+qed
+
+lemma image_map_indets_Polys: "map_indets f ` P[X] = (P[f ` X]::(_ \<Rightarrow>\<^sub>0 'a::comm_semiring_1) set)"
+proof (intro set_eqI iffI)
+  fix p :: "_ \<Rightarrow>\<^sub>0 'a"
+  assume "p \<in> map_indets f ` P[X]"
+  then obtain q where "q \<in> P[X]" and "p = map_indets f q" ..
+  note this(2)
+  also have "map_indets f q \<in> P[f ` indets q]" by (fact map_indets_in_Polys)
+  also from \<open>q \<in> _\<close> have "\<dots> \<subseteq> P[f ` X]" by (auto intro!: Polys_mono imageI dest: PolysD)
+  finally show "p \<in> P[f ` X]" .
+next
+  fix p :: "_ \<Rightarrow>\<^sub>0 'a"
+  assume "p \<in> P[f ` X]"
+  define g where "g = (\<lambda>y. SOME x. x \<in> X \<and> f x = y)"
+  have "g y \<in> X \<and> f (g y) = y" if "y \<in> indets p" for y
+  proof -
+    note that
+    also from \<open>p \<in> _\<close> have "indets p \<subseteq> f ` X" by (rule PolysD)
+    finally obtain x where "x \<in> X" and "y = f x" ..
+    hence "x \<in> X \<and> f x = y" by simp
+    thus ?thesis unfolding g_def by (rule someI)
+  qed
+  hence 1: "g y \<in> X" and 2: "f (g y) = y" if "y \<in> indets p" for y using that by simp_all
+  show "p \<in> map_indets f ` P[X]"
+  proof
+    show "p = map_indets f (map_indets g p)"
+      by (rule sym) (simp add: map_indets_map_indets map_indets_id 2)
+  next
+    have "map_indets g p \<in> P[g ` indets p]" by (fact map_indets_in_Polys)
+    also have "\<dots> \<subseteq> P[X]" by (auto intro!: Polys_mono 1)
+    finally show "map_indets g p \<in> P[X]" .
+  qed
+qed
+
+corollary range_map_indets: "range (map_indets f) = P[range f]"
+proof -
+  have "range (map_indets f) = map_indets f ` P[UNIV]" by simp
+  also have "\<dots> = P[range f]" by (simp only: image_map_indets_Polys)
+  finally show ?thesis .
+qed
+
+lemma in_keys_map_indetsE:
+  assumes "t \<in> keys (map_indets f (p::_ \<Rightarrow>\<^sub>0 'a::comm_semiring_1))"
+  obtains s where "s \<in> keys p" and "t = (\<Sum>x\<in>keys s. Poly_Mapping.single (f x) (lookup s x))"
+proof -
+  let ?f = "(\<lambda>x. monomial (1::'a) (Poly_Mapping.single (f x) 1))"
+  from assms obtain s where "s \<in> keys p" and "t \<in> keys (subst_pp ?f s)" unfolding map_indets_def
+    by (rule in_keys_poly_substE)
+  note this(2)
+  also have "\<dots> \<subseteq> {\<Sum>x\<in>keys s. Poly_Mapping.single (f x) (lookup s x)}"
+    by (simp add: subst_pp_def monomial_power_map_scale flip: punit.monomial_prod_sum)
+  finally have "t = (\<Sum>x\<in>keys s. Poly_Mapping.single (f x) (lookup s x))" by simp
+  with \<open>s \<in> keys p\<close> show ?thesis ..
+qed
+
+lemma keys_map_indets_subset:
+  "keys (map_indets f p) \<subseteq> (\<lambda>t. \<Sum>x\<in>keys t. Poly_Mapping.single (f x) (lookup t x)) ` keys p"
+  by (auto elim: in_keys_map_indetsE)
+
+lemma keys_map_indets:
+  assumes "inj_on f (indets p)"
+  shows "keys (map_indets f p) = (\<lambda>t. \<Sum>x\<in>keys t. Poly_Mapping.single (f x) (lookup t x)) ` keys p"
+  using keys_map_indets_subset
+proof (rule subset_antisym)
+  let ?g = "the_inv_into (indets p) f"
+  have "p = map_indets ?g (map_indets f p)" unfolding map_indets_map_indets
+    by (rule sym, rule map_indets_id) (simp add: assms the_inv_into_f_f)
+  also have "keys \<dots> \<subseteq> (\<lambda>t. \<Sum>x\<in>keys t. monomial (lookup t x) (?g x)) ` keys (map_indets f p)"
+    by (rule keys_map_indets_subset)
+  finally have "(\<lambda>t. \<Sum>x\<in>keys t. Poly_Mapping.single (f x) (lookup t x)) ` keys p \<subseteq>
+                (\<lambda>t. \<Sum>x\<in>keys t. Poly_Mapping.single (f x) (lookup t x)) `
+                (\<lambda>t. \<Sum>x\<in>keys t. Poly_Mapping.single (?g x) (lookup t x)) ` keys (map_indets f p)"
+    by (rule image_mono)
+  also from refl have "\<dots> = (\<lambda>t. \<Sum>x. Poly_Mapping.single (f x) (lookup t x)) `
+                       (\<lambda>t. \<Sum>x\<in>keys t. Poly_Mapping.single (?g x) (lookup t x)) ` keys (map_indets f p)"
+    by (rule image_cong)
+        (smt Sum_any.conditionalize Sum_any.cong finite_keys not_in_keys_iff_lookup_eq_zero single_zero)
+  also have "\<dots> = (\<lambda>t. t) ` keys (map_indets f p)" unfolding image_image using refl
+  proof (rule image_cong)
+    fix t
+    assume "t \<in> keys (map_indets f p)"
+    have "(\<Sum>x. monomial (lookup (\<Sum>y\<in>keys t. Poly_Mapping.single (?g y) (lookup t y)) x) (f x)) =
+          (\<Sum>x. \<Sum>y\<in>keys t. monomial (lookup t y when ?g y = x) (f x))"
+      by (simp add: lookup_sum lookup_single monomial_sum)
+    also have "\<dots> = (\<Sum>x\<in>indets p. \<Sum>y\<in>keys t. Poly_Mapping.single (f x) (lookup t y when ?g y = x))"
+    proof (intro Sum_any.expand_superset finite_indets subsetI)
+      fix x
+      assume "x \<in> {a. (\<Sum>y\<in>keys t. Poly_Mapping.single (f a) (lookup t y when ?g y = a)) \<noteq> 0}"
+      hence "(\<Sum>y\<in>keys t. Poly_Mapping.single (f x) (lookup t y when ?g y = x)) \<noteq> 0" by simp
+      then obtain y where "y \<in> keys t" and *: "Poly_Mapping.single (f x) (lookup t y when ?g y = x) \<noteq> 0"
+        by (rule sum.not_neutral_contains_not_neutral)
+      from this(1) have "y \<in> indets (map_indets f p)" using \<open>t \<in> _\<close> by (rule in_indetsI)
+      with indets_map_indets_subset have "y \<in> f ` indets p" ..
+      from * have "x = ?g y" by (simp add: when_def split: if_split_asm)
+      also from assms \<open>y \<in> f ` indets p\<close> subset_refl have "\<dots> \<in> indets p" by (rule the_inv_into_into)
+      finally show "x \<in> indets p" .
+    qed
+    also have "\<dots> = (\<Sum>y\<in>keys t. \<Sum>x\<in>indets p. Poly_Mapping.single (f x) (lookup t y when ?g y = x))"
+      by (fact sum.swap)
+    also from refl have "\<dots> = (\<Sum>y\<in>keys t. Poly_Mapping.single y (lookup t y))"
+    proof (rule sum.cong)
+      fix x
+      assume "x \<in> keys t"
+      hence "x \<in> indets (map_indets f p)" using \<open>t \<in> _\<close> by (rule in_indetsI)
+      with indets_map_indets_subset have "x \<in> f ` indets p" ..
+      with assms have "?g x \<in> indets p" using subset_refl by (rule the_inv_into_into)
+      hence "{?g x} \<subseteq> indets p" by simp
+      with finite_indets have "(\<Sum>y\<in>indets p. Poly_Mapping.single (f y) (lookup t x when ?g x = y)) =
+                                (\<Sum>y\<in>{?g x}. Poly_Mapping.single (f y) (lookup t x when ?g x = y))"
+        by (rule sum.mono_neutral_right) (simp add: monomial_0_iff when_def)
+      also from assms \<open>x \<in> f ` indets p\<close> have "\<dots> = Poly_Mapping.single x (lookup t x)"
+        by (simp add: f_the_inv_into_f)
+      finally show "(\<Sum>y\<in>indets p. Poly_Mapping.single (f y) (lookup t x when ?g x = y)) =
+                      Poly_Mapping.single x (lookup t x)" .
+    qed
+    also have "\<dots> = t" by (fact poly_mapping_sum_monomials)
+    finally show "(\<Sum>x. monomial (lookup (\<Sum>y\<in>keys t. Poly_Mapping.single (?g y) (lookup t y)) x) (f x)) = t" .
+  qed
+  also have "\<dots> = keys (map_indets f p)" by simp
+  finally show "(\<lambda>t. \<Sum>x\<in>keys t. Poly_Mapping.single (f x) (lookup t x)) ` keys p \<subseteq> keys (map_indets f p)" .
+qed
+
+lemma poly_deg_map_indets_le: "poly_deg (map_indets f p) \<le> poly_deg p"
+proof (rule poly_deg_leI)
+  fix t
+  assume "t \<in> keys (map_indets f p)"
+  then obtain s where "s \<in> keys p" and t: "t = (\<Sum>x\<in>keys s. Poly_Mapping.single (f x) (lookup s x))"
+    by (rule in_keys_map_indetsE)
+  from this(1) have "deg_pm s \<le> poly_deg p" by (rule poly_deg_max_keys)
+  thus "deg_pm t \<le> poly_deg p"
+    by (simp add: t deg_pm_sum deg_pm_single deg_pm_superset[OF subset_refl])
+qed
+
+lemma poly_deg_map_indets:
+  assumes "inj_on f (indets p)"
+  shows "poly_deg (map_indets f p) = poly_deg p"
+proof -
+  from assms have "deg_pm ` keys (map_indets f p) = deg_pm ` keys p"
+    by (simp add: keys_map_indets image_image deg_pm_sum deg_pm_single
+          flip: deg_pm_superset[OF subset_refl])
+  thus ?thesis by (auto simp: poly_deg_def)
+qed
+
+lemma map_indets_inj_on_PolysI:
+  assumes "inj_on (f::'x \<Rightarrow> 'y) X"
+  shows "inj_on ((map_indets f)::_ \<Rightarrow> _ \<Rightarrow>\<^sub>0 'a::comm_semiring_1) P[X]"
+proof (rule inj_onI)
+  fix p q :: "_ \<Rightarrow>\<^sub>0 'a"
+  assume "p \<in> P[X]"
+  with assms have 1: "map_indets (the_inv_into X f) (map_indets f p) = p" (is "map_indets ?g _ = _")
+    by (rule map_indets_inverseE_Polys)
+  assume "q \<in> P[X]"
+  with assms have "map_indets ?g (map_indets f q) = q" by (rule map_indets_inverseE_Polys)
+  moreover assume "map_indets f p = map_indets f q"
+  ultimately show "p = q" using 1 by (simp add: map_indets_map_indets)
+qed
+
+lemma map_indets_injI:
+  assumes "inj f"
+  shows "inj (map_indets f)"
+proof -
+  from assms have "inj_on (map_indets f) P[UNIV]" by (rule map_indets_inj_on_PolysI)
+  thus ?thesis by simp
+qed
+
+lemma image_map_indets_ideal:
+  assumes "inj f"
+  shows "map_indets f ` ideal F = ideal (map_indets f ` (F::(_ \<Rightarrow>\<^sub>0 'a::comm_ring_1) set)) \<inter> P[range f]"
+proof
+  from map_indets_plus map_indets_times have "map_indets f ` ideal F \<subseteq> ideal (map_indets f ` F)"
+    by (rule image_ideal_subset)
+  moreover from subset_UNIV have "map_indets f ` ideal F \<subseteq> range (map_indets f)" by (rule image_mono)
+  ultimately show "map_indets f ` ideal F \<subseteq> ideal (map_indets f ` F) \<inter> P[range f]"
+    unfolding range_map_indets by blast
+next
+  show "ideal (map_indets f ` F) \<inter> P[range f] \<subseteq> map_indets f ` ideal F"
+  proof
+    fix p
+    assume "p \<in> ideal (map_indets f ` F) \<inter> P[range f]"
+    hence "p \<in> ideal (map_indets f ` F)" and "p \<in> range (map_indets f)"
+      by (simp_all add: range_map_indets)
+    from this(1) obtain F0 q where "F0 \<subseteq> map_indets f ` F" and p: "p = (\<Sum>f'\<in>F0. q f' * f')"
+      by (rule ideal.spanE)
+    from this(1) obtain F' where "F' \<subseteq> F" and F0: "F0 = map_indets f ` F'" by (rule subset_imageE)
+    from assms obtain g where "map_indets g \<circ> map_indets f = (id::_ \<Rightarrow> _ \<Rightarrow>\<^sub>0 'a)"
+      by (rule map_indets_inverseE)
+    hence eq: "map_indets g (map_indets f p') = p'" for p'::"_ \<Rightarrow>\<^sub>0 'a"
+      by (simp add: pointfree_idE)
+    from assms have "inj (map_indets f)" by (rule map_indets_injI)
+    from this subset_UNIV have "inj_on (map_indets f) F'" by (rule inj_on_subset)
+    from \<open>p \<in> range _\<close> obtain p' where "p = map_indets f p'" ..
+    hence "p = map_indets f (map_indets g p)" by (simp add: eq)
+    also from \<open>inj_on _ F'\<close> have "\<dots> = map_indets f (\<Sum>f'\<in>F'. map_indets g (q (map_indets f f')) * f')"
+      by (simp add: p F0 sum.reindex map_indets_sum map_indets_times eq)
+    finally have "p = map_indets f (\<Sum>f'\<in>F'. map_indets g (q (map_indets f f')) * f')" .
+    moreover have "(\<Sum>f'\<in>F'. map_indets g (q (map_indets f f')) * f') \<in> ideal F"
+    proof
+      show "(\<Sum>f'\<in>F'. map_indets g (q (map_indets f f')) * f') \<in> ideal F'" by (rule ideal.sum_in_spanI)
+    next
+      from \<open>F' \<subseteq> F\<close> show "ideal F' \<subseteq> ideal F" by (rule ideal.span_mono)
+    qed
+    ultimately show "p \<in> map_indets f ` ideal F" by (rule image_eqI)
+  qed
 qed
 
 subsection \<open>Homogeneity\<close>
