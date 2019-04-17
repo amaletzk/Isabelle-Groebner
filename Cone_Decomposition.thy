@@ -3,8 +3,40 @@
 section \<open>Cone Decompositions\<close>
 
 theory Cone_Decomposition
-  imports Groebner_PM Hilbert_Function
+  imports Groebner_PM Monomial_Module Hilbert_Function
 begin
+
+lemma keys_sum_list_subset: "keys (sum_list ps) \<subseteq> Keys (set ps)"
+proof (induct ps)
+  case Nil
+  show ?case by simp
+next
+  case (Cons p ps)
+  have "keys (sum_list (p # ps)) = keys (p + sum_list ps)" by simp
+  also have "\<dots> \<subseteq> keys p \<union> keys (sum_list ps)" by (fact Poly_Mapping.keys_add)
+  also from Cons have "\<dots> \<subseteq> keys p \<union> Keys (set ps)" by blast
+  also have "\<dots> = Keys (set (p # ps))" by (simp add: Keys_insert)
+  finally show ?case .
+qed
+
+lemma (in term_powerprod) pmdl_closed_sum_list: "(\<And>x. x \<in> set xs \<Longrightarrow> x \<in> pmdl B) \<Longrightarrow> sum_list xs \<in> pmdl B"
+  by (induct xs) (auto intro: pmdl.span_zero pmdl.span_add)
+
+subsection \<open>More Properties of Reduced Gr\"obner Bases\<close>
+
+context pm_powerprod
+begin
+
+lemmas reduced_GB_subset_monic_Polys =
+  punit.reduced_GB_subset_monic_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+lemmas reduced_GB_is_monomial_set_Polys =
+  punit.reduced_GB_is_monomial_set_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+lemmas is_red_reduced_GB_monomial_lt_GB_Polys =
+  punit.is_red_reduced_GB_monomial_lt_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+lemmas reduced_GB_monomial_lt_reduced_GB_Polys =
+  punit.reduced_GB_monomial_lt_reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+
+end
 
 subsection \<open>Quotient Ideals\<close>
 

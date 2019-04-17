@@ -4,6 +4,84 @@ theory GB_Bound_Binomials
   imports Membership_Bound_Binomials
 begin
 
+subsection \<open>More Properties of Reduced Gr\"obner Bases\<close>
+
+context gd_term
+begin
+
+lemma reduced_GB_lt_addsD_dgrad_p_set:
+  assumes "dickson_grading d" and "finite (component_of_term ` Keys F)" and "F \<subseteq> dgrad_p_set d m"
+    and "p \<in> pmdl F" and "p \<noteq> 0" and "g \<in> reduced_GB F" and "v \<in> keys g" and "lt p adds\<^sub>t v"
+  shows "v = lt g" and "lt p = lt g"
+proof -
+  let ?G = "reduced_GB F"
+  from assms(1-3) have "is_Groebner_basis ?G" and pmdl: "pmdl ?G = pmdl F" and "is_auto_reduced ?G"
+    by (rule reduced_GB_is_GB_dgrad_p_set, rule reduced_GB_pmdl_dgrad_p_set,
+        rule reduced_GB_is_auto_reduced_dgrad_p_set)
+  note this(1)
+  moreover from assms(4) have "p \<in> pmdl ?G" by (simp only: pmdl)
+  ultimately obtain g' where "g' \<in> ?G" and "g' \<noteq> 0" and 2: "lt g' adds\<^sub>t lt p"
+    using assms(5) by (rule GB_adds_lt)
+  have "g' = g"
+  proof (rule ccontr)
+    assume "g' \<noteq> g"
+    with \<open>g' \<in> ?G\<close> have "g' \<in> ?G - {g}" by simp
+    moreover note \<open>g' \<noteq> 0\<close> assms(7)
+    moreover from 2 assms(8) have "lt g' adds\<^sub>t v" by (rule adds_term_trans)
+    ultimately have "is_red (?G - {g}) g" by (rule is_red_addsI)
+    moreover from \<open>is_auto_reduced ?G\<close> assms(6) have "\<not> is_red (?G - {g}) g" by (rule is_auto_reducedD)
+    ultimately show False by simp
+  qed
+  with 2 have "lt g adds\<^sub>t lt p" by simp
+  hence "lt g \<preceq>\<^sub>t lt p" by (rule ord_adds_term)
+  also from assms(8) have "\<dots> \<preceq>\<^sub>t v" by (rule ord_adds_term)
+  finally have "lt g \<preceq>\<^sub>t v" .
+  also from assms(7) have "\<dots> \<preceq>\<^sub>t lt g" by (rule lt_max_keys)
+  finally show "v = lt g" by (rule sym)
+  with \<open>lt p \<preceq>\<^sub>t v\<close> have "lt p \<preceq>\<^sub>t lt g" by simp
+  thus "lt p = lt g" using \<open>lt g \<preceq>\<^sub>t lt p\<close> by (rule ord_term_lin.antisym)
+qed
+
+corollary reduced_GB_lt_addsD_finite:
+  assumes "finite F" and "p \<in> pmdl F" and "p \<noteq> 0" and "g \<in> reduced_GB F" and "v \<in> keys g"
+    and "lt p adds\<^sub>t v"
+  shows "v = lt g" and "lt p = lt g"
+proof -
+  note dickson_grading_dgrad_dummy
+  moreover from assms(1) have "finite (component_of_term ` Keys F)"
+    by (rule finite_imp_finite_component_Keys)
+  moreover from assms(1) have "F \<subseteq> dgrad_p_set dgrad_dummy (Max (dgrad_dummy ` pp_of_term ` Keys F))"
+    by (rule dgrad_p_set_exhaust_expl)
+  ultimately show "v = lt g" and "lt p = lt g"
+    using assms(2-6) by (rule reduced_GB_lt_addsD_dgrad_p_set)+
+qed
+
+lemma reduced_GB_cases_dgrad_p_set:
+  assumes "dickson_grading d" and "finite (component_of_term ` Keys F)" and "F \<subseteq> dgrad_p_set d m"
+    and "g \<in> reduced_GB F"
+  assumes "\<And>f. f \<in> F \<Longrightarrow> f \<noteq> 0 \<Longrightarrow> lt g = lt f \<Longrightarrow> thesis"
+  assumes "\<not> is_red F g \<Longrightarrow> thesis"
+  shows thesis
+proof (cases "is_red F g")
+  case True
+  then obtain f v where "f \<in> F" and "f \<noteq> 0" and "v \<in> keys g" and 1: "lt f adds\<^sub>t v" by (rule is_red_addsE)
+  from this(1) have "f \<in> pmdl F" by (rule pmdl.span_base)
+  with assms(1-3) have "lt f = lt g"
+    using \<open>f \<noteq> 0\<close> assms(4) \<open>v \<in> keys g\<close> 1 by (rule reduced_GB_lt_addsD_dgrad_p_set)
+  from \<open>f \<in> F\<close> \<open>f \<noteq> 0\<close> this[symmetric] show ?thesis by (rule assms(5))
+next
+  case False
+  thus ?thesis by (rule assms(6))
+qed
+
+corollary reduced_GB_cases_finite:
+  "finite F \<Longrightarrow> g \<in> reduced_GB F \<Longrightarrow> (\<And>f. f \<in> F \<Longrightarrow> f \<noteq> 0 \<Longrightarrow> lt g = lt f \<Longrightarrow> thesis) \<Longrightarrow>
+    (\<not> is_red F g \<Longrightarrow> thesis) \<Longrightarrow> thesis"
+  by (rule reduced_GB_cases_dgrad_p_set, rule dickson_grading_dgrad_dummy,
+      erule finite_imp_finite_component_Keys, erule dgrad_p_set_exhaust_expl)
+
+end (* gd_term *)
+
 context two_polys
 begin
 

@@ -1,13 +1,46 @@
+section \<open>Binomial Modules\<close>
+
 (* Author: Alexander Maletzky *)
 
 theory Binomials
-  imports Groebner_Bases.Buchberger Monomial_Module
+  imports Groebner_Bases.Buchberger Monomial_Module Poly_Utils
 begin
+
+subsection \<open>Preliminaries\<close>
+
+lemma has_bounded_keys_set_1_I1:
+  assumes "is_monomial_set A"
+  shows "has_bounded_keys_set 1 A"
+  unfolding has_bounded_keys_set_def
+proof (intro ballI has_bounded_keys_1_I1)
+  fix p
+  assume "p \<in> A"
+  from assms have "\<forall>p\<in>A. is_monomial p" unfolding is_monomial_set_def .
+  from this[rule_format, OF \<open>p \<in> A\<close>] show "is_monomial p" .
+qed
+    
+lemma has_bounded_keys_set_1_D:
+  assumes "has_bounded_keys_set 1 A" and "0 \<notin> A"
+  shows "is_monomial_set A"
+  unfolding is_monomial_set_def
+proof
+  fix p
+  assume "p \<in> A"
+  from assms(1) have "\<forall>p\<in>A. has_bounded_keys 1 p" unfolding has_bounded_keys_set_def .
+  from this[rule_format, OF \<open>p \<in> A\<close>] have "has_bounded_keys 1 p" .
+  hence "p = 0 \<or> is_monomial p" by (rule has_bounded_keys_1_D)
+  thus "is_monomial p"
+  proof
+    assume "p = 0"
+    with \<open>p \<in> A\<close> have "0 \<in> A" by simp
+    with assms(2) show ?thesis ..
+  qed
+qed
 
 context ordered_term
 begin
   
-section \<open>Reduction Modulo Monomials and Binomials\<close>
+subsection \<open>Reduction Modulo Monomials and Binomials\<close>
   
 lemma red_binomial_keys:
   assumes "is_obd c s d t" and red: "red {binomial c s d t} p q"
@@ -205,7 +238,7 @@ lemma trd_has_bounded_keys_set_1:
   shows "trd xs p = p \<or> card (keys (trd xs p)) < card (keys p)"
   using trd_red_rtrancl assms by (rule red_rtrancl_has_bounded_keys_set_1)
   
-section \<open>Functions @{const gb} and \<open>rgb\<close>\<close>
+subsection \<open>Functions @{const gb} and \<open>rgb\<close>\<close>
 
 lemma comp_red_monic_basis_of_gb_is_reduced_GB:
   "is_reduced_GB (set (comp_red_monic_basis (map fst (gb xs ()))))"
@@ -231,7 +264,7 @@ lemma reduced_GB_comp: "reduced_GB (set xs) = set (rgb xs)"
   subgoal by (simp add: rgb_def comp_red_monic_basis_of_gb_pmdl image_image)
   done
 
-subsection \<open>Monomials\<close>
+subsubsection \<open>Monomials\<close>
 
 lemma spoly_monom:
   assumes "c \<noteq> 0" and "d \<noteq> 0"
@@ -378,7 +411,7 @@ proof (simp add: gb_simps Let_def fst_set_drop_indices)
   qed
 qed
 
-subsection \<open>Binomials\<close>
+subsubsection \<open>Binomials\<close>
 
 lemma spoly_binomial_monom:
   fixes tp
@@ -619,7 +652,7 @@ proof (simp add: gb_simps Let_def fst_set_drop_indices)
   qed
 qed
 
-subsection \<open>Mixed Sets\<close>
+subsubsection \<open>Mixed Sets\<close>
 
 lemma gb_red_binomial_monomial_set:
   assumes "\<And>p q. (p, q) \<in> set sps \<Longrightarrow> ((is_monomial (fst p) \<and> is_binomial (fst q)) \<or>
@@ -793,9 +826,9 @@ proof -
   qed
 qed
 
-section \<open>Reduced Gr\"obner Bases\<close>
+subsection \<open>Reduced Gr\"obner Bases\<close>
   
-subsection \<open>Function @{const comp_red_basis}\<close>
+subsubsection \<open>Function @{const comp_red_basis}\<close>
 
 lemma comp_red_basis_aux_has_bounded_keys_set:
   assumes "has_bounded_keys_set n (set (xs @ ys))" and "n \<le> 2"
@@ -926,7 +959,7 @@ proof -
   ultimately show ?thesis by (rule comp_red_basis_aux_binomial_monomial_set_cases) (erule that)+
 qed
   
-subsection \<open>Monicity\<close>
+subsubsection \<open>Monicity\<close>
   
 lemma comp_red_monic_basis_has_bounded_keys_set:
   assumes "has_bounded_keys_set n (set xs)" and "n \<le> 2"
@@ -934,7 +967,7 @@ lemma comp_red_monic_basis_has_bounded_keys_set:
   unfolding set_comp_red_monic_basis
   by (rule image_monic_has_bounded_keys, rule comp_red_basis_has_bounded_keys_set, fact+)
 
-subsection \<open>Monomials\<close>
+subsubsection \<open>Monomials\<close>
 
 lemma comp_red_monic_basis_is_monomial_set:
   assumes "is_monomial_set (set xs)"
@@ -957,7 +990,7 @@ proof -
         simp add: image_image, fact a)
 qed
 
-subsection \<open>Binomials\<close>
+subsubsection \<open>Binomials\<close>
   
 lemma comp_red_monic_basis_is_binomial_set:
   assumes "is_binomial_set (set xs)"
@@ -1029,79 +1062,6 @@ proof -
     thus ?thesis by (rule assms(6))
   qed
 qed
-
-section \<open>Stuff that should be moved into AFP\<close>
-
-lemma reduced_GB_lt_addsD_dgrad_p_set:
-  assumes "dickson_grading d" and "finite (component_of_term ` Keys F)" and "F \<subseteq> dgrad_p_set d m"
-    and "p \<in> pmdl F" and "p \<noteq> 0" and "g \<in> reduced_GB F" and "v \<in> keys g" and "lt p adds\<^sub>t v"
-  shows "v = lt g" and "lt p = lt g"
-proof -
-  let ?G = "reduced_GB F"
-  from assms(1-3) have "is_Groebner_basis ?G" and pmdl: "pmdl ?G = pmdl F" and "is_auto_reduced ?G"
-    by (rule reduced_GB_is_GB_dgrad_p_set, rule reduced_GB_pmdl_dgrad_p_set,
-        rule reduced_GB_is_auto_reduced_dgrad_p_set)
-  note this(1)
-  moreover from assms(4) have "p \<in> pmdl ?G" by (simp only: pmdl)
-  ultimately obtain g' where "g' \<in> ?G" and "g' \<noteq> 0" and 2: "lt g' adds\<^sub>t lt p"
-    using assms(5) by (rule GB_adds_lt)
-  have "g' = g"
-  proof (rule ccontr)
-    assume "g' \<noteq> g"
-    with \<open>g' \<in> ?G\<close> have "g' \<in> ?G - {g}" by simp
-    moreover note \<open>g' \<noteq> 0\<close> assms(7)
-    moreover from 2 assms(8) have "lt g' adds\<^sub>t v" by (rule adds_term_trans)
-    ultimately have "is_red (?G - {g}) g" by (rule is_red_addsI)
-    moreover from \<open>is_auto_reduced ?G\<close> assms(6) have "\<not> is_red (?G - {g}) g" by (rule is_auto_reducedD)
-    ultimately show False by simp
-  qed
-  with 2 have "lt g adds\<^sub>t lt p" by simp
-  hence "lt g \<preceq>\<^sub>t lt p" by (rule ord_adds_term)
-  also from assms(8) have "\<dots> \<preceq>\<^sub>t v" by (rule ord_adds_term)
-  finally have "lt g \<preceq>\<^sub>t v" .
-  also from assms(7) have "\<dots> \<preceq>\<^sub>t lt g" by (rule lt_max_keys)
-  finally show "v = lt g" by (rule sym)
-  with \<open>lt p \<preceq>\<^sub>t v\<close> have "lt p \<preceq>\<^sub>t lt g" by simp
-  thus "lt p = lt g" using \<open>lt g \<preceq>\<^sub>t lt p\<close> by (rule ord_term_lin.antisym)
-qed
-
-corollary reduced_GB_lt_addsD_finite:
-  assumes "finite F" and "p \<in> pmdl F" and "p \<noteq> 0" and "g \<in> reduced_GB F" and "v \<in> keys g"
-    and "lt p adds\<^sub>t v"
-  shows "v = lt g" and "lt p = lt g"
-proof -
-  note dickson_grading_dgrad_dummy
-  moreover from assms(1) have "finite (component_of_term ` Keys F)"
-    by (rule finite_imp_finite_component_Keys)
-  moreover from assms(1) have "F \<subseteq> dgrad_p_set dgrad_dummy (Max (dgrad_dummy ` pp_of_term ` Keys F))"
-    by (rule dgrad_p_set_exhaust_expl)
-  ultimately show "v = lt g" and "lt p = lt g"
-    using assms(2-6) by (rule reduced_GB_lt_addsD_dgrad_p_set)+
-qed
-
-lemma reduced_GB_cases_dgrad_p_set:
-  assumes "dickson_grading d" and "finite (component_of_term ` Keys F)" and "F \<subseteq> dgrad_p_set d m"
-    and "g \<in> reduced_GB F"
-  assumes "\<And>f. f \<in> F \<Longrightarrow> f \<noteq> 0 \<Longrightarrow> lt g = lt f \<Longrightarrow> thesis"
-  assumes "\<not> is_red F g \<Longrightarrow> thesis"
-  shows thesis
-proof (cases "is_red F g")
-  case True
-  then obtain f v where "f \<in> F" and "f \<noteq> 0" and "v \<in> keys g" and 1: "lt f adds\<^sub>t v" by (rule is_red_addsE)
-  from this(1) have "f \<in> pmdl F" by (rule pmdl.span_base)
-  with assms(1-3) have "lt f = lt g"
-    using \<open>f \<noteq> 0\<close> assms(4) \<open>v \<in> keys g\<close> 1 by (rule reduced_GB_lt_addsD_dgrad_p_set)
-  from \<open>f \<in> F\<close> \<open>f \<noteq> 0\<close> this[symmetric] show ?thesis by (rule assms(5))
-next
-  case False
-  thus ?thesis by (rule assms(6))
-qed
-
-corollary reduced_GB_cases_finite:
-  "finite F \<Longrightarrow> g \<in> reduced_GB F \<Longrightarrow> (\<And>f. f \<in> F \<Longrightarrow> f \<noteq> 0 \<Longrightarrow> lt g = lt f \<Longrightarrow> thesis) \<Longrightarrow>
-    (\<not> is_red F g \<Longrightarrow> thesis) \<Longrightarrow> thesis"
-  by (rule reduced_GB_cases_dgrad_p_set, rule dickson_grading_dgrad_dummy,
-      erule finite_imp_finite_component_Keys, erule dgrad_p_set_exhaust_expl)
 
 end (* gd_term *)
 

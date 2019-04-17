@@ -9,76 +9,6 @@ text \<open>Some further general properties of (ordered) multivariate polynomial
   
 section \<open>Further Properties of Multivariate Polynomials\<close>
 
-lemma keys_sum_list_subset: "keys (sum_list ps) \<subseteq> Keys (set ps)"
-proof (induct ps)
-  case Nil
-  show ?case by simp
-next
-  case (Cons p ps)
-  have "keys (sum_list (p # ps)) = keys (p + sum_list ps)" by simp
-  also have "\<dots> \<subseteq> keys p \<union> keys (sum_list ps)" by (fact Poly_Mapping.keys_add)
-  also from Cons have "\<dots> \<subseteq> keys p \<union> Keys (set ps)" by blast
-  also have "\<dots> = Keys (set (p # ps))" by (simp add: Keys_insert)
-  finally show ?case .
-qed
-
-subsection \<open>Multiplication\<close>
-
-lemma (in term_powerprod) lookup_mult_scalar_explicit:
-  "lookup (p \<odot> q) u = (\<Sum>t\<in>keys p. lookup p t * (\<Sum>v\<in>keys q. lookup q v when u = t \<oplus> v))"
-proof -
-  let ?f = "\<lambda>t s. lookup (proj_poly (component_of_term u) q) s when pp_of_term u = t + s"
-  note lookup_mult_scalar
-  also have "lookup (p * proj_poly (component_of_term u) q) (pp_of_term u) =
-              (\<Sum>t. lookup p t * (Sum_any (?f t)))"
-    by (fact lookup_mult)
-  also from finite_keys have "\<dots> = (\<Sum>t\<in>keys p. lookup p t * (Sum_any (?f t)))"
-    by (rule Sum_any.expand_superset) (auto simp: in_keys_iff dest: mult_not_zero)
-  also from refl have "\<dots> = (\<Sum>t\<in>keys p. lookup p t * (\<Sum>v\<in>keys q. lookup q v when u = t \<oplus> v))"
-  proof (rule sum.cong)
-    fix t
-    assume "t \<in> keys p"
-    from finite_keys have "Sum_any (?f t) = (\<Sum>s\<in>keys (proj_poly (component_of_term u) q). ?f t s)"
-      by (rule Sum_any.expand_superset) (auto simp: in_keys_iff)
-    also have "\<dots> = (\<Sum>v\<in>{x \<in> keys q. component_of_term x = component_of_term u}. ?f t (pp_of_term v))"
-      unfolding keys_proj_poly
-    proof (intro sum.reindex[simplified o_def] inj_onI)
-      fix v1 v2
-      assume "v1 \<in> {x \<in> keys q. component_of_term x = component_of_term u}"
-        and "v2 \<in> {x \<in> keys q. component_of_term x = component_of_term u}"
-      hence "component_of_term v1 = component_of_term v2" by simp
-      moreover assume "pp_of_term v1 = pp_of_term v2"
-      ultimately show "v1 = v2" by (metis term_of_pair_pair)
-    qed
-    also from finite_keys have "\<dots> = (\<Sum>v\<in>keys q. lookup q v when u = t \<oplus> v)"
-    proof (intro sum.mono_neutral_cong_left ballI)
-      fix v
-      assume "v \<in> keys q - {x \<in> keys q. component_of_term x = component_of_term u}"
-      hence "u \<noteq> t \<oplus> v" by (auto simp: component_of_term_splus)
-      thus "(lookup q v when u = t \<oplus> v) = 0" by simp
-    next
-      fix v
-      assume "v \<in> {x \<in> keys q. component_of_term x = component_of_term u}"
-      hence eq[symmetric]: "component_of_term v = component_of_term u" by simp
-      have "u = t \<oplus> v \<longleftrightarrow> pp_of_term u = t + pp_of_term v"
-      proof
-        assume "pp_of_term u = t + pp_of_term v"
-        hence "pp_of_term u = pp_of_term (t \<oplus> v)" by (simp only: pp_of_term_splus)
-        moreover have "component_of_term u = component_of_term (t \<oplus> v)"
-          by (simp only: eq component_of_term_splus)
-        ultimately show "u = t \<oplus> v" by (metis term_of_pair_pair)
-      qed (simp add: pp_of_term_splus)
-      thus "?f t (pp_of_term v) = (lookup q v when u = t \<oplus> v)"
-        by (simp add: lookup_proj_poly eq term_of_pair_pair)
-    qed auto
-    finally show "lookup p t * (Sum_any (?f t)) = lookup p t * (\<Sum>v\<in>keys q. lookup q v when u = t \<oplus> v)"
-      by (simp only:)
-  qed
-  finally show ?thesis .
-qed
-
-lemmas lookup_times = punit.lookup_mult_scalar_explicit[simplified]
-
 subsection \<open>Sub-Polynomials\<close>
 
 definition subpoly :: "('a \<Rightarrow>\<^sub>0 'b) \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> bool" (infixl "\<sqsubseteq>" 50)
@@ -230,9 +160,6 @@ definition is_proper_binomial :: "('a \<Rightarrow>\<^sub>0 'b::zero) \<Rightarr
     
 definition binomial :: "'b::comm_monoid_add \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> ('a \<Rightarrow>\<^sub>0 'b)"
   where "binomial c s d t = monomial c s + monomial d t"
-    
-definition is_monomial_set :: "('a \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> bool"
-  where "is_monomial_set A \<longleftrightarrow> (\<forall>p\<in>A. is_monomial p)"
 
 definition is_binomial_set :: "('a \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> bool"
   where "is_binomial_set A \<longleftrightarrow> (\<forall>p\<in>A. is_binomial p)"
@@ -241,18 +168,6 @@ definition is_pbd :: "'b::zero \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> '
   where "is_pbd c s d t \<longleftrightarrow> (c \<noteq> 0 \<and> d \<noteq> 0 \<and> s \<noteq> t)"
 
 text \<open>@{const is_pbd} stands for "is proper binomial data".\<close>
-
-lemma is_monomial_setI: "(\<And>p. p \<in> A \<Longrightarrow> is_monomial p) \<Longrightarrow> is_monomial_set A"
-  by (simp add: is_monomial_set_def)
-
-lemma is_monomial_setD: "is_monomial_set A \<Longrightarrow> p \<in> A \<Longrightarrow> is_monomial p"
-  by (simp add: is_monomial_set_def)
-
-lemma is_monomial_set_subset: "is_monomial_set B \<Longrightarrow> A \<subseteq> B \<Longrightarrow> is_monomial_set A"
-  by (auto simp: is_monomial_set_def)
-
-lemma is_monomial_set_Un: "is_monomial_set (A \<union> B) \<longleftrightarrow> (is_monomial_set A \<and> is_monomial_set B)"
-  by (auto simp: is_monomial_set_def)
     
 lemma is_binomial_setI: "(\<And>p. p \<in> A \<Longrightarrow> is_binomial p) \<Longrightarrow> is_binomial_set A"
   by (simp add: is_binomial_set_def)
@@ -311,35 +226,6 @@ proof -
   next
     assume "card (keys p) = 1 \<or> card (keys p) = 2"
     thus ?thesis ..
-  qed
-qed
-    
-lemma has_bounded_keys_set_1_I1:
-  assumes "is_monomial_set A"
-  shows "has_bounded_keys_set 1 A"
-  unfolding has_bounded_keys_set_def
-proof (intro ballI has_bounded_keys_1_I1)
-  fix p
-  assume "p \<in> A"
-  from assms have "\<forall>p\<in>A. is_monomial p" unfolding is_monomial_set_def .
-  from this[rule_format, OF \<open>p \<in> A\<close>] show "is_monomial p" .
-qed
-    
-lemma has_bounded_keys_set_1_D:
-  assumes "has_bounded_keys_set 1 A" and "0 \<notin> A"
-  shows "is_monomial_set A"
-  unfolding is_monomial_set_def
-proof
-  fix p
-  assume "p \<in> A"
-  from assms(1) have "\<forall>p\<in>A. has_bounded_keys 1 p" unfolding has_bounded_keys_set_def .
-  from this[rule_format, OF \<open>p \<in> A\<close>] have "has_bounded_keys 1 p" .
-  hence "p = 0 \<or> is_monomial p" by (rule has_bounded_keys_1_D)
-  thus "is_monomial p"
-  proof
-    assume "p = 0"
-    with \<open>p \<in> A\<close> have "0 \<in> A" by simp
-    with assms(2) show ?thesis ..
   qed
 qed
   
@@ -555,11 +441,6 @@ proof -
   also from assms(1) have "\<dots> = 2" by (simp only: is_proper_binomial_def)
   finally show ?thesis by (simp only: is_proper_binomial_def)
 qed
-
-subsection \<open>Submodules\<close>
-
-lemma pmdl_closed_sum_list: "(\<And>x. x \<in> set xs \<Longrightarrow> x \<in> pmdl B) \<Longrightarrow> sum_list xs \<in> pmdl B"
-  by (induct xs) (auto intro: pmdl.span_zero pmdl.span_add)
 
 end (* term_powerprod *)
   
@@ -801,29 +682,7 @@ next
   qed
 qed
 
-subsection \<open>Monomials and Binomials\<close>
-
-lemma lt_eq_min_term_monomial:
-  assumes "lt p = min_term"
-  shows "monomial (lc p) min_term = p"
-proof (rule poly_mapping_eqI)
-  fix v
-  from min_term_min[of v] have "v = min_term \<or> min_term \<prec>\<^sub>t v" by auto
-  thus "lookup (monomial (lc p) min_term) v = lookup p v"
-  proof
-    assume "v = min_term"
-    thus ?thesis by (simp add: lookup_single lc_def assms)
-  next
-    assume "min_term \<prec>\<^sub>t v"
-    moreover have "v \<notin> keys p"
-    proof
-      assume "v \<in> keys p"
-      hence "v \<preceq>\<^sub>t lt p" by (rule lt_max_keys)
-      with \<open>min_term \<prec>\<^sub>t v\<close> show False by (simp add: assms)
-    qed
-    ultimately show ?thesis by (simp add: lookup_single in_keys_iff)
-  qed
-qed
+subsection \<open>Binomials\<close>
 
 lemma lt_gr_tt_binomial:
   assumes "is_proper_binomial p"
