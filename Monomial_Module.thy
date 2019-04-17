@@ -58,28 +58,6 @@ proof -
   qed
 qed
 
-lemma (in ordered_term) lt_eq_min_term_monomial:
-  assumes "lt p = min_term"
-  shows "monomial (lc p) min_term = p"
-proof (rule poly_mapping_eqI)
-  fix v
-  from min_term_min[of v] have "v = min_term \<or> min_term \<prec>\<^sub>t v" by auto
-  thus "lookup (monomial (lc p) min_term) v = lookup p v"
-  proof
-    assume "v = min_term"
-    thus ?thesis by (simp add: lookup_single lc_def assms)
-  next
-    assume "min_term \<prec>\<^sub>t v"
-    moreover have "v \<notin> keys p"
-    proof
-      assume "v \<in> keys p"
-      hence "v \<preceq>\<^sub>t lt p" by (rule lt_max_keys)
-      with \<open>min_term \<prec>\<^sub>t v\<close> show False by (simp add: assms)
-    qed
-    ultimately show ?thesis by (simp add: lookup_single in_keys_iff)
-  qed
-qed
-
 subsection \<open>Sets of Monomials\<close>
 
 definition is_monomial_set :: "('a \<Rightarrow>\<^sub>0 'b::zero) set \<Rightarrow> bool"

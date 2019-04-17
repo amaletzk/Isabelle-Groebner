@@ -6,22 +6,6 @@ theory Cone_Decomposition
   imports Groebner_PM Monomial_Module Hilbert_Function
 begin
 
-lemma keys_sum_list_subset: "keys (sum_list ps) \<subseteq> Keys (set ps)"
-proof (induct ps)
-  case Nil
-  show ?case by simp
-next
-  case (Cons p ps)
-  have "keys (sum_list (p # ps)) = keys (p + sum_list ps)" by simp
-  also have "\<dots> \<subseteq> keys p \<union> keys (sum_list ps)" by (fact Poly_Mapping.keys_add)
-  also from Cons have "\<dots> \<subseteq> keys p \<union> Keys (set ps)" by blast
-  also have "\<dots> = Keys (set (p # ps))" by (simp add: Keys_insert)
-  finally show ?case .
-qed
-
-lemma (in term_powerprod) pmdl_closed_sum_list: "(\<And>x. x \<in> set xs \<Longrightarrow> x \<in> pmdl B) \<Longrightarrow> sum_list xs \<in> pmdl B"
-  by (induct xs) (auto intro: pmdl.span_zero pmdl.span_add)
-
 subsection \<open>More Properties of Reduced Gr\"obner Bases\<close>
 
 context pm_powerprod
@@ -1650,7 +1634,7 @@ proof
   show "x \<in> ideal F \<inter> P[X]" unfolding x
   proof
     show "sum_list xs \<in> ideal F"
-    proof (rule punit.pmdl_closed_sum_list[simplified])
+    proof (rule ideal.span_closed_sum_list[simplified])
       fix y
       assume "y \<in> set xs"
       hence "y \<in> ideal F \<inter> P[X]" by (rule 1)
