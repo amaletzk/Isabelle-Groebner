@@ -41,12 +41,12 @@ proof (cases "s adds t")
   thus ?thesis ..
 next
   case False
-  then obtain x where 1: "lookup t x < lookup s x" by (auto simp: adds_pm le_pm_def le_fun_def not_le)
+  then obtain x where 1: "lookup t x < lookup s x" by (auto simp: adds_poly_mapping le_fun_def not_le)
   hence "x \<in> keys s" by (simp add: in_keys_iff)
   also from assms(3) have "\<dots> \<subseteq> X" by (rule PPsD)
   finally have "x \<in> X" .
-  have "t adds s"
-  proof (intro adds_pmI le_pmI)
+  have "t adds s" unfolding adds_poly_mapping le_fun_def
+  proof
     fix y
     show "lookup t y \<le> lookup s y"
     proof (cases "y \<in> keys t")
@@ -333,7 +333,7 @@ next
     from assms(1) \<open>homogeneous g\<close> have "lpp (dehomogenize x g) = except (lpp g) {x}"
       by (rule lp_dehomogenize)
     also from adds have "\<dots> adds except (lpp ?p) {x}"
-      by (simp add: adds_pm le_pm_def le_fun_def lookup_except)
+      by (simp add: adds_poly_mapping le_fun_def lookup_except)
     also from assms(1) homogeneous_homogenize have "\<dots> = lpp (dehomogenize x ?p)"
       by (rule lp_dehomogenize[symmetric])
     finally show "lpp (dehomogenize x g) adds lpp p" by (simp only: p)
@@ -459,7 +459,7 @@ proof -
       have "lpp (restrict_indets g) = restrict_indets_pp (extended_ord.lpp g)"
         by (rule sym, intro extended_ord_lp \<open>None \<notin> indets g\<close>)
       also from adds have "\<dots> adds restrict_indets_pp (extended_ord.lpp (extend_indets p))"
-        by (simp add: adds_pm le_pm_def le_fun_def lookup_restrict_indets_pp)
+        by (simp add: adds_poly_mapping le_fun_def lookup_restrict_indets_pp)
       also have "\<dots> = lpp (restrict_indets (extend_indets p))"
       proof (intro extended_ord_lp notI)
         assume "None \<in> indets (extend_indets p)"

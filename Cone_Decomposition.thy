@@ -654,8 +654,8 @@ proof -
     define qx where "qx = except q .[U]"
     have q: "q = qU + qx" by (simp only: qU_def qx_def add.commute flip: except_decomp)
     have "qU \<in> P[U]" by (rule PolysI) (simp add: qU_def keys_except)
-    have x_adds: "?x adds t" if "t \<in> keys qx" for t
-    proof (intro adds_pmI le_pmI)
+    have x_adds: "?x adds t" if "t \<in> keys qx" for t unfolding adds_poly_mapping le_fun_def
+    proof
       fix y
       show "lookup ?x y \<le> lookup t y"
       proof (cases "y = x")
@@ -724,7 +724,7 @@ proof -
             by (rule lp_times)
           also have "lpp xx = ?x" by (simp add: xx_def punit.lt_monomial)
           finally have "?x adds lpp (qU - qU0)" by (simp add: eq)
-          hence "lookup ?x x \<le> lookup (lpp (qU - qU0)) x" by (simp only: adds_pm le_pm_def le_fun_def)
+          hence "lookup ?x x \<le> lookup (lpp (qU - qU0)) x" by (simp only: adds_poly_mapping le_fun_def)
           hence "x \<in> keys (lpp (qU - qU0))" by (simp add: in_keys_iff lookup_single)
           moreover have "lpp (qU - qU0) \<in> keys (qU - qU0)"
           proof (rule punit.lt_in_keys)
@@ -1937,7 +1937,7 @@ proof (rule set_eqI)
       from this(1) obtain s where "s \<in> S" and f: "f = monomial 1 (s - ?x)" by blast
       from adds have "s - ?x adds t" by (simp add: f punit.lt_monomial)
       hence "s adds ?x + t"
-        by (auto simp: adds_pm le_pm_def le_fun_def lookup_add lookup_minus lookup_single when_def
+        by (auto simp: adds_poly_mapping le_fun_def lookup_add lookup_minus lookup_single when_def
             split: if_splits)
       then obtain s' where t: "?x + t = s + s'" by (rule addsE)
       from \<open>s \<in> S\<close> have "monomial 1 s \<in> monomial 1 ` S" by (rule imageI)

@@ -640,7 +640,7 @@ proof
   from nadds_q0 this(2) have nadds_q: "\<not> lpp f adds lpp q" by simp
   have hom_q: "homogeneous q" by (simp only: q_def homogeneous_hom_component)
   from nadds_q obtain x where x: "\<not> lookup (lpp f) x \<le> lookup (lpp q) x"
-    by (auto simp add: adds_pm le_pm_def le_fun_def)
+    by (auto simp add: adds_poly_mapping le_fun_def)
   obtain y where "y \<in> X" and "y \<noteq> x"
   proof -
     from n_gr_1 have "2 \<le> n" by simp
@@ -687,7 +687,7 @@ proof
       with punit.is_Groebner_basis_singleton obtain g where "g \<in> {f}" and "lpp g adds lpp f1"
         using \<open>f1 \<noteq> 0\<close> by (rule punit.GB_adds_lt[simplified])
       hence "lpp f adds ?t" by (simp add: t)
-      hence "lookup (lpp f) x \<le> lookup ?t x" by (simp add: adds_pm le_pmD)
+      hence "lookup (lpp f) x \<le> lookup ?t x" by (simp add: adds_poly_mapping le_fun_def)
       also have "\<dots> = lookup (lpp q) x" by (simp add: lpp_q' lookup_add lookup_single \<open>y \<noteq> x\<close>)
       finally have "lookup (lpp f) x \<le> lookup (lpp q) x" .
       with x show False ..

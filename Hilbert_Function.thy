@@ -1,7 +1,9 @@
+(* Author: Alexander Maletzky *)
+
 section \<open>Direct Decompositions and Hilbert Functions\<close>
 
 theory Hilbert_Function
-  imports General_Utils MPoly_PM "HOL-Library.Permutation"
+  imports General_Utils Degree_Section "HOL-Library.Permutation"
 begin
 
 subsection \<open>Direct Decompositions\<close>

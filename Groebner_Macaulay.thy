@@ -3,7 +3,7 @@
 section \<open>Computing Gr\"obner Bases by Triangularizing Macaulay Matrices\<close>
 
 theory Groebner_Macaulay
-  imports Groebner_PM Degree_Bound_Utils Groebner_Bases.Macaulay_Matrix
+  imports Groebner_PM Degree_Section Degree_Bound_Utils Groebner_Bases.Macaulay_Matrix
 begin
 
 text \<open>Relationship between Gr\"obner bases and Macaulay matrices, following

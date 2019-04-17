@@ -1,7 +1,7 @@
 section \<open>Power-Products Represented by Polynomial Mappings\<close>
 
 theory Power_Products_PM
-  imports MPoly_PM Fun_Conv
+  imports More_MPoly_PM Fun_Conv
 begin
 
 subsection \<open>Natural and Integer-Valued Polynomial Mappings\<close>
