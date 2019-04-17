@@ -4242,95 +4242,13 @@ proof -
   finally show ?thesis .
 qed
 
-subsection \<open>\<open>varnum_wrt\<close>\<close>
-
-definition varnum_wrt :: "'x set \<Rightarrow> ('x::countable \<Rightarrow>\<^sub>0 'b::zero) \<Rightarrow> nat"
-  where "varnum_wrt X t = (if keys t - X = {} then 0 else Suc (Max (elem_index ` (keys t - X))))"
-
-lemma elem_index_less_varnum_wrt:
-  assumes "x \<in> keys t"
-  obtains "x \<in> X" | "elem_index x < varnum_wrt X t"
-proof (cases "x \<in> X")
-  case True
-  thus ?thesis ..
-next
-  case False
-  with assms have 1: "x \<in> keys t - X" by simp
-  hence "keys t - X \<noteq> {}" by blast
-  hence eq: "varnum_wrt X t = Suc (Max (elem_index ` (keys t - X)))" by (simp add: varnum_wrt_def)
-  hence "elem_index x < varnum_wrt X t" using 1 by (simp add: less_Suc_eq_le)
-  thus ?thesis ..
-qed
-
-lemma varnum_wrt_eq_zero_iff: "varnum_wrt X t = 0 \<longleftrightarrow> t \<in> .[X]"
-  by (auto simp: varnum_wrt_def PPs_def)
-
-lemma varnum_wrt_plus:
-  "varnum_wrt X (s + t) = max (varnum_wrt X s) (varnum_wrt X (t::'x::countable \<Rightarrow>\<^sub>0 'b::ninv_comm_monoid_add))"
-proof (simp add: varnum_wrt_def keys_plus_ninv_comm_monoid_add image_Un Un_Diff del: Diff_eq_empty_iff, intro impI)
-  assume 1: "keys s - X \<noteq> {}" and 2: "keys t - X \<noteq> {}"
-  have "finite (elem_index ` (keys s - X))" by simp
-  moreover from 1 have "elem_index ` (keys s - X) \<noteq> {}" by simp
-  moreover have "finite (elem_index ` (keys t - X))" by simp
-  moreover from 2 have "elem_index ` (keys t - X) \<noteq> {}" by simp
-  ultimately show "Max (elem_index ` (keys s - X) \<union> elem_index ` (keys t - X)) =
-                    max (Max (elem_index ` (keys s - X))) (Max (elem_index ` (keys t - X)))"
-    by (rule Max_Un)
-qed
-
-lemma dickson_grading_varnum_wrt:
-  assumes "finite X"
-  shows "dickson_grading ((varnum_wrt X)::('x::countable \<Rightarrow>\<^sub>0 'b::add_wellorder) \<Rightarrow> nat)"
-  using varnum_wrt_plus
-proof (rule dickson_gradingI)
-  fix m::nat
-  let ?V = "X \<union> {x. elem_index x < m}"
-  have "{t::'x \<Rightarrow>\<^sub>0 'b. varnum_wrt X t \<le> m} \<subseteq> {t. keys t \<subseteq> ?V}"
-  proof (rule, simp, intro subsetI, simp)
-    fix t::"'x \<Rightarrow>\<^sub>0 'b" and x::'x
-    assume "varnum_wrt X t \<le> m"
-    assume "x \<in> keys t"
-    thus "x \<in> X \<or> elem_index x < m"
-    proof (rule elem_index_less_varnum_wrt)
-      assume "x \<in> X"
-      thus ?thesis ..
-    next
-      assume "elem_index x < varnum_wrt X t"
-      hence "elem_index x < m" using \<open>varnum_wrt X t \<le> m\<close> by (rule less_le_trans)
-      thus ?thesis ..
-    qed
-  qed
-  thus "almost_full_on (adds) {t::'x \<Rightarrow>\<^sub>0 'b. varnum_wrt X t \<le> m}"
-  proof (rule almost_full_on_subset)
-    from assms finite_nat_seg have "finite ?V" by (rule finite_UnI)
-    thus "almost_full_on (adds) {t::'x \<Rightarrow>\<^sub>0 'b. keys t \<subseteq> ?V}" by (rule Dickson_poly_mapping)
-  qed
-qed
-
-lemma varnum_wrt_le_iff: "varnum_wrt X t \<le> n \<longleftrightarrow> keys t \<subseteq> X \<union> {x. elem_index x < n}"
-  by (auto simp: varnum_wrt_def Suc_le_eq)
-
-lemma hom_grading_varnum_wrt:
-  "hom_grading ((varnum_wrt X)::('x::countable \<Rightarrow>\<^sub>0 'b::add_wellorder) \<Rightarrow> nat)"
-proof -
-  define f where "f = (\<lambda>n t. (except t (- (X \<union> {x. elem_index x < n})))::'x \<Rightarrow>\<^sub>0 'b)"
-  show ?thesis unfolding hom_grading_def hom_grading_fun_def
-  proof (intro exI allI conjI impI)
-    fix n s t
-    show "f n (s + t) = f n s + f n t" by (simp only: f_def except_plus)
-  next
-    fix n t
-    show "varnum_wrt X (f n t) \<le> n" by (auto simp: varnum_wrt_le_iff keys_except f_def)
-  next
-    fix n t
-    show "varnum_wrt X  t \<le> n \<Longrightarrow> f n t = t" by (auto simp: f_def except_id_iff varnum_wrt_le_iff)
-  qed
-qed
-
-lemma dgrad_set_varnum_wrt: "dgrad_set (varnum_wrt X) 0 = .[X]"
-  by (simp add: dgrad_set_def PPs_def varnum_wrt_eq_zero_iff)
-
 subsection \<open>Locale @{term pm_powerprod}\<close>
+
+lemma varnum_eq_zero_iff: "varnum X t = 0 \<longleftrightarrow> t \<in> .[X]"
+  by (auto simp: varnum_def PPs_def)
+
+lemma dgrad_set_varnum: "dgrad_set (varnum X) 0 = .[X]"
+  by (simp add: dgrad_set_def PPs_def varnum_eq_zero_iff)
 
 context ordered_powerprod
 begin
@@ -4406,8 +4324,8 @@ definition is_hom_ord :: "'x \<Rightarrow> bool"
 lemma is_hom_ordD: "is_hom_ord x \<Longrightarrow> deg_pm s = deg_pm t \<Longrightarrow> s \<preceq> t \<longleftrightarrow> except s {x} \<preceq> except t {x}"
   by (simp add: is_hom_ord_def)
 
-lemma dgrad_p_set_varnum_wrt: "punit.dgrad_p_set (varnum_wrt X) 0 = P[X]"
-  by (simp add: punit.dgrad_p_set_def dgrad_set_varnum_wrt Polys_def)
+lemma dgrad_p_set_varnum: "punit.dgrad_p_set (varnum X) 0 = P[X]"
+  by (simp add: punit.dgrad_p_set_def dgrad_set_varnum Polys_def)
 
 end
 

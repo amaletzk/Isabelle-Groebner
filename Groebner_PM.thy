@@ -11,25 +11,25 @@ context pm_powerprod
 begin
 
 lemmas finite_reduced_GB_Polys =
-  punit.finite_reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  punit.finite_reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum]
 lemmas reduced_GB_is_reduced_GB_Polys =
-  punit.reduced_GB_is_reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  punit.reduced_GB_is_reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum]
 lemmas reduced_GB_is_GB_Polys =
-  punit.reduced_GB_is_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  punit.reduced_GB_is_GB_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum]
 lemmas reduced_GB_is_auto_reduced_Polys =
-  punit.reduced_GB_is_auto_reduced_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  punit.reduced_GB_is_auto_reduced_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum]
 lemmas reduced_GB_is_monic_set_Polys =
-  punit.reduced_GB_is_monic_set_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  punit.reduced_GB_is_monic_set_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum]
 lemmas reduced_GB_nonzero_Polys =
-  punit.reduced_GB_nonzero_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  punit.reduced_GB_nonzero_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum]
 lemmas reduced_GB_ideal_Polys =
-  punit.reduced_GB_pmdl_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  punit.reduced_GB_pmdl_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum]
 lemmas reduced_GB_unique_Polys =
-  punit.reduced_GB_unique_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  punit.reduced_GB_unique_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum]
 lemmas reduced_GB_Polys =
-  punit.reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  punit.reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum]
 lemmas ideal_eq_UNIV_iff_reduced_GB_eq_one_Polys =
-  ideal_eq_UNIV_iff_reduced_GB_eq_one_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  ideal_eq_UNIV_iff_reduced_GB_eq_one_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum]
 
 subsection \<open>Univariate Polynomials\<close>
 
@@ -279,7 +279,7 @@ lemma isGB_dehomogenize:
   assumes "is_hom_ord x" and "finite X" and "G \<subseteq> P[X]" and "punit.is_Groebner_basis G"
     and "\<And>g. g \<in> G \<Longrightarrow> homogeneous g"
   shows "punit.is_Groebner_basis (dehomogenize x ` G)"
-  using dickson_grading_varnum_wrt
+  using dickson_grading_varnum
 proof (rule punit.isGB_I_adds_lt[simplified])
   from assms(2) show "finite (X - {x})" by simp
 next
@@ -294,8 +294,8 @@ next
     also from \<open>indets g' \<subseteq> X\<close> subset_refl have "\<dots> \<subseteq> X - {x}" by (rule Diff_mono)
     finally show "g \<in> P[X - {x}]" by (rule PolysI_alt)
   qed
-  thus "dehomogenize x ` G \<subseteq> punit.dgrad_p_set (varnum_wrt (X - {x})) 0"
-    by (simp only: dgrad_p_set_varnum_wrt)
+  thus "dehomogenize x ` G \<subseteq> punit.dgrad_p_set (varnum (X - {x})) 0"
+    by (simp only: dgrad_p_set_varnum)
 next
   fix p
   assume "p \<in> ideal (dehomogenize x ` G)"
@@ -309,8 +309,8 @@ next
   finally have "p' \<in> ideal G" .
   with assms(5) have "homogenize x p' \<in> ideal G" (is "?p \<in> _") by (rule homogeneous_ideal_homogenize)
 
-  assume "p \<in> punit.dgrad_p_set (varnum_wrt (X - {x})) 0"
-  hence "p \<in> P[X - {x}]" by (simp only: dgrad_p_set_varnum_wrt)
+  assume "p \<in> punit.dgrad_p_set (varnum (X - {x})) 0"
+  hence "p \<in> P[X - {x}]" by (simp only: dgrad_p_set_varnum)
   hence "indets p \<subseteq> X - {x}" by (rule PolysD)
   hence "x \<notin> indets p" by blast
   have "p = dehomogenize x p" by (rule sym) (simp add: \<open>x \<notin> indets p\<close>)
@@ -412,10 +412,10 @@ proof -
     finally show "g \<in> P[X]" by (rule PolysI_alt)
   qed
 
-  from dickson_grading_varnum_wrt show ?thesis1
+  from dickson_grading_varnum show ?thesis1
   proof (rule punit.isGB_I_adds_lt[simplified])
-    from \<open>?thesis3\<close> show "restrict_indets ` ?G \<subseteq> punit.dgrad_p_set (varnum_wrt X) 0"
-      by (simp only: dgrad_p_set_varnum_wrt)
+    from \<open>?thesis3\<close> show "restrict_indets ` ?G \<subseteq> punit.dgrad_p_set (varnum X) 0"
+      by (simp only: dgrad_p_set_varnum)
   next
     fix p :: "('a \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'b"
     assume "p \<noteq> 0"
@@ -425,8 +425,8 @@ proof -
     also have "\<dots> = ideal (dehomogenize None ` ?G)"
       by (simp only: image_comp extend_indets_comp_restrict_indets)
     finally have p_in_ideal: "extend_indets p \<in> ideal (dehomogenize None ` ?G)" .
-    assume "p \<in> punit.dgrad_p_set (varnum_wrt X) 0"
-    hence "p \<in> P[X]" by (simp only: dgrad_p_set_varnum_wrt)
+    assume "p \<in> punit.dgrad_p_set (varnum X) 0"
+    hence "p \<in> P[X]" by (simp only: dgrad_p_set_varnum)
     have "extended_ord.punit.is_Groebner_basis (dehomogenize None ` ?G)"
       using extended_ord_is_hom_ord \<open>finite (insert None (Some ` X))\<close> G_sub
     proof (rule extended_ord.isGB_dehomogenize)

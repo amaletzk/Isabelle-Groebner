@@ -824,9 +824,9 @@ proof -
                           (\<exists>l::rat. of_nat_pm (s + t) = of_nat_pm (tpp g) + l \<cdot> vect h1))}"
   obtain q1 q2 where "(q1, q2) \<in> A" and Q_min: "\<And>q1' q2'. (q1', q2') \<in> A \<Longrightarrow> lpp q1 \<preceq> lpp q1'"
   proof -
-    from \<open>finite X\<close> have "wfp_on (\<prec>) {x. varnum_wrt X x \<le> 0}"
-      by (intro wfp_on_ord_strict dickson_grading_varnum_wrt)
-    hence "wfp_on (\<prec>) .[X]" by (simp only: varnum_wrt_le_iff) (simp add: PPs_def)
+    from \<open>finite X\<close> have "wfp_on (\<prec>) {x. varnum X x \<le> 0}"
+      by (intro wfp_on_ord_strict dickson_grading_varnum)
+    hence "wfp_on (\<prec>) .[X]" by (simp only: varnum_le_iff) (simp add: PPs_def)
     moreover have "lpp (fst (q1', q2')) \<in> lpp ` fst ` A"
     proof (intro imageI)
       have "q1' \<in> P[X]" and "q2' \<in> P[X]" by (auto intro: PolysI_alt simp: X_def)

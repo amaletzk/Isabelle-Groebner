@@ -242,8 +242,8 @@ sublocale gd_term ..
 definition PolysV :: "'x set \<Rightarrow> ('t \<Rightarrow>\<^sub>0 'b::zero) set"
   where "PolysV X = {p. pp_of_term ` keys p \<subseteq> .[X]}"
 
-lemma dgrad_p_set_varnum_wrt_PolysV: "dgrad_p_set (varnum_wrt X) 0 = PolysV X"
-  by (simp add: dgrad_p_set_def dgrad_set_varnum_wrt PolysV_def)
+lemma dgrad_p_set_varnum_PolysV: "dgrad_p_set (varnum X) 0 = PolysV X"
+  by (simp add: dgrad_p_set_def dgrad_set_varnum PolysV_def)
 
 context
   fixes Y :: "'x set"
@@ -291,16 +291,16 @@ qed
 lemma pmdl_Int_PolysV_dgrad_p_set:
   assumes "dickson_grading d" and "G \<subseteq> dgrad_p_set d m" and "is_Groebner_basis G"
   shows "pmdl (G \<inter> PolysV Y) = pmdl (pmdl G \<inter> PolysV Y)"
-  using dickson_grading_varnum_wrt[OF fin]
+  using dickson_grading_varnum[OF fin]
 proof (rule pmdl_eqI_adds_lt_dgrad_p_set)
-  show "G \<inter> PolysV Y \<subseteq> dgrad_p_set (varnum_wrt Y) 0"
-    and "pmdl G \<inter> PolysV Y \<subseteq> dgrad_p_set (varnum_wrt Y) 0" by (simp_all add: dgrad_p_set_varnum_wrt_PolysV)
+  show "G \<inter> PolysV Y \<subseteq> dgrad_p_set (varnum Y) 0"
+    and "pmdl G \<inter> PolysV Y \<subseteq> dgrad_p_set (varnum Y) 0" by (simp_all add: dgrad_p_set_varnum_PolysV)
 next
   show "pmdl (G \<inter> PolysV Y) \<subseteq> pmdl (pmdl G \<inter> PolysV Y)" by (auto intro!: pmdl.span_base pmdl.span_mono)
 next
   fix f :: "'t \<Rightarrow>\<^sub>0 'a"
-  assume "f \<in> dgrad_p_set (varnum_wrt Y) 0"
-  hence "f \<in> PolysV Y" by (simp only: dgrad_p_set_varnum_wrt_PolysV)
+  assume "f \<in> dgrad_p_set (varnum Y) 0"
+  hence "f \<in> PolysV Y" by (simp only: dgrad_p_set_varnum_PolysV)
   assume "f \<in> pmdl (pmdl G \<inter> PolysV Y)" and "f \<noteq> 0"
   with assms \<open>f \<in> PolysV Y\<close> show "\<exists>g\<in>G \<inter> PolysV Y. g \<noteq> 0 \<and> lt g adds\<^sub>t lt f"
     by (rule ex_pmdl_Int_PolysV_adds_lt)
@@ -309,14 +309,14 @@ qed
 lemma Int_PolysV_isGB_dgrad_p_set:
   assumes "dickson_grading d" and "G \<subseteq> dgrad_p_set d m" and "is_Groebner_basis G"
   shows "is_Groebner_basis (G \<inter> PolysV Y)"
-  using dickson_grading_varnum_wrt[OF fin]
+  using dickson_grading_varnum[OF fin]
 proof (rule isGB_I_adds_lt)
-  show "G \<inter> PolysV Y \<subseteq> dgrad_p_set (varnum_wrt Y) 0" by (simp add: dgrad_p_set_varnum_wrt_PolysV)
+  show "G \<inter> PolysV Y \<subseteq> dgrad_p_set (varnum Y) 0" by (simp add: dgrad_p_set_varnum_PolysV)
 next
   fix f::"'t \<Rightarrow>\<^sub>0 'a"
   assume "f \<noteq> 0"
-  assume "f \<in> dgrad_p_set (varnum_wrt Y) 0"
-  hence "f \<in> PolysV Y" by (simp only: dgrad_p_set_varnum_wrt_PolysV)
+  assume "f \<in> dgrad_p_set (varnum Y) 0"
+  hence "f \<in> PolysV Y" by (simp only: dgrad_p_set_varnum_PolysV)
   assume "f \<in> pmdl (G \<inter> PolysV Y)"
   also have "\<dots> \<subseteq> pmdl (pmdl G \<inter> PolysV Y)" by (auto intro!: pmdl.span_base pmdl.span_mono)
   finally have "f \<in> pmdl (pmdl G \<inter> PolysV Y)" .
@@ -325,9 +325,9 @@ next
 qed
 
 lemmas pmdl_Int_PolysV_PolysV =
-  pmdl_Int_PolysV_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt_PolysV]
+  pmdl_Int_PolysV_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum_PolysV]
 lemmas Int_PolysV_isGB_PolysV =
-  Int_PolysV_isGB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt_PolysV]
+  Int_PolysV_isGB_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum_PolysV]
 
 lemmas pmdl_Int_PolysV_finite =
   pmdl_Int_PolysV_dgrad_p_set[OF dickson_grading_dgrad_dummy dgrad_p_set_exhaust_expl]

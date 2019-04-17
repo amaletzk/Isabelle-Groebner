@@ -1295,8 +1295,8 @@ proof -
           from assms(2) show "hom_deg_set z A \<subseteq> P[X]" by (rule Polys_closed_hom_deg_set)
         qed blast
         ultimately obtain p where "p \<in> ?B" and p_min: "\<And>q. punit.ord_strict_p q p \<Longrightarrow> q \<notin> ?B"
-          by (rule punit.ord_p_minimum_dgrad_p_set[OF dickson_grading_varnum_wrt, where m=0,
-                    simplified dgrad_p_set_varnum_wrt]) blast
+          by (rule punit.ord_p_minimum_dgrad_p_set[OF dickson_grading_varnum, where m=0,
+                    simplified dgrad_p_set_varnum]) blast
         from this(1) have "p \<in> hom_deg_set z A" and "p \<notin> phull.span B" by simp_all
         from phull.span_zero this(2) have "p \<noteq> 0" by blast
         with \<open>p \<in> hom_deg_set z A\<close> have "p \<in> hom_deg_set z A - {0}" by simp

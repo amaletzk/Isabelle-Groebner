@@ -617,8 +617,8 @@ proof
     hence adds: "lpp f adds lpp q" if "q \<in> ideal F" and "q \<in> P[X]" and "q \<noteq> 0" for q
       using that by blast
     from fin_X _ F_sub have "ideal {f} = ideal F"
-    proof (rule punit.pmdl_eqI_adds_lt_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt,
-          where m=0, simplified dgrad_p_set_varnum_wrt])
+    proof (rule punit.pmdl_eqI_adds_lt_dgrad_p_set[simplified, OF dickson_grading_varnum,
+          where m=0, simplified dgrad_p_set_varnum])
       from f_in_Polys show "{f} \<subseteq> P[X]" by simp
     next
       from f_in have "{f} \<subseteq> F" by simp

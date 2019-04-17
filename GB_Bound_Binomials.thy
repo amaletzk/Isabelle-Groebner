@@ -113,8 +113,8 @@ proof (rule gb_problemI)
     have "finite ?X" by (simp add: finite_indets)
     moreover have "{f1, f2} \<subseteq> P[?X]" by (auto intro: PolysI_alt)
     ultimately have "?G \<subseteq> P[?X]"
-      by (rule punit.reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0,
-                                          simplified dgrad_p_set_varnum_wrt])
+      by (rule punit.reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0,
+                                          simplified dgrad_p_set_varnum])
     moreover assume "g \<in> ?G"
     ultimately have "g \<in> P[?X]" ..
     hence "indets g \<subseteq> ?X" by (rule PolysD)
@@ -202,8 +202,8 @@ proof -
       have "finite ?X" by (simp add: finite_indets)
       moreover have "{f1, f2} \<subseteq> P[?X]" by (auto intro: PolysI_alt)
       ultimately have "?G \<subseteq> P[?X]"
-        by (rule punit.reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0,
-                                            simplified dgrad_p_set_varnum_wrt])
+        by (rule punit.reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0,
+                                            simplified dgrad_p_set_varnum])
       with Diff_subset have "?G - ?H \<subseteq> P[?X]" by (rule subset_trans)
       moreover have "{f1, f2} \<subseteq> P[?X]" by (auto intro: PolysI_alt)
       ultimately have "G \<subseteq> P[?X]" by (simp add: G_def)

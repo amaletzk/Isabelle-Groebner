@@ -12,13 +12,13 @@ context pm_powerprod
 begin
 
 lemmas reduced_GB_subset_monic_Polys =
-  punit.reduced_GB_subset_monic_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  punit.reduced_GB_subset_monic_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum]
 lemmas reduced_GB_is_monomial_set_Polys =
-  punit.reduced_GB_is_monomial_set_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  punit.reduced_GB_is_monomial_set_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum]
 lemmas is_red_reduced_GB_monomial_lt_GB_Polys =
-  punit.is_red_reduced_GB_monomial_lt_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  punit.is_red_reduced_GB_monomial_lt_GB_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum]
 lemmas reduced_GB_monomial_lt_reduced_GB_Polys =
-  punit.reduced_GB_monomial_lt_reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt]
+  punit.reduced_GB_monomial_lt_reduced_GB_dgrad_p_set[simplified, OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum]
 
 end
 
@@ -227,7 +227,7 @@ lemma Polys_closed_normal_form:
 proof -
   from fin_X F_sub have "punit.reduced_GB F \<subseteq> P[X]" by (rule reduced_GB_Polys)
   with fin_X show ?thesis using assms normal_form(1)
-    by (rule punit.dgrad_p_set_closed_red_rtrancl[OF dickson_grading_varnum_wrt, where m=0, simplified dgrad_p_set_varnum_wrt])
+    by (rule punit.dgrad_p_set_closed_red_rtrancl[OF dickson_grading_varnum, where m=0, simplified dgrad_p_set_varnum])
 qed
 
 lemma image_normal_form_iff:

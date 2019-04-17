@@ -688,8 +688,8 @@ proof -
       by (simp only: ideal_G image_poly_eval_focus_ideal)
     finally have eq3: "ideal G3 \<inter> P[- {x}] = ideal (?e ` focus {x} ` F) \<inter> P[- {x}]" .
     from assms(1) \<open>G3 \<subseteq> P[X]\<close> \<open>finite G3\<close> have G3_isGB: "i.punit.is_Groebner_basis G3"
-    proof (rule i.punit.isGB_I_spoly_rep[simplified, OF dickson_grading_varnum_wrt,
-                                          where m=0, simplified i.dgrad_p_set_varnum_wrt])
+    proof (rule i.punit.isGB_I_spoly_rep[simplified, OF dickson_grading_varnum,
+                                          where m=0, simplified i.dgrad_p_set_varnum])
       fix g1 g2
       assume "g1 \<in> G3"
       then obtain g1' where "g1' \<in> G" and g1: "g1 = ?e (focus {x} g1')"
@@ -743,8 +743,8 @@ proof -
       with \<open>finite (insert x X)\<close> G_sub fin_G \<open>s \<in> P[_]\<close>
       obtain q0 where 1: "s = 0 + (\<Sum>g\<in>G. q0 g * g)" and 2: "\<And>g. q0 g \<in> P[insert x X]"
         and 3: "\<And>g. lex_pm (i.lpp (q0 g * g)) (i.lpp s)"
-        by (rule i.punit.red_rtrancl_repE[simplified, OF dickson_grading_varnum_wrt, where m=0,
-                                            simplified i.dgrad_p_set_varnum_wrt]) blast
+        by (rule i.punit.red_rtrancl_repE[simplified, OF dickson_grading_varnum, where m=0,
+                                            simplified i.dgrad_p_set_varnum]) blast
 
       define q where "q = (\<lambda>g. inverse c \<cdot> (\<Sum>h\<in>{y\<in>G. ?e (focus {x} y) = g}. ?e (focus {x} (q0 h))))"
 
@@ -781,9 +781,9 @@ proof -
         by (intro sum.cong refl) (simp add: map_scale_eq_times sum_distrib_left sum_distrib_right mult.assoc)
       also from refl have "\<dots> = (\<Sum>g\<in>G3. q g * g)" by (rule sum.cong) (simp add: q_def sum_distrib_right)
       finally have "i.punit.spoly g1 g2 = (\<Sum>g\<in>G3. q g * g)" .
-      thus "i.punit.spoly_rep (varnum_wrt X) 0 G3 g1 g2"
-      proof (rule i.punit.spoly_repI[simplified, where m=0 and d="varnum_wrt X",
-                                        simplified i.dgrad_p_set_varnum_wrt])
+      thus "i.punit.spoly_rep (varnum X) 0 G3 g1 g2"
+      proof (rule i.punit.spoly_repI[simplified, where m=0 and d="varnum X",
+                                        simplified i.dgrad_p_set_varnum])
         fix g
         show "q g \<in> P[X]" unfolding q_def
         proof (intro Polys_closed_map_scale Polys_closed_sum)
