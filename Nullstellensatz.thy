@@ -364,6 +364,26 @@ proof
   show "\<surd>\<surd>F \<subseteq> \<surd>F" by (auto elim!: radicalE intro: radicalI simp flip: power_mult)
 qed (fact radical_superset)
 
+lemma radical_Int_subset: "\<surd>(A \<inter> B) \<subseteq> \<surd>A \<inter> \<surd>B"
+  by (auto intro: radicalI elim: radicalE)
+
+lemma radical_ideal_Int: "\<surd>(ideal F \<inter> ideal G) = \<surd>ideal F \<inter> \<surd>ideal G"
+  using radical_Int_subset
+proof (rule subset_antisym)
+  show "\<surd>ideal F \<inter> \<surd>ideal G \<subseteq> \<surd>(ideal F \<inter> ideal G)"
+  proof
+    fix p
+    assume "p \<in> \<surd>ideal F \<inter> \<surd>ideal G"
+    hence "p \<in> \<surd>ideal F" and "p \<in> \<surd>ideal G" by simp_all
+    from this(1) obtain m1 where p1: "p ^ m1 \<in> ideal F" by (rule radicalE)
+    from \<open>p \<in> \<surd>ideal G\<close> obtain m2 where "p ^ m2 \<in> ideal G" by (rule radicalE)
+    hence "p ^ m1 * p ^ m2 \<in> ideal G" by (rule ideal.span_scale)
+    moreover from p1 have "p ^ m2 * p ^ m1 \<in> ideal F" by (rule ideal.span_scale)
+    ultimately have "p ^ (m1 + m2) \<in> ideal F \<inter> ideal G" by (simp add: power_add mult.commute)
+    thus "p \<in> \<surd>(ideal F \<inter> ideal G)" by (rule radicalI)
+  qed
+qed
+
 lemma ideal_radical_ideal [simp]: "ideal (\<surd>ideal F) = \<surd>ideal F" (is "_ = ?R")
   unfolding ideal.span_eq_iff
 proof (rule ideal.subspaceI)
