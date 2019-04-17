@@ -3910,8 +3910,9 @@ proof -
   moreover have "A \<inter> Y = {}" by (auto simp: A_def Y_def)
   ultimately have "card (A \<union> Y) = card A + card Y" by (rule card_Un_disjoint)
   with assms(2) have "1 < card A + card Y" by (simp only: B')
-  moreover have "card Y \<le> 1"
-  proof (rule card_le_1I)
+  thm card_le_Suc0_iff_eq[OF \<open>finite Y\<close>]
+  moreover have "card Y \<le> 1" unfolding One_nat_def card_le_Suc0_iff_eq[OF \<open>finite Y\<close>]
+  proof (intro ballI)
     fix q1 q2 :: "(('x \<Rightarrow>\<^sub>0 nat) \<Rightarrow>\<^sub>0 'a) \<times> 'x set"
     obtain h1 U1 where q1: "q1 = (h1, U1)" using prod.exhaust by blast
     obtain h2 U2 where q2: "q2 = (h2, U2)" using prod.exhaust by blast
@@ -4597,7 +4598,7 @@ proof -
     moreover note \<open>card ?C \<le> 1\<close>
     moreover from 1 3 4 have "(h1, U1) \<in> ?C" by simp
     moreover from 2 5 have "(h2, U2) \<in> ?C" by simp
-    ultimately show "(h1, U1) = (h2, U2)" by (rule card_le_1D)
+    ultimately show "(h1, U1) = (h2, U2)" by (auto simp: card_le_Suc0_iff_eq)
   qed
 qed
 
