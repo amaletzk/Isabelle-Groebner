@@ -3,7 +3,7 @@
 section \<open>Polynomial Mappings and Univariate Polynomials\<close>
 
 theory Univariate_PM
-  imports "HOL-Computational_Algebra.Polynomial" MPoly_PM
+  imports "HOL-Computational_Algebra.Polynomial" Polynomials.MPoly_PM
 begin
 
 subsection \<open>Morphisms \<open>pm_of_poly\<close> and \<open>poly_of_pm\<close>\<close>

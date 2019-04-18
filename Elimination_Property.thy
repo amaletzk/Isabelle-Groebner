@@ -3,7 +3,7 @@
 section \<open>Elimination Property\<close>
 
 theory Elimination_Property
-  imports Lex_Order_PP MPoly_PM Groebner_Bases.Syzygy
+  imports Lex_Order_PP Polynomials.MPoly_PM Groebner_Bases.Syzygy
 begin
 
 text \<open>We prove the so-called \<^emph>\<open>elimination property\<close> of Gr\"obner bases: Roughly, if \<open>G\<close> is a

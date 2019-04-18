@@ -1,7 +1,7 @@
 section \<open>Multiplication by Binomials\<close>
 
 theory Binom_Mult
-  imports MPoly_PM Poly_Utils
+  imports Polynomials.MPoly_PM Poly_Utils
 begin
 
 context ordered_powerprod

@@ -3,7 +3,7 @@
 section \<open>More Stuff about Multivariate Polynomials with Power-Products Represented by Polynomial Mappings\<close>
 
 theory More_MPoly_PM
-  imports MPoly_PM
+  imports Polynomials.MPoly_PM
 begin
 
 subsection \<open>Order relation on polynomial mappings\<close>

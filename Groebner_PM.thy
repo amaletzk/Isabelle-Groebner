@@ -1,7 +1,7 @@
 (* Author: Alexander Maletzky *)
 
 theory Groebner_PM
-  imports MPoly_PM Groebner_Bases.Reduced_GB
+  imports Polynomials.MPoly_PM Groebner_Bases.Reduced_GB
 begin
 
 text \<open>We prove results that hold specifically for Gr\"obner bases in polynomial rings, where the

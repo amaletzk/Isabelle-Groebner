@@ -3,7 +3,7 @@
 section \<open>Degree Sections of Power-Products\<close>
 
 theory Degree_Section
-  imports MPoly_PM
+  imports Polynomials.MPoly_PM
 begin
 
 definition deg_sect :: "'x set \<Rightarrow> nat \<Rightarrow> ('x::countable \<Rightarrow>\<^sub>0 nat) set"
