@@ -7,7 +7,7 @@ theory Nullstellensatz
           "HOL-Computational_Algebra.Fraction_Field"
           Lex_Order_PP
           Univariate_PM
-          Groebner_PM
+          Groebner_Bases.Groebner_PM
 begin
 
 text \<open>We prove the geometric version of Hilbert's Nullstellensatz, i.e. the precise correspondence

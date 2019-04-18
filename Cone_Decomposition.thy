@@ -3,7 +3,7 @@
 section \<open>Cone Decompositions\<close>
 
 theory Cone_Decomposition
-  imports Groebner_PM Monomial_Module Hilbert_Function
+  imports Groebner_Bases.Groebner_PM Monomial_Module Hilbert_Function
 begin
 
 subsection \<open>More Properties of Reduced Gr\"obner Bases\<close>

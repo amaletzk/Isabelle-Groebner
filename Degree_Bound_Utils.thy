@@ -3,7 +3,7 @@
 section \<open>Utility Definitions and Lemmas about Degree Bounds for Gr\"obner Bases\<close>
 
 theory Degree_Bound_Utils
-  imports Groebner_PM
+  imports Groebner_Bases.Groebner_PM
 begin
 
 context pm_powerprod
