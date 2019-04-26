@@ -1,8 +1,8 @@
 (* Author: Alexander Maletzky *)
 
-section \<open>Degree-Bounds for Computing Gr\"obner Bases via Macaulay Matrices\<close>
+section \<open>Sample Computations of Gr\"obner Bases via Macaulay Matrices\<close>
 
-theory Groebner_Macaulay_Bounds
+theory Groebner_Macaulay_Examples
   imports Groebner_Macaulay Dube_Bound
 begin
 
