@@ -217,6 +217,14 @@ proof -
   qed
 qed
 
+lemma is_GB_cofactor_boundI_subset_zero:
+  assumes "F \<subseteq> {0}"
+  shows "is_GB_cofactor_bound F b"
+  using punit.is_Groebner_basis_empty
+proof (rule is_GB_cofactor_boundI)
+  from assms show "ideal {} = ideal F" by (metis ideal.span_empty ideal_eq_zero_iff)
+qed simp_all
+
 lemma is_hom_GB_boundI:
   "(\<And>g. (\<And>f. f \<in> F \<Longrightarrow> homogeneous f) \<Longrightarrow> g \<in> punit.reduced_GB F \<Longrightarrow> poly_deg g \<le> b) \<Longrightarrow> is_hom_GB_bound F b"
   unfolding is_hom_GB_bound_def by blast
